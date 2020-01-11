@@ -1,0 +1,127 @@
+
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+BOX_CODER: ResidualCoder
+
+DATA_CONFIG:
+    FOV_POINTS_ONLY: True
+    NUM_POINT_FEATURES: {
+        'total': 4,
+        'use': 4
+    }
+    POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1]
+    MASK_POINTS_BY_RANGE: True
+
+    TRAIN:
+        INFO_PATH: [
+            data/kitti/kitti_infos_train.pkl
+        ]
+        SHUFFLE_POINTS: True
+        MAX_NUMBER_OF_VOXELS: 40000
+
+    TEST:
+        INFO_PATH: [
+            data/kitti/kitti_infos_val.pkl
+        ]
+        SHUFFLE_POINTS: False
+        MAX_NUMBER_OF_VOXELS: 16000
+
+    AUGMENTATION:
+        NOISE_PER_OBJECT:
+            ENABLED: True
+            GT_LOC_NOISE_STD: [1.0, 1.0, 0.1]
+            GT_ROT_UNIFORM_NOISE: [-0.78539816, 0.78539816]
+        NOISE_GLOBAL_SCENE:
+            ENABLED: True
+            GLOBAL_ROT_UNIFORM_NOISE: [-0.78539816, 0.78539816]
+            GLOBAL_SCALING_UNIFORM_NOISE: [0.95, 1.05]
+        DB_SAMPLER:
+            ENABLED: True
+            DB_INFO_PATH: [
+                data/kitti/kitti_dbinfos_train.pkl
+            ]
+            PREPARE:
+                filter_by_difficulty: [-1]
+                filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5']
+            RATE: 1.0
+            SAMPLE_GROUPS: ['Car:15','Pedestrian:0', 'Cyclist:10']
+            USE_ROAD_PLANE: False
+
+    VOXEL_GENERATOR:
+        MAX_POINTS_PER_VOXEL: 5
+        VOXEL_SIZE: [0.05, 0.05, 0.1]
+
+
+TARGET_ASSIGNER:
+    GT_EXTEND_WIDTH: 0.2
+
+    ANCHOR_GENERATOR: [
+        {'anchor_range': [0, -40.0, -1.78, 70.4, 40.0, -1.78],
+         'sizes': [[1.6, 3.9, 1.56]],
+         'rotations': [0, 1.57],
+         'matched_threshold': 0.6,
+         'unmatched_threshold': 0.45,
+         'class_name': 'Car'},
+        {'anchor_range': [0, -40, -0.6, 70.4, 40, -0.6],
+         'sizes': [[0.6, 0.8, 1.73]],
+         'rotations': [0, 1.57],
+         'matched_threshold': 0.5,
+         'unmatched_threshold': 0.35,
+         'class_name': 'Pedestrian'},
+        {'anchor_range': [0, -40, -0.6, 70.4, 40, -0.6],
+         'sizes': [[0.6, 1.76, 1.73]],
+         'rotations': [0, 1.57],
+         'matched_threshold': 0.5,
+         'unmatched_threshold': 0.35,
+         'class_name': 'Cyclist'},
+    ]
+    REGION_SIMILARITY_FN: nearest_iou_similarity
+    SAMPLE_POS_FRACTION: -1.0
+    SAMPLE_SIZE: 512
+
+
+MODEL:
+    VFE:
+        NAME: MeanVoxelFeatureExtractor
+        OUTPUT_FEATURES:
+
+    RPN:
+        BACKBONE:
+            NAME: UNetV2
+            NUM_POINT_FEATURES: 16
+            SEG_MASK_SCORE_THRESH: 0.3
+            ARGS: {}
+
+        RPN_HEAD:
+            NAME: RPNV2
+            DOWNSAMPLE_FACTOR: 8
+            ARGS: {
+                'num_input_features': 256,
+                'layer_nums': [5, 5],
+                'layer_strides': [1, 2],
+                'num_filters': [128, 256],
+                'upsample_strides': [1, 2],
+                'num_upsample_filters': [256, 256],
+                'encode_background_as_zeros': True,
+                'use_direction_classifier': True,
+                'num_direction_bins': 2
+            }
+
+    RCNN:
+        ENABLED: True
+        ROI_AWARE_POOL_SIZE: 14
+        SHARED_FC: [256, 512, 512, 512]
+        DP_RATIO: 0.1
+
+        TRAINING_CONFIG:
+            
+
+
+
+
+    LOSSES:
+        RPN_REG_LOSS: smooth-l1
+
+        LOSS_WEIGHTS: {
+
+            'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        }
