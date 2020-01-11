@@ -147,8 +147,8 @@ class DatasetTemplate(torch_data.Dataset):
             gt_boxes = np.concatenate((gt_boxes, gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
 
             example.update({
-                'labels': targets_dict['labels'],
-                'reg_targets': targets_dict['bbox_targets'],
+                'box_cls_labels': targets_dict['labels'],
+                'box_reg_targets': targets_dict['bbox_targets'],
                 'reg_src_targets': targets_dict['bbox_src_targets'],
                 'reg_weights': targets_dict['bbox_outside_weights'],
                 'gt_boxes': gt_boxes

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ...config import cfg
-from ..utils import Empty
+from ..model_utils import Empty
 
 
 class MeanVoxelFeatureExtractor(nn.Module):
@@ -13,7 +13,7 @@ class MeanVoxelFeatureExtractor(nn.Module):
     def get_output_feature_dim():
         return cfg.DATA_CONFIG.NUM_POINT_FEATURES['use']
 
-    def forward(self, features, num_voxels):
+    def forward(self, features, num_voxels, **kwargs):
         # features: (N, max_points_of_each_voxel, 3 + C)
         # num_voxels: (N)
         points_mean = features[:, :, :4].sum(dim=1, keepdim=False) / num_voxels.type_as(features).view(-1, 1)

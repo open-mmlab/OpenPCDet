@@ -3,7 +3,7 @@ import torch.nn as nn
 import spconv
 from functools import partial
 
-from ..utils.resnet_utils import SparseBasicBlock
+from ..model_utils.resnet_utils import SparseBasicBlock
 from ...config import cfg
 
 
@@ -82,7 +82,7 @@ class UNetV2(nn.Module):
         self.seg_cls_layer = nn.Linear(16, 1, bias=True)
         self.seg_reg_layer = nn.Linear(16, 3, bias=True)
 
-    def forward(self, input_sp_tensor):
+    def forward(self, input_sp_tensor, **kwargs):
         """
         :param voxel_features:  (N, C)
         :param coors:   (N, 4)  [batch_idx, z_idx, y_idx, x_idx],  sparse_shape: (z_size, y_size, x_size)
@@ -121,7 +121,7 @@ class UNetV2(nn.Module):
         seg_cls_preds = self.seg_cls_layer(seg_features)  # (N, 1)
         seg_reg_preds = self.seg_reg_layer(seg_features)  # (N, 3)
 
-        ret.update({'u_cls_preds': seg_cls_preds, 'u_reg_preds': seg_reg_preds, 'seg_features': seg_features})
+        ret.update({'u_seg_preds': seg_cls_preds, 'u_reg_preds': seg_reg_preds, 'seg_features': seg_features})
 
         return ret
 

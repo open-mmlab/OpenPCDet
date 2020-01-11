@@ -186,3 +186,18 @@ def remove_points_in_boxes3d(points, boxes3d):
     ).numpy()
     return points[point_masks.sum(axis=0) == 0]
 
+
+def boxes3d_to_bevboxes_lidar_torch(boxes3d):
+    """
+    :param boxes3d: (N, 7) [x, y, z, w, l, h, ry] in LiDAR coords
+    :return:
+        boxes_bev: (N, 5) [x1, y1, x2, y2, ry]
+    """
+    boxes_bev = boxes3d.new(torch.Size((boxes3d.shape[0], 5)))
+
+    cu, cv = boxes3d[:, 0], boxes3d[:, 1]
+    half_l, half_w = boxes3d[:, 4] / 2, boxes3d[:, 3] / 2
+    boxes_bev[:, 0], boxes_bev[:, 1] = cu - half_w, cv - half_l
+    boxes_bev[:, 2], boxes_bev[:, 3] = cu + half_w, cv + half_l
+    boxes_bev[:, 4] = boxes3d[:, 6]
+    return boxes_bev

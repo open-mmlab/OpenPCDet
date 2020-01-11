@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from . import box_utils
 
 
 class Loss(object):
@@ -221,3 +221,37 @@ def _softmax_cross_entropy_with_logits(logits, labels):
     loss_ftor = nn.CrossEntropyLoss(reduction='none')
     loss = loss_ftor(logits, labels.max(dim=-1)[1])
     return loss
+
+
+def huber_loss(error, delta):
+    abs_error = torch.abs(error)
+    quadratic = torch.clamp(abs_error, max=delta)
+    linear = (abs_error - quadratic)
+    losses = 0.5 * quadratic ** 2 + delta * linear
+    return losses
+
+
+def get_corner_loss_lidar(pred_bbox3d, gt_bbox3d, origin=(0.5, 0.5, 0)):
+    """
+    :param pred_bbox3d: (N, 7)
+    :param gt_bbox3d: (N, 7)
+    :return: corner_loss: (N)
+    """
+    assert pred_bbox3d.shape[0] == gt_bbox3d.shape[0]
+
+    box_utils.boxes3d_to_corners3d_lidar()
+    pred_box_corners = box_torch_ops.center_to_corner_box3d(
+        pred_bbox3d[:, 0:3], pred_bbox3d[:, 3:6], pred_bbox3d[:, 6], origin, axis=2)
+    gt_box_corners = box_torch_ops.center_to_corner_box3d(
+        gt_bbox3d[:, 0:3], gt_bbox3d[:, 3:6], gt_bbox3d[:, 6], origin, axis=2)
+
+    gt_bbox3d_flip = gt_bbox3d.clone()
+    gt_bbox3d_flip[:, 6] += np.pi
+    gt_box_corners_flip = box_torch_ops.center_to_corner_box3d(
+        gt_bbox3d_flip[:, 0:3], gt_bbox3d_flip[:, 3:6], gt_bbox3d_flip[:, 6], origin, axis=2)
+
+    corner_dist = torch.min(torch.norm(pred_box_corners - gt_box_corners, dim=2),
+                            torch.norm(pred_box_corners - gt_box_corners_flip, dim=2))  # (N, 8)
+    corner_loss = huber_loss(corner_dist, delta=1.0)  # (N, 8)
+
+    return corner_loss.mean(dim=1)

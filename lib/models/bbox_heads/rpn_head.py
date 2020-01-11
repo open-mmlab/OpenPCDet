@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from functools import partial
-from ..utils import Empty
+from ..model_utils import Empty
 
 
 class RPNV2(nn.Module):
@@ -10,7 +10,7 @@ class RPNV2(nn.Module):
                  num_filters=(128, 128, 256), upsample_strides=(1, 2, 4), num_upsample_filters=(256, 256, 256),
                  num_input_features=128, num_anchor_per_loc=2, encode_background_as_zeros=True,
                  use_direction_classifier=True, box_code_size=7,
-                 num_direction_bins=2, concat_input=False):
+                 num_direction_bins=2, concat_input=False, **kwargs):
         super(RPNV2, self).__init__()
         self._num_anchor_per_loc = num_anchor_per_loc
         self._use_direction_classifier = use_direction_classifier
@@ -83,7 +83,7 @@ class RPNV2(nn.Module):
         pi = 0.01
         nn.init.constant_(self.conv_cls.bias, -np.log((1 - pi) / pi))
 
-    def forward(self, x_in, bev=None):
+    def forward(self, x_in, bev=None, **kwargs):
         ups = []
         x = x_in
         ret_dict = {}

@@ -2,16 +2,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 import spconv
-from ..utils import pytorch_utils as pt_utils
+from ..model_utils import pytorch_utils as pt_utils
 
 from ...config import cfg
 
-from rpn.proposal_target_layer import proposal_target_layer
-import utils.roiaware_pool3d.roiaware_pool3d_utils as roiaware_pool3d_utils
-import utils.kitti_utils as kitti_utils
+from ..model_utils.proposal_target_layer import proposal_target_layer
+from ...utils.roiaware_pool3d import roiaware_pool3d_utils
+from ...utils import common_utils
 
 
-class RCNNNet(nn.Module):
+class RCNNNetV5(nn.Module):
     def __init__(self, code_size, num_point_features, rcnn_cfg, **kwargs):
         super().__init__()
 
@@ -128,14 +128,14 @@ class RCNNNet(nn.Module):
         :return:
         """
         voxel_centers = rcnn_dict['voxel_centers']  # (npoints, 3)
-        rpn_features = rcnn_dict['seg_features']  # (npoints, C)
+        rpn_features = rcnn_dict['rpn_seg_features']  # (npoints, C)
         coords = rcnn_dict['coordinates']  # (npoints, 4)
 
-        part_seg_score = rcnn_dict['part_seg_score'].detach()  # (npoints)
-        part_seg_mask = (part_seg_score > cfg.MODEL.RPN.BACKBONE.SEG_MASK_SCORE_THRESH)
-        part_reg_offset = rcnn_dict['part_reg_offset'].detach()
-        part_reg_offset[part_seg_mask == 0] = 0
-        part_features = torch.cat((part_reg_offset, part_seg_score.view(-1, 1)), dim=1)  # (npoints, 4)
+        rpn_seg_score = rcnn_dict['rpn_seg_score'].detach()  # (npoints)
+        rpn_seg_mask = (rpn_seg_score > cfg.MODEL.RPN.BACKBONE.SEG_MASK_SCORE_THRESH)
+        rpn_part_offsets = rcnn_dict['rpn_part_offsets'].detach()
+        rpn_part_offsets[rpn_seg_mask == 0] = 0
+        part_features = torch.cat((rpn_part_offsets, rpn_seg_score.view(-1, 1)), dim=1)  # (npoints, 4)
 
         batch_size = batch_rois.shape[0]
         pooled_part_features_list, pooled_rpn_features_list = [], []
@@ -192,8 +192,9 @@ class RCNNNet(nn.Module):
             gt_of_rois[:, :, 6] = gt_of_rois[:, :, 6] - roi_ry
             for k in range(batch_size):
                 # NOTE: bugfixed, should rotate np.pi/2 + ry to transfer LiDAR coords to local coords
-                gt_of_rois[k] = kitti_utils.rotate_pc_along_z_torch(gt_of_rois[k].unsqueeze(dim=1),
-                                                                    -(roi_ry[k] + np.pi / 2)).squeeze(dim=1)
+                gt_of_rois[k] = common_utils.rotate_pc_along_z_torch(
+                    gt_of_rois[k].unsqueeze(dim=1), -(roi_ry[k] + np.pi / 2)
+                ).squeeze(dim=1)
 
             # flip orientation if rois have opposite orientation
             ry_label = gt_of_rois[:, :, 6] % (2 * np.pi)  # 0 ~ 2pi
@@ -209,7 +210,6 @@ class RCNNNet(nn.Module):
             rcnn_dict['roi_labels'] = target_dict['roi_labels']
 
         # RoI aware pooling
-        # TODO: do we need filter out the rois which don't contain any points?
         pooled_part_features, pooled_rpn_features = self.roiaware_pool(rois, rcnn_dict)
         batch_size_rcnn = pooled_part_features.shape[0]  # (B * N, out_x, out_y, out_z, 4)
 
@@ -250,10 +250,13 @@ class RCNNNet(nn.Module):
         rcnn_cls = self.cls_layer(shared_feature).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
         rcnn_reg = self.reg_layer(shared_feature).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
 
-        ret_dict = {'rcnn_cls': rcnn_cls, 'rois': rois,
-                    'roi_raw_scores': rcnn_dict['roi_raw_scores'],
-                    'rcnn_reg': rcnn_reg,
-                    'roi_labels': rcnn_dict['roi_labels']}
+        ret_dict = {
+            'rcnn_cls': rcnn_cls,
+            'rcnn_reg': rcnn_reg,
+            'rois': rois,
+            'roi_raw_scores': rcnn_dict['roi_raw_scores'],
+            'roi_labels': rcnn_dict['roi_labels']
+        }
 
         if self.training:
             ret_dict.update(target_dict)

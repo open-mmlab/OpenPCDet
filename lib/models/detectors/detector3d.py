@@ -2,88 +2,71 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import importlib
-import spconv
-# import utils.loss_utils as loss_utils
-# import utils.box_coder as box_coder_utils
-# import utils.kitti_utils as kitti_utils
-# import utils.iou3d.iou3d_utils as iou3d_utils
-# import utils.box_torch_ops as box_torch_ops
-# from rpn.proposal_layer import proposal_layer
 
-from ..vfe import vfe_utils
+from ..vfe import vfe_modules
 from ..rpn import rpn_modules
 from ..rcnn import rcnn_modules
 from ..bbox_heads import bbox_head_modules
-from ...utils import loss_utils
+from ...utils import loss_utils, common_utils
 
 from ...config import cfg
 
 
-def get_model():
-    return Detector3D
-
-
 class Detector3D(nn.Module):
-    def __init__(self, num_class, target_assigner, output_shape):
+    def __init__(self, num_class, target_assigner):
         super().__init__()
-
-        # self.num_class = num_class
-        # self.box_coder = target_assigner.box_coder
         # self.output_shape = output_shape
         # self.sparse_shape = output_shape + [1, 0, 0]
+        self.num_class = num_class
+        self.box_coder = target_assigner.box_coder
         self.num_anchors_per_location = target_assigner.num_anchors_per_location
+
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
+        self.mode = 'TRAIN' if self.training else 'TEST'
 
-        vfe_cfg = cfg.MODEL.VFE
-        self.voxel_feature_extractor = getattr(vfe_utils, vfe_cfg.NAME)(**vfe_cfg)
-        voxel_feature_num = self.voxel_feature_extractor.get_output_feature_dim()
+        self.vfe = self.rpn_net = self.rpn_head = self.rcnn_net = self.rcnn_box_coder = None
+        self.rpn_cls_loss_func = self.rpn_reg_loss_func = self.rpn_dir_loss_func = self.rcnn_reg_loss_func = None
 
-        rpn_cfg = cfg.MODEL.RPN
+    def build_networks(self, model_cfg):
+        vfe_cfg = model_cfg.VFE
+        self.vfe = vfe_modules[vfe_cfg.NAME](**vfe_cfg)
+        voxel_feature_num = self.vfe.get_output_feature_dim()
+
+        rpn_cfg = model_cfg.RPN
         self.rpn_net = rpn_modules[rpn_cfg.BACKBONE.NAME](
             input_channels=voxel_feature_num,
             **rpn_cfg.BACKBONE.ARGS
         )
 
-        rpn_head_cfg = cfg.MODEL.RPN.RPN_HEAD
+        rpn_head_cfg = model_cfg.RPN.RPN_HEAD
         self.rpn_head = bbox_head_modules[rpn_head_cfg.NAME](
-            num_class=num_class,
-            num_anchor_per_loc=target_assigner.num_anchors_per_location,
-            box_code_size=target_assigner.box_coder.code_size,
+            num_class=self.num_class,
+            num_anchor_per_loc=self.num_anchors_per_location,
+            box_code_size=self.box_coder.code_size,
             **rpn_head_cfg
         )
 
-        rcnn_cfg = cfg.MODEL.RCNN
+        rcnn_cfg = model_cfg.RCNN
         if rcnn_cfg.ENABLED:
-            self.rcnn_box_coder = target_assigner.box_coder
+            self.rcnn_box_coder = self.box_coder
             self.rcnn_net = rcnn_modules[rcnn_cfg.NAME](
                 code_size=self.rcnn_box_coder.code_size,
                 num_point_features=cfg.MODEL.RPN.BACKBONE.NUM_POINT_FEATURES,
                 rcnn_cfg=rcnn_cfg
             )
 
-        self.rpn_cls_loss_func, self.rpn_reg_loss_func, self.rpn_dir_loss_func, self.rcnn_reg_loss_func = \
-            self.build_losses()
-
-    def build_losses(self):
-        losses_cfg = cfg.MODEL.LOSSES
-
+    def build_losses(self, losses_cfg):
         # loss function definition
-        rpn_cls_loss_func = loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
+        self.rpn_cls_loss_func = loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
         code_weights = losses_cfg.LOSS_WEIGHTS['code_weights']
 
         rpn_code_weights = code_weights[3:7] if losses_cfg.RPN_REG_LOSS == 'bin-based' else code_weights
-        rpn_reg_loss_func = loss_utils.WeightedSmoothL1LocalizationLoss(sigma=3.0, code_weights=rpn_code_weights)
-        rpn_dir_loss_func = loss_utils.WeightedSoftmaxClassificationLoss()
+        self.rpn_reg_loss_func = loss_utils.WeightedSmoothL1LocalizationLoss(sigma=3.0, code_weights=rpn_code_weights)
+        self.rpn_dir_loss_func = loss_utils.WeightedSoftmaxClassificationLoss()
 
         rcnn_cfg = cfg.MODEL.RCNN
         if rcnn_cfg.ENABLED:
-            rcnn_reg_loss_func = loss_utils.WeightedSmoothL1LocalizationLoss(sigma=3.0, code_weights=code_weights)
-        else:
-            rcnn_reg_loss_func = None
-
-        return rpn_cls_loss_func, rpn_reg_loss_func, rpn_dir_loss_func, rcnn_reg_loss_func
-
+            self.rcnn_reg_loss_func = loss_utils.WeightedSmoothL1LocalizationLoss(sigma=3.0, code_weights=code_weights)
 
     def update_global_step(self):
         self.global_step += 1
@@ -95,276 +78,10 @@ class Detector3D(nn.Module):
                 classname = m.__class__.__name__
                 if classname.find('BatchNorm') != -1:
                     m.eval()
-
-            if cfg.RPN_STAGE.FIXED:
-                # set RPN batch norm in eval mode during training
-                self.voxel_feature_extractor.apply(set_bn_eval)
-                self.rpn_net.apply(set_bn_eval)
-                self.rpn_head.apply(set_bn_eval)
+            pass
 
     def forward(self, input_dict):
-        batch_anchors = input_dict['anchors']
-        batch_size = batch_anchors.shape[0]
-        voxels = input_dict['voxels']
-        num_points = input_dict['num_points']
-        coors = input_dict['coordinates']
-        voxel_centers = input_dict['voxel_centers']
-
-        ret_dict = {}
-        tb_dict = {}
-        disp_dict = {}
-
-        # RPN inference
-        with torch.set_grad_enabled((cfg.RPN_STAGE.FIXED is False and self.training)):
-            coors = coors.int()
-
-            if 'Pillar' not in cfg.RPN_STAGE.NET:
-                voxel_features = self.voxel_feature_extractor(voxels, num_points)
-                input_sp_tensor = spconv.SparseConvTensor(voxel_features, coors, self.sparse_shape, batch_size)
-                try:
-                    unet_ret_dict = self.rpn_net(input_sp_tensor, voxel_centers)
-                except:
-                    unet_ret_dict = self.rpn_net(input_sp_tensor)
-            else:
-                voxel_features = self.voxel_feature_extractor(voxels, num_points, coors)
-                batch_canvas = self.rpn_net(voxel_features, coors, batch_size)
-                unet_ret_dict = {'spatial_features': batch_canvas}
-
-            rpn_preds_dict = self.rpn_head(unet_ret_dict['spatial_features'])
-
-            if cfg.RPN_STAGE.UNET.DECODER_ENABLED and cfg.RPN_STAGE.UNET.PART_SEG_ENABLED:
-                u_cls_preds = unet_ret_dict['u_cls_preds'].view(-1)
-                u_reg_preds = unet_ret_dict['u_reg_preds']
-                seg_features = unet_ret_dict['seg_features']
-                seg_score = torch.sigmoid(u_cls_preds)
-                ret_dict['rpn_u_cls_preds'] = u_cls_preds
-                ret_dict['rpn_u_reg_preds'] = u_reg_preds
-            else:
-                u_cls_preds = u_reg_preds = None
-
-            rpn_box_preds = rpn_preds_dict['box_preds']
-            rpn_cls_preds = rpn_preds_dict['cls_preds']
-            rpn_dir_cls_preds = rpn_preds_dict['dir_cls_preds'] if 'dir_cls_preds' in rpn_preds_dict else None
-            ret_dict['rpn_cls_preds'] = rpn_cls_preds
-            ret_dict['rpn_box_preds'] = rpn_box_preds
-            ret_dict['rpn_dir_cls_preds'] = rpn_dir_cls_preds
-
-        if cfg.RCNN_STAGE.ENABLED:
-            # proposal layer
-            with torch.no_grad():
-                batch_anchors = batch_anchors.view(batch_size, -1, batch_anchors.shape[-1])  # (B, N, 7 + ?)
-                num_anchors = batch_anchors.shape[1]
-                batch_cls_preds = rpn_cls_preds.view(batch_size, num_anchors, -1)
-                batch_box_preds = rpn_box_preds.view(batch_size, -1,
-                                                     rpn_box_preds.shape[-1] // self.num_anchors_per_location)
-
-                if cfg.RPN_STAGE.RPN_HEAD.LOSS_REG == 'smooth-l1':
-                    batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
-                elif cfg.RPN_STAGE.RPN_HEAD.LOSS_REG == 'bin-based':
-                    def decode_size_angle(box_encodings, anchors):
-                        """
-                        :param box_encodings: (N, 4)
-                        :param anchors: (N, 4)
-                        :return:
-                        """
-                        wa, la, ha, ra = torch.split(anchors, 1, dim=-1)
-                        wt, lt, ht, rt = torch.split(box_encodings, 1, dim=-1)
-
-                        lg = torch.exp(lt) * la
-                        wg = torch.exp(wt) * wa
-                        hg = torch.exp(ht) * ha
-                        rg = rt + ra
-
-                        return torch.cat([wg, lg, hg, rg], dim=-1)
-
-                    batch_size_angle = decode_size_angle(batch_box_preds[..., -4:], batch_anchors[..., -4:])
-
-                    bin_cfg = cfg.RPN_STAGE.RPN_HEAD.BIN_LOSS_CFG
-                    center_pred = batch_box_preds[..., :-4].view(-1, batch_box_preds.shape[-1] - 4)
-                    center_anchors = batch_anchors[..., :-4].view(-1, 3)
-                    batch_center = box_coder_utils.decode_center_by_bin(
-                        center_pred, center_anchors, loc_scope=bin_cfg.LOC_SCOPE, loc_bin_size=bin_cfg.LOC_BIN_SIZE
-                    ).view(batch_size_angle.shape[0], -1, 3)
-
-                    batch_box_preds = torch.cat((batch_center, batch_size_angle), dim=2)
-                else:
-                    raise NotImplementedError
-
-                if cfg.RPN_STAGE.RPN_HEAD.USE_DIRECTION_CLASSIFIER:
-                    dir_preds = rpn_preds_dict['dir_cls_preds']  # (bs, H, W, 2*anchor)
-                    dir_preds = dir_preds.view(batch_size, -1, cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
-                    dir_labels = torch.max(dir_preds, dim=-1)[1]
-
-                    if cfg.RPN_STAGE.RPN_HEAD.USE_OLD_ORT:
-                        opp_labels = (batch_box_preds[..., 6] > 0) ^ dir_labels.byte()
-                        batch_box_preds[..., 6] += torch.where(opp_labels,
-                                                               torch.tensor(np.pi).type_as(batch_box_preds),
-                                                               torch.tensor(0.0).type_as(batch_box_preds))
-                    else:
-                        period = (2 * np.pi / cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
-                        dir_rot = box_torch_ops.limit_period(batch_box_preds[..., 6] - cfg.RPN_STAGE.RPN_HEAD.DIR_OFFSET,
-                                                             cfg.RPN_STAGE.RPN_HEAD.DIR_LIMIT_OFFSET, period)
-                        batch_box_preds[..., 6] = dir_rot + cfg.RPN_STAGE.RPN_HEAD.DIR_OFFSET \
-                                                  + period * dir_labels.to(batch_box_preds.dtype)
-
-                roi_dict = proposal_layer(batch_size, batch_cls_preds, batch_box_preds,
-                                          code_size=self.box_coder.code_size,
-                                          mode='TRAIN' if self.training else 'TEST')
-
-            # RCNN inference
-            rcnn_input_dict = {
-                'voxel_centers': voxel_centers,
-                'coordinates': coors,
-                'part_seg_score': seg_score,
-                'seg_features': seg_features,
-                'bev_features': unet_ret_dict['spatial_features']
-            }
-            rcnn_input_dict.update(roi_dict)
-            if 'gt_boxes' in input_dict:
-                rcnn_input_dict['gt_boxes'] = input_dict['gt_boxes']
-
-            if cfg.RPN_STAGE.UNET.PART_REG_ENABLED:
-                part_reg_offset = torch.sigmoid(u_reg_preds)
-                rcnn_input_dict['part_reg_offset'] = part_reg_offset
-
-            rcnn_ret_dict = self.rcnn_net.forward(rcnn_input_dict)
-            ret_dict['rois'] = rcnn_ret_dict['rois']
-            ret_dict['rcnn_cls'] = rcnn_ret_dict['rcnn_cls']
-            ret_dict['rcnn_reg'] = rcnn_ret_dict['rcnn_reg']
-            ret_dict['roi_raw_scores'] = rcnn_ret_dict['roi_raw_scores']
-            ret_dict['roi_labels'] = rcnn_ret_dict['roi_labels']
-            if cfg.RCNN_STAGE.REG_2D_BBOX:
-                ret_dict['rcnn_reg_2d'] = rcnn_ret_dict['rcnn_reg_2d']
-
-        if self.training:
-            loss = 0
-            if not cfg.RPN_STAGE.FIXED:
-                # RPN loss
-                rpn_loss, rpn_tb_dict = self.get_rpn_loss(u_cls_preds, u_reg_preds, rpn_cls_preds, rpn_box_preds,
-                                                          input_dict, dir_cls_preds=rpn_dir_cls_preds)
-                loss += rpn_loss
-                tb_dict.update(rpn_tb_dict)
-
-            if cfg.RCNN_STAGE.ENABLED:
-                # RCNN loss
-                rcnn_loss, rcnn_tb_dict = self.get_rcnn_loss(rcnn_ret_dict, input_dict)
-                loss += rcnn_loss
-
-                # for visualization
-                rcnn_cls_labels = rcnn_ret_dict['rcnn_cls_labels'].float().view(-1)
-                fg_thresh = min(cfg.RCNN_STAGE.REG_FG_THRESH, cfg.RCNN_STAGE.CLS_FG_THRESH)
-                fg_num = (rcnn_cls_labels > fg_thresh).sum().item()
-                bg_num = (rcnn_cls_labels == 0).sum().item()
-                # print('FG_Num: %d' % fg_num)
-                tb_dict['rcnn_fg_num'] = fg_num
-                tb_dict['rcnn_bg_num'] = bg_num
-                tb_dict.update(rcnn_tb_dict)
-                disp_dict['rcnn_fg_num'] = fg_num
-
-                if 'rcnn_loss_dense_iou' in rcnn_ret_dict:
-                    w = cfg.TRAIN.LOSS_WEIGHTS['rcnn_loss_dense_iou'] if 'rcnn_loss_dense_iou' in cfg.TRAIN.LOSS_WEIGHTS else 1.0
-                    rcnn_ret_dict['rcnn_loss_dense_iou'] = rcnn_ret_dict['rcnn_loss_dense_iou'] * w
-
-                    loss += rcnn_ret_dict['rcnn_loss_dense_iou']
-                    tb_dict['rcnn_loss_dense_iou'] = rcnn_ret_dict['rcnn_loss_dense_iou'].item()
-
-                if 'rcnn_loss_dense_corner' in rcnn_ret_dict:
-                    loss += rcnn_ret_dict['rcnn_loss_dense_corner']
-                    tb_dict['rcnn_loss_dense_corner'] = rcnn_ret_dict['rcnn_loss_dense_corner'].item()
-
-            ret_dict['loss'] = loss
-
-            return ret_dict, tb_dict, disp_dict
-        else:
-            # prediction mode
-            dataset = get_dataset_class(cfg.DATASET)
-            batch_rois = batch_roi_labels = batch_roi_raw_scores = batch_rcnn_bbox = None
-            batch_gt_boxes = input_dict['gt_boxes'] if 'gt_boxes' in input_dict else None
-
-            if not cfg.RCNN_STAGE.ENABLED:
-                # generate RPN boxes
-                batch_anchors = input_dict['anchors'].view(batch_size, -1, input_dict['anchors'].shape[-1])
-                assert 'anchors_mask' not in input_dict
-
-                num_class_with_bg = self.num_class + 1 if not cfg.RPN_STAGE.ENCODE_BG_AS_ZEROS else self.num_class
-                batch_box_preds = rpn_box_preds.view(batch_size, -1, self.box_coder.code_size)
-                batch_cls_preds = rpn_cls_preds.view(batch_size, -1, num_class_with_bg).float()
-                batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors).float()
-
-                if cfg.RPN_STAGE.RPN_HEAD.USE_DIRECTION_CLASSIFIER:
-                    batch_dir_preds = rpn_dir_cls_preds.view(batch_size, -1, cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
-                    batch_dir_labels = torch.max(batch_dir_preds, dim=-1)[1]
-
-                    if cfg.RPN_STAGE.RPN_HEAD.USE_OLD_ORT == -1:
-                        opp_labels = (batch_box_preds[..., 6] > 0) ^ batch_dir_labels.byte()
-                        batch_box_preds[..., 6] += torch.where(opp_labels, torch.tensor(np.pi).type_as(batch_box_preds),
-                                                              torch.tensor(0.0).type_as(batch_box_preds))
-                    else:
-                        period = (2 * np.pi / cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
-                        dir_rot = box_torch_ops.limit_period(batch_box_preds[..., 6] - cfg.RPN_STAGE.RPN_HEAD.DIR_OFFSET,
-                                                             cfg.RPN_STAGE.RPN_HEAD.DIR_LIMIT_OFFSET, period)
-                        batch_box_preds[..., 6] = dir_rot + cfg.RPN_STAGE.RPN_HEAD.DIR_OFFSET \
-                                                 + period * batch_dir_labels.to(batch_box_preds.dtype)
-
-            else:
-                # generate RCNN boxes
-                rcnn_cls = ret_dict['rcnn_cls']  # (B * N, 1)
-                rcnn_reg = ret_dict['rcnn_reg']  # (B * N, C)
-                rois = ret_dict['rois']  # (B, N, 7)
-                roi_size = rois[:, :, 3:6]
-                code_size = self.rcnn_box_coder.code_size
-
-                if cfg.RCNN_STAGE.LOSS_REG == 'bin-based':
-                    rcnn_boxes3d = self.rcnn_box_coder.decode_torch(rcnn_reg.view(-1, rcnn_reg.shape[-1]),
-                                                                    rois.view(-1, code_size),
-                                                                    anchor_size=roi_size)  # (N, 7)
-                    rcnn_boxes3d = rcnn_boxes3d.view(batch_size, -1, code_size)
-                elif cfg.RCNN_STAGE.LOSS_REG == 'smooth-l1':
-                    roi_ry = rois[:, :, 6].view(-1)
-                    roi_xyz = rois[:, :, 0:3].view(-1, 3)
-                    local_rois = rois.clone().detach()
-                    local_rois[:, :, 0:3] = 0
-                    rcnn_boxes3d = self.rcnn_box_coder.decode_torch(rcnn_reg.view(local_rois.shape[0], -1, code_size),
-                                                                    local_rois).view(-1, code_size)
-
-                    if 'GENERATE_BOX_BY_DENSELOC' in cfg.RCNN_STAGE and cfg.RCNN_STAGE.GENERATE_BOX_BY_DENSELOC:
-                        if 'USE_FINAL_REG' not in cfg.TEST or (cfg.TEST.USE_FINAL_REG is False):
-                            # import pdb
-                            # pdb.set_trace()
-                            rcnn_boxes3d[:, 0:3] = rcnn_ret_dict['ans_pred'][:, 0:3]
-                            # rcnn_boxes3d[:, 3:6] = rois.view(-1, code_size)[:, 3:6]
-                            rcnn_boxes3d[:, 3:6] = rcnn_ret_dict['ans_pred'][:, 3:6]
-                            rcnn_boxes3d[:, -1] = roi_ry + rcnn_ret_dict['ans_pred'][:, -1]
-
-                    # rcnn_boxes3d[:, [0, 1]] = (rcnn_boxes3d[:, [0, 1]] + rcnn_ret_dict['ans_pred'][:, [0, 1]]) / 2
-                    # rcnn_boxes3d[:, -1] = roi_ry + (rcnn_reg[:, -1] + rcnn_ret_dict['ans_pred'][:, -1]) / 2
-                    # import pdb
-                    # pdb.set_trace()
-
-                    rcnn_boxes3d = box_coder_utils.rotate_pc_along_z_torch(rcnn_boxes3d, (roi_ry + np.pi / 2))
-                    rcnn_boxes3d[:, 0:3] += roi_xyz
-                    rcnn_boxes3d = rcnn_boxes3d.view(batch_size, -1, code_size)
-                else:
-                    raise NotImplementedError
-
-                if cfg.RCNN_STAGE.REG_2D_BBOX:
-                    # only available for kttii
-                    batch_rcnn_bbox = dataset.predict_decode_2d_bbox(input_dict, ret_dict, batch_size)
-
-                batch_cls_preds = rcnn_cls.view(batch_size, -1)
-                batch_box_preds = rcnn_boxes3d
-                # batch_box_preds = rois
-                # batch_cls_preds = torch.sigmoid(ret_dict['roi_raw_scores'])
-                batch_rois = rois
-                batch_roi_raw_scores = ret_dict['roi_raw_scores']  # (B, N)
-                batch_roi_labels = ret_dict['roi_labels']  # (B, N)
-
-            mode = 'RPN' if not cfg.RCNN_STAGE.ENABLED else 'RCNN'
-            pred_dicts, recall_dicts = self.predict(dataset, input_dict, batch_cls_preds, batch_box_preds,
-                                                    batch_gt_boxes, batch_rois, batch_roi_labels, batch_roi_raw_scores,
-                                                    batch_rcnn_bbox, mode=mode)
-            ret_dict.update(recall_dicts)
-            return pred_dicts, ret_dict
+        raise NotImplementedError
 
     def predict(self, dataset, input_dict, batch_cls_preds, batch_box_preds, batch_gt_boxes=None,
                 batch_rois=None, batch_roi_labels=None, batch_roi_raw_scores=None, batch_rcnn_bbox=None, mode='RPN'):
@@ -583,55 +300,22 @@ class Detector3D(nn.Module):
 
         return gt_iou
 
-    def get_rpn_loss(self, u_cls_preds, u_reg_preds, cls_preds, box_preds, input_dict, dir_cls_preds=None):
-        tb_dict = {}
-        if cfg.RPN_STAGE.UNET.DECODER_ENABLED and cfg.RPN_STAGE.UNET.PART_SEG_ENABLED:
-            # segmentation and part prediction losses
-            u_cls_labels, u_reg_labels = input_dict['seg_labels'], input_dict['part_labels']
-            u_cls_target = (u_cls_labels > 0).float()
-            pos_mask = u_cls_labels > 0
-            pos = pos_mask.float()
-            neg = (u_cls_labels == 0).float()
-            u_cls_weights = pos + neg
-            pos_normalizer = pos.sum()
-            u_cls_weights = u_cls_weights / torch.clamp(pos_normalizer, min=1.0)
-            u_loss_cls = self.rpn_cls_loss_func(u_cls_preds, u_cls_target, weights=u_cls_weights)
-            u_loss_cls_pos = (u_loss_cls * pos).sum()
-            u_loss_cls_neg = (u_loss_cls * neg).sum()
-            u_loss_cls = u_loss_cls.sum()
-
-            loss_unet = u_loss_cls
-
-            if cfg.RPN_STAGE.UNET.PART_REG_ENABLED and pos_normalizer > 0:
-                u_loss_reg = F.binary_cross_entropy(torch.sigmoid(u_reg_preds[pos_mask]), u_reg_labels[pos_mask])
-                loss_unet += u_loss_reg
-                tb_dict['rpn_u_loss_reg'] = u_loss_reg.item()
-
-            # fg_preds = (torch.sigmoid(u_cls_preds) > 0.4).int()
-            # fg_mask = (u_cls_target > 0).int()
-            # correct = ((fg_preds == u_cls_target.int()).int() * fg_mask).float().sum()
-            # union = torch.clamp(fg_mask.float().sum() + fg_preds.float().sum() - correct, min=1.0)
-            # fg_iou = correct / union
-
-            # fg_reg_preds = torch.sigmoid(u_reg_preds[pos_mask])
-            # fg_reg_labels = u_reg_labels[pos_mask]
-            # dis_diff = (fg_reg_preds - fg_reg_labels).abs().sum(dim=0) / (fg_reg_preds.shape[0] + 1e-7)
-            # print(fg_iou, dis_diff)
-
-            tb_dict['rpn_u_loss_cls'] = u_loss_cls.item()
-            tb_dict['rpn_u_loss_cls_pos'] = u_loss_cls_pos.item()
-            tb_dict['rpn_u_loss_cls_neg'] = u_loss_cls_neg.item()
-            tb_dict['rpn_loss_unet'] = loss_unet.item()
-            tb_dict['rpn_pos_num'] = pos_normalizer.item()
-        else:
-            loss_unet = 0
+    def get_anchor_box_loss(self, cls_preds, box_preds, box_cls_labels, box_reg_targets,
+                            box_dir_cls_preds=None, anchors=None):
+        """
+        :param cls_preds:
+        :param box_preds:
+        :param box_cls_labels:
+        :param box_reg_targets:
+        :param dir_cls_preds:
+        :return:
+        """
+        loss_cfgs = cfg.MODEL.LOSSES
 
         # rpn head losses
-        labels, reg_targets = input_dict['labels'], input_dict['reg_targets']
-
-        cared = labels >= 0  # [N, num_anchors]
-        positives = labels > 0
-        negatives = labels == 0
+        cared = box_cls_labels >= 0  # [N, num_anchors]
+        positives = box_cls_labels > 0
+        negatives = box_cls_labels == 0
         negative_cls_weights = negatives * 1.0
         cls_weights = (negative_cls_weights + 1.0 * positives).float()
         reg_weights = positives.float()
@@ -639,96 +323,61 @@ class Detector3D(nn.Module):
         pos_normalizer = positives.sum(1, keepdim=True).float()
         reg_weights /= torch.clamp(pos_normalizer, min=1.0)
         cls_weights /= torch.clamp(pos_normalizer, min=1.0)
-        cls_targets = labels * cared.type_as(labels)
-        cls_targets = cls_targets.unsqueeze(-1)
+        cls_targets = box_cls_labels * cared.type_as(box_cls_labels)
+        cls_targets = cls_targets.unsqueeze(dim=-1)
 
-        box_code_size = self.box_coder.code_size
         batch_size = int(box_preds.shape[0])
         num_class = self.num_class
 
-        cls_targets = cls_targets.squeeze(-1)
-        one_hot_targets = torch.zeros(*list(cls_targets.shape), num_class + 1, dtype=box_preds.dtype,
-                                      device=cls_targets.device)
+        cls_targets = cls_targets.squeeze(dim=-1)
+        one_hot_targets = torch.zeros(
+            *list(cls_targets.shape), num_class + 1, dtype=box_preds.dtype, device=cls_targets.device
+        )
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)
 
-        if cfg.RPN_STAGE.ENCODE_BG_AS_ZEROS:
+        if cfg.MODEL.RPN.RPN_HEAD.ARGS['encode_background_as_zeros']:
             cls_preds = cls_preds.view(batch_size, -1, num_class)
             one_hot_targets = one_hot_targets[..., 1:]
         else:
             cls_preds = cls_preds.view(batch_size, -1, num_class + 1)
 
-        loss_weights_dict = cfg.RPN_STAGE.RPN_HEAD.LOSS_WEIGHTS
+        loss_weights_dict = loss_cfgs.LOSS_WEIGHTS
         cls_loss = self.rpn_cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
         cls_loss_reduced = cls_loss.sum() / batch_size
-        cls_loss_reduced = cls_loss_reduced * loss_weights_dict['cls_weight']
+        cls_loss_reduced = cls_loss_reduced * loss_weights_dict['rpn_cls_weight']
 
         box_preds = box_preds.view(batch_size, -1, box_preds.shape[-1] // self.num_anchors_per_location)
-        if cfg.RPN_STAGE.RPN_HEAD.LOSS_REG == 'smooth-l1':
-            if cfg.RPN_STAGE.RPN_HEAD.ENCODE_RAD_ERROR_BY_SIN:
-                # sin(a - b) = sinacosb-cosasinb
-                box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, reg_targets)
-                loc_loss = self.rpn_reg_loss_func(box_preds_sin, reg_targets_sin, weights=reg_weights)  # [N, M]
-            else:
-                loc_loss = self.rpn_reg_loss_func(box_preds, reg_targets, weights=reg_weights)  # [N, M]
-
+        if loss_cfgs.RPN_REG_LOSS == 'smooth-l1':
+            # sin(a - b) = sinacosb-cosasinb
+            box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, box_reg_targets)
+            loc_loss = self.rpn_reg_loss_func(box_preds_sin, reg_targets_sin, weights=reg_weights)  # [N, M]
             loc_loss_reduced = loc_loss.sum() / batch_size
-        elif cfg.RPN_STAGE.RPN_HEAD.LOSS_REG == 'bin-based':
-            if cfg.RPN_STAGE.RPN_HEAD.ENCODE_RAD_ERROR_BY_SIN:
-                box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, reg_targets, dim=box_preds.shape[-1])
-                size_angle_loss = self.rpn_reg_loss_func(box_preds_sin[..., -4:],
-                                                         reg_targets_sin[..., -4:],
-                                                         weights=reg_weights)  # [N, M]
-            else:
-                size_angle_loss = self.rpn_reg_loss_func(box_preds[..., -4:],
-                                                         reg_targets[..., -4:], weights=reg_weights)  # [N, M]
-
-            size_angle_loss = size_angle_loss.sum() / batch_size
-
-            pos_mask = labels > 0
-            bin_cfg = cfg.RPN_STAGE.RPN_HEAD.BIN_LOSS_CFG
-            center_targets = reg_targets[..., :3]
-
-            # decode center_targets to residual since box_coder has been applied to reg_targets
-            batch_anchors = input_dict['anchors']
-            wa, la, ha = batch_anchors[:, :, 3], batch_anchors[:, :, 4], batch_anchors[:, :, 5]
-            ht = reg_targets[..., 5]
-            hg = torch.exp(ht) * ha
-
-            diagonal = torch.sqrt(la ** 2 + wa ** 2)
-            center_targets[..., 0] = center_targets[..., 0] * diagonal
-            center_targets[..., 1] = center_targets[..., 1] * diagonal
-            center_targets[..., 2] = center_targets[..., 2] * ha + ha / 2 - hg / 2
-
-            center_loss = loss_utils.get_binbased_center_loss(
-                box_preds[pos_mask][..., :-4], center_targets[pos_mask],
-                loc_scope=bin_cfg.LOC_SCOPE, loc_bin_size=bin_cfg.LOC_BIN_SIZE
-            )
-
-            loc_loss_reduced = center_loss + size_angle_loss
-            tb_dict['rpn_center_loss'] = center_loss.item()
-            tb_dict['rpn_size_angle_loss'] = size_angle_loss.item()
         else:
             raise NotImplementedError
 
-        loc_loss_reduced = loc_loss_reduced * loss_weights_dict['loc_weight']
+        loc_loss_reduced = loc_loss_reduced * loss_weights_dict['rpn_loc_weight']
 
-        rpn_loss = loss_unet + loc_loss_reduced + cls_loss_reduced
-        tb_dict['rpn_loss_loc'] = loc_loss_reduced.item()
-        tb_dict['rpn_loss_cls'] = cls_loss_reduced.item()
+        rpn_loss = loc_loss_reduced + cls_loss_reduced
 
-        if cfg.RPN_STAGE.RPN_HEAD.USE_DIRECTION_CLASSIFIER:
-            dir_targets = self.get_direction_target_v2(input_dict['anchors'], reg_targets,
-                                                       dir_offset=cfg.RPN_STAGE.RPN_HEAD.DIR_OFFSET,
-                                                       num_bins=cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
+        tb_dict = {
+            'rpn_loss_loc': loc_loss_reduced.item(),
+            'rpn_loss_cls': cls_loss_reduced.item()
+        }
+        if box_dir_cls_preds is not None:
+            dir_targets = self.get_direction_target(
+                anchors, box_reg_targets,
+                dir_offset=cfg.MODEL.RPN.RPN_HEAD.ARGS['dir_offset'],
+                num_bins=cfg.MODEL.RPN.RPN_HEAD.ARGS['num_dir_bins']
+            )
 
-            dir_logits = dir_cls_preds.view(batch_size, -1, cfg.RPN_STAGE.RPN_HEAD.NUM_DIR_BINS)
-            weights = (labels > 0).type_as(dir_logits)
+            dir_logits = box_dir_cls_preds.view(batch_size, -1, cfg.MODEL.RPN.RPN_HEAD.ARGS['num_dir_bins'])
+            weights = positives.type_as(dir_logits)
             weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)
             dir_loss = self.rpn_dir_loss_func(dir_logits, dir_targets, weights=weights)
             dir_loss = dir_loss.sum() / batch_size
-            dir_loss = dir_loss * loss_weights_dict['dir_weight']
+            dir_loss = dir_loss * loss_weights_dict['rpn_dir_weight']
             rpn_loss += dir_loss
-            tb_dict['rpn_dir_loss_reduced'] = dir_loss.item()
+            tb_dict['rpn_loss_dir'] = dir_loss.item()
 
         tb_dict['rpn_loss'] = rpn_loss.item()
         return rpn_loss, tb_dict
@@ -742,45 +391,24 @@ class Detector3D(nn.Module):
         gt_of_rois_src = rcnn_ret_dict['gt_of_rois_src'][..., 0:code_size].view(-1, code_size)
         rcnn_reg = rcnn_ret_dict['rcnn_reg']
         roi_boxes3d = rcnn_ret_dict['rois']
-        anchor_size = roi_boxes3d[:, :, 3:6].view(-1, 3)
-
         rcnn_batch_size = rcnn_cls_labels.shape[0]
 
         rcnn_loss = 0
-        LOSS_WEIGHTS = cfg.TRAIN.LOSS_WEIGHTS if 'LOSS_WEIGHTS' in cfg.TRAIN else {}
+        loss_cfgs = cfg.MODEL.LOSSES
+        LOSS_WEIGHTS = loss_cfgs.LOSS_WEIGHTS
+
         # rcnn classification loss
-        if cfg.RCNN_STAGE.LOSS_CLS == 'BinaryCrossEntropy':
+        if loss_cfgs.RCNN_CLS_LOSS == 'BinaryCrossEntropy':
             rcnn_cls_flat = rcnn_cls.view(-1)
             batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat), rcnn_cls_labels, reduction='none')
             cls_valid_mask = (rcnn_cls_labels >= 0).float()
             rcnn_loss_cls = (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
-
-            w = LOSS_WEIGHTS['rcnn_loss_cls'] if 'rcnn_loss_cls' in LOSS_WEIGHTS else 1.0
-            rcnn_loss_cls = rcnn_loss_cls * w
+            rcnn_loss_cls = rcnn_loss_cls * LOSS_WEIGHTS['rcnn_cls_weight']
         else:
             raise NotImplementedError
 
         rcnn_loss += rcnn_loss_cls
         tb_dict = {'rcnn_loss_cls': rcnn_loss_cls.item()}
-
-        if 'LOSS_PAIRWISE_COMPARE' in cfg.RCNN_STAGE and cfg.RCNN_STAGE.LOSS_PAIRWISE_COMPARE:
-            batch_size = input_dict['batch_size']
-            batch_rcnn_pred = torch.sigmoid(rcnn_cls.view(batch_size, -1))
-            batch_iou_labels = rcnn_ret_dict['rcnn_cls_labels'].view(batch_size, -1)
-
-            batch_pred_mat = batch_rcnn_pred.view(batch_size, -1, 1) - batch_rcnn_pred.view(batch_size, 1, -1)
-            batch_gt_mat = batch_iou_labels.view(batch_size, -1, 1) - batch_iou_labels.view(batch_size, 1, -1)
-            batch_mask = (torch.abs(batch_gt_mat) > 1e-3)
-
-            if batch_mask.sum() > 0:
-                pairwise_compare_loss = F.l1_loss(batch_pred_mat[batch_mask], batch_gt_mat[batch_mask])
-            else:
-                pairwise_compare_loss = rcnn_loss * 0
-            w = LOSS_WEIGHTS['rcnn_loss_pairwise_compare'] if 'rcnn_loss_pairwise_compare' in LOSS_WEIGHTS else 1.0
-            pairwise_compare_loss = pairwise_compare_loss * w
-
-            rcnn_loss += pairwise_compare_loss
-            tb_dict['rcnn_loss_pairwise_compare'] = pairwise_compare_loss.item()
 
         fg_mask = (reg_valid_mask > 0)
         fg_sum = fg_mask.long().sum().item()
@@ -792,147 +420,49 @@ class Detector3D(nn.Module):
             rcnn_loss_reg = self.rcnn_reg_loss_func(temp_rcnn_reg, faked_reg_target)  # [N, M]
             rcnn_loss_reg = rcnn_loss_reg.sum() / 1.0
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
-
-            # if cfg.RCNN_STAGE.REG_2D_BBOX:
-            #     temp_rcnn_reg_2d = rcnn_ret_dict['rcnn_reg_2d'].view(rcnn_batch_size, -1)[0].unsqueeze(dim=0)
-            #     faked_reg_target_2d = temp_rcnn_reg_2d.detach()
-            #     rcnn_loss_reg_2d = self.rcnn_reg_loss_func(temp_rcnn_reg_2d, faked_reg_target_2d)  # [N, M]
-            #     rcnn_loss_reg_2d = rcnn_loss_reg_2d.sum() / 1.0
-            #     tb_dict['rcnn_loss_reg_2d'] = rcnn_loss_reg_2d.item()
-            #     rcnn_loss_reg += rcnn_loss_reg_2d
         else:
             fg_rcnn_reg = rcnn_reg.view(rcnn_batch_size, -1)[fg_mask]
             fg_roi_boxes3d = roi_boxes3d.view(-1, code_size)[fg_mask]
-            if cfg.RCNN_STAGE.LOSS_REG == 'bin-based':
-                anchor_size = anchor_size[fg_mask]
-                bin_loss_cfg = cfg.RCNN_STAGE.BIN_LOSS_CFG
 
-                loss_loc, loss_angle, loss_size, reg_loss_dict = \
-                    self.rcnn_reg_loss_func(
-                        fg_rcnn_reg,
-                        gt_boxes3d_ct.view(rcnn_batch_size, -1)[fg_mask],
-                        loc_scope=bin_loss_cfg['LOC_SCOPE'],
-                        loc_bin_size=bin_loss_cfg['LOC_BIN_SIZE'],
-                        num_head_bin=bin_loss_cfg['NUM_HEAD_BIN'],
-                        anchor_size=anchor_size,
-                        get_xz_fine=True, get_y_by_bin=bin_loss_cfg['LOC_Y_BY_BIN'],
-                        loc_y_scope=bin_loss_cfg['LOC_Y_SCOPE'],
-                        loc_y_bin_size=bin_loss_cfg['LOC_Y_BIN_SIZE'],
-                        get_ry_fine=True
-                    )
-
-                loss_size = 3 * loss_size  # consistent with old codes
-                rcnn_loss_reg = loss_loc + loss_angle + loss_size
-
-                w = LOSS_WEIGHTS['rcnn_loss_reg'] if 'rcnn_loss_reg' in LOSS_WEIGHTS else 1.0
-                rcnn_loss_reg = rcnn_loss_reg * w
-
-                tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
-                tb_dict['rcnn_loss_loc'] = loss_loc.item()
-                tb_dict['rcnn_loss_angle'] = loss_angle.item()
-                tb_dict['rcnn_loss_size'] = loss_size.item()
-
-                if cfg.RCNN_STAGE.CORNER_LOSS_REGULARIZATION:
-                    rcnn_boxes3d = self.rcnn_box_coder.decode_torch(fg_rcnn_reg, fg_roi_boxes3d,
-                                                                    anchor_size=anchor_size)
-                    loss_corner = loss_utils.get_corner_loss_lidar(rcnn_boxes3d, gt_of_rois_src[fg_mask])
-                    loss_corner = loss_corner.mean()
-
-                    w = LOSS_WEIGHTS['rcnn_loss_corner'] if 'rcnn_loss_corner' in LOSS_WEIGHTS else 1.0
-                    loss_corner = loss_corner * w
-
-                    rcnn_loss_reg += loss_corner
-                    tb_dict['rcnn_loss_corner'] = loss_corner
-
-            elif cfg.RCNN_STAGE.LOSS_REG == 'smooth-l1':
+            if loss_cfgs.RCNN_REG_LOSS == 'smooth-l1':
                 rois_anchor = roi_boxes3d.clone().detach().view(-1, code_size)
                 rois_anchor[:, 0:3] = 0
                 rois_anchor[:, 6] = 0
-                reg_targets = self.box_coder.encode_torch(gt_boxes3d_ct.view(rcnn_batch_size, code_size)[fg_mask],
-                                                          rois_anchor[fg_mask])
-                rcnn_loss_reg = self.rcnn_reg_loss_func(rcnn_reg.view(rcnn_batch_size, -1)[fg_mask].unsqueeze(dim=0),
-                                                        reg_targets.unsqueeze(dim=0))  # [N, M]
+                reg_targets = self.box_coder.encode_torch(
+                    gt_boxes3d_ct.view(rcnn_batch_size, code_size)[fg_mask], rois_anchor[fg_mask]
+                )
+                rcnn_loss_reg = self.rcnn_reg_loss_func(
+                    rcnn_reg.view(rcnn_batch_size, -1)[fg_mask].unsqueeze(dim=0),
+                    reg_targets.unsqueeze(dim=0)
+                )  # [N, M]
                 rcnn_loss_reg = rcnn_loss_reg.sum() / max(fg_sum, 0)
-
-                w = LOSS_WEIGHTS['rcnn_loss_reg'] if 'rcnn_loss_reg' in LOSS_WEIGHTS else 1.0
-                rcnn_loss_reg = rcnn_loss_reg * w
-
+                rcnn_loss_reg = rcnn_loss_reg * LOSS_WEIGHTS['rcnn_reg_weight']
                 tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
 
-                if cfg.RCNN_STAGE.CORNER_LOSS_REGULARIZATION:
-                    # TODO: can this loss BP?
+                if loss_cfgs.CORNER_LOSS_REGULARIZATION:
+                    # TODO: NEED to BE CHECK
                     fg_roi_boxes3d = fg_roi_boxes3d.view(1, -1, code_size)
                     batch_anchors = fg_roi_boxes3d.clone().detach()
                     roi_ry = fg_roi_boxes3d[:, :, 6].view(-1)
                     roi_xyz = fg_roi_boxes3d[:, :, 0:3].view(-1, 3)
                     batch_anchors[:, :, 0:3] = 0
-                    rcnn_boxes3d = self.rcnn_box_coder.decode_torch(fg_rcnn_reg.view(batch_anchors.shape[0], -1, code_size),
-                                                                    batch_anchors).view(-1, code_size)
+                    rcnn_boxes3d = self.rcnn_box_coder.decode_torch(
+                        fg_rcnn_reg.view(batch_anchors.shape[0], -1, code_size), batch_anchors
+                    ).view(-1, code_size)
 
-                    rcnn_boxes3d = box_coder_utils.rotate_pc_along_z_torch(rcnn_boxes3d, (roi_ry + np.pi / 2))
+                    rcnn_boxes3d = common_utils.rotate_pc_along_z_torch(
+                        rcnn_boxes3d.unsqueeze(dim=1), (roi_ry + np.pi / 2)
+                    ).squeeze(dim=1)
                     rcnn_boxes3d[:, 0:3] += roi_xyz
 
                     loss_corner = loss_utils.get_corner_loss_lidar(rcnn_boxes3d[:, 0:7], gt_of_rois_src[fg_mask][:, 0:7])
                     loss_corner = loss_corner.mean()
-
-                    w = LOSS_WEIGHTS['rcnn_loss_corner'] if 'rcnn_loss_corner' in LOSS_WEIGHTS else 1.0
-                    loss_corner = loss_corner * w
+                    loss_corner = loss_corner * LOSS_WEIGHTS['rcnn_corner_weight']
 
                     rcnn_loss_reg += loss_corner
                     tb_dict['rcnn_loss_corner'] = loss_corner
             else:
                 raise NotImplementedError
-
-            # if cfg.RCNN_STAGE.REG_2D_BBOX:
-            #     assert cfg.DATASET == 'kitti'
-            #     batch_rect = input_dict['rect']
-            #     batch_Trv2c = input_dict['Trv2c']
-            #     batch_P2 = input_dict['P2']
-            #     batch_imgshape = input_dict['image_shape']
-            #     batch_size = batch_rect.shape[0]
-            #     with torch.no_grad():
-            #         gt_boxes3d = gt_of_rois_src.view(batch_size, -1, gt_of_rois_src.shape[-1])
-            #         gt_bbox_list, roi_bbox_list, reg_2d_valid_mask_list = [], [], []
-            #         for k in range(batch_size):
-            #             cur_gt_bbox = kitti_utils.boxes3d_to_bbox(gt_boxes3d[k], P2=batch_P2[k], r_rect=batch_rect[k],
-            #                                                       velo2cam=batch_Trv2c[k], box_type='lidar')
-            #             cur_roi_bbox = kitti_utils.boxes3d_to_bbox(roi_boxes3d[k], P2=batch_P2[k], r_rect=batch_rect[k],
-            #                                                        velo2cam=batch_Trv2c[k], box_type='lidar')
-            #
-            #             max_width, max_length = batch_imgshape[k][1], batch_imgshape[k][0]
-            #
-            #             margin_thresh = 5  # pixel
-            #             cur_roi_valid_mask = (cur_roi_bbox[:, 0] > -margin_thresh) & (cur_roi_bbox[:, 1] > -margin_thresh) \
-            #                     & (cur_roi_bbox[:, 2] < max_width + margin_thresh) & (cur_roi_bbox[:, 3] < max_length + margin_thresh)
-            #             cur_gt_valid_mask = (cur_gt_bbox[:, 0] > -margin_thresh) & (cur_gt_bbox[:, 1] > -margin_thresh) \
-            #                     & (cur_gt_bbox[:, 2] < max_width + margin_thresh) & (cur_gt_bbox[:, 3] < max_length + margin_thresh)
-            #
-            #             gt_bbox_list.append(cur_gt_bbox)
-            #             roi_bbox_list.append(cur_roi_bbox)
-            #             reg_2d_valid_mask_list.append(cur_roi_valid_mask & cur_gt_valid_mask)
-            #
-            #         gt_bbox = torch.cat(gt_bbox_list, dim=0)
-            #         roi_bbox = torch.cat(roi_bbox_list, dim=0)
-            #         reg_2d_valid_mask = torch.cat(reg_2d_valid_mask_list, dim=0)
-            #
-            #         reg_2d_mask = reg_2d_valid_mask & fg_mask
-            #
-            #     fg_2d_sum = reg_2d_mask.sum()
-            #     if fg_2d_sum == 0:
-            #         temp_rcnn_reg_2d = rcnn_ret_dict['rcnn_reg_2d'].view(rcnn_batch_size, -1)[0].unsqueeze(dim=0)
-            #         faked_reg_target_2d = temp_rcnn_reg_2d.detach()
-            #         rcnn_loss_reg_2d = self.rcnn_reg_loss_func(temp_rcnn_reg_2d, faked_reg_target_2d)  # [N, M]
-            #         rcnn_loss_reg_2d = rcnn_loss_reg_2d.sum() / 1.0
-            #         tb_dict['rcnn_loss_reg_2d'] = rcnn_loss_reg_2d.item()
-            #         rcnn_loss_reg += rcnn_loss_reg_2d
-            #     else:
-            #         fg_reg_targets_2d = box_coder_utils.bbox2delta(roi_bbox[reg_2d_mask], gt_bbox[reg_2d_mask])
-            #         fg_rcnn_reg_2d = rcnn_ret_dict['rcnn_reg_2d'].view(rcnn_batch_size, -1)[reg_2d_mask]
-            #         rcnn_loss_reg_2d = self.rcnn_reg_loss_func(fg_rcnn_reg_2d, fg_reg_targets_2d)  # [N, M]
-            #
-            #         rcnn_loss_reg_2d = rcnn_loss_reg_2d.sum() / max(fg_2d_sum, 0)
-            #         tb_dict['rcnn_loss_reg_2d'] = rcnn_loss_reg_2d.item()
-            #         rcnn_loss_reg += rcnn_loss_reg_2d
 
         rcnn_loss += rcnn_loss_reg
         tb_dict['rcnn_loss'] = rcnn_loss
@@ -948,24 +478,11 @@ class Detector3D(nn.Module):
         return boxes1, boxes2
 
     @staticmethod
-    def get_direction_target(anchors, reg_targets, one_hot=True):
+    def get_direction_target(anchors, reg_targets, one_hot=True, dir_offset=0, num_bins=2):
         batch_size = reg_targets.shape[0]
         anchors = anchors.view(batch_size, -1, anchors.shape[-1])
         rot_gt = reg_targets[..., 6] + anchors[..., 6]
-        dir_cls_targets = (rot_gt > 0).long()
-        if one_hot:
-            dir_targets = torch.zeros(*list(dir_cls_targets.shape), 2, dtype=anchors.dtype,
-                                      device=dir_cls_targets.device)
-            dir_targets.scatter_(-1, dir_cls_targets.unsqueeze(dim=-1).long(), 1.0)
-            dir_cls_targets = dir_targets
-        return dir_cls_targets
-
-    @staticmethod
-    def get_direction_target_v2(anchors, reg_targets, one_hot=True, dir_offset=0, num_bins=2):
-        batch_size = reg_targets.shape[0]
-        anchors = anchors.view(batch_size, -1, anchors.shape[-1])
-        rot_gt = reg_targets[..., 6] + anchors[..., 6]
-        offset_rot = box_torch_ops.limit_period(rot_gt - dir_offset, 0, 2 * np.pi)
+        offset_rot = common_utils.limit_period_torch(rot_gt - dir_offset, 0, 2 * np.pi)
         dir_cls_targets = torch.floor(offset_rot / (2 * np.pi / num_bins)).long()
         dir_cls_targets = torch.clamp(dir_cls_targets, min=0, max=num_bins - 1)
 

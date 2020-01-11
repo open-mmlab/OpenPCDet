@@ -82,9 +82,9 @@ TARGET_ASSIGNER:
 MODEL:
     VFE:
         NAME: MeanVoxelFeatureExtractor
-        OUTPUT_FEATURES:
 
     RPN:
+        PARAMS_FIXED: False
         BACKBONE:
             NAME: UNetV2
             NUM_POINT_FEATURES: 16
@@ -102,8 +102,11 @@ MODEL:
                 'upsample_strides': [1, 2],
                 'num_upsample_filters': [256, 256],
                 'encode_background_as_zeros': True,
+
                 'use_direction_classifier': True,
-                'num_direction_bins': 2
+                'num_direction_bins': 2,
+                'dir_offset': 0.78539,
+                'dir_limit_offset': 0.0
             }
 
     RCNN:
@@ -112,16 +115,44 @@ MODEL:
         SHARED_FC: [256, 512, 512, 512]
         DP_RATIO: 0.1
 
-        TRAINING_CONFIG:
-            
+        ROI_SAMPLER:
+            ROI_PER_IMAGE: 128
+            FG_RATIO: 0.5
+            HARD_BG_RATIO: 0.8
 
+            CLS_FG_THRESH: 0.75
+            CLS_BG_THRESH: 0.25
+            CLS_BG_THRESH_LO: 0.1
 
-
+            REG_FG_THRESH: 0.55
 
     LOSSES:
         RPN_REG_LOSS: smooth-l1
-
+        RCNN_CLS_LOSS: BinaryCrossEntropy
+        RCNN_REG_LOSS: smooth-l1
+        CORNER_LOSS_REGULARIZATION: True
         LOSS_WEIGHTS: {
+            'rpn_cls_weight': 1.0,
+            'rpn_loc_weight': 2.0,
+            'rpn_dir_weight': 0.2,
 
+            'rcnn_cls_weight': 1.0,
+            'rcnn_reg_weight': 1.0,
+            'rcnn_corner_weight': 1.0
             'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         }
+
+
+    TRAIN:
+        NMS_PRE_MAXSIZE: 9000
+        NMS_POST_MAXSIZE: 512
+        RPN_NMS_THRESH: 0.8
+
+        RPN_NMS_TYPE: nms_normal_gpu
+
+    TEST:
+        NMS_PRE_MAXSIZE: 1024
+        NMS_POST_MAXSIZE: 100
+        RPN_NMS_THRESH: 0.7
+
+        RPN_NMS_TYPE: nms_gpu
