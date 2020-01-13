@@ -3,6 +3,8 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 BOX_CODER: ResidualCoder
 
 DATA_CONFIG:
+    DATASET: 'KittiDataset'
+    DATA_DIR: 'data/kitti'
     FOV_POINTS_ONLY: True
     NUM_POINT_FEATURES: {
         'total': 4,
@@ -80,11 +82,12 @@ TARGET_ASSIGNER:
 
 
 MODEL:
+    NAME: PartA2_net
     VFE:
         NAME: MeanVoxelFeatureExtractor
 
     RPN:
-        PARAMS_FIXED: False
+        PARAMS_FIXED: False  # DO NOT USE THIS
         BACKBONE:
             NAME: UNetV2
             NUM_POINT_FEATURES: 16
@@ -138,21 +141,52 @@ MODEL:
 
             'rcnn_cls_weight': 1.0,
             'rcnn_reg_weight': 1.0,
-            'rcnn_corner_weight': 1.0
+            'rcnn_corner_weight': 1.0,
             'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         }
 
 
     TRAIN:
+        SPLIT: train
         NMS_PRE_MAXSIZE: 9000
         NMS_POST_MAXSIZE: 512
         RPN_NMS_THRESH: 0.8
 
         RPN_NMS_TYPE: nms_normal_gpu
 
+        OPTIMIZATION:
+            OPTIMIZER: adam_onecycle
+            LR: 0.01
+            WEIGHT_DECAY: 0.01
+            MOMENTUM: 0.9
+
+            MOMS: [0.95, 0.85]
+            PCT_START: 0.4
+            DIV_FACTOR: 10
+            DECAY_STEP_LIST: [35, 45]
+            LR_DECAY: 0.1
+            LR_CLIP: 0.0000001
+
+            LR_WARMUP: False
+            WARMUP_EPOCH: 1
+
+            GRAD_NORM_CLIP: 10
+
     TEST:
         NMS_PRE_MAXSIZE: 1024
         NMS_POST_MAXSIZE: 100
         RPN_NMS_THRESH: 0.7
-
         RPN_NMS_TYPE: nms_gpu
+
+        NMS_TYPE: nms_gpu
+        MULTI_CLASSES_NMS: False
+        NMS_THRESH: 0.01
+        SCORE_THRESH: 0.1
+        USE_RAW_SCORE: True
+
+        NMS_PRE_MAXSIZE_LAST: 4096
+        NMS_POST_MAXSIZE_LAST: 500
+
+        RECALL_THRESH_LIST: [0.5, 0.7]
+
+
