@@ -382,7 +382,7 @@ class Detector3D(nn.Module):
         tb_dict['rpn_loss'] = rpn_loss.item()
         return rpn_loss, tb_dict
 
-    def get_rcnn_loss(self, rcnn_ret_dict, input_dict):
+    def get_rcnn_loss(self, rcnn_ret_dict):
         code_size = self.rcnn_box_coder.code_size
         rcnn_cls = rcnn_ret_dict['rcnn_cls']
         rcnn_cls_labels = rcnn_ret_dict['rcnn_cls_labels'].float().view(-1)
@@ -397,7 +397,6 @@ class Detector3D(nn.Module):
         loss_cfgs = cfg.MODEL.LOSSES
         LOSS_WEIGHTS = loss_cfgs.LOSS_WEIGHTS
 
-        # rcnn classification loss
         if loss_cfgs.RCNN_CLS_LOSS == 'BinaryCrossEntropy':
             rcnn_cls_flat = rcnn_cls.view(-1)
             batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat), rcnn_cls_labels, reduction='none')
@@ -455,7 +454,10 @@ class Detector3D(nn.Module):
                     ).squeeze(dim=1)
                     rcnn_boxes3d[:, 0:3] += roi_xyz
 
-                    loss_corner = loss_utils.get_corner_loss_lidar(rcnn_boxes3d[:, 0:7], gt_of_rois_src[fg_mask][:, 0:7])
+                    loss_corner = loss_utils.get_corner_loss_lidar(
+                        rcnn_boxes3d[:, 0:7],
+                        gt_of_rois_src[fg_mask][:, 0:7]
+                    )
                     loss_corner = loss_corner.mean()
                     loss_corner = loss_corner * LOSS_WEIGHTS['rcnn_corner_weight']
 
@@ -465,7 +467,7 @@ class Detector3D(nn.Module):
                 raise NotImplementedError
 
         rcnn_loss += rcnn_loss_reg
-        tb_dict['rcnn_loss'] = rcnn_loss
+        tb_dict['rcnn_loss'] = rcnn_loss.item()
         return rcnn_loss, tb_dict
 
     @staticmethod

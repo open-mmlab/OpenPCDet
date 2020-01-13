@@ -231,7 +231,7 @@ def huber_loss(error, delta):
     return losses
 
 
-def get_corner_loss_lidar(pred_bbox3d, gt_bbox3d, origin=(0.5, 0.5, 0)):
+def get_corner_loss_lidar(pred_bbox3d, gt_bbox3d):
     """
     :param pred_bbox3d: (N, 7)
     :param gt_bbox3d: (N, 7)
@@ -239,17 +239,12 @@ def get_corner_loss_lidar(pred_bbox3d, gt_bbox3d, origin=(0.5, 0.5, 0)):
     """
     assert pred_bbox3d.shape[0] == gt_bbox3d.shape[0]
 
-    box_utils.boxes3d_to_corners3d_lidar()
-    pred_box_corners = box_torch_ops.center_to_corner_box3d(
-        pred_bbox3d[:, 0:3], pred_bbox3d[:, 3:6], pred_bbox3d[:, 6], origin, axis=2)
-    gt_box_corners = box_torch_ops.center_to_corner_box3d(
-        gt_bbox3d[:, 0:3], gt_bbox3d[:, 3:6], gt_bbox3d[:, 6], origin, axis=2)
+    pred_box_corners = box_utils.boxes3d_to_corners3d_lidar_torch(pred_bbox3d)
+    gt_box_corners = box_utils.boxes3d_to_corners3d_lidar_torch(gt_bbox3d)
 
     gt_bbox3d_flip = gt_bbox3d.clone()
     gt_bbox3d_flip[:, 6] += np.pi
-    gt_box_corners_flip = box_torch_ops.center_to_corner_box3d(
-        gt_bbox3d_flip[:, 0:3], gt_bbox3d_flip[:, 3:6], gt_bbox3d_flip[:, 6], origin, axis=2)
-
+    gt_box_corners_flip = box_utils.boxes3d_to_corners3d_lidar_torch(gt_bbox3d_flip)
     corner_dist = torch.min(torch.norm(pred_box_corners - gt_box_corners, dim=2),
                             torch.norm(pred_box_corners - gt_box_corners_flip, dim=2))  # (N, 8)
     corner_loss = huber_loss(corner_dist, delta=1.0)  # (N, 8)
