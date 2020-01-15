@@ -117,12 +117,13 @@ class ResidualCoder(object):
         """
         :param box_preds: (batch_size, N, 7 + ?), x, y, z, w, l, h, r, custom values, z is the box center in z-axis
         :param anchors: (batch_size, N, 7 + ?), x, y, z, w, l, h, r, custom values, z is the box center in z-axis
-        :param dir_cls_preds: (batch_size, N, num_bins)
+        :param dir_cls_preds: (batch_size, H, W, num_anchors_per_locations*2)
         :return:
         """
         batch_box_preds = self.decode_torch(box_preds, anchors)
 
         if dir_cls_preds is not None:
+            dir_cls_preds = dir_cls_preds.view(box_preds.shape[0], box_preds.shape[1], -1)
             dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
 
             period = (2 * np.pi / num_dir_bins)

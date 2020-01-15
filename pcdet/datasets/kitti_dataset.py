@@ -5,7 +5,7 @@ import numpy as np
 from skimage import io
 from .dataset import DatasetTemplate, register_dataset
 from ..utils import box_utils, object3d_utils, calibration, box_coder_utils, common_utils
-from ..utils.roiaware_pool3d import roiaware_pool3d_utils
+from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 from ..config import cfg
 from .data_augmentation.dbsampler import DataBaseSampler
 from .target_assigner import AnchorGeneratorRange, TargetAssigner

@@ -9,7 +9,7 @@ from ..rpn import rpn_modules
 from ..rcnn import rcnn_modules
 from ..bbox_heads import bbox_head_modules
 from ...utils import loss_utils, common_utils, box_utils
-from ...utils.iou3d_nms import iou3d_nms_utils
+from ...ops.iou3d_nms import iou3d_nms_utils
 
 from ...config import cfg
 
@@ -46,7 +46,7 @@ class Detector3D(nn.Module):
             num_class=self.num_class,
             num_anchor_per_loc=self.num_anchors_per_location,
             box_code_size=self.box_coder.code_size,
-            **rpn_head_cfg
+            **rpn_head_cfg.ARGS
         )
 
         rcnn_cfg = model_cfg.RCNN
@@ -360,10 +360,10 @@ class Detector3D(nn.Module):
             dir_targets = self.get_direction_target(
                 anchors, box_reg_targets,
                 dir_offset=cfg.MODEL.RPN.RPN_HEAD.ARGS['dir_offset'],
-                num_bins=cfg.MODEL.RPN.RPN_HEAD.ARGS['num_dir_bins']
+                num_bins=cfg.MODEL.RPN.RPN_HEAD.ARGS['num_direction_bins']
             )
 
-            dir_logits = box_dir_cls_preds.view(batch_size, -1, cfg.MODEL.RPN.RPN_HEAD.ARGS['num_dir_bins'])
+            dir_logits = box_dir_cls_preds.view(batch_size, -1, cfg.MODEL.RPN.RPN_HEAD.ARGS['num_direction_bins'])
             weights = positives.type_as(dir_logits)
             weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)
             dir_loss = self.rpn_dir_loss_func(dir_logits, dir_targets, weights=weights)

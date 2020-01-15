@@ -1,10 +1,10 @@
 import numpy as np
 import torch
-from ...utils.iou3d_nms import iou3d_nms_utils
+from ...ops.iou3d_nms import iou3d_nms_utils
 from ...config import cfg
 
 
-def proposal_target_layer(input_dict, sequence_type=False):
+def proposal_target_layer(input_dict, roi_sampler_cfg, sequence_type=False):
     rois = input_dict['rois']
     roi_raw_scores = input_dict['roi_raw_scores']
     roi_labels = input_dict['roi_labels']
@@ -14,25 +14,24 @@ def proposal_target_layer(input_dict, sequence_type=False):
         gt_boxes = torch.cat([gt_boxes, gt_boxes])
 
     batch_rois, batch_gt_of_rois, batch_roi_iou, batch_roi_raw_scores, batch_roi_labels = \
-        sample_rois_for_rcnn(rois, gt_boxes, roi_raw_scores, roi_labels)
+        sample_rois_for_rcnn(rois, gt_boxes, roi_raw_scores, roi_labels, roi_sampler_cfg)
 
     # regression valid mask
-    reg_valid_mask = (batch_roi_iou > cfg.RCNN_STAGE.REG_FG_THRESH).long()
+    reg_valid_mask = (batch_roi_iou > roi_sampler_cfg.REG_FG_THRESH).long()
 
     # classification label
-    if cfg.RCNN_STAGE.CLS_SCORE_TYPE == 'cls':
-        batch_cls_label = (batch_roi_iou > cfg.RCNN_STAGE.CLS_FG_THRESH).long()
-        invalid_mask = (batch_roi_iou > cfg.RCNN_STAGE.CLS_BG_THRESH) & (batch_roi_iou < cfg.RCNN_STAGE.CLS_FG_THRESH)
+    if roi_sampler_cfg.CLS_SCORE_TYPE == 'cls':
+        batch_cls_label = (batch_roi_iou > roi_sampler_cfg.CLS_FG_THRESH).long()
+        invalid_mask = (batch_roi_iou > roi_sampler_cfg.CLS_BG_THRESH) & \
+                       (batch_roi_iou < roi_sampler_cfg.CLS_FG_THRESH)
         batch_cls_label[invalid_mask > 0] = -1
-    elif cfg.RCNN_STAGE.CLS_SCORE_TYPE == 'roi_iou':
-        fg_mask = batch_roi_iou > cfg.RCNN_STAGE.CLS_FG_THRESH
-        bg_mask = batch_roi_iou < cfg.RCNN_STAGE.CLS_BG_THRESH
+    elif roi_sampler_cfg.CLS_SCORE_TYPE == 'roi_iou':
+        fg_mask = batch_roi_iou > roi_sampler_cfg.CLS_FG_THRESH
+        bg_mask = batch_roi_iou < roi_sampler_cfg.CLS_BG_THRESH
         interval_mask = (fg_mask == 0) & (bg_mask == 0)
 
         batch_cls_label = (fg_mask > 0).float()
         batch_cls_label[interval_mask] = batch_roi_iou[interval_mask] * 2 - 0.5
-    elif cfg.RCNN_STAGE.CLS_SCORE_TYPE == 'rcnn_iou':
-        batch_cls_label = batch_roi_iou
     else:
         raise NotImplementedError
 
@@ -51,7 +50,7 @@ def proposal_target_layer(input_dict, sequence_type=False):
     return output_dict
 
 
-def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels):
+def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels, roi_sampler_cfg):
     """
     :param roi_boxes3d: (B, M, 7 + ?) [x, y, z, w, l, h, ry] in LiDAR coords
     :param gt_boxes3d: (B, N, 7 + ? + 1) [x, y, z, w, l, h, ry, class]
@@ -62,7 +61,6 @@ def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels):
         batch_gt_of_rois: (B, N, 7 + 1)
         batch_roi_iou: (B, N)
     """
-    roi_sampler_cfg = cfg.MODEL.RCNN.ROI_SAMPLER
     batch_size = roi_boxes3d.size(0)
 
     fg_rois_per_image = int(np.round(roi_sampler_cfg.FG_RATIO * roi_sampler_cfg.ROI_PER_IMAGE))
@@ -83,7 +81,7 @@ def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels):
             k -= 1
         cur_gt = cur_gt[:k + 1]
 
-        if len(cfg.CLASSES) == 1:
+        if len(cfg.CLASS_NAMES) == 1:
             iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi, cur_gt[:, 0:7])  # (M, N)
             max_overlaps, gt_assignment = torch.max(iou3d, dim=1)
         else:
@@ -114,7 +112,7 @@ def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels):
 
             # sampling bg
             bg_rois_per_this_image = roi_sampler_cfg.ROI_PER_IMAGE - fg_rois_per_this_image
-            bg_inds = sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image)
+            bg_inds = sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image, roi_sampler_cfg)
 
         elif fg_num_rois > 0 and bg_num_rois == 0:
             # sampling fg
@@ -126,7 +124,7 @@ def sample_rois_for_rcnn(roi_boxes3d, gt_boxes3d, roi_raw_scores, roi_labels):
         elif bg_num_rois > 0 and fg_num_rois == 0:
             # sampling bg
             bg_rois_per_this_image = roi_sampler_cfg.ROI_PER_IMAGE
-            bg_inds = sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image)
+            bg_inds = sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image, roi_sampler_cfg)
 
             fg_rois_per_this_image = 0
         else:
@@ -198,9 +196,9 @@ def get_maxiou3d_with_same_class(rois, roi_labels, gt_boxes, gt_labels):
     return max_overlaps, gt_assignment
 
 
-def sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image):
+def sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image, roi_sampler_cfg):
     if hard_bg_inds.numel() > 0 and easy_bg_inds.numel() > 0:
-        hard_bg_rois_num = int(bg_rois_per_this_image * cfg.MODEL.RCNN.ROI_SAMPLER.HARD_BG_RATIO)
+        hard_bg_rois_num = int(bg_rois_per_this_image * roi_sampler_cfg.HARD_BG_RATIO)
         easy_bg_rois_num = bg_rois_per_this_image - hard_bg_rois_num
 
         # sampling hard bg

@@ -7,7 +7,7 @@ from ..model_utils import pytorch_utils as pt_utils
 from ...config import cfg
 
 from ..model_utils.proposal_target_layer import proposal_target_layer
-from ...utils.roiaware_pool3d import roiaware_pool3d_utils
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils
 
 
@@ -131,9 +131,9 @@ class RCNNNetV5(nn.Module):
         rpn_features = rcnn_dict['rpn_seg_features']  # (npoints, C)
         coords = rcnn_dict['coordinates']  # (npoints, 4)
 
-        rpn_seg_score = rcnn_dict['rpn_seg_score'].detach()  # (npoints)
+        rpn_seg_score = rcnn_dict['rpn_seg_scores'].detach()  # (npoints)
         rpn_seg_mask = (rpn_seg_score > cfg.MODEL.RPN.BACKBONE.SEG_MASK_SCORE_THRESH)
-        rpn_part_offsets = rcnn_dict['rpn_part_offsets'].detach()
+        rpn_part_offsets = rcnn_dict['rpn_part_offsets'].clone().detach()
         rpn_part_offsets[rpn_seg_mask == 0] = 0
         part_features = torch.cat((rpn_part_offsets, rpn_seg_score.view(-1, 1)), dim=1)  # (npoints, 4)
 
@@ -180,7 +180,7 @@ class RCNNNetV5(nn.Module):
         batch_size = rois.shape[0]
         if self.training:
             with torch.no_grad():
-                target_dict = proposal_target_layer(rcnn_dict)
+                target_dict = proposal_target_layer(rcnn_dict, roi_sampler_cfg=cfg.MODEL.RCNN.ROI_SAMPLER)
             rois = target_dict['rois']  # (B, N, 7)
             gt_of_rois = target_dict['gt_of_rois']  # (B, N, 7 + 1)
             target_dict['gt_of_rois_src'] = gt_of_rois.clone().detach()

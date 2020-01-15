@@ -14,33 +14,38 @@ class PartA2Net(Detector3D):
         self.build_networks(cfg.MODEL)
         self.build_losses(cfg.MODEL.LOSSES)
 
-    def forward_rpn(self, voxels, num_points, coords, batch_size, voxel_centers, **kwargs):
+    def forward_rpn(self, voxels, num_points, coordinates, batch_size, voxel_centers, **kwargs):
         # RPN inference
         with torch.set_grad_enabled((not cfg.MODEL.RPN.PARAMS_FIXED) and self.training):
             voxel_features = self.vfe(
                 features=voxels,
                 num_voxels=num_points,
-                coords=coords
+                coords=coordinates
             )
 
             input_sp_tensor = spconv.SparseConvTensor(
                 features=voxel_features,
-                indices=coords,
+                indices=coordinates,
                 spatial_shape=self.sparse_shape,
                 batch_size=batch_size
             )
 
-            unet_ret_dict = self.rpn_net(input_sp_tensor, voxel_centers)
+            unet_ret_dict = self.rpn_net(
+                input_sp_tensor,
+                **{'voxel_centers': voxel_centers}
+            )
+
             rpn_preds_dict = self.rpn_head(unet_ret_dict['spatial_features'])
+            rpn_preds_dict.update(unet_ret_dict)
 
         rpn_ret_dict = {
             'rpn_cls_preds': rpn_preds_dict['cls_preds'],
             'rpn_box_preds': rpn_preds_dict['box_preds'],
             'rpn_dir_cls_preds': rpn_preds_dict.get('dir_cls_preds', None),
-            'rpn_seg_scores': torch.sigmoid(rpn_preds_dict['u_cls_preds'].view(-1)),
             'rpn_seg_features': rpn_preds_dict['seg_features'],
-            'rpn_bev_features': unet_ret_dict['spatial_features'],
-            'rpn_part_offsets': torch.sigmoid(unet_ret_dict['u_reg_preds'])
+            'rpn_bev_features': rpn_preds_dict['spatial_features'],
+            'rpn_seg_scores': torch.sigmoid(rpn_preds_dict['u_seg_preds'].view(-1)),
+            'rpn_part_offsets': torch.sigmoid(rpn_preds_dict['u_reg_preds'])
         }
         return rpn_ret_dict
 
@@ -49,6 +54,7 @@ class PartA2Net(Detector3D):
             batch_anchors = batch_anchors.view(batch_size, -1, batch_anchors.shape[-1])  # (B, N, 7 + ?)
             num_anchors = batch_anchors.shape[1]
             batch_cls_preds = rpn_ret_dict['rpn_cls_preds'].view(batch_size, num_anchors, -1)
+
             batch_box_preds = self.box_coder.decode_with_head_direction_torch(
                 box_preds=rpn_ret_dict['rpn_box_preds'].view(batch_size, num_anchors, -1),
                 anchors=batch_anchors,
@@ -110,8 +116,8 @@ class PartA2Net(Detector3D):
         disp_dict = {}
         if not cfg.MODEL.RPN.PARAMS_FIXED:
             rpn_loss, rpn_tb_dict = self.get_rpn_loss(
-                u_cls_preds=rpn_ret_dict['u_cls_preds'],
-                u_reg_preds=rpn_ret_dict['u_reg_preds'],
+                u_cls_preds=rpn_ret_dict['rpn_seg_scores'],
+                u_reg_preds=rpn_ret_dict['rpn_part_offsets'],
                 rpn_cls_preds=rpn_ret_dict['rpn_cls_preds'],
                 rpn_box_preds=rpn_ret_dict['rpn_box_preds'],
                 rpn_dir_cls_preds=rpn_ret_dict['rpn_dir_cls_preds'],
@@ -120,7 +126,7 @@ class PartA2Net(Detector3D):
             loss += rpn_loss
             tb_dict.update(rpn_tb_dict)
 
-        if not cfg.MODEL.RCNN.ENABLED:
+        if cfg.MODEL.RCNN.ENABLED:
             # RCNN loss
             rcnn_loss, rcnn_tb_dict = self.get_rcnn_loss(rcnn_ret_dict)
             loss += rcnn_loss
@@ -148,7 +154,7 @@ class PartA2Net(Detector3D):
             box_reg_targets=input_dict['box_reg_targets'],
             box_dir_cls_preds=rpn_dir_cls_preds, anchors=input_dict['anchors']
         )
-        loss_rpn = loss_unet + loss_anchor_box,
+        loss_rpn = loss_unet + loss_anchor_box
         tb_dict = {
             'loss_rpn': loss_rpn.item(),
             **tb_dict_1,

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ...config import cfg
-from ..model_utils import Empty
+from ..model_utils.pytorch_utils import Empty
 
 
 class MeanVoxelFeatureExtractor(nn.Module):

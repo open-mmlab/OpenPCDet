@@ -113,15 +113,20 @@ MODEL:
             }
 
     RCNN:
+        NAME: rcnn_net_v5
         ENABLED: True
         ROI_AWARE_POOL_SIZE: 14
         SHARED_FC: [256, 512, 512, 512]
+        CLS_FC: [256, 256]
+        REG_FC: [256, 256]
         DP_RATIO: 0.1
 
         ROI_SAMPLER:
             ROI_PER_IMAGE: 128
             FG_RATIO: 0.5
             HARD_BG_RATIO: 0.8
+
+            CLS_SCORE_TYPE: roi_iou
 
             CLS_FG_THRESH: 0.75
             CLS_BG_THRESH: 0.25

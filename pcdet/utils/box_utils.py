@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from scipy.spatial import Delaunay
 import scipy
-from .roiaware_pool3d import roiaware_pool3d_utils
+from ..ops.roiaware_pool3d import roiaware_pool3d_utils
 
 
 def in_hull(p, hull):

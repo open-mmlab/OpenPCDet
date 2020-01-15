@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from functools import partial
-from ..model_utils import Empty
+from ..model_utils.pytorch_utils import Empty, Sequential
 
 
 class RPNV2(nn.Module):
@@ -35,7 +35,7 @@ class RPNV2(nn.Module):
         deblocks = []
 
         for i, layer_num in enumerate(layer_nums):
-            block = nn.Sequential(
+            block = Sequential(
                 nn.ZeroPad2d(1),
                 Conv2d(in_filters[i], num_filters[i], 3, stride=layer_strides[i]),
                 BatchNorm2d(num_filters[i]),
@@ -46,7 +46,7 @@ class RPNV2(nn.Module):
                 block.add(BatchNorm2d(num_filters[i]))
                 block.add(nn.ReLU())
             blocks.append(block)
-            deblock = nn.Sequential(
+            deblock = Sequential(
                 ConvTranspose2d(num_filters[i], num_upsample_filters[i], upsample_strides[i], stride=upsample_strides[i]),
                 BatchNorm2d(num_upsample_filters[i]),
                 nn.ReLU(),
@@ -57,8 +57,8 @@ class RPNV2(nn.Module):
         if self._concat_input:
             c_in += num_input_features
 
-        if len(upsample_strides)>len(num_filters):
-            deblock = nn.Sequential(
+        if len(upsample_strides) > len(num_filters):
+            deblock = Sequential(
                 ConvTranspose2d(c_in, c_in, upsample_strides[-1], stride=upsample_strides[-1]),
                 BatchNorm2d(c_in),
                 nn.ReLU(),

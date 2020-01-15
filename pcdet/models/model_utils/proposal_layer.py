@@ -1,5 +1,5 @@
 import torch
-from ...utils.iou3d_nms import iou3d_nms_utils
+from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils import box_utils
 from ...config import cfg
 
@@ -43,10 +43,10 @@ def proposal_layer(batch_size, batch_cls_preds, batch_box_preds, code_size=7, ba
             boxes_for_nms = box_utils.boxes3d_to_bevboxes_lidar_torch(box_preds)
 
             keep_idx = getattr(iou3d_nms_utils, cfg.MODEL[mode].RPN_NMS_TYPE)(
-                boxes_for_nms, top_scores, cfg[mode].RPN_NMS_THRESH
+                boxes_for_nms, top_scores, cfg.MODEL[mode].RPN_NMS_THRESH
             )
 
-            selected = keep_idx[:cfg[mode].NMS_POST_MAXSIZE]
+            selected = keep_idx[:cfg.MODEL[mode].NMS_POST_MAXSIZE]
         else:
             selected = []
 

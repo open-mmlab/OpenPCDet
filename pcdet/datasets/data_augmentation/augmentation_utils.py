@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 from ...utils import box_utils, common_utils
-from ...utils.roiaware_pool3d import roiaware_pool3d_utils
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 
 
