@@ -5,7 +5,7 @@ All Rights Reserved 2019.
 """
 import torch
 from ...utils import box_utils
-import iou3d_nms_cuda
+from . import iou3d_nms_cuda
 
 
 def boxes_iou_bev(boxes_a, boxes_b):

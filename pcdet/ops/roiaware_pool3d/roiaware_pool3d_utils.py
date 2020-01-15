@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Function
-import roiaware_pool3d_cuda
+from . import roiaware_pool3d_cuda
 
 
 class RoIAwarePool3d(nn.Module):

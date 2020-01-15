@@ -2,3 +2,4 @@
 *.pyc
 venv/
 *.idea/
+*.so

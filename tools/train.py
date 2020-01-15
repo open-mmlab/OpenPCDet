@@ -6,8 +6,8 @@ from pcdet.config import cfg, log_config_to_file, cfg_from_list, cfg_from_yaml_f
 from pcdet.utils import common_utils
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network, model_fn_decorator
-from .train_utils.optimization import build_optimizer, build_scheduler
-from .train_utils.train_utils import train_model
+from train_utils.optimization import build_optimizer, build_scheduler
+from train_utils.train_utils import train_model
 import torch.distributed as dist
 
 from path import Path
