@@ -27,7 +27,7 @@ def write_version_to_file(version, target_file):
 
 
 if __name__ == '__main__':
-    version = '0.1.0-%s' % get_git_commit_number()
+    version = '0.1.0+%s' % get_git_commit_number()
     write_version_to_file(version, 'pcdet/version.py')
 
     setup(
@@ -40,7 +40,8 @@ if __name__ == '__main__':
             'spconv==1.0',
             'numba',
             'tensorboardX',
-            'easydict'
+            'easydict',
+            'yaml>=5.1'
         ],
         author='Shaoshuai Shi',
         author_email='shaoshuaics@gmail.com',
