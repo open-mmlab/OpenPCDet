@@ -16,22 +16,21 @@ class Loss(object):
                  scope=None,
                  **params):
         """Call the loss function.
+        Args:
+          prediction_tensor: an N-d tensor of shape [batch, anchors, ...]
+            representing predicted quantities.
+          target_tensor: an N-d tensor of shape [batch, anchors, ...] representing
+            regression or classification targets.
+          ignore_nan_targets: whether to ignore nan targets in the loss computation.
+            E.g. can be used if the target tensor is missing groundtruth data that
+            shouldn't be factored into the loss.
+          scope: Op scope name. Defaults to 'Loss' if None.
+          **params: Additional keyword arguments for specific implementations of
+                  the Loss.
 
-    Args:
-      prediction_tensor: an N-d tensor of shape [batch, anchors, ...]
-        representing predicted quantities.
-      target_tensor: an N-d tensor of shape [batch, anchors, ...] representing
-        regression or classification targets.
-      ignore_nan_targets: whether to ignore nan targets in the loss computation.
-        E.g. can be used if the target tensor is missing groundtruth data that
-        shouldn't be factored into the loss.
-      scope: Op scope name. Defaults to 'Loss' if None.
-      **params: Additional keyword arguments for specific implementations of
-              the Loss.
-
-    Returns:
-      loss: a tensor representing the value of the loss function.
-    """
+        Returns:
+          loss: a tensor representing the value of the loss function.
+        """
         if ignore_nan_targets:
             target_tensor = torch.where(torch.isnan(target_tensor),
                                         prediction_tensor,
@@ -41,17 +40,16 @@ class Loss(object):
     @abstractmethod
     def _compute_loss(self, prediction_tensor, target_tensor, **params):
         """Method to be overridden by implementations.
+        Args:
+          prediction_tensor: a tensor representing predicted quantities
+          target_tensor: a tensor representing regression or classification targets
+          **params: Additional keyword arguments for specific implementations of
+                  the Loss.
 
-    Args:
-      prediction_tensor: a tensor representing predicted quantities
-      target_tensor: a tensor representing regression or classification targets
-      **params: Additional keyword arguments for specific implementations of
-              the Loss.
-
-    Returns:
-      loss: an N-d tensor of shape [batch, anchors, ...] containing the loss per
-        anchor
-    """
+        Returns:
+          loss: an N-d tensor of shape [batch, anchors, ...] containing the loss per
+            anchor
+        """
         pass
 
 
@@ -182,29 +180,28 @@ class WeightedSoftmaxClassificationLoss(Loss):
 
     def __init__(self, logit_scale=1.0):
         """Constructor.
+        Args:
+          logit_scale: When this value is high, the prediction is "diffused" and
+                       when this value is low, the prediction is made peakier.
+                       (default 1.0)
 
-    Args:
-      logit_scale: When this value is high, the prediction is "diffused" and
-                   when this value is low, the prediction is made peakier.
-                   (default 1.0)
-
-    """
+        """
         self._logit_scale = logit_scale
 
     def _compute_loss(self, prediction_tensor, target_tensor, weights):
         """Compute loss function.
 
-    Args:
-      prediction_tensor: A float tensor of shape [batch_size, num_anchors,
-        num_classes] representing the predicted logits for each class
-      target_tensor: A float tensor of shape [batch_size, num_anchors,
-        num_classes] representing one-hot encoded classification targets
-      weights: a float tensor of shape [batch_size, num_anchors]
+        Args:
+          prediction_tensor: A float tensor of shape [batch_size, num_anchors,
+            num_classes] representing the predicted logits for each class
+          target_tensor: A float tensor of shape [batch_size, num_anchors,
+            num_classes] representing one-hot encoded classification targets
+          weights: a float tensor of shape [batch_size, num_anchors]
 
-    Returns:
-      loss: a float tensor of shape [batch_size, num_anchors]
-        representing the value of the loss function.
-    """
+        Returns:
+          loss: a float tensor of shape [batch_size, num_anchors]
+            representing the value of the loss function.
+        """
         num_classes = prediction_tensor.shape[-1]
         prediction_tensor = torch.div(
             prediction_tensor, self._logit_scale)
@@ -217,7 +214,7 @@ class WeightedSoftmaxClassificationLoss(Loss):
 def _softmax_cross_entropy_with_logits(logits, labels):
     param = list(range(len(logits.shape)))
     transpose_param = [0] + [param[-1]] + param[1:-1]
-    logits = logits.permute(*transpose_param) # [N, ..., C] -> [N, C, ...]
+    logits = logits.permute(*transpose_param)  # [N, ..., C] -> [N, C, ...]
     loss_ftor = nn.CrossEntropyLoss(reduction='none')
     loss = loss_ftor(logits, labels.max(dim=-1)[1])
     return loss

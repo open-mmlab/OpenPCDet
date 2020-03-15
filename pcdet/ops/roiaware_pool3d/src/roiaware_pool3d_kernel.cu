@@ -196,7 +196,6 @@ __global__ void roiaware_avgpool3d(int boxes_num, int pts_num, int channels, int
 }
 
 
-
 void roiaware_pool3d_launcher(int boxes_num, int pts_num, int channels, int max_pts_each_voxel, int out_x, int out_y, int out_z,
     const float *rois, const float *pts, const float *pts_feature, int *argmax, int *pts_idx_of_voxels, float *pooled_features, int pool_method){
     // params rois: (N, 7) [x, y, z, w, l, h, rz] in LiDAR coordinate
@@ -291,7 +290,6 @@ __global__ void roiaware_avgpool3d_backward(int boxes_num, int channels, int out
         atomicAdd(grad_in + pts_idx_of_voxels[k] * channels + channel_idx, grad_out[0] * cur_grad);
     }
 }
-
 
 
 void roiaware_pool3d_backward_launcher(int boxes_num, int out_x, int out_y, int out_z, int channels, int max_pts_each_voxel,

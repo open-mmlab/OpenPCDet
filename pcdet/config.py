@@ -27,7 +27,6 @@ def cfg_from_list(cfg_list, config):
         try:
             value = literal_eval(v)
         except:
-            # handle the case when v is a string literal
             value = v
 
         if type(value) != type(d[subkey]) and isinstance(d[subkey], EasyDict):

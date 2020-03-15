@@ -4,8 +4,8 @@
 <br>
 
 <p align="middle">
-  <img src="docs/demo_01.png" width="432" height="380"/>
-  <img src="docs/demo_02.png" width="432" height="380"/> 
+  <img src="docs/demo_01.png" width="430" height="380"/>
+  <img src="docs/demo_02.png" width="430" height="380"/> 
 </p>
 
 ## Introduction
@@ -30,7 +30,7 @@ Supported methods are shown in the below table. The results are the 3D detection
 All models are trained with 8 GPUs and are available for download.
 
 |                                             | training time | AP_Easy | AP_Mod. | AP_Hard | download  |
-|---------------------------------------------|:-------------:|:-------:|:-------:|:-------:|:---------:|
+|:-------------------------------------------:|:-------------:|:-------:|:-------:|:-------:|:---------:|
 | [PointPillar](tools/cfgs/pointpillar.yaml)  | ~2hours       | 87.37   | 77.30   | 74.02   | [model-18M](https://drive.google.com/open?id=1EIXknJF3ME8LLvC2chB7L52U6XGU_bxg) | 
 | [SECOND](tools/cfgs/second.yaml)            | ~2hours       | 88.46   | 78.46   | 76.63   | [model-20M](https://drive.google.com/open?id=1Nx_STdaItqrnW8EqPHSDIDZXCF2PYYE-) |
 | [Part-A^2](tools/cfgs/PartA2_car.yaml)      | ~5hours       | 89.66   | 79.45   | 78.80   | [model-209M](https://drive.google.com/open?id=1D-lxyPww80H-zEdheaDTO6BfxCFiXOEo) |
@@ -98,7 +98,7 @@ All the config files are within `tools/cfgs/`.
 ### Test and evaluate the pretrained models
 * Test with a pretrained model: 
 ```shell script
-python test.py --cfg_files ${CONFIG_FILE} --batch_size 4 --ckpt ${CKPT}
+python test.py --cfg_file ${CONFIG_FILE} --batch_size 4 --ckpt ${CKPT}
 ```
 
 * For example, for testing with the above provided `Part-A^2` model, please run the following command (here we add `--set` to modify some default parameters to match with the training setting of the provided `Part-A^2` model, and other provided models do not need to add it): 
@@ -110,7 +110,7 @@ python test.py --cfg_file cfgs/PartA2_car.yaml --batch_size 4 --ckpt PartA2.pth 
 
 * To evaluate all the saved checkpoints of a specific training setting and draw the performance curve on the Tensorboard, add the `--eval_all` argument: 
 ```shell script
-python test.py --cfg_files ${CONFIG_FILE} --batch_size 4 --eval_all
+python test.py --cfg_file ${CONFIG_FILE} --batch_size 4 --eval_all
 ```
 
 
@@ -120,18 +120,18 @@ Currently, to train `PointPillar` or `SECOND` or `PartA2`, the `--batch_size` de
 * Train with multiple GPUs:
 ```shell script
 sh scripts/dist_train.sh ${NUM_GPUS} \ 
-    --cfg_files ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
+    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
 
 * Train with multiple machines:
 ```shell script
 sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} \ 
-    --cfg_files ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
+    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
 
 * Train with a single GPU:
 ```shell script
-python train.py --cfg_files ${CONFIG_FILE} --batch_size ${BATCH_SIZE} 
+python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} 
 ```
 
 ## Acknowledgement
@@ -153,7 +153,7 @@ If you find this work useful in your research, please consider cite:
 }
 ```
 
-and/or
+and / or
 
 ```
 @inproceedings{shi2019pointrcnn,

@@ -129,6 +129,14 @@ def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
 
 
 def init_dist_slurm(batch_size, tcp_port, local_rank=None, backend='nccl'):
+    """
+    modified from https://github.com/open-mmlab/mmdetection
+    :param batch_size:
+    :param tcp_port:
+    :param local_rank:
+    :param backend:
+    :return:
+    """
     proc_id = int(os.environ['SLURM_PROCID'])
     ntasks = int(os.environ['SLURM_NTASKS'])
     node_list = os.environ['SLURM_NODELIST']
