@@ -44,7 +44,7 @@ DATA_CONFIG:
                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5']
             RATE: 1.0
             SAMPLE_GROUPS: ['Car:15','Pedestrian:10', 'Cyclist:10']
-            USE_ROAD_PLANE: True
+            USE_ROAD_PLANE: True  
 
     VOXEL_GENERATOR:
         MAX_POINTS_PER_VOXEL: 5
@@ -55,7 +55,7 @@ MODEL:
     NAME: PartA2_net
     VFE:
         NAME: MeanVoxelFeatureExtractor
-        ARGS: {}
+        ARGS: {} 
 
     RPN:
         PARAMS_FIXED: False  # DO NOT USE THIS
@@ -76,7 +76,7 @@ MODEL:
             NAME: RPNV2
             ARGS: {
                 'use_norm': True,
-                'concat_input': False,
+                'concat_input': False, 
                 'num_input_features': 256,
                 'layer_nums': [5, 5],
                 'layer_strides': [1, 2],
@@ -122,11 +122,11 @@ MODEL:
                 ]
 
     RCNN:
-        NAME: SpConvRCNN
+        NAME: FCRCNN
         ENABLED: True
         NUM_POINT_FEATURES: 16
-        ROI_AWARE_POOL_SIZE: 14
-        SHARED_FC: [256, 512, 512, 512]
+        ROI_AWARE_POOL_SIZE: 12
+        SHARED_FC: [128, 256, 256, 256]
         CLS_FC: [256, 256]
         REG_FC: [256, 256]
         DP_RATIO: 0.3
@@ -143,7 +143,7 @@ MODEL:
             CLS_BG_THRESH: 0.25
             CLS_BG_THRESH_LO: 0.1
 
-            REG_FG_THRESH: 0.55
+            REG_FG_THRESH: 0.65
 
     LOSSES:
         RPN_REG_LOSS: smooth-l1
@@ -172,7 +172,7 @@ MODEL:
 
         OPTIMIZATION:
             OPTIMIZER: adam_onecycle
-            LR: 0.003
+            LR: 0.01
             WEIGHT_DECAY: 0.01
             MOMENTUM: 0.9
 
@@ -198,10 +198,10 @@ MODEL:
         NMS_TYPE: nms_gpu
         MULTI_CLASSES_NMS: False
         NMS_THRESH: 0.01
-        SCORE_THRESH: 0.3
+        SCORE_THRESH: 0.1
         USE_RAW_SCORE: True
 
-        NMS_PRE_MAXSIZE_LAST: 1024
+        NMS_PRE_MAXSIZE_LAST: 4096
         NMS_POST_MAXSIZE_LAST: 500
 
         RECALL_THRESH_LIST: [0.5, 0.7]

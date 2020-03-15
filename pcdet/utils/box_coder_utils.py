@@ -113,7 +113,7 @@ class ResidualCoder(object):
         return torch.cat([xg, yg, zg, wg, lg, hg, rg, *cgs], dim=-1)
 
     def decode_with_head_direction_torch(self, box_preds, anchors, dir_cls_preds,
-                                         num_dir_bins, dir_offset, dir_limit_offset):
+                                         num_dir_bins, dir_offset, dir_limit_offset, use_binary_dir_classifier=False):
         """
         :param box_preds: (batch_size, N, 7 + ?), x, y, z, w, l, h, r, custom values, z is the box center in z-axis
         :param anchors: (batch_size, N, 7 + ?), x, y, z, w, l, h, r, custom values, z is the box center in z-axis
@@ -124,13 +124,22 @@ class ResidualCoder(object):
 
         if dir_cls_preds is not None:
             dir_cls_preds = dir_cls_preds.view(box_preds.shape[0], box_preds.shape[1], -1)
-            dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
+            if use_binary_dir_classifier:
+                dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
+                opp_labels = (batch_box_preds[..., -1] > 0) ^ dir_labels.byte()
+                batch_box_preds[..., -1] += torch.where(
+                    opp_labels,
+                    torch.tensor(np.pi).type_as(batch_box_preds),
+                    torch.tensor(0.0).type_as(batch_box_preds)
+                )
+            else:
+                dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
 
-            period = (2 * np.pi / num_dir_bins)
-            dir_rot = common_utils.limit_period_torch(
-                batch_box_preds[..., 6] - dir_offset, dir_limit_offset, period
-            )
-            batch_box_preds[..., 6] = dir_rot + dir_offset + period * dir_labels.to(batch_box_preds.dtype)
+                period = (2 * np.pi / num_dir_bins)
+                dir_rot = common_utils.limit_period_torch(
+                    batch_box_preds[..., 6] - dir_offset, dir_limit_offset, period
+                )
+                batch_box_preds[..., 6] = dir_rot + dir_offset + period * dir_labels.to(batch_box_preds.dtype)
 
         return batch_box_preds
 
@@ -370,39 +379,4 @@ def decode_center_by_bin(center_pred, original_center, loc_scope, loc_bin_size):
 
 
 if __name__ == '__main__':
-    A = ResidualCoder()
-
-    roi = np.array([
-        [1235.8512, 116.6956, 1241.0000, 313.0967],
-        [  0.0000, 185.8831,   2.5533, 249.3910],
-        [  0.0000, 277.3714,   0.0000, 374.0000],
-        [ 53.1797, 153.9926, 217.4043, 254.9840],
-        [ 62.8564, 150.7572, 228.6056, 254.1328],
-        [ 51.9233, 155.1076, 210.8149, 257.6587],
-        [214.3270, 168.2233, 286.9133, 202.7512],
-        [397.9091,  86.6177, 692.8549, 198.1843],
-        [312.8652, 157.6697, 517.4764, 247.0425],
-        [  0.0000, 281.2801,   0.0000, 374.0000]])
-    gt = np.array([
-        [1210.4595, 88.2485, 1241.0000, 307.2321],
-        [  0.0000, 188.9552,  12.8203, 248.2329],
-        [  0.0000, 292.5262,   0.0000, 374.0000],
-        [ 67.7120, 156.5728, 214.3772, 259.0395],
-        [ 67.7120, 156.5728, 214.3772, 259.0395],
-        [ 67.7120, 156.5728, 214.3772, 259.0395],
-        [211.2084, 167.3544, 282.6477, 203.2750],
-        [390.5256,  80.3167, 668.8065, 191.2320],
-        [317.9528, 153.3572, 510.3288, 243.8742],
-        [  0.0000, 292.5262,   0.0000, 374.0000]])
-
-    roi = torch.from_numpy(roi)
-    gt = torch.from_numpy(gt)
-
-    import pdb
-    pdb.set_trace()
-    A = bbox2delta(roi, gt)
-
-
-
-    import pdb
-    pdb.set_trace()
+    pass

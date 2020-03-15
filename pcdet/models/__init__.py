@@ -1,10 +1,10 @@
 import torch 
 from collections import namedtuple
-from .detectors.PartA2_net import PartA2Net
+from .detectors import all_detectors
 from ..config import cfg
 
 all_models = {
-    'PartA2_net': PartA2Net
+    **all_detectors
 }
 
 

@@ -1,6 +1,7 @@
-from .rcnn_net_v5 import RCNNNetV5
+from .partA2_rcnn_net import FCRCNN, SpConvRCNN
 
 
 rcnn_modules = {
-    'rcnn_net_v5': RCNNNetV5
+    'FCRCNN': FCRCNN,
+    'SpConvRCNN': SpConvRCNN
 }

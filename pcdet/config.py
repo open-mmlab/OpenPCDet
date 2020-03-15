@@ -50,7 +50,10 @@ def cfg_from_list(cfg_list, config):
 
 def cfg_from_yaml_file(cfg_file, config):
     with open(cfg_file, 'r') as f:
-        new_config = yaml.load(f, Loader=yaml.FullLoader)
+        try:
+            new_config = yaml.load(f, Loader=yaml.FullLoader)
+        except:
+            new_config = yaml.load(f)
         config.update(EasyDict(new_config))
 
     return config

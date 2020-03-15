@@ -1,8 +1,17 @@
+# This file is modified from https://github.com/traveller59/second.pytorch
+
 import numpy as np
 import numba
-from ...utils import box_utils, common_utils
+from ...utils import common_utils
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
+
+import warnings
+try:
+    from numba.errors import NumbaPerformanceWarning
+    warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
+except:
+    pass
 
 
 @numba.njit
@@ -246,22 +255,29 @@ def noise_per_object_v3_(gt_boxes, points=None, valid_mask=None, rotation_pertur
     loc_noises = np.random.normal(scale=center_noise_std, size=[num_boxes, num_try, 3])
     rot_noises = np.random.uniform(rotation_perturb[0], rotation_perturb[1], size=[num_boxes, num_try])
 
-    # gt_box_corners = box_np_ops.center_to_corner_box3d(gt_boxes[:, :3], gt_boxes[:, 3:6], gt_boxes[:, 6],
-    #                                                    origin=origin, axis=2)
-    gt_box_corners = box_utils.boxes3d_to_corners3d_lidar(gt_boxes)
-
     selected_noise = noise_per_box(gt_boxes[:, [0, 1, 3, 4, 6]], valid_mask, loc_noises, rot_noises)
 
     loc_transforms = _select_transform(loc_noises, selected_noise)
     rot_transforms = _select_transform(rot_noises, selected_noise)
+
+    gt_boxes_before_noise = gt_boxes.copy()
+    box3d_transform_(gt_boxes, loc_transforms, rot_transforms, valid_mask)
     if points is not None:
-        point_masks = roiaware_pool3d_utils.points_in_boxes_cpu(
+        # mark points in noised position
+        point_masks_dst = roiaware_pool3d_utils.points_in_boxes_cpu(
             torch.from_numpy(points[:, :3]), torch.from_numpy(gt_boxes)
         ).numpy().transpose()  # (num_points, num_boxes)
 
-        points_transform_(points, gt_boxes[:, :3], point_masks, loc_transforms, rot_transforms, valid_mask)
+        point_masks = roiaware_pool3d_utils.points_in_boxes_cpu(
+            torch.from_numpy(points[:, :3]), torch.from_numpy(gt_boxes_before_noise)
+        ).numpy().transpose()  # (num_points, num_boxes)
 
-    box3d_transform_(gt_boxes, loc_transforms, rot_transforms, valid_mask)
+        points_transform_(points, gt_boxes_before_noise[:, :3], point_masks, loc_transforms, rot_transforms, valid_mask)
+
+        keep_mask = np.logical_not((point_masks_dst.sum(axis=1) == 1) & (point_masks.sum(axis=1) == 0))
+        points = points[keep_mask]
+
+    return gt_boxes, points
 
 
 def random_flip(gt_boxes, points, probability=0.5):

@@ -5,25 +5,7 @@ from ..utils import box_utils, common_utils
 from ..config import cfg
 from .data_augmentation import augmentation_utils
 
-REGISTERED_DATASET_DICT = {}
 
-
-def register_dataset(cls, name=None):
-    global REGISTERED_DATASET_DICT
-    if name is None:
-        name = cls.__name__
-    assert name not in REGISTERED_DATASET_DICT, f'exist class: {REGISTERED_DATASET_DICT}'
-    REGISTERED_DATASET_DICT[name] = cls
-    return cls
-
-
-def get_dataset_class(name):
-    global REGISTERED_DATASET_DICT
-    assert name in REGISTERED_DATASET_DICT, f'available class: {REGISTERED_DATASET_DICT}'
-    return REGISTERED_DATASET_DICT[name]
-
-
-@register_dataset
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self):
         super().__init__()
@@ -44,14 +26,7 @@ class DatasetTemplate(torch_data.Dataset):
             num_voxels: (N)
             voxel_centers: (N, 3)
             calib: object
-            anchors: (num_anchors, 7)
-            seg_labels: (N), int
-            part_labels: (N, 3), GT intra-object part locations
             gt_boxes: (N, 8), [x, y, z, w, l, h, rz, gt_classes] in LiDAR coordinate, z is the bottom center
-            labels: (num_anchors)
-            reg_targets: (num_anchors, C), encoded bbox targets
-            reg_src_targets: (num_anchors, C), original bbox targets
-            reg_weights: (num_anchors)
             points: (M, 3 + C)
         """
         sample_idx = input_dict['sample_idx']
@@ -91,7 +66,8 @@ class DatasetTemplate(torch_data.Dataset):
 
             noise_per_object_cfg = cfg.DATA_CONFIG.AUGMENTATION.NOISE_PER_OBJECT
             if noise_per_object_cfg.ENABLED:
-                augmentation_utils.noise_per_object_v3_(
+                gt_boxes, points = \
+                    augmentation_utils.noise_per_object_v3_(
                     gt_boxes,
                     points,
                     gt_boxes_mask,
@@ -137,9 +113,6 @@ class DatasetTemplate(torch_data.Dataset):
         if cfg.DATA_CONFIG.MASK_POINTS_BY_RANGE:
             points = common_utils.mask_points_by_range(points, cfg.DATA_CONFIG.POINT_CLOUD_RANGE)
 
-        anchors = self.anchor_cache['anchors']
-        anchors_dict = self.anchor_cache['anchors_dict']
-
         example = {}
         if has_label:
             if not self.training:
@@ -149,24 +122,18 @@ class DatasetTemplate(torch_data.Dataset):
                 gt_names = gt_names[selected]
                 gt_classes = np.array([self.class_names.index(n) + 1 for n in gt_names], dtype=np.int32)
 
-            seg_labels, part_labels, bbox_reg_labels = \
-                self.generate_voxel_part_targets(voxel_centers, gt_boxes, gt_classes)
-            example['seg_labels'] = seg_labels
-            example['part_labels'] = part_labels
-            if bbox_reg_labels is not None:
-                example['bbox_reg_labels'] = bbox_reg_labels
-
-            targets_dict = self.target_assigner.assign_v2(
-                anchors_dict, gt_boxes, gt_classes=gt_classes, gt_names=gt_names
-            )
+            if 'TARGET_CONFIG' in cfg.MODEL.RPN.BACKBONE \
+                and cfg.MODEL.RPN.BACKBONE.TARGET_CONFIG.GENERATED_ON == 'dataset':
+                seg_labels, part_labels, bbox_reg_labels = \
+                    self.generate_voxel_part_targets(voxel_centers, gt_boxes, gt_classes)
+                example['seg_labels'] = seg_labels
+                example['part_labels'] = part_labels
+                if bbox_reg_labels is not None:
+                    example['bbox_reg_labels'] = bbox_reg_labels
 
             gt_boxes = np.concatenate((gt_boxes, gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
 
             example.update({
-                'box_cls_labels': targets_dict['labels'],
-                'box_reg_targets': targets_dict['bbox_targets'],
-                'reg_src_targets': targets_dict['bbox_src_targets'],
-                'reg_weights': targets_dict['bbox_outside_weights'],
                 'gt_boxes': gt_boxes
             })
 
@@ -174,10 +141,8 @@ class DatasetTemplate(torch_data.Dataset):
             'voxels': voxels,
             'num_points': num_points,
             'coordinates': coordinates,
-            # 'num_voxels': np.array([voxels.shape[0]], dtype=np.int64),
             'voxel_centers': voxel_centers,
             'calib': input_dict['calib'],
-            'anchors': anchors,
             'points': points
         })
 
@@ -189,7 +154,12 @@ class DatasetTemplate(torch_data.Dataset):
         :param gt_boxes: (M, 7) [x, y, z, w, l, h, ry] in LiDAR coords
         :return:
         """
-        extend_gt_boxes = common_utils.enlarge_box3d(gt_boxes, extra_width=cfg.TARGET_ASSIGNER.GT_EXTEND_WIDTH)
+        unet_target_cfg = cfg.MODEL.RPN.BACKBONE.TARGET_CONFIG
+
+        MEAN_SIZE = unet_target_cfg.MEAN_SIZE
+        GT_EXTEND_WIDTH = unet_target_cfg.GT_EXTEND_WIDTH
+
+        extend_gt_boxes = common_utils.enlarge_box3d(gt_boxes, extra_width=GT_EXTEND_WIDTH)
         gt_corners = box_utils.boxes3d_to_corners3d_lidar(gt_boxes)
         extend_gt_corners = box_utils.boxes3d_to_corners3d_lidar(extend_gt_boxes)
 
@@ -221,7 +191,7 @@ class DatasetTemplate(torch_data.Dataset):
                 bbox_reg_labels[fg_pt_flag, 0:3] = center3d - fg_voxels
                 bbox_reg_labels[fg_pt_flag, 6] = gt_boxes[k, 6]  # dy
 
-                cur_mean_size = cfg.RPN_STAGE.RPN_HEAD.MEAN_SIZE[self.class_names[gt_classes[k] - 1]]
+                cur_mean_size = MEAN_SIZE[cfg.CLASS_NAMES[gt_classes[k] - 1]]
                 bbox_reg_labels[fg_pt_flag, 3:6] = (gt_boxes[k, 3:6] - np.array(cur_mean_size)) / cur_mean_size
 
         reg_labels = np.maximum(reg_labels, 0)
@@ -235,7 +205,7 @@ class DatasetTemplate(torch_data.Dataset):
                 example_merged[k].append(v)
         ret = {}
         for key, elems in example_merged.items():
-            if key in ['voxels', 'num_points', 'seg_labels', 'part_labels', 'voxel_centers', 'bbox_reg_labels']:
+            if key in ['voxels', 'num_points', 'voxel_centers', 'seg_labels', 'part_labels', 'bbox_reg_labels']:
                 ret[key] = np.concatenate(elems, axis=0)
             elif key in ['coordinates', 'points']:
                 coors = []

@@ -5,18 +5,32 @@ from ...config import cfg
 from ..model_utils.pytorch_utils import Empty
 
 
-class MeanVoxelFeatureExtractor(nn.Module):
+class VoxelFeatureExtractor(nn.Module):
     def __init__(self, **kwargs):
-        super(MeanVoxelFeatureExtractor, self).__init__()
+        super().__init__()
 
-    @staticmethod
-    def get_output_feature_dim():
+    def get_output_feature_dim(self):
+        raise NotImplementedError
+
+    def forward(self, **kwargs):
+        raise NotImplementedError
+
+
+class MeanVoxelFeatureExtractor(VoxelFeatureExtractor):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+    def get_output_feature_dim(self):
         return cfg.DATA_CONFIG.NUM_POINT_FEATURES['use']
 
     def forward(self, features, num_voxels, **kwargs):
-        # features: (N, max_points_of_each_voxel, 3 + C)
-        # num_voxels: (N)
-        points_mean = features[:, :, :4].sum(dim=1, keepdim=False) / num_voxels.type_as(features).view(-1, 1)
+        """
+        :param features: (N, max_points_of_each_voxel, 3 + C)
+        :param num_voxels: (N)
+        :param kwargs:
+        :return:
+        """
+        points_mean = features[:, :, :].sum(dim=1, keepdim=False) / num_voxels.type_as(features).view(-1, 1)
         return points_mean.contiguous()
 
 
@@ -88,7 +102,7 @@ class PFNLayer(nn.Module):
             return x_concatenated
 
 
-class PillarFeatureNetOld2(nn.Module):
+class PillarFeatureNetOld2(VoxelFeatureExtractor):
     def __init__(self,
                  num_input_features=4,
                  use_norm=True,
@@ -106,15 +120,14 @@ class PillarFeatureNetOld2(nn.Module):
         :param voxel_size: (<float>: 3). Size of voxels, only utilize x and y size.
         :param pc_range: (<float>: 6). Point cloud range, only utilize x and y min.
         """
-
         super().__init__()
         self.name = 'PillarFeatureNetOld2'
         assert len(num_filters) > 0
         num_input_features += 6
         if with_distance:
             num_input_features += 1
-        self._with_distance = with_distance
-
+        self.with_distance = with_distance
+        self.num_filters = num_filters
         # Create PillarFeatureNetOld layers
         num_filters = [num_input_features] + list(num_filters)
         pfn_layers = []
@@ -126,8 +139,8 @@ class PillarFeatureNetOld2(nn.Module):
             else:
                 last_layer = True
             pfn_layers.append(
-                PFNLayer(
-                    in_filters, out_filters, use_norm, last_layer=last_layer))
+                PFNLayer(in_filters, out_filters, use_norm, last_layer=last_layer)
+            )
         self.pfn_layers = nn.ModuleList(pfn_layers)
 
         # Need pillar (voxel) size and x/y offset in order to calculate pillar offset
@@ -138,28 +151,31 @@ class PillarFeatureNetOld2(nn.Module):
         self.y_offset = self.vy / 2 + pc_range[1]
         self.z_offset = self.vz / 2 + pc_range[2]
 
-    def forward(self, features, num_voxels, coors):
-        device = features.device
+    def get_output_feature_dim(self):
+        return self.num_filters[-1]
 
+    def forward(self, features, num_voxels, coords):
+        """
+        :param features: (N, max_points_of_each_voxel, 3 + C)
+        :param num_voxels: (N)
+        :param coors:
+        :return:
+        """
         dtype = features.dtype
         # Find distance of x, y, and z from cluster center
-        points_mean = features[:, :, :3].sum(
-            dim=1, keepdim=True) / num_voxels.type_as(features).view(-1, 1, 1)
+        points_mean = features[:, :, :3].sum(dim=1, keepdim=True) / num_voxels.type_as(features).view(-1, 1, 1)
         f_cluster = features[:, :, :3] - points_mean
 
         # Find distance of x, y, and z from pillar center
         # f_center = features[:, :, :3]
         f_center = torch.zeros_like(features[:, :, :3])
-        f_center[:, :, 0] = features[:, :, 0] - (
-            coors[:, 3].to(dtype).unsqueeze(1) * self.vx + self.x_offset)
-        f_center[:, :, 1] = features[:, :, 1] - (
-            coors[:, 2].to(dtype).unsqueeze(1) * self.vy + self.y_offset)
-        f_center[:, :, 2] = features[:, :, 2] - (
-            coors[:, 1].to(dtype).unsqueeze(1) * self.vz + self.z_offset)
+        f_center[:, :, 0] = features[:, :, 0] - (coords[:, 3].to(dtype).unsqueeze(1) * self.vx + self.x_offset)
+        f_center[:, :, 1] = features[:, :, 1] - (coords[:, 2].to(dtype).unsqueeze(1) * self.vy + self.y_offset)
+        f_center[:, :, 2] = features[:, :, 2] - (coords[:, 1].to(dtype).unsqueeze(1) * self.vz + self.z_offset)
 
         # Combine together feature decorations
         features_ls = [features, f_cluster, f_center]
-        if self._with_distance:
+        if self.with_distance:
             points_dist = torch.norm(features[:, :, :3], 2, 2, keepdim=True)
             features_ls.append(points_dist)
         features = torch.cat(features_ls, dim=-1)

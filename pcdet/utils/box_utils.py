@@ -196,10 +196,10 @@ def boxes3d_camera_to_imageboxes(boxes3d, calib, image_shape=None):
     """
     corners3d = boxes3d_to_corners3d_camera(boxes3d)
     pts_img, _ = calib.rect_to_img(corners3d.reshape(-1, 3))
-    corners_in_image = pts_img.reshape(-1, 8, 3)
+    corners_in_image = pts_img.reshape(-1, 8, 2)
 
-    min_uv = np.min(corners_in_image, axis=1)[0]  # (N, 2)
-    max_uv = np.max(corners_in_image, axis=1)[0]  # (N, 2)
+    min_uv = np.min(corners_in_image, axis=1)  # (N, 2)
+    max_uv = np.max(corners_in_image, axis=1)  # (N, 2)
     boxes2d_image = np.concatenate([min_uv, max_uv], axis=1)
     if image_shape is not None:
         boxes2d_image[:, 0] = np.clip(boxes2d_image[:, 0], a_min=0, a_max=image_shape[1] - 1)

@@ -1,3 +1,9 @@
+/*
+3D IoU Calculation and Rotated NMS(modified from 2D NMS written by others)
+Written by Shaoshuai Shi
+All Rights Reserved 2019.
+*/
+
 #include <torch/serialize/tensor.h>
 #include <torch/extension.h>
 #include <vector>

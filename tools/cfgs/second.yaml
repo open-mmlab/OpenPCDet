@@ -28,7 +28,7 @@ DATA_CONFIG:
     AUGMENTATION:
         NOISE_PER_OBJECT:
             ENABLED: True
-            GT_LOC_NOISE_STD: [1.0, 1.0, 0.5]
+            GT_LOC_NOISE_STD: [1.0, 1.0, 0.1]
             GT_ROT_UNIFORM_NOISE: [-0.78539816, 0.78539816]
         NOISE_GLOBAL_SCENE:
             ENABLED: True
@@ -52,7 +52,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: PartA2_net
+    NAME: second_net
     VFE:
         NAME: MeanVoxelFeatureExtractor
         ARGS: {}
@@ -60,23 +60,15 @@ MODEL:
     RPN:
         PARAMS_FIXED: False  # DO NOT USE THIS
         BACKBONE:
-            NAME: UNetV2
-            SEG_MASK_SCORE_THRESH: 0.3
+            NAME: BackBone8x
             ARGS: {}
-            TARGET_CONFIG:
-                GENERATED_ON: dataset  # dataset, head_cpu, head_gpu
-                GT_EXTEND_WIDTH: 0.2
-                MEAN_SIZE: {
-                    'Car': [1.6, 3.9, 1.56],
-                    'Pedestrian': [0.6, 0.8, 1.73],
-                    'Cyclist': [0.6, 1.76, 1.73]
-                }
 
         RPN_HEAD:
             NAME: RPNV2
+            DOWNSAMPLE_FACTOR: 8
             ARGS: {
                 'use_norm': True,
-                'concat_input': False,
+                'concat_input': False, 
                 'num_input_features': 256,
                 'layer_nums': [5, 5],
                 'layer_strides': [1, 2],
@@ -91,7 +83,6 @@ MODEL:
                 'dir_limit_offset': 0.0,
                 'use_binary_dir_classifier': False
             }
-
             TARGET_CONFIG:
                 DOWNSAMPLED_FACTOR: 8
                 BOX_CODER: ResidualCoder
@@ -122,53 +113,20 @@ MODEL:
                 ]
 
     RCNN:
-        NAME: SpConvRCNN
-        ENABLED: True
-        NUM_POINT_FEATURES: 16
-        ROI_AWARE_POOL_SIZE: 14
-        SHARED_FC: [256, 512, 512, 512]
-        CLS_FC: [256, 256]
-        REG_FC: [256, 256]
-        DP_RATIO: 0.3
-
-        TARGET_CONFIG:
-            BOX_CODER: ResidualCoder
-            ROI_PER_IMAGE: 128
-            FG_RATIO: 0.5
-            HARD_BG_RATIO: 0.8
-
-            CLS_SCORE_TYPE: roi_iou
-
-            CLS_FG_THRESH: 0.75
-            CLS_BG_THRESH: 0.25
-            CLS_BG_THRESH_LO: 0.1
-
-            REG_FG_THRESH: 0.55
+        ENABLED: False
 
     LOSSES:
         RPN_REG_LOSS: smooth-l1
-        RCNN_CLS_LOSS: BinaryCrossEntropy
-        RCNN_REG_LOSS: smooth-l1
-        CORNER_LOSS_REGULARIZATION: True
         LOSS_WEIGHTS: {
             'rpn_cls_weight': 1.0,
             'rpn_loc_weight': 2.0,
             'rpn_dir_weight': 0.2,
-
-            'rcnn_cls_weight': 1.0,
-            'rcnn_reg_weight': 1.0,
-            'rcnn_corner_weight': 1.0,
             'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         }
 
 
     TRAIN:
         SPLIT: train
-        NMS_PRE_MAXSIZE: 9000
-        NMS_POST_MAXSIZE: 512
-        RPN_NMS_THRESH: 0.8
-
-        RPN_NMS_TYPE: nms_gpu
 
         OPTIMIZATION:
             OPTIMIZER: adam_onecycle
@@ -179,7 +137,7 @@ MODEL:
             MOMS: [0.95, 0.85]
             PCT_START: 0.4
             DIV_FACTOR: 10
-            DECAY_STEP_LIST: [40, 60, 70]
+            DECAY_STEP_LIST: [35, 45]
             LR_DECAY: 0.1
             LR_CLIP: 0.0000001
 
@@ -190,18 +148,14 @@ MODEL:
 
     TEST:
         SPLIT: val
-        NMS_PRE_MAXSIZE: 1024
-        NMS_POST_MAXSIZE: 100
-        RPN_NMS_THRESH: 0.7
-        RPN_NMS_TYPE: nms_gpu
 
         NMS_TYPE: nms_gpu
         MULTI_CLASSES_NMS: False
         NMS_THRESH: 0.01
-        SCORE_THRESH: 0.3
+        SCORE_THRESH: 0.1
         USE_RAW_SCORE: True
 
-        NMS_PRE_MAXSIZE_LAST: 1024
+        NMS_PRE_MAXSIZE_LAST: 4096
         NMS_POST_MAXSIZE_LAST: 500
 
         RECALL_THRESH_LIST: [0.5, 0.7]

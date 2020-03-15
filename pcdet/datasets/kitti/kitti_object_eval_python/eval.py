@@ -1,7 +1,7 @@
 import numpy as np
 import numba
 import io as sysio
-from kitti_object_eval_python.rotate_iou import rotate_iou_gpu_eval
+from .rotate_iou import rotate_iou_gpu_eval
 
 
 @numba.jit

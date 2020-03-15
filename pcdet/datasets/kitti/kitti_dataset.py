@@ -1,21 +1,19 @@
 import os
+import sys
 import pickle
 import copy
 import numpy as np
 from skimage import io
-from .dataset import DatasetTemplate, register_dataset
-from ..utils import box_utils, object3d_utils, calibration, box_coder_utils, common_utils
-from ..ops.roiaware_pool3d import roiaware_pool3d_utils
-from ..config import cfg
-from .data_augmentation.dbsampler import DataBaseSampler
-from .target_assigner import AnchorGeneratorRange, TargetAssigner
-from spconv.utils import VoxelGenerator
-
 from pathlib import Path
 import torch
+from pcdet.utils import box_utils, object3d_utils, calibration, common_utils
+from pcdet.ops.roiaware_pool3d import roiaware_pool3d_utils
+from pcdet.config import cfg
+from pcdet.datasets.data_augmentation.dbsampler import DataBaseSampler
+from spconv.utils import VoxelGenerator
+from pcdet.datasets import DatasetTemplate
 
 
-@register_dataset
 class BaseKittiDataset(DatasetTemplate):
     def __init__(self, root_path, split='train'):
         super().__init__()
@@ -213,7 +211,7 @@ class BaseKittiDataset(DatasetTemplate):
         boxes3d_lidar_preds = record_dict['boxes'].cpu().numpy()
 
         if boxes3d_lidar_preds.shape[0] == 0:
-            return {}
+            return {'sample_idx': sample_idx}
 
         calib = input_dict['calib'][index]
         image_shape = input_dict['image_shape'][index]
@@ -237,14 +235,14 @@ class BaseKittiDataset(DatasetTemplate):
         annos = []
         for i, box_dict in enumerate(pred_dicts):
             area_limit = image_shape = None
-            if 'USE_IMAGE_AREA_FILTER' in cfg.TEST.BOX_FILTER and cfg.TEST.BOX_FILTER.USE_IMAGE_AREA_FILTER:
+            if cfg.MODEL.TEST.BOX_FILTER['USE_IMAGE_AREA_FILTER']:
                 image_shape = input_dict['image_shape'][i]
                 area_limit = image_shape[0] * image_shape[1] * 0.8
-                
+
             sample_idx = box_dict['sample_idx']
 
             num_example = 0
-            if box_dict['bbox'].size.numel() != 0:
+            if 'bbox' in box_dict:
                 box_preds_image = box_dict['bbox']
                 box_preds_camera = box_dict['box3d_camera']
                 box_preds_lidar = box_dict['box3d_lidar']
@@ -265,9 +263,10 @@ class BaseKittiDataset(DatasetTemplate):
                         if area > area_limit:
                             continue
 
-                    limit_range = np.array(cfg.TEST.BOX_FILTER.BOX_LIMIT_RANGE)
-                    if np.any(box_lidar[:3] < limit_range[:3]) or np.any(box_lidar[:3] > limit_range[3:]):
-                        continue
+                    if 'LIMIT_RANGE' in cfg.MODEL.TEST.BOX_FILTER:
+                        limit_range = np.array(cfg.MODEL.TEST.BOX_FILTER['LIMIT_RANGE'])
+                        if np.any(box_lidar[:3] < limit_range[:3]) or np.any(box_lidar[:3] > limit_range[3:]):
+                            continue
 
                     if not (np.all(box_lidar[3:6] > -0.1)):
                         print('Invalid size(sample %s): ' % str(sample_idx), box_lidar)
@@ -282,7 +281,7 @@ class BaseKittiDataset(DatasetTemplate):
                     anno['location'].append(box_camera[:3])
                     anno['rotation_y'].append(box_camera[6])
                     anno['score'].append(score)
-                    # anno['boxes_lidar'].append(box_lidar)
+                    anno['boxes_lidar'].append(box_lidar)
 
                     num_example += 1
 
@@ -317,7 +316,10 @@ class BaseKittiDataset(DatasetTemplate):
 
     def evaluation(self, det_annos, class_names, **kwargs):
         assert 'annos' in self.kitti_infos[0].keys()
-        import eval_utils.kitti_object_eval_python.eval as kitti_eval
+        import pcdet.datasets.kitti.kitti_object_eval_python.eval as kitti_eval
+
+        if 'annos' not in self.kitti_infos[0]:
+            return 'None', {}
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.kitti_infos]
@@ -326,7 +328,6 @@ class BaseKittiDataset(DatasetTemplate):
         return ap_result_str, ap_dict
 
 
-@register_dataset
 class KittiDataset(BaseKittiDataset):
     def __init__(self, root_path, class_names, split, training, logger=None):
         """
@@ -343,7 +344,7 @@ class KittiDataset(BaseKittiDataset):
 
         self.kitti_infos = []
         self.include_kitti_data(self.mode, logger)
-
+        # self.kitti_infos = self.kitti_infos[:100]
         self.dataset_init(class_names, logger)
 
     def include_kitti_data(self, mode, logger):
@@ -387,48 +388,6 @@ class KittiDataset(BaseKittiDataset):
             max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL
         )
 
-        anchor_cfg = cfg.TARGET_ASSIGNER.ANCHOR_GENERATOR
-        anchor_generators = []
-
-        for cur_name in self.class_names:
-            cur_cfg = None
-            for a_cfg in anchor_cfg:
-                if a_cfg['class_name'] == cur_name:
-                    cur_cfg = a_cfg
-                    break
-            assert cur_cfg is not None, 'Not found anchor config: %s' % cur_name
-            anchor_generator = AnchorGeneratorRange(
-                anchor_ranges=cur_cfg['anchor_range'],
-                sizes=cur_cfg['sizes'],
-                rotations=cur_cfg['rotations'],
-                class_name=cur_cfg['class_name'],
-                match_threshold=cur_cfg['matched_threshold'],
-                unmatch_threshold=cur_cfg['unmatched_threshold']
-            )
-            anchor_generators.append(anchor_generator)
-
-        self.box_coder = getattr(box_coder_utils, cfg.BOX_CODER)()
-
-        self.target_assigner = TargetAssigner(
-            anchor_generators=anchor_generators,
-            pos_fraction=cfg.TARGET_ASSIGNER.SAMPLE_POS_FRACTION,
-            sample_size=cfg.TARGET_ASSIGNER.SAMPLE_SIZE,
-            region_similarity_fn_name=cfg.TARGET_ASSIGNER.REGION_SIMILARITY_FN,
-            box_coder=self.box_coder
-        )
-
-        out_size_factor = cfg.MODEL.RPN.RPN_HEAD.DOWNSAMPLE_FACTOR
-        grid_size = self.voxel_generator.grid_size
-        feature_map_size = grid_size[:2] // out_size_factor
-        feature_map_size = [*feature_map_size, 1][::-1]
-        ret = self.target_assigner.generate_anchors(feature_map_size)
-        anchors_dict = self.target_assigner.generate_anchors_dict(feature_map_size)
-        anchors = ret['anchors'].reshape([-1, 7])
-        self.anchor_cache = {
-            'anchors': anchors,
-            'anchors_dict': anchors_dict,
-        }
-
     def __len__(self):
         return len(self.kitti_infos)
 
@@ -451,7 +410,6 @@ class KittiDataset(BaseKittiDataset):
             'points': points,
             'sample_idx': sample_idx,
             'calib': calib,
-            # 'image_shape': img_shape,
         }
 
         if 'annos' in info:
@@ -476,7 +434,7 @@ class KittiDataset(BaseKittiDataset):
         example = self.prepare_data(input_dict=input_dict, has_label='annos' in info)
 
         example['sample_idx'] = sample_idx
-        # example['image_shape'] = img_shape
+        example['image_shape'] = img_shape
 
         return example
 
@@ -490,7 +448,7 @@ def create_kitti_infos(data_path, save_path, workers=4):
     trainval_filename = save_path / 'kitti_infos_trainval.pkl'
     test_filename = save_path / 'kitti_infos_test.pkl'
 
-    print('------Generate info. this may take several minutes.------')
+    print('---------------Start to generate data infos---------------')
 
     dataset.set_split(train_split)
     kitti_infos_train = dataset.get_kitti_infos(num_workers=workers, has_label=True, count_inside_pts=True)
@@ -514,21 +472,23 @@ def create_kitti_infos(data_path, save_path, workers=4):
         pickle.dump(kitti_infos_test, f)
     print('Kitti info test file is saved to %s' % test_filename)
 
-    print('------Start create groundtruth database for data augmentation------')
+    print('---------------Start create groundtruth database for data augmentation---------------')
+    dataset.set_split(train_split)
     dataset.create_groundtruth_database(train_filename, split=train_split)
 
-    print('------Data preparation Done------')
+    print('---------------Data preparation Done---------------')
 
 
 if __name__ == '__main__':
-    # create_kitti_infos(
-    #     data_path=cfg.ROOT_DIR / 'data' / 'kitti',
-    #     save_path=cfg.ROOT_DIR / 'data' / 'kitti'
-    # )
-
-    A = KittiDataset(root_path='data/kitti', class_names=cfg.CLASS_NAMES, split='train', training=True)
-    import pdb
-    pdb.set_trace()
-    ans = A[1]
+    if sys.argv.__len__() > 1 and sys.argv[1] == 'create_kitti_infos':
+        create_kitti_infos(
+            data_path=cfg.ROOT_DIR / 'data' / 'kitti',
+            save_path=cfg.ROOT_DIR / 'data' / 'kitti'
+        )
+    else:
+        A = KittiDataset(root_path='data/kitti', class_names=cfg.CLASS_NAMES, split='train', training=True)
+        import pdb
+        pdb.set_trace()
+        ans = A[1]
 
 

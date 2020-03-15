@@ -35,9 +35,10 @@ def build_optimizer(model, optim_cfg):
 
 
 def build_scheduler(optimizer, total_iters_each_epoch, total_epochs, last_epoch, optim_cfg):
+    decay_steps = [x * total_iters_each_epoch for x in optim_cfg.DECAY_STEP_LIST]
     def lr_lbmd(cur_epoch):
         cur_decay = 1
-        for decay_step in optim_cfg.DECAY_STEP_LIST:
+        for decay_step in decay_steps:
             if cur_epoch >= decay_step:
                 cur_decay = cur_decay * optim_cfg.LR_DECAY
         return max(cur_decay, optim_cfg.LR_CLIP / optim_cfg.LR)
@@ -48,16 +49,13 @@ def build_scheduler(optimizer, total_iters_each_epoch, total_epochs, last_epoch,
         lr_scheduler = OneCycle(
             optimizer, total_steps, optim_cfg.LR, list(optim_cfg.MOMS), optim_cfg.DIV_FACTOR, optim_cfg.PCT_START
         )
-        setattr(lr_scheduler, 'work_each_iter', True)
     else:
         lr_scheduler = lr_sched.LambdaLR(optimizer, lr_lbmd, last_epoch=last_epoch)
-        setattr(lr_scheduler, 'work_each_iter', False)
 
         if optim_cfg.LR_WARMUP:
             lr_warmup_scheduler = CosineWarmupLR(
                 optimizer, T_max=optim_cfg.WARMUP_EPOCH * len(total_iters_each_epoch),
                 eta_min=optim_cfg.LR / optim_cfg.DIV_FACTOR
             )
-            setattr(lr_warmup_scheduler, 'work_each_iter', True)
 
     return lr_scheduler, lr_warmup_scheduler

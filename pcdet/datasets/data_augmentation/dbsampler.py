@@ -1,3 +1,5 @@
+# This file is modified from https://github.com/traveller59/second.pytorch
+
 import numpy as np
 import copy
 import os

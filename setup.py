@@ -33,7 +33,7 @@ if __name__ == '__main__':
     setup(
         name='pcdet',
         version=version,
-        description='Codebase for 3D object detection from point cloud',
+        description='PointCloudDet3D is a general codebase for 3D object detection from point cloud',
         install_requires=[
             'numpy',
             'torch>=1.1',
@@ -41,12 +41,12 @@ if __name__ == '__main__':
             'numba',
             'tensorboardX',
             'easydict',
-            'yaml>=5.1'
+            'pyyaml'
         ],
         author='Shaoshuai Shi',
         author_email='shaoshuaics@gmail.com',
         license='Apache License 2.0',
-        packages=find_packages(exclude=['tools', 'data']),
+        packages=find_packages(exclude=['tools', 'data', 'output']),
         cmdclass={'build_ext': BuildExtension},
         ext_modules=[
             make_cuda_ext(

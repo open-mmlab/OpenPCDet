@@ -3,3 +3,4 @@
 venv/
 *.idea/
 *.so
+data/

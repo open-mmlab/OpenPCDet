@@ -1,4 +1,4 @@
-CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+CLASS_NAMES: ['Car']
 
 DATA_CONFIG:
     DATASET: 'KittiDataset'

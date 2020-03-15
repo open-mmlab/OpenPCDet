@@ -5,6 +5,7 @@ import os
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import subprocess
+import random
 
 
 def rotate_pc_along_z(pc, rot_angle):
@@ -101,7 +102,7 @@ def dict_select(dict_src, inds):
 
 def create_logger(log_file, rank=0, log_level=logging.INFO):
     log_format = '%(asctime)s  %(levelname)5s  %(message)s'
-    logging.basicConfig(level=logging.INFO, format=log_format, filename=log_file)
+    logging.basicConfig(level=log_level if rank == 0 else 'ERROR', format=log_format, filename=log_file)
     console = logging.StreamHandler()
     console.setLevel(log_level if rank == 0 else 'ERROR')
     console.setFormatter(logging.Formatter(log_format))
@@ -113,16 +114,16 @@ def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
     if mp.get_start_method(allow_none=True) is None:
         mp.set_start_method('spawn')
 
-    total_gpus = dist.get_world_size()
-    assert batch_size % total_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, total_gpus)
-    batch_size_each_gpu = batch_size // total_gpus
-    torch.cuda.set_device(local_rank % torch.cuda.device_count())
+    num_gpus = torch.cuda.device_count()
+    torch.cuda.set_device(local_rank % num_gpus)
     dist.init_process_group(
         backend=backend,
         init_method='tcp://127.0.0.1:%d' % tcp_port,
         rank=local_rank,
-        world_size=total_gpus
+        world_size=num_gpus
     )
+    assert batch_size % num_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, num_gpus)
+    batch_size_each_gpu = batch_size // num_gpus
     rank = dist.get_rank()
     return batch_size_each_gpu, rank
 
@@ -145,3 +146,11 @@ def init_dist_slurm(batch_size, tcp_port, local_rank=None, backend='nccl'):
     batch_size_each_gpu = batch_size // total_gpus
     rank = dist.get_rank()
     return batch_size_each_gpu, rank
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

@@ -6,12 +6,12 @@ from torch.nn.utils import clip_grad_norm_
 
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
-                    rank, tbar, tb_log=None):
+                    rank, tbar, tb_log=None, leave_pbar=False):
     dataloader_iter = iter(train_loader)
     total_it_each_epoch = len(train_loader)
 
     if rank == 0:
-        pbar = tqdm.tqdm(total=total_it_each_epoch, leave=True, desc='train', dynamic_ncols=True)
+        pbar = tqdm.tqdm(total=total_it_each_epoch, leave=leave_pbar, desc='train', dynamic_ncols=True)
 
     for cur_it in range(total_it_each_epoch):
         try:
@@ -20,10 +20,13 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             dataloader_iter = iter(train_loader)
             batch = next(dataloader_iter)
 
-        if lr_scheduler.work_each_iter:
-            lr_scheduler.step(accumulated_iter)
+        lr_scheduler.step(accumulated_iter)
 
-        cur_lr = float(optimizer.lr)
+        try:
+            cur_lr = float(optimizer.lr)
+        except:
+            cur_lr = optimizer.param_groups[0]['lr']
+
         if tb_log is not None:
             tb_log.add_scalar('learning_rate', cur_lr, accumulated_iter)
 
@@ -60,10 +63,8 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
                 lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50):
     accumulated_iter = start_iter
-    with tqdm.trange(start_epoch, total_epochs, desc='epochs') as tbar:
+    with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
         for cur_epoch in tbar:
-            if lr_scheduler.work_each_iter and optim_cfg.WARMUP_EPOCH <= cur_epoch:
-                lr_scheduler.step(cur_epoch)
             if train_sampler is not None:
                 train_sampler.set_epoch(cur_epoch)
 
@@ -76,7 +77,8 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 model, optimizer, train_loader, model_func,
                 lr_scheduler=cur_scheduler,
                 accumulated_iter=accumulated_iter, optim_cfg=optim_cfg,
-                rank=rank, tbar=tbar, tb_log=tb_log
+                rank=rank, tbar=tbar, tb_log=tb_log,
+                leave_pbar=(cur_epoch + 1 == total_epochs)
             )
 
             # save trained model
@@ -113,9 +115,21 @@ def checkpoint_state(model=None, optimizer=None, epoch=None, it=None):
     else:
         model_state = None
 
-    return {'epoch': epoch, 'it': it, 'model_state': model_state, 'optimizer_state': optim_state}
+    try:
+        import pcdet
+        version = 'pcdet+' + pcdet.__version__
+    except:
+        version = 'none'
+
+    return {'epoch': epoch, 'it': it, 'model_state': model_state, 'optimizer_state': optim_state, 'version': version}
 
 
 def save_checkpoint(state, filename='checkpoint'):
+    if False and 'optimizer_state' in state:
+        optimizer_state = state['optimizer_state']
+        state.pop('optimizer_state', None)
+        optimizer_filename = '{}_optim.pth'.format(filename)
+        torch.save({'optimizer_state': optimizer_state}, optimizer_filename)
+
     filename = '{}.pth'.format(filename)
     torch.save(state, filename)

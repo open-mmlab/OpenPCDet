@@ -4,14 +4,11 @@ from ...ops.iou3d_nms import iou3d_nms_utils
 from ...config import cfg
 
 
-def proposal_target_layer(input_dict, roi_sampler_cfg, sequence_type=False):
+def proposal_target_layer(input_dict, roi_sampler_cfg):
     rois = input_dict['rois']
     roi_raw_scores = input_dict['roi_raw_scores']
     roi_labels = input_dict['roi_labels']
     gt_boxes = input_dict['gt_boxes']  # (B, N, 7 + ? + 1)
-
-    if sequence_type:
-        gt_boxes = torch.cat([gt_boxes, gt_boxes])
 
     batch_rois, batch_gt_of_rois, batch_roi_iou, batch_roi_raw_scores, batch_roi_labels = \
         sample_rois_for_rcnn(rois, gt_boxes, roi_raw_scores, roi_labels, roi_sampler_cfg)
@@ -34,11 +31,6 @@ def proposal_target_layer(input_dict, roi_sampler_cfg, sequence_type=False):
         batch_cls_label[interval_mask] = batch_roi_iou[interval_mask] * 2 - 0.5
     else:
         raise NotImplementedError
-
-    if sequence_type:
-        batch_size = rois.shape[0]//2
-        batch_cls_label[batch_size:, ...] = -1
-        reg_valid_mask[batch_size:, ...] = 0
 
     output_dict = {'rcnn_cls_labels': batch_cls_label.view(-1),
                    'reg_valid_mask': reg_valid_mask.view(-1),
