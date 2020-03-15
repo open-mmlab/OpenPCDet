@@ -17,8 +17,8 @@ This is also the official code release of [`Part-A^2 net`](https://arxiv.org/abs
 Note that currently this framework mainly contains the voxel-based approaches and we are going to support more point-based approaches in the future. 
 
 ### Currently Supported Features
-- [x] Support both one-stage and two-stage 3D detection frameworks
-- [x] Distributed training with multiple GPUs and Machines
+- [x] Support both one-stage and two-stage 3D object detection frameworks
+- [x] Distributed training with multiple GPUs and multiple machines, cost about 5 hours to achieve SoTA results on KITTI
 - [x] Clear code structure for supporting more datasets and approaches
 - [x] RoI-aware point cloud pooling
 - [x] GPU version 3D IoU calculation and rotated NMS
@@ -30,7 +30,7 @@ Supported methods are shown in the below table. The results are the 3D detection
 All models are trained with 8 GPUs and are available for download.
 
 |                                             | training time | AP_Easy | AP_Mod. | AP_Hard | download  |
-|:-------------------------------------------:|:-------------:|:-------:|:-------:|:-------:|:---------:|
+|---------------------------------------------|:-------------:|:-------:|:-------:|:-------:|:---------:|
 | [PointPillar](tools/cfgs/pointpillar.yaml)  | ~2hours       | 87.37   | 77.30   | 74.02   | [model-18M](https://drive.google.com/open?id=1EIXknJF3ME8LLvC2chB7L52U6XGU_bxg) | 
 | [SECOND](tools/cfgs/second.yaml)            | ~2hours       | 88.46   | 78.46   | 76.63   | [model-20M](https://drive.google.com/open?id=1Nx_STdaItqrnW8EqPHSDIDZXCF2PYYE-) |
 | [Part-A^2](tools/cfgs/PartA2_car.yaml)      | ~5hours       | 89.66   | 79.45   | 78.80   | [model-209M](https://drive.google.com/open?id=1D-lxyPww80H-zEdheaDTO6BfxCFiXOEo) |
@@ -136,7 +136,7 @@ python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 
 ## Acknowledgement
 We would like to thank for [second.pytorch](https://github.com/traveller59/second.pytorch) for providing the original implementation of the one-stage voxel-based framework, 
-and there are also parts of the codes are modified from [PointRCNN](https://github.com/sshaoshuai/PointRCNN). 
+and there are also some parts of the codes that are modified from [PointRCNN](https://github.com/sshaoshuai/PointRCNN). 
 
 We hope that this repo could serve as a strong and flexible codebase to benefit the research community by speeding up the process of reimplementing previous works and/or developing new methods.
 
@@ -164,8 +164,6 @@ and / or
   year={2019}
 }
 ```
-
-
 
 
 ## Contact
