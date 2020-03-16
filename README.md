@@ -1,6 +1,6 @@
-# PointCloudDet3D
+# PCDet: 3D Point Cloud Detection
 
-`PointCloudDet3D` is a general PyTorch-based codebase for 3D object detection from point cloud.
+`PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud.
 <br>
 
 <p align="middle">
@@ -9,7 +9,7 @@
 </p>
 
 ## Introduction
-PointCloudDet3D is a general PyTorch-based codebase for 3D object detection from point cloud. 
+`PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
 It currently supports several state-of-the-art 3D object detection methods (`PointPillar`, `SECOND`, `Part-A^2 Net`) with highly refactored codes for both one-stage and two-stage frameworks.
 
 This is also the official code release of [`Part-A^2 net`](https://arxiv.org/abs/1907.03670). 
@@ -50,7 +50,7 @@ All the codes are tested in the following environment:
 ### Install `pcdet`
 1. Clone this repository.
 ```shell
-git clone https://github.com/sshaoshuai/PointCloudDet3D.git
+git clone https://github.com/sshaoshuai/PCDet.git
 ```
 
 2. Install the dependent libraries as follows:
@@ -75,7 +75,7 @@ Currently we only support KITTI dataset, and contributions are welcomed to suppo
 * Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [here](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training): 
 
 ```
-PointCloudDet3D
+PCDet
 ├── data
 │   ├── kitti
 │   │   │──ImageSets
