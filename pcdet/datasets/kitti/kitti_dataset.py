@@ -232,85 +232,95 @@ class BaseKittiDataset(DatasetTemplate):
 
     @staticmethod
     def generate_annotations(input_dict, pred_dicts, class_names, save_to_file=False, output_dir=None):
-        annos = []
-        for i, box_dict in enumerate(pred_dicts):
+        def get_empty_prediction():
+            ret_dict = {
+                'name': np.array([]), 'truncated': np.array([]), 'occluded': np.array([]),
+                'alpha': np.array([]), 'bbox': np.zeros([0, 4]), 'dimensions': np.zeros([0, 3]),
+                'location': np.zeros([0, 3]), 'rotation_y': np.array([]), 'score': np.array([]),
+                'boxes_lidar': np.zeros([0, 7])
+            }
+            return ret_dict
+
+        def generate_single_anno(idx, box_dict):
+            num_example = 0
+            if 'bbox' not in box_dict:
+                return get_empty_prediction(), num_example
+
             area_limit = image_shape = None
             if cfg.MODEL.TEST.BOX_FILTER['USE_IMAGE_AREA_FILTER']:
-                image_shape = input_dict['image_shape'][i]
+                image_shape = input_dict['image_shape'][idx]
                 area_limit = image_shape[0] * image_shape[1] * 0.8
 
             sample_idx = box_dict['sample_idx']
+            box_preds_image = box_dict['bbox']
+            box_preds_camera = box_dict['box3d_camera']
+            box_preds_lidar = box_dict['box3d_lidar']
+            scores = box_dict['scores']
+            label_preds = box_dict['label_preds']
 
-            num_example = 0
-            if 'bbox' in box_dict:
-                box_preds_image = box_dict['bbox']
-                box_preds_camera = box_dict['box3d_camera']
-                box_preds_lidar = box_dict['box3d_lidar']
-                scores = box_dict['scores']
-                label_preds = box_dict['label_preds']
+            anno = {'name': [], 'truncated': [], 'occluded': [], 'alpha': [], 'bbox': [], 'dimensions': [],
+                    'location': [], 'rotation_y': [], 'score': [], 'boxes_lidar': []}
 
-                anno = {'name': [], 'truncated': [], 'occluded': [], 'alpha': [], 'bbox': [], 'dimensions': [],
-                        'location': [], 'rotation_y': [], 'score': [], 'boxes_lidar': []}
-
-                for box_camera, box_lidar, bbox, score, label in zip(box_preds_camera, box_preds_lidar, box_preds_image,
-                                                                     scores, label_preds):
-                    if area_limit is not None:
-                        if bbox[0] > image_shape[1] or bbox[1] > image_shape[0] or bbox[2] < 0 or bbox[3] < 0:
-                            continue
-                        bbox[2:] = np.minimum(bbox[2:], image_shape[::-1])
-                        bbox[:2] = np.maximum(bbox[:2], [0, 0])
-                        area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                        if area > area_limit:
-                            continue
-
-                    if 'LIMIT_RANGE' in cfg.MODEL.TEST.BOX_FILTER:
-                        limit_range = np.array(cfg.MODEL.TEST.BOX_FILTER['LIMIT_RANGE'])
-                        if np.any(box_lidar[:3] < limit_range[:3]) or np.any(box_lidar[:3] > limit_range[3:]):
-                            continue
-
-                    if not (np.all(box_lidar[3:6] > -0.1)):
-                        print('Invalid size(sample %s): ' % str(sample_idx), box_lidar)
+            for box_camera, box_lidar, bbox, score, label in zip(box_preds_camera, box_preds_lidar, box_preds_image,
+                                                                 scores, label_preds):
+                if area_limit is not None:
+                    if bbox[0] > image_shape[1] or bbox[1] > image_shape[0] or bbox[2] < 0 or bbox[3] < 0:
+                        continue
+                    bbox[2:] = np.minimum(bbox[2:], image_shape[::-1])
+                    bbox[:2] = np.maximum(bbox[:2], [0, 0])
+                    area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
+                    if area > area_limit:
                         continue
 
-                    anno['name'].append(class_names[int(label - 1)])
-                    anno['truncated'].append(0.0)
-                    anno['occluded'].append(0)
-                    anno['alpha'].append(-np.arctan2(-box_lidar[1], box_lidar[0]) + box_camera[6])
-                    anno['bbox'].append(bbox)
-                    anno['dimensions'].append(box_camera[3:6])
-                    anno['location'].append(box_camera[:3])
-                    anno['rotation_y'].append(box_camera[6])
-                    anno['score'].append(score)
-                    anno['boxes_lidar'].append(box_lidar)
+                if 'LIMIT_RANGE' in cfg.MODEL.TEST.BOX_FILTER:
+                    limit_range = np.array(cfg.MODEL.TEST.BOX_FILTER['LIMIT_RANGE'])
+                    if np.any(box_lidar[:3] < limit_range[:3]) or np.any(box_lidar[:3] > limit_range[3:]):
+                        continue
 
-                    num_example += 1
+                if not (np.all(box_lidar[3:6] > -0.1)):
+                    print('Invalid size(sample %s): ' % str(sample_idx), box_lidar)
+                    continue
 
-                if num_example != 0:
-                    anno = {k: np.stack(v) for k, v in anno.items()}
-                    annos.append(anno)
+                anno['name'].append(class_names[int(label - 1)])
+                anno['truncated'].append(0.0)
+                anno['occluded'].append(0)
+                anno['alpha'].append(-np.arctan2(-box_lidar[1], box_lidar[0]) + box_camera[6])
+                anno['bbox'].append(bbox)
+                anno['dimensions'].append(box_camera[3:6])
+                anno['location'].append(box_camera[:3])
+                anno['rotation_y'].append(box_camera[6])
+                anno['score'].append(score)
+                anno['boxes_lidar'].append(box_lidar)
 
-                if save_to_file:
-                    cur_det_file = os.path.join(output_dir, '%s.txt' % sample_idx)
-                    with open(cur_det_file, 'w') as f:
-                        bbox = anno['bbox']
-                        loc = anno['location']
-                        dims = anno['dimensions']  # lhw -> hwl
+                num_example += 1
 
-                        for idx in range(len(bbox)):
-                            print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
-                                  % (anno['name'][idx], anno['alpha'][idx], bbox[idx][0], bbox[idx][1], bbox[idx][2],
-                                     bbox[idx][3], dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0], loc[idx][1],
-                                     loc[idx][2], anno['rotation_y'][idx], anno['score'][idx]), file=f)
+            if num_example != 0:
+                anno = {k: np.stack(v) for k, v in anno.items()}
+            else:
+                anno = get_empty_prediction()
 
-            if num_example == 0:
-                annos.append({
-                    'name': np.array([]), 'truncated': np.array([]), 'occluded': np.array([]),
-                    'alpha': np.array([]), 'bbox': np.zeros([0, 4]), 'dimensions': np.zeros([0, 3]),
-                    'location': np.zeros([0, 3]), 'rotation_y': np.array([]), 'score': np.array([]),
-                    'boxes_lidar': np.zeros([0, 7])
-                })
-            annos[-1]['num_example'] = num_example
-            annos[-1]['sample_idx'] = np.array([sample_idx] * num_example, dtype=np.int64)
+            return anno, num_example
+
+        annos = []
+        for i, box_dict in enumerate(pred_dicts):
+            sample_idx = box_dict['sample_idx']
+            single_anno, num_example = generate_single_anno(i, box_dict)
+            single_anno['num_example'] = num_example
+            single_anno['sample_idx'] = np.array([sample_idx] * num_example, dtype=np.int64)
+            annos.append(single_anno)
+            if save_to_file:
+                cur_det_file = os.path.join(output_dir, '%s.txt' % sample_idx)
+                with open(cur_det_file, 'w') as f:
+                    bbox = single_anno['bbox']
+                    loc = single_anno['location']
+                    dims = single_anno['dimensions']  # lhw -> hwl
+
+                    for idx in range(len(bbox)):
+                        print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                              % (single_anno['name'][idx], single_anno['alpha'][idx], bbox[idx][0], bbox[idx][1],
+                                 bbox[idx][2], bbox[idx][3], dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                 loc[idx][1], loc[idx][2], single_anno['rotation_y'][idx], single_anno['score'][idx]),
+                              file=f)
 
         return annos
 
