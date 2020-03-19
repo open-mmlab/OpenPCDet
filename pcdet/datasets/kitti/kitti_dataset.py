@@ -400,8 +400,8 @@ class KittiDataset(BaseKittiDataset):
         points = self.get_lidar(sample_idx)
         calib = self.get_calib(sample_idx)
 
+        img_shape = info['image']['image_shape']
         if cfg.DATA_CONFIG.FOV_POINTS_ONLY:
-            img_shape = info['image']['image_shape']
             pts_rect = calib.lidar_to_rect(points[:, 0:3])
             fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
             points = points[fov_flag]
