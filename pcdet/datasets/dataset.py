@@ -10,6 +10,54 @@ class DatasetTemplate(torch_data.Dataset):
     def __init__(self):
         super().__init__()
 
+    def get_infos(self, **kwargs):
+        """generate data infos from raw data for the dataset"""
+        raise NotImplementedError
+
+    def create_groundtruth_database(self, **kwargs):
+        """create groundtruth database for GT sampling augmentation"""
+        raise NotImplementedError
+
+    @staticmethod
+    def generate_prediction_dict(input_dict, index, record_dict):
+        """
+        Generate the prediction dict for each sample, called by the post processing.
+        Args:
+            input_dict: provided by the dataset to provide dataset-specific information
+            index: batch index of current sample
+            record_dict: the predicted results of current sample from the detector,
+                which currently includes these keys: {
+                    'boxes': (N, 7 + C)  [x, y, z, w, l, h, heading_in_kitti] in LiDAR coords
+                    'scores': (N)
+                    'labels': (N）
+                }
+        Returns:
+            predictions_dict: the required prediction dict of current scene for specific dataset
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def generate_annotations(input_dict, pred_dicts, class_names, save_to_file=False, output_dir=None):
+        """
+        Generate the annotation dict for each batch to be used for evaluation,
+        and also (optionally) save the results to file.
+        Args:
+            input_dict: provided by the dataset to provide dataset-specific information
+            pred_dicts: list of dict, each dict is provided by the function 'generate_prediction_dict'
+            class_names: list of string, the names of all classes in order
+            save_to_file: whether to save the results to file
+            output_dir: output directory for saving the results
+        Returns:
+            list of dict, each dict is the predicted results for each scene
+        """
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def forward(self, index):
+        raise NotImplementedError
+
     def prepare_data(self, input_dict, has_label=True):
         """
         :param input_dict:

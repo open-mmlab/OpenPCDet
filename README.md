@@ -131,7 +131,7 @@ sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} \
 
 * Train with a single GPU:
 ```shell script
-python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} 
+python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
 
 ## Acknowledgement
@@ -164,7 +164,6 @@ and / or
   year={2019}
 }
 ```
-
 
 ## Contact
 Should you have any question, please contact Shaoshuai Shi ([@sshaoshuai](http://github.com/sshaoshuai)).

@@ -33,7 +33,7 @@ if __name__ == '__main__':
     setup(
         name='pcdet',
         version=version,
-        description='PointCloudDet3D is a general codebase for 3D object detection from point cloud',
+        description='PCDet is a general codebase for 3D object detection from point cloud',
         install_requires=[
             'numpy',
             'torch>=1.1',
