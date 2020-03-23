@@ -13,6 +13,7 @@ import torch.distributed as dist
 from pathlib import Path
 import argparse
 import datetime
+import glob
 
 
 def parge_config():
@@ -60,6 +61,9 @@ def main():
 
     output_dir = cfg.ROOT_DIR / 'output' / cfg.TAG / args.extra_tag
     output_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_dir = output_dir / 'ckpt'
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+
     log_file = output_dir / ('log_train_%s.txt' % datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
     logger = common_utils.create_logger(log_file, rank=cfg.LOCAL_RANK)
 
@@ -97,8 +101,15 @@ def main():
 
     if args.ckpt is not None:
         it, start_epoch = model.load_params_with_optimizer(args.ckpt, to_cpu=dist, optimizer=optimizer, logger=logger)
-        model.cuda()
         last_epoch = start_epoch + 1
+    else:
+        ckpt_list = glob.glob(str(ckpt_dir / '*checkpoint_epoch_*.pth'))
+        if len(ckpt_list) > 0:
+            ckpt_list.sort(key=os.path.getmtime)
+            it, start_epoch = model.load_params_with_optimizer(
+                ckpt_list[-1], to_cpu=dist, optimizer=optimizer, logger=logger
+            )
+            last_epoch = start_epoch + 1
 
     model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
     if dist_train:
@@ -112,8 +123,6 @@ def main():
 
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s(%s)**********************' % (cfg.TAG, args.extra_tag))
-    ckpt_dir = output_dir / 'ckpt'
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
     train_model(
         model,
         optimizer,
