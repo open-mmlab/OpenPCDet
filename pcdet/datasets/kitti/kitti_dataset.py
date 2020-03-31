@@ -10,7 +10,7 @@ from pcdet.utils import box_utils, object3d_utils, calibration, common_utils
 from pcdet.ops.roiaware_pool3d import roiaware_pool3d_utils
 from pcdet.config import cfg
 from pcdet.datasets.data_augmentation.dbsampler import DataBaseSampler
-from spconv.utils import VoxelGenerator
+from spconv.utils import VoxelGeneratorV2
 from pcdet.datasets import DatasetTemplate
 
 
