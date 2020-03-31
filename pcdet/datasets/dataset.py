@@ -152,8 +152,10 @@ class DatasetTemplate(torch_data.Dataset):
         if cfg.DATA_CONFIG[self.mode].SHUFFLE_POINTS:
             np.random.shuffle(points)
 
+        voxel_grid = self.voxel_generator.generate(points, max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS)
         voxels, coordinates, num_points = \
-            self.voxel_generator.generate(points, max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS)
+            voxel_grid["voxels"], voxel_grid["coordinates"], voxel_grid["num_points_per_voxel"]
+
 
         voxel_centers = (coordinates[:, ::-1] + 0.5) * self.voxel_generator.voxel_size \
                         + self.voxel_generator.point_cloud_range[0:3]

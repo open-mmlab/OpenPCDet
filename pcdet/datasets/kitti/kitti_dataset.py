@@ -392,7 +392,7 @@ class KittiDataset(BaseKittiDataset):
             )
 
         voxel_generator_cfg = cfg.DATA_CONFIG.VOXEL_GENERATOR
-        self.voxel_generator = VoxelGenerator(
+        self.voxel_generator = VoxelGeneratorV2(
             voxel_size=voxel_generator_cfg.VOXEL_SIZE,
             point_cloud_range=cfg.DATA_CONFIG.POINT_CLOUD_RANGE,
             max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL
