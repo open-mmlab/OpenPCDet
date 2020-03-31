@@ -5,3 +5,5 @@ numba
 tensorboardX
 easydict
 pyyaml
+scikit-image 
+tdqm
