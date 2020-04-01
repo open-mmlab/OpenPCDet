@@ -101,13 +101,18 @@ def dict_select(dict_src, inds):
 
 
 def create_logger(log_file, rank=0, log_level=logging.INFO):
-    log_format = '%(asctime)s  %(levelname)5s  %(message)s'
-    logging.basicConfig(level=log_level if rank == 0 else 'ERROR', format=log_format, filename=log_file)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_level if rank == 0 else 'ERROR')
+    formatter = logging.Formatter('%(asctime)s  %(levelname)5s  %(message)s')
     console = logging.StreamHandler()
     console.setLevel(log_level if rank == 0 else 'ERROR')
-    console.setFormatter(logging.Formatter(log_format))
-    logging.getLogger(__name__).addHandler(console)
-    return logging.getLogger(__name__)
+    console.setFormatter(formatter)
+    file_handler = logging.FileHandler(filename=log_file)
+    file_handler.setLevel(log_level if rank == 0 else 'ERROR')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(console)
+    logger.addHandler(file_handler)
+    return logger
 
 
 def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
