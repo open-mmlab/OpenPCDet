@@ -1,0 +1,3 @@
+[submodule "spconv"]
+	path = spconv
+	url = https://github.com/traveller59/spconv.git
