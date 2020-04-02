@@ -50,7 +50,7 @@ All the codes are tested in the following environment:
 ### Install `pcdet`
 1. Clone this repository.
 ```shell
-git clone https://github.com/sshaoshuai/PCDet.git
+git clone https://github.com/sshaoshuai/PCDet.git ---recursive
 ```
 
 2. Install the dependent libraries as follows:
@@ -61,6 +61,16 @@ pip install -r requirements.txt
 ```
 
 * Install the SparseConv library, we use the non-official implementation from [`spconv`](https://github.com/traveller59/spconv). Note that we use an old version of `spconv`, make sure you install the `spconv v1.0` ([commit 8da6f96](https://github.com/traveller59/spconv/tree/8da6f967fb9a054d8870c3515b1b44eca2103634)) instead of the latest one.
+
+  0. ```cd sponv```
+
+  1. Install boost headers to your system include path, you can use either ```sudo apt-get install libboostall-dev``` or download compressed files from boost official website and copy headers to include path.
+
+  2. Download cmake >= 3.13.2, then add cmake executables to PATH.
+
+  3. Ensure you have install pytorch 1.0 in your environment, run ```python setup.py bdist_wheel``` (don't use ```python setup.py install```).
+
+  4. Run ```cd ./dist```, use pip to install generated whl file.
 
 3. Install this `pcdet` library by running the following command:
 ```shell
