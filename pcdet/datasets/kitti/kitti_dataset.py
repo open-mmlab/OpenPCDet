@@ -393,8 +393,8 @@ class KittiDataset(BaseKittiDataset):
             )
 
         voxel_generator_cfg = cfg.DATA_CONFIG.VOXEL_GENERATOR
-        # Support spconv 1.0 and 1.1
 
+        # Support spconv 1.0 and 1.1
         points = np.zeros((1, 3))
         try:
             self.voxel_generator = spconv.utils.VoxelGenerator(
