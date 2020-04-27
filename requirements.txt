@@ -1,6 +1,6 @@
 numpy
 torch>=1.1
-spconv==1.0
+spconv
 numba
 tensorboardX
 easydict
