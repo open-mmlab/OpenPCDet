@@ -6,7 +6,9 @@ import numpy as np
 from skimage import io
 from pathlib import Path
 import torch
-import spconv
+import pkg_resources
+
+from spconv.utils import VoxelGenerator, VoxelGeneratorV2
 
 from pcdet.utils import box_utils, object3d_utils, calibration, common_utils
 from pcdet.ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -394,24 +396,19 @@ class KittiDataset(BaseKittiDataset):
 
         voxel_generator_cfg = cfg.DATA_CONFIG.VOXEL_GENERATOR
 
-        # Support spconv 1.0 and 1.1
-        points = np.zeros((1, 3))
-        try:
-            self.voxel_generator = spconv.utils.VoxelGenerator(
-                voxel_size=voxel_generator_cfg.VOXEL_SIZE,
-                point_cloud_range=cfg.DATA_CONFIG.POINT_CLOUD_RANGE,
-                max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL,
-                max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS
-            )
-            voxels, coordinates, num_points = self.voxel_generator.generate(points)
-        except:
-            self.voxel_generator = spconv.utils.VoxelGeneratorV2(
-                voxel_size=voxel_generator_cfg.VOXEL_SIZE,
-                point_cloud_range=cfg.DATA_CONFIG.POINT_CLOUD_RANGE,
-                max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL,
-                max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS
-            )
-            voxel_grid = self.voxel_generator.generate(points)
+        if pkg_resources.get_distribution('spconv').version == '1.0':
+
+            self.voxel_generator = VoxelGenerator(voxel_size=voxel_generator_cfg.VOXEL_SIZE,
+                                                  point_cloud_range=cfg.DATA_CONFIG.POINT_CLOUD_RANGE,
+                                                  max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL,
+                                                  max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS)
+
+        else:
+
+            self.voxel_generator = VoxelGeneratorV2(voxel_size=voxel_generator_cfg.VOXEL_SIZE,
+                                                    point_cloud_range=cfg.DATA_CONFIG.POINT_CLOUD_RANGE,
+                                                    max_num_points=voxel_generator_cfg.MAX_POINTS_PER_VOXEL,
+                                                    max_voxels=cfg.DATA_CONFIG[self.mode].MAX_NUMBER_OF_VOXELS)
 
 
     def __len__(self):
