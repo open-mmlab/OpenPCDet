@@ -60,7 +60,7 @@ git clone https://github.com/sshaoshuai/PCDet.git
 pip install -r requirements.txt 
 ```
 
-* Install the SparseConv library, we use the non-official implementation from [`spconv`](https://github.com/traveller59/spconv). Note that we use an old version of `spconv`, make sure you install the `spconv v1.0` ([commit 8da6f96](https://github.com/traveller59/spconv/tree/8da6f967fb9a054d8870c3515b1b44eca2103634)) instead of the latest one.
+* Install the SparseConv library, we use the non-official implementation from [`spconv`](https://github.com/traveller59/spconv).
 
 3. Install this `pcdet` library by running the following command:
 ```shell
