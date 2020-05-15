@@ -1,4 +1,5 @@
 import numpy as np
+import pkg_resources
 from collections import defaultdict
 import torch.utils.data as torch_data
 from ..utils import box_utils, common_utils
@@ -154,10 +155,9 @@ class DatasetTemplate(torch_data.Dataset):
 
         voxel_grid = self.voxel_generator.generate(points)
 
-        # Support spconv 1.0 and 1.1
-        try:
+        if pkg_resources.get_distribution('spconv').version == '1.0':
             voxels, coordinates, num_points = voxel_grid
-        except:
+        else:
             voxels = voxel_grid["voxels"]
             coordinates = voxel_grid["coordinates"]
             num_points = voxel_grid["num_points_per_voxel"]
