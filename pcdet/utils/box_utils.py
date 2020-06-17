@@ -134,9 +134,9 @@ def boxes3d_to_corners3d_camera(boxes3d, bottom_center=True):
     z_corners = np.array([w / 2., -w / 2., -w / 2., w / 2., w / 2., -w / 2., -w / 2., w / 2.], dtype=np.float32).T
     if bottom_center:
         y_corners = np.zeros((boxes_num, 8), dtype=np.float32)
-        y_corners[:, 0:4] = -h.reshape(boxes_num, 1).repeat(4, axis=1)  # (N, 8)
+        y_corners[:, 4:8] = -h.reshape(boxes_num, 1).repeat(4, axis=1)  # (N, 8)
     else:
-        z_corners = np.array([h / 2., h / 2., h / 2., h / 2., -h / 2., -h / 2., -h / 2., -h / 2.], dtype=np.float32).T
+        y_corners = np.array([h / 2., h / 2., h / 2., h / 2., -h / 2., -h / 2., -h / 2., -h / 2.], dtype=np.float32).T
 
     ry = boxes3d[:, 6]
     zeros, ones = np.zeros(ry.size, dtype=np.float32), np.ones(ry.size, dtype=np.float32)
