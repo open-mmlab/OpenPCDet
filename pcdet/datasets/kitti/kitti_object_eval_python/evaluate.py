@@ -1,7 +1,7 @@
 import time
 import fire
 
-import .kitti_common as kitti
+from . import kitti_common as kitti
 from .eval import get_official_eval_result, get_coco_eval_result
 
 
