@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from .target_assigner.anchor_generator import AnchorGenerator
 from .target_assigner.atss_target_assigner import ATSSTargetAssigner
+from .target_assigner.axis_aligned_target_assigner import AxisAlignedTargetAssigner
 from ...utils import box_coder_utils, loss_utils, common_utils
 
 
@@ -45,8 +46,8 @@ class AnchorHeadTemplate(nn.Module):
                 box_coder=self.box_coder,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
             )
-        elif anchor_target_cfg.NAME == 'Second':
-            target_assigner = SecondTargetAssigner(
+        elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':
+            target_assigner = AxisAlignedTargetAssigner(
                 anchor_target_cfg=anchor_target_cfg,
                 box_coder=self.box_coder,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
