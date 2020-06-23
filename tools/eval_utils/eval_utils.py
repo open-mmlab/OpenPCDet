@@ -3,7 +3,7 @@ import time
 import pickle
 import numpy as np
 import torch
-from mmpcdet.utils import common_utils
+from pcdet.utils import common_utils
 
 
 def statistics_info(cfg, ret_dict, metric, disp_dict):
@@ -38,7 +38,13 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     logger.info('*************** EPOCH %s EVALUATION *****************' % epoch_id)
     if dist_test:
-        raise NotImplementedError
+        num_gpus = torch.cuda.device_count()
+        local_rank = cfg.LOCAL_RANK % num_gpus
+        model = torch.nn.parallel.DistributedDataParallel(
+                model,
+                device_ids=[local_rank],
+                broadcast_buffers=False
+        )
     model.eval()
 
     if cfg.LOCAL_RANK == 0:
@@ -71,7 +77,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     if dist_test:
         rank, world_size = common_utils.get_dist_info()
-        raise NotImplementedError
+        det_annos = common_utils.merge_results_dist(det_annos, len(dataset), tmpdir=result_dir / 'tmpdir')
+        metric = common_utils.merge_results_dist([metric], world_size, tmpdir=result_dir / 'tmpdir')
 
     logger.info('*************** Performance of EPOCH %s *****************' % epoch_id)
     sec_per_example = (time.time() - start_time) / len(dataloader.dataset)
@@ -82,7 +89,10 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     ret_dict = {}
     if dist_test:
-        raise NotImplementedError
+        for key, val in metric[0].items():
+            for k in range(1, world_size):
+                metric[0][key] += metric[k][key]
+        metric = metric[0]
 
     gt_num_cnt = metric['gt_num']
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:

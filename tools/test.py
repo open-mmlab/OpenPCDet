@@ -8,14 +8,14 @@ import datetime
 import argparse
 from pathlib import Path
 import torch.distributed as dist
-from mmpcdet.datasets import build_dataloader
-from mmpcdet.models import build_network
-from mmpcdet.utils import common_utils
-from mmpcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
+from pcdet.datasets import build_dataloader
+from pcdet.models import build_network
+from pcdet.utils import common_utils
+from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from eval_utils import eval_utils
 
 
-def parge_config():
+def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
 
@@ -128,7 +128,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
 
 def main():
-    args, cfg = parge_config()
+    args, cfg = parse_config()
     if args.launcher == 'none':
         dist_test = False
     else:

@@ -6,6 +6,8 @@ import os
 import torch.multiprocessing as mp
 import torch.distributed as dist
 import subprocess
+import pickle
+import shutil
 
 
 def check_numpy_to_torch(x):
@@ -153,3 +155,42 @@ def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
     batch_size_each_gpu = batch_size // num_gpus
     rank = dist.get_rank()
     return batch_size_each_gpu, rank
+
+def get_dist_info():
+    if torch.__version__ < '1.0':
+        initialized = dist._initialized
+    else:
+        if dist.is_available():
+            initialized = dist.is_initialized()
+        else:
+            initialized = False
+    if initialized:
+        rank = dist.get_rank()
+        world_size = dist.get_world_size()
+    else:
+        rank = 0
+        world_size = 1
+    return rank, world_size
+
+def merge_results_dist(result_part, size, tmpdir):
+    rank, world_size = get_dist_info()
+    os.makedirs(tmpdir, exist_ok=True)
+
+    dist.barrier()
+    pickle.dump(result_part, open(os.path.join(tmpdir, 'result_part_{}.pkl'.format(rank)), 'wb'))
+    dist.barrier()
+    
+    if rank != 0:
+        return None
+    
+    part_list = []
+    for i in range(world_size):
+        part_file = os.path.join(tmpdir, 'result_part_{}.pkl'.format(i))
+        part_list.append(pickle.load(open(part_file, 'rb')))
+
+    ordered_results = []
+    for res in zip(*part_list):
+        ordered_results.extend(list(res)) 
+    ordered_results = ordered_results[:size]
+    shutil.rmtree(tmpdir)
+    return ordered_results

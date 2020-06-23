@@ -16,7 +16,7 @@ import datetime
 import glob
 
 
-def parge_config():
+def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
 
@@ -54,7 +54,7 @@ def parge_config():
 
 
 def main():
-    args, cfg = parge_config()
+    args, cfg = parse_config()
     if args.launcher == 'none':
         dist_train = False
     else:
