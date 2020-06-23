@@ -49,7 +49,9 @@ class Detector3DTemplate(nn.Module):
 
         vfe_module = vfe.__all__[self.model_cfg.VFE.NAME](
             model_cfg=self.model_cfg.VFE,
-            num_point_features=model_info_dict['num_rawpoint_features']
+            num_point_features=model_info_dict['num_rawpoint_features'],
+            point_cloud_range=model_info_dict['point_cloud_range'],
+            voxel_size=model_info_dict['voxel_size']
         )
         model_info_dict['num_point_features'] = vfe_module.get_output_feature_dim()
         model_info_dict['module_list'].append(vfe_module)
@@ -75,7 +77,8 @@ class Detector3DTemplate(nn.Module):
             return None, model_info_dict
 
         map_to_bev_module = map_to_bev.__all__[self.model_cfg.MAP_TO_BEV.NAME](
-            model_cfg=self.model_cfg.MAP_TO_BEV
+            model_cfg=self.model_cfg.MAP_TO_BEV,
+            grid_size=model_info_dict['grid_size']
         )
         model_info_dict['module_list'].append(map_to_bev_module)
         model_info_dict['num_bev_features'] = map_to_bev_module.num_bev_features
