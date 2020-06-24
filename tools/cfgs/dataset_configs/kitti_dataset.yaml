@@ -28,7 +28,7 @@ DATA_AUGMENTOR:
 
       SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Cyclist:15']
       NUM_POINT_FEATURES: 4
-      DATABASE_WITH_FAKELIDAR: True
+      DATABASE_WITH_FAKELIDAR: False 
       REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
       LIMIT_WHOLE_SCENE: True
 
