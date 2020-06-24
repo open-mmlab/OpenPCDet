@@ -55,5 +55,5 @@ PCDet
 
 * Generate the data infos by running the following command: 
 ```python 
-python -m pcdet.datasets.kitti.kitti_dataset create_kitti_infos 
+python -m pcdet.datasets.kitti.kitti_dataset create_kitti_infos tools/cfgs/dataset_configs/kitti_dataset.yaml
 ```
