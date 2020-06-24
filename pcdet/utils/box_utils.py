@@ -2,6 +2,24 @@ import numpy as np
 import torch
 from . import common_utils
 from ..ops.roiaware_pool3d import roiaware_pool3d_utils
+from scipy.spatial import Delaunay
+import scipy
+
+def in_hull(p, hull):
+    """
+    :param p: (N, K) test points
+    :param hull: (M, K) M corners of a box
+    :return (N) bool
+    """
+    try:
+        if not isinstance(hull, Delaunay):
+            hull = Delaunay(hull)
+        flag = hull.find_simplex(p) >= 0
+    except scipy.spatial.qhull.QhullError:
+        print('Warning: not a hull %s' % str(hull))
+        flag = np.zeros(p.shape[0], dtype=np.bool)
+
+    return flag
 
 
 def boxes_to_corners_3d(boxes3d):
