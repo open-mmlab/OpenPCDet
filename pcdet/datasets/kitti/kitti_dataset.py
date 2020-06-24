@@ -182,9 +182,7 @@ class KittiDataset(DatasetTemplate):
 
             return info
 
-        # temp = process_single_scene(self.sample_id_list[0])
         sample_id_list = sample_id_list if sample_id_list is not None else self.sample_id_list
-        sample_id_list = sample_id_list[:10]
         with futures.ThreadPoolExecutor(num_workers) as executor:
             infos = executor.map(process_single_scene, sample_id_list)
         return list(infos)

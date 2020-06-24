@@ -17,7 +17,7 @@ python test.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} --eval_all
 
 * To test with multiple GPUs:
 ```shell script
-sh scripts/slurm_test_mgpu.sh ${NUM_GPUS} \ 
+sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \ 
     --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
 

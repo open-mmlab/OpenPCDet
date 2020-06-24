@@ -7,7 +7,7 @@ As of now, it mainly consists of `PCDet` toolbox for 3D object detection from po
 
 ### What does `PCDet` toolbox do?
 
-Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with prety new structures to support various datasets and models.
+Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with pretty new structures to support various datasets and models.
 
 `PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
 It currently supports multiple state-of-the-art 3D object detection methods with highly refactored codes for both one-stage and two-stage 3D detection frameworks.
