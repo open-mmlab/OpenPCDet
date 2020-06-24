@@ -1,8 +1,9 @@
-# OpenLidarPercept 
+# OpenLidarPerceptron
 
 ## Introduction
-`OpenLidarPercept` is an open source project for LiDAR-based 3D scene perception. 
-As of now, it mainly consists of `PCDet` toolbox for 3D object detection from point cloud.  
+`OpenLidarPerceptron` is an open source project for LiDAR-based 3D scene perception. 
+As of now, it mainly consists of `PCDet` toolbox for 3D object detection from point cloud, 
+and we are going to support LiDAR segmentation and odometry in the next phase.
 
 
 ### What does `PCDet` toolbox do?
@@ -11,6 +12,10 @@ Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with pretty new structu
 
 `PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
 It currently supports multiple state-of-the-art 3D object detection methods with highly refactored codes for both one-stage and two-stage 3D detection frameworks.
+
+Based on `PCDet` toolbox, we win the Waymo Open Dataset challenge in [3D Detection](https://waymo.com/open/challenges/3d-detection/), 
+[3D Tracking](https://waymo.com/open/challenges/3d-tracking/), [Domain Adaptation](https://waymo.com/open/challenges/domain-adaptation/) 
+three tracks among all LiDAR-only methods, and the Waymo related models will be released to `PCDet` soon.    
 
 It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
 
@@ -54,10 +59,10 @@ Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usag
 
 ## License
 
-`OpenLidarPercept` is released under the [Apache 2.0 license](LICENSE).
+`OpenLidarPerceptron` is released under the [Apache 2.0 license](LICENSE).
 
 ## Acknowledgement
-`OpenLidarPercept` is an open source project for LiDAR-based 3D scene perception that supports multiple
+`OpenLidarPerceptron` is an open source project for LiDAR-based 3D scene perception that supports multiple
 LiDAR-based perception models as shown above. Some parts of `PCDet` are learned from the official released codes of the above supported methods. 
 We would like to thank for their proposed methods and the official implementation.   
 
