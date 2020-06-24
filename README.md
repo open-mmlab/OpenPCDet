@@ -7,6 +7,8 @@ As of now, it mainly consists of `PCDet` toolbox for 3D object detection from po
 
 ### What does `PCDet` toolbox do?
 
+Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with prety new structures to support various datasets and models.
+
 `PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
 It currently supports multiple state-of-the-art 3D object detection methods with highly refactored codes for both one-stage and two-stage 3D detection frameworks.
 
@@ -32,13 +34,14 @@ Contributions are also welcomed.
 Selected supported methods are shown in the below table. The results are the 3D detection performance of car class on the *val* set of KITTI dataset.
 All models are trained with 8 GPUs and are available for download.
 
-|                                             | Batch Size | AP_Easy | AP_Mod. | AP_Hard | download  |
+|                                             | Batch Size | AP_Easy | **AP_Moderate** | AP_Hard | download  |
 |---------------------------------------------|:----------:|:-------:|:-------:|:-------:|:---------:|
-| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) | 32 | - | - | - | [model]() | 
-| [SECOND](tools/cfgs/kitti_models/second.yaml)           | 32  | - | - | - | [model]() |
-| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | 32 | - | - | - | [model]() |
-| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | 16 | - | - | - | [model]() |
+| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) | 32 | 86.46 | 77.28 | 74.65 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
+| [SECOND](tools/cfgs/kitti_models/second.yaml)           | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
+| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
 | [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | 32 | - | - | - | - |
+| PointRCNN | - | - | - | - | Pending|
 
 ## Installation
 

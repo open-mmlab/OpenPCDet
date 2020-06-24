@@ -9,7 +9,9 @@ All the codes are tested in the following environment:
 * `spconv v1.0` ([commit 8da6f96](https://github.com/traveller59/spconv/tree/8da6f967fb9a054d8870c3515b1b44eca2103634))
 
 
-### Install `pcdet`
+### Install `pcdet v0.2`
+NOTE: Please re-install `pcdet v0.2` by running `python setup.py develop` if you have already installed `pcdet v0.1` previously.
+
 a. Clone this repository.
 ```shell
 git clone https://github.com/open-mmlab/OpenLidarPercept.git
@@ -35,7 +37,8 @@ python setup.py develop
 Currently we provide the dataloader of KITTI dataset, and the supporting of more datasets are on the way.  
 
 ### KITTI Dataset
-* Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [[road plane]](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training): 
+* Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [[road plane]](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training):
+* NOTE: You need to create the infos and gt database again even you already have them from `pcdet v0.1` 
 
 ```
 PCDet
