@@ -13,8 +13,8 @@ class DataAugmentor(object):
         self.data_augmentor_queue = []
         for cur_cfg in augmentor_configs:
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
-            self.data_augmentor_queue.append(cur_augmentor)
-        
+            self.data_augmentor_queue.append(cur_augmentor)       
+ 
     def gt_sampling(self, config=None):
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
@@ -24,6 +24,13 @@ class DataAugmentor(object):
         )
         return db_sampler
 
+    def __getstate__(self):
+        d = dict(self.__dict__)
+        del d['logger']
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
    
     def random_world_flip(self, data_dict=None, config=None):
         if data_dict is None:

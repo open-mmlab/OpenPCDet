@@ -37,6 +37,14 @@ class DataBaseSampler(object):
                 'indices': np.arange(len(self.db_infos[class_name]))
             }
 
+    def __getstate__(self):
+        d = dict(self.__dict__)
+        del d['logger']
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+
     def filter_by_difficulty(self, db_infos, removed_difficulty):
         new_db_infos = {}
         for key, dinfos in db_infos.items():
