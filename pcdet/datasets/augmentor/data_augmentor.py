@@ -4,15 +4,6 @@ from . import augmentor_utils, database_sampler
 from ...utils import common_utils
 
 
-def register_function_augmentor(src_func):
-    def kernel_func(self, data_dict=None, config=None):
-        if data_dict is None:
-            return partial(src_func, self=self, config=config)
-        return src_func
-
-    return kernel_func
-
-
 class DataAugmentor(object):
     def __init__(self, root_path, augmentor_configs, class_names, logger=None):
         self.root_path = root_path
@@ -23,7 +14,7 @@ class DataAugmentor(object):
         for cur_cfg in augmentor_configs:
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_augmentor_queue.append(cur_augmentor)
-
+        
     def gt_sampling(self, config=None):
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
@@ -33,8 +24,10 @@ class DataAugmentor(object):
         )
         return db_sampler
 
-    @register_function_augmentor
+   
     def random_world_flip(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_world_flip, config=config)
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y']
@@ -46,8 +39,10 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
-    @register_function_augmentor
+   
     def random_world_rotation(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_world_rotation, config=config)
         rot_range = config['WORLD_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
@@ -59,8 +54,10 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
-    @register_function_augmentor
+ 
     def random_world_scaling(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_world_scaling, config=config)
         gt_boxes, points = augmentor_utils.global_scaling(
             data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE']
         )

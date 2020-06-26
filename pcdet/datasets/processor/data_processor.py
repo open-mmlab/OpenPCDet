@@ -3,15 +3,6 @@ import numpy as np
 from ...utils import box_utils, common_utils
 
 
-def register_function_processor(src_func):
-    def kernel_func(self, data_dict=None, config=None):
-        if data_dict is None:
-            return partial(src_func, self=self, config=config)
-        return src_func
-
-    return kernel_func
-
-
 class DataProcessor(object):
     def __init__(self, processor_configs, point_cloud_range, training):
         self.point_cloud_range = point_cloud_range
@@ -22,9 +13,11 @@ class DataProcessor(object):
         for cur_cfg in processor_configs:
             cur_processor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_processor_queue.append(cur_processor)
-
-    @register_function_processor
+        
+ 
     def mask_points_and_boxes_outside_range(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.mask_points_and_boxes_outside_range, config=config)
         mask = common_utils.mask_points_by_range(data_dict['points'], self.point_cloud_range)
         data_dict['points'] = data_dict['points'][mask]
         if data_dict.get('gt_boxes', None) is not None and config.REMOVE_OUTSIDE_BOXES and self.training:
@@ -34,7 +27,6 @@ class DataProcessor(object):
             data_dict['gt_boxes'] = data_dict['gt_boxes'][mask]
         return data_dict
 
-    @register_function_processor
     def shuffle_points(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.shuffle_points, config=config)
