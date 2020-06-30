@@ -101,7 +101,7 @@ class DatasetTemplate(torch_data.Dataset):
         data_dict = self.data_processor.forward(
             data_dict=data_dict
         )
-        data_dict.pop('gt_names')
+        data_dict.pop('gt_names', None)
 
         return data_dict
 

@@ -318,11 +318,10 @@ class KittiDataset(DatasetTemplate):
         return annos
 
     def evaluation(self, det_annos, class_names, **kwargs):
-        assert 'annos' in self.kitti_infos[0].keys()
-        from .kitti_object_eval_python import eval as kitti_eval
+        if 'annos' not in self.kitti_infos[0].keys():
+            return None, {}
 
-        if 'annos' not in self.kitti_infos[0]:
-            return 'None', {}
+        from .kitti_object_eval_python import eval as kitti_eval
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.kitti_infos]
