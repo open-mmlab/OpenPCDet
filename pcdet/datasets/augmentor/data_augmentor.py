@@ -46,7 +46,6 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
-   
     def random_world_rotation(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_rotation, config=config)
@@ -61,7 +60,6 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
- 
     def random_world_scaling(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_scaling, config=config)

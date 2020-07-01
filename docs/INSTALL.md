@@ -14,7 +14,7 @@ NOTE: Please re-install `pcdet v0.2` by running `python setup.py develop` if you
 
 a. Clone this repository.
 ```shell
-git clone https://github.com/open-mmlab/OpenLidarPerceptron.git
+git clone https://github.com/open-mmlab/OpenPCDet.git
 ```
 
 b. Install the dependent libraries as follows:

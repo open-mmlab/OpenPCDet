@@ -1,9 +1,10 @@
-# OpenLidarPerceptron
+<img src="docs/open_mmlab.png" align="right" width="30%">
+
+# OpenPCDet
 
 ## Introduction
-`OpenLidarPerceptron` is an open source project for LiDAR-based 3D scene perception. 
-As of now, it mainly consists of `PCDet` toolbox for 3D object detection from point cloud, 
-and we are going to support LiDAR segmentation and odometry in the next phase.
+`OpenPCDet` is an open source project for LiDAR-based 3D scene perception. 
+As of now, it mainly consists of `PCDet` toolbox for 3D object detection from point cloud.
 
 
 ### What does `PCDet` toolbox do?
@@ -22,9 +23,21 @@ It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs
 We are actively updating this repo currently, and more datasets and models will be supported soon. 
 Contributions are also welcomed. 
 
+### `PCDet` design pattern
+
+* Data-Model separation with unified point cloud coordinate for easily extending to custom datasets: 
+<p align="center">
+  <img src="docs/dataset_vs_model.png" width="95%" height="320">
+</p>
+
+* Flexible and clear model structure to easily support various 3D detection models: 
+<p align="center">
+  <img src="docs/model_framework.png" width="95%">
+</p>
+
 
 ### Currently Supported Features
-- [x] Unified point cloud coordinate and clear code structure and for supporting lots of datasets and approaches
+
 - [x] Support both one-stage and two-stage 3D object detection frameworks
 - [x] Support distributed training & testing with multiple GPUs and multiple machines
 - [x] Support multiple heads on different scales to detect different classes
@@ -32,6 +45,7 @@ Contributions are also welcomed.
 - [x] Support Adaptive Training Sample Selection (ATSS) for target assignment
 - [x] Support RoI-aware point cloud pooling & RoI-grid point cloud pooling
 - [x] Support GPU version 3D IoU calculation and rotated NMS 
+
 
 ## Model Zoo
 
@@ -48,6 +62,9 @@ All models are trained with 8 GPUs and are available for download.
 | [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | 32 | - | - | - | ongoing |
 | PointRCNN | 32 | - | - | - | ongoing|
 
+### Other datasets
+More datasets are on the way. 
+
 ## Installation
 
 Please refer to [INSTALL.md](docs/INSTALL.md) for installation and dataset preparation.
@@ -59,10 +76,10 @@ Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usag
 
 ## License
 
-`OpenLidarPerceptron` is released under the [Apache 2.0 license](LICENSE).
+`OpenPCDet` is released under the [Apache 2.0 license](LICENSE).
 
 ## Acknowledgement
-`OpenLidarPerceptron` is an open source project for LiDAR-based 3D scene perception that supports multiple
+`OpenPCDet` is an open source project for LiDAR-based 3D scene perception that supports multiple
 LiDAR-based perception models as shown above. Some parts of `PCDet` are learned from the official released codes of the above supported methods. 
 We would like to thank for their proposed methods and the official implementation.   
 
