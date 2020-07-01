@@ -35,6 +35,7 @@ Contributions are also welcomed.
   <img src="docs/model_framework.png" width="95%">
 </p>
 
+* Clear, simple, self-contained code structure for better understanding and use. 
 
 ### Currently Supported Features
 
