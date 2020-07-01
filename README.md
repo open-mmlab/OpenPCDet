@@ -4,26 +4,26 @@
 
 ## Introduction
 `OpenPCDet` is an open source project for LiDAR-based 3D scene perception. 
-As of now, it mainly consists of `PCDet` toolbox for 3D object detection from point cloud.
+As of now, it mainly consists of `OpenPCDet` toolbox for 3D object detection from point cloud.
 
 
-### What does `PCDet` toolbox do?
+### What does `OpenPCDet` toolbox do?
 
 Note that we have upgrated `PCDet` from `v0.1` to `v0.2` with pretty new structures to support various datasets and models.
 
-`PCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
+`OpenPCDet` is a general PyTorch-based codebase for 3D object detection from point cloud. 
 It currently supports multiple state-of-the-art 3D object detection methods with highly refactored codes for both one-stage and two-stage 3D detection frameworks.
 
-Based on `PCDet` toolbox, we win the Waymo Open Dataset challenge in [3D Detection](https://waymo.com/open/challenges/3d-detection/), 
+Based on `OpenPCDet` toolbox, we win the Waymo Open Dataset challenge in [3D Detection](https://waymo.com/open/challenges/3d-detection/), 
 [3D Tracking](https://waymo.com/open/challenges/3d-tracking/), [Domain Adaptation](https://waymo.com/open/challenges/domain-adaptation/) 
-three tracks among all LiDAR-only methods, and the Waymo related models will be released to `PCDet` soon.    
+three tracks among all LiDAR-only methods, and the Waymo related models will be released to `OpenPCDet` soon.    
 
 It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
 
 We are actively updating this repo currently, and more datasets and models will be supported soon. 
 Contributions are also welcomed. 
 
-### `PCDet` design pattern
+### `OpenPCDet` design pattern
 
 * Data-Model separation with unified point cloud coordinate for easily extending to custom datasets: 
 <p align="center">
