@@ -4,16 +4,20 @@ from ....ops.iou3d_nms import iou3d_nms_utils
 
 
 class AxisAlignedTargetAssigner(object):
-    def __init__(self, anchor_target_cfg, box_coder, match_height=False):
+    def __init__(self, anchor_target_cfg, anchor_generator_cfg, class_names, box_coder, match_height=False):
         super().__init__()
         self.box_coder = box_coder
         self.match_height = match_height
-
+        self.class_names = class_names
+        self.anchor_class_names = [config['class_name'] for config in anchor_generator_cfg]
         self.pos_fraction = anchor_target_cfg.POS_FRACTION if anchor_target_cfg.POS_FRACTION >= 0 else None
         self.sample_size = anchor_target_cfg.SAMPLE_SIZE
-        self.matched_thresholds = anchor_target_cfg.MATCHED_THRESHOLDS
-        self.unmatched_thresholds = anchor_target_cfg.UNMATCHED_THRESHOLDS
         self.norm_by_num_examples = anchor_target_cfg.NORM_BY_NUM_EXAMPLES
+        self.matched_thresholds = {}
+        self.unmatched_thresholds = {}
+        for config in anchor_generator_cfg:
+            self.matched_thresholds[config['class_name']] = config['matched_threshold']
+            self.unmatched_thresholds[config['class_name']] = config['unmatched_threshold']
 
     def assign_targets(self, all_anchors, gt_boxes_with_classes, use_multihead=False):
         """
@@ -41,8 +45,8 @@ class AxisAlignedTargetAssigner(object):
             cur_gt_classes = gt_classes[k][:cnt + 1].int()
 
             target_list = []
-            for class_index, anchors in enumerate(all_anchors):
-                mask = torch.tensor([c == class_index + 1 for c in cur_gt_classes], dtype=torch.bool)
+            for anchor_class_name, anchors in zip(self.anchor_class_names, all_anchors):
+                mask = torch.tensor([self.class_names[c-1] == anchor_class_name for c in cur_gt_classes], dtype=torch.bool)
 
                 if use_multihead:
                     anchors = anchors.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchors.shape[-1])
@@ -54,8 +58,8 @@ class AxisAlignedTargetAssigner(object):
                     anchors,
                     cur_gt[mask],
                     gt_classes=cur_gt_classes[mask],
-                    matched_threshold=self.matched_thresholds[class_index],
-                    unmatched_threshold=self.unmatched_thresholds[class_index]
+                    matched_threshold=self.matched_thresholds[anchor_class_name],
+                    unmatched_threshold=self.unmatched_thresholds[anchor_class_name]
                 )
                 target_list.append(single_target)
             if use_multihead:
