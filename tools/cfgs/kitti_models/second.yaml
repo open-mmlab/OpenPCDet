@@ -37,25 +37,34 @@ MODEL:
 
         ANCHOR_GENERATOR_CONFIG: [
             {
+                'class_name': 'Car',
                 'anchor_sizes': [[3.9, 1.6, 1.56]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.78],
                 'align_center': False,
-                'feature_map_stride': 8
+                'feature_map_stride': 8,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             },
             {
+                'class_name': 'Pedestrian',
                 'anchor_sizes': [[0.8, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 8
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             },
             {
+                'class_name': 'Cyclist',
                 'anchor_sizes': [[1.76, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 8
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             }
         ]
 
@@ -63,8 +72,6 @@ MODEL:
             NAME: AxisAlignedTargetAssigner
             POS_FRACTION: -1.0
             SAMPLE_SIZE: 512
-            MATCHED_THRESHOLDS: [0.6, 0.5, 0.5]
-            UNMATCHED_THRESHOLDS: [0.45, 0.35, 0.35]
             NORM_BY_NUM_EXAMPLES: False
             MATCH_HEIGHT: False
             BOX_CODER: ResidualCoder

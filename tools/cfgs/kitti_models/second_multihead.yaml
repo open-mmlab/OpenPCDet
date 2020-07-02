@@ -37,50 +37,68 @@ MODEL:
         USE_MULTI_HEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
+                'class_name': 'Car',
                 'anchor_sizes': [[3.9, 1.6, 1.56]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.6],
                 'align_center': False,
-                'feature_map_stride': 16
+                'feature_map_stride': 8,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             },
             {
+                'class_name': 'Pedestrian',
                 'anchor_sizes': [[0.8, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.6],
                 'align_center': False,
-                'feature_map_stride': 8
+                'feature_map_stride': 4,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             },
             {
+                'class_name': 'Cyclist',
                 'anchor_sizes': [[1.76, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.6],
                 'align_center': False,
-                'feature_map_stride': 8
+                'feature_map_stride': 4,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             }
         ]
 
         RPN_HEAD_CFGS: [
             {
-                'head_cls_name': ['Car'],
-                'stride': 2,
-                'layer_num': 2
+                'HEAD_CLS_NAME': ['Car'],
+                'LAYER_NUMS': [1],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
             },
             {
-                'head_cls_name': ['Pedestrian', 'Cyclist'],
-                'stride': 1,
-                'layer_num': 2
-            }, 
-
-
+                'HEAD_CLS_NAME': ['Pedestrian'],
+                'LAYER_NUMS': [1],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [2],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['Cyclist'],
+                'LAYER_NUMS': [1],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [2],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            }
         ]
-
 
         TARGET_ASSIGNER_CONFIG:
            NAME: AxisAlignedTargetAssigner
            POS_FRACTION: -1.0
            SAMPLE_SIZE: 512
-           MATCHED_THRESHOLDS: [0.6, 0.5, 0.5]
-           UNMATCHED_THRESHOLDS: [0.45, 0.35, 0.35]
            NORM_BY_NUM_EXAMPLES: False
            MATCH_HEIGHT: False
            BOX_CODER: ResidualCoder
