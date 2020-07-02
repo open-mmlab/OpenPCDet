@@ -37,7 +37,7 @@ class NuScenesDataset(DatasetTemplate):
             return points[mask]
 
         lidar_path = self.root_path / sweep_info['lidar_path']
-        points_sweep = np.fromfile(lidar_path, dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
+        points_sweep = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
         points_sweep = remove_ego_points(points_sweep).T
         if sweep_info['transform_matrix'] is not None:
             num_points = points_sweep.shape[1]
@@ -50,7 +50,7 @@ class NuScenesDataset(DatasetTemplate):
     def get_lidar_with_sweeps(self, index, max_sweeps=1):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidar_path']
-        points = np.fromfile(lidar_path, dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
+        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
 
         sweep_points_list = [points]
         sweep_times_list = [np.zeros((points.shape[0], 1))]
@@ -107,14 +107,15 @@ class NuScenesDataset(DatasetTemplate):
             gt_boxes = info['gt_boxes']
             gt_names = info['gt_names']
 
-            point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
-                torch.from_numpy(points[:, 0:3]), torch.from_numpy(gt_boxes[:, 0:7])
-            ).numpy()  # (nboxes, npoints)
+            box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+                torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
+                torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
+            ).long().squeeze(dim=0).cpu().numpy()
 
             for i in range(gt_boxes.shape[0]):
                 filename = '%s_%s_%d.bin' % (sample_idx, gt_names[i], i)
                 filepath = database_save_path / filename
-                gt_points = points[point_indices[i] > 0]
+                gt_points = points[box_idxs_of_pts == i]
 
                 gt_points[:, :3] -= gt_boxes[i, :3]
                 with open(filepath, 'w') as f:

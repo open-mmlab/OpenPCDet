@@ -1,7 +1,7 @@
 DATASET: 'NuScenesDataset'
 DATA_PATH: '../data/nuscenes'
 
-VERSION: 'v1.0-mini'
+VERSION: 'v1.0-trainval'
 MAX_SWEEPS: 10
 PRED_VELOCITY: False
 
