@@ -1,24 +1,12 @@
 import numpy as np
 import torch.nn as nn
 from .anchor_head_template import AnchorHeadTemplate
+from ..backbones_2d import BaseBEVBackbone
 import torch
 
-class SingleHead(nn.Module):
+class SingleHead(BaseBEVBackbone):
     def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, encode_conv_cfg=None):
-        super(SingleHead, self).__init__()
-        if encode_conv_cfg is not None:
-            stride = encode_conv_cfg['stride']
-            layer_num = encode_conv_cfg['layer_num']
-            num_filters = input_channels
-            encode_conv = []
-            encode_conv.append(nn.Conv2d(num_filters, num_filters, kernel_size=1, stride=stride, bias=False))
-            for i in range(layer_num-1):
-                encode_conv.append(nn.Conv2d(num_filters, num_filters, 1, bias=False))
-                encode_conv.append(nn.BatchNorm2d(num_filters))
-                encode_conv.append(nn.ReLU(inplace=True))
-            self.encode_conv = nn.Sequential(*encode_conv)
-        else:
-            self.encode_conv = None
+        super().__init__(encode_conv_cfg, input_channels)
 
         self.num_anchors_per_location = num_anchors_per_location
         self.num_class = num_class
@@ -51,9 +39,7 @@ class SingleHead(nn.Module):
 
     def forward(self, spatial_features_2d):
         ret_dict = {}
-
-        if self.encode_conv is not None:
-            spatial_features_2d = self.encode_conv(spatial_features_2d)
+        spatial_features_2d = super().forward({'spatial_features': spatial_features_2d})['spatial_features_2d']
 
         cls_preds = self.conv_cls(spatial_features_2d)
         box_preds = self.conv_box(spatial_features_2d)
@@ -79,7 +65,7 @@ class SingleHead(nn.Module):
                 dir_cls_preds = dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
             else:
                 dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
-        
+
         else:
             dir_cls_preds = None
 
@@ -90,9 +76,9 @@ class SingleHead(nn.Module):
         return ret_dict
 
 class AnchorHeadMulti(AnchorHeadTemplate):
-    def __init__(self, model_cfg, input_channels, num_class, grid_size, point_cloud_range, predict_boxes_when_training=True):
+    def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training=True):
         super().__init__(
-            model_cfg=model_cfg, num_class=num_class, grid_size=grid_size, point_cloud_range=point_cloud_range, predict_boxes_when_training=predict_boxes_when_training
+            model_cfg=model_cfg, num_class=num_class, class_names=class_names, grid_size=grid_size, point_cloud_range=point_cloud_range, predict_boxes_when_training=predict_boxes_when_training
         )
         self.model_cfg = model_cfg
         self.make_multihead(input_channels)
@@ -103,9 +89,9 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         rpn_heads = []
         class_names = []
         for rpn_head_cfg in rpn_head_cfgs:
-            class_names.extend(rpn_head_cfg['head_cls_name'])
+            class_names.extend(rpn_head_cfg['HEAD_CLS_NAME'])
         for rpn_head_cfg in rpn_head_cfgs:
-            num_anchors_per_location = sum([self.num_anchors_per_location[class_names.index(head_cls)] for head_cls in rpn_head_cfg['head_cls_name']])
+            num_anchors_per_location = sum([self.num_anchors_per_location[class_names.index(head_cls)] for head_cls in rpn_head_cfg['HEAD_CLS_NAME']])
             rpn_head = SingleHead(self.model_cfg, input_channels, self.num_class, num_anchors_per_location, self.box_coder.code_size, rpn_head_cfg)
             rpn_heads.append(rpn_head)
         self.rpn_heads = nn.ModuleList(rpn_heads)
