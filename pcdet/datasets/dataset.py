@@ -17,7 +17,7 @@ class DatasetTemplate(torch_data.Dataset):
         self.logger = logger
         self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH)
         self.logger = logger
-        if self.dataset_cfg is None:
+        if self.dataset_cfg is None or class_names is None:
             return
 
         self.point_cloud_range = np.array(self.dataset_cfg.POINT_CLOUD_RANGE, dtype=np.float32)
