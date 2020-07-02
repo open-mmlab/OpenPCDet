@@ -14,6 +14,7 @@ class Detector3DTemplate(nn.Module):
         self.model_cfg = model_cfg
         self.num_class = num_class
         self.dataset = dataset
+        self.class_names = dataset.class_names
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
         self.module_topology = [
@@ -119,6 +120,7 @@ class Detector3DTemplate(nn.Module):
             model_cfg=self.model_cfg.DENSE_HEAD,
             input_channels=model_info_dict['num_bev_features'],
             num_class=self.num_class if not self.model_cfg.DENSE_HEAD.CLASS_AGNOSTIC else 1,
+            class_names=self.class_names,
             grid_size=model_info_dict['grid_size'],
             point_cloud_range=model_info_dict['point_cloud_range'],
             predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False)

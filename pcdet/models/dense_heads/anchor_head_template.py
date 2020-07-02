@@ -8,10 +8,11 @@ from ...utils import box_coder_utils, loss_utils, common_utils
 
 
 class AnchorHeadTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, grid_size, point_cloud_range, predict_boxes_when_training):
+    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
+        self.class_names = class_names
         self.predict_boxes_when_training = predict_boxes_when_training
         self.use_multihead = self.model_cfg.get('USE_MULTI_HEAD', False)
 
@@ -20,11 +21,12 @@ class AnchorHeadTemplate(nn.Module):
             num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6)
         )
 
+        anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG
         anchors, self.num_anchors_per_location = self.generate_anchors(
-            self.model_cfg.ANCHOR_GENERATOR_CONFIG, grid_size=grid_size, point_cloud_range=point_cloud_range
+            anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range
         )
         self.anchors = [x.cuda() for x in anchors]
-        self.target_assigner = self.get_target_assigner(anchor_target_cfg)
+        self.target_assigner = self.get_target_assigner(anchor_target_cfg, anchor_generator_cfg)
 
         self.forward_ret_dict = {}
         self.build_losses(self.model_cfg.LOSS_CONFIG)
@@ -39,7 +41,7 @@ class AnchorHeadTemplate(nn.Module):
         anchors_list, num_anchors_per_location_list = anchor_generator.generate_anchors(feature_map_size)
         return anchors_list, num_anchors_per_location_list
 
-    def get_target_assigner(self, anchor_target_cfg):
+    def get_target_assigner(self, anchor_target_cfg, anchor_generator_cfg):
         if anchor_target_cfg.NAME == 'ATSS':
             target_assigner = ATSSTargetAssigner(
                 topk=anchor_target_cfg.TOPK,
@@ -49,6 +51,8 @@ class AnchorHeadTemplate(nn.Module):
         elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':
             target_assigner = AxisAlignedTargetAssigner(
                 anchor_target_cfg=anchor_target_cfg,
+                anchor_generator_cfg=anchor_generator_cfg,
+                class_names=self.class_names,
                 box_coder=self.box_coder,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
             )
