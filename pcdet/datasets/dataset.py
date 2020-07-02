@@ -47,10 +47,39 @@ class DatasetTemplate(torch_data.Dataset):
     def __setstate__(self, d):
         self.__dict__.update(d)
 
+    @staticmethod
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+        """
+        To support a custom dataset, implement this function to receive the predicted results from the model, and then
+        transform the unified normative coordinate to your required coordinate, and optionally save them to disk.
+
+        Args:
+            batch_dict: dict of original data from the dataloader
+            pred_dicts: dict of predicted results from the model
+                pred_boxes: (N, 7), Tensor
+                pred_scores: (N), Tensor
+                pred_labels: (N), Tensor
+            class_names:
+            output_path: if it is not None, save the results to this path
+        Returns:
+
+        """
+
     def __len__(self):
         raise NotImplementedError
 
-    def forward(self, index):
+    def __getitem__(self, index):
+        """
+        To support a custom dataset, implement this function to load the raw data (and labels), then transform them to
+        the unified normative coordinate and call the function self.prepare_data() to process the data and send them
+        to the model.
+
+        Args:
+            index:
+
+        Returns:
+
+        """
         raise NotImplementedError
 
     def prepare_data(self, data_dict):
