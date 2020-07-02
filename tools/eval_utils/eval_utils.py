@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import torch
 from pcdet.utils import common_utils
+from pcdet.models import load_data_to_gpu
 
 
 def statistics_info(cfg, ret_dict, metric, disp_dict):
@@ -51,13 +52,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
     for i, batch_dict in enumerate(dataloader):
-        for key, val in batch_dict.items():
-            if not isinstance(val, np.ndarray):
-                continue
-            if key in ['frame_id', 'calib', 'image_shape']:
-                continue
-            batch_dict[key] = torch.from_numpy(val).float().cuda()
-
+        load_data_to_gpu(batch_dict)
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
         disp_dict = {}

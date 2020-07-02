@@ -144,22 +144,26 @@ class DatasetTemplate(torch_data.Dataset):
         ret = {}
 
         for key, val in data_dict.items():
-            if key in ['voxels', 'voxel_num_points']:
-                ret[key] = np.concatenate(val, axis=0)
-            elif key in ['points', 'voxel_coords']:
-                coors = []
-                for i, coor in enumerate(val):
-                    coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i)
-                    coors.append(coor_pad)
-                ret[key] = np.concatenate(coors, axis=0)
-            elif key in ['gt_boxes']:
-                max_gt = max([len(x) for x in val])
-                batch_gt_boxes3d = np.zeros((batch_size, max_gt, val[0].shape[-1]), dtype=np.float32)
-                for k in range(batch_size):
-                    batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
-                ret[key] = batch_gt_boxes3d
-            else:
-                ret[key] = np.stack(val, axis=0)
+            try:
+                if key in ['voxels', 'voxel_num_points']:
+                    ret[key] = np.concatenate(val, axis=0)
+                elif key in ['points', 'voxel_coords']:
+                    coors = []
+                    for i, coor in enumerate(val):
+                        coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i)
+                        coors.append(coor_pad)
+                    ret[key] = np.concatenate(coors, axis=0)
+                elif key in ['gt_boxes']:
+                    max_gt = max([len(x) for x in val])
+                    batch_gt_boxes3d = np.zeros((batch_size, max_gt, val[0].shape[-1]), dtype=np.float32)
+                    for k in range(batch_size):
+                        batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
+                    ret[key] = batch_gt_boxes3d
+                else:
+                    ret[key] = np.stack(val, axis=0)
+            except:
+                print('Error in collate_batch: key=%s' % key)
+                raise TypeError
 
         ret['batch_size'] = batch_size
         return ret
