@@ -11,10 +11,16 @@ class DataAugmentor(object):
         self.logger = logger
 
         self.data_augmentor_queue = []
-        for cur_cfg in augmentor_configs:
+        aug_config_list = augmentor_configs if isinstance(augmentor_configs, list) \
+            else augmentor_configs.AUG_CONFIG_LIST
+
+        for cur_cfg in aug_config_list:
+            if not isinstance(augmentor_configs, list):
+                if cur_cfg.NAME in augmentor_configs.DISABLE_AUG_LIST:
+                    continue
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
-            self.data_augmentor_queue.append(cur_augmentor)       
- 
+            self.data_augmentor_queue.append(cur_augmentor)
+
     def gt_sampling(self, config=None):
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
