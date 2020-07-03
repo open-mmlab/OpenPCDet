@@ -18,12 +18,14 @@ class AnchorHeadTemplate(nn.Module):
 
         anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
-            num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6)
+            num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6),
+            **anchor_target_cfg.get('BOX_CODER_CONFIG', {})
         )
 
         anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG
         anchors, self.num_anchors_per_location = self.generate_anchors(
-            anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range
+            anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range,
+            anchor_ndim=self.box_coder.code_size
         )
         self.anchors = [x.cuda() for x in anchors]
         self.target_assigner = self.get_target_assigner(anchor_target_cfg, anchor_generator_cfg)
@@ -32,13 +34,20 @@ class AnchorHeadTemplate(nn.Module):
         self.build_losses(self.model_cfg.LOSS_CONFIG)
 
     @staticmethod
-    def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range):
+    def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
         anchor_generator = AnchorGenerator(
             anchor_range=point_cloud_range,
             anchor_generator_config=anchor_generator_cfg
         )
         feature_map_size = [grid_size[:2] // config['feature_map_stride'] for config in anchor_generator_cfg]
         anchors_list, num_anchors_per_location_list = anchor_generator.generate_anchors(feature_map_size)
+
+        if anchor_ndim != 7:
+            for idx, anchors in enumerate(anchors_list):
+                pad_zeros = anchors.new_zeros([*anchors.shape[0:-1], anchor_ndim - 7])
+                new_anchors = torch.cat((anchors, pad_zeros), dim=-1)
+                anchors_list[idx] = new_anchors
+
         return anchors_list, num_anchors_per_location_list
 
     def get_target_assigner(self, anchor_target_cfg, anchor_generator_cfg):

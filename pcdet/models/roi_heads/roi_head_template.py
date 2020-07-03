@@ -12,7 +12,9 @@ class RoIHeadTemplate(nn.Module):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
-        self.box_coder = getattr(box_coder_utils, self.model_cfg.TARGET_CONFIG.BOX_CODER)()
+        self.box_coder = getattr(box_coder_utils, self.model_cfg.TARGET_CONFIG.BOX_CODER)(
+            **self.model_cfg.TARGET_CONFIG.get('BOX_CODER_CONFIG', {})
+        )
         self.proposal_target_layer = ProposalTargetLayer(roi_sampler_cfg=self.model_cfg.TARGET_CONFIG)
         self.build_losses(self.model_cfg.LOSS_CONFIG)
         self.forward_ret_dict = None

@@ -118,6 +118,8 @@ class WeightedSmoothL1Loss(nn.Module):
             loss: (B, #anchors) float tensor.
                 Weighted smooth l1 loss without reduction.
         """
+        target = torch.where(torch.isnan(target), input, target)  # ignore nan targets
+
         diff = input - target
         # code-wise weighting
         if self.code_weights is not None:

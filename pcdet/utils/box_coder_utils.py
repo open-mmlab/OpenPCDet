@@ -5,6 +5,7 @@ class ResidualCoder(object):
     def __init__(self, code_size=7, **kwargs):
         super().__init__()
         self.code_size = code_size
+        assert code_size in [7, 9]
 
     @staticmethod
     def encode_torch(boxes, anchors):

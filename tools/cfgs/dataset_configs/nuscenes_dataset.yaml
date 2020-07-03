@@ -3,7 +3,7 @@ DATA_PATH: '../data/nuscenes'
 
 VERSION: 'v1.0-trainval'
 MAX_SWEEPS: 10
-PRED_VELOCITY: False
+PRED_VELOCITY: True
 
 DATA_SPLIT: {
     'train': train,
