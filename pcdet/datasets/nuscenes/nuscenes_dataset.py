@@ -110,7 +110,7 @@ class NuScenesDataset(DatasetTemplate):
         def get_template_prediction(num_samples):
             ret_dict = {
                 'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
-                'boxes_lidar': np.zeros([num_samples, 7])
+                'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples)
             }
             return ret_dict
 
@@ -166,7 +166,7 @@ class NuScenesDataset(DatasetTemplate):
         from nuscenes.eval.detection.config import config_factory
         from nuscenes.eval.detection.evaluate import NuScenesEval
 
-        eval_version = 'cvpr_2019'
+        eval_version = 'detection_cvpr_2019'
         eval_set_map = {
             'v1.0-mini': 'mini_val',
             'v1.0-trainval': 'val',
