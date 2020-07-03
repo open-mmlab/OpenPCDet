@@ -77,6 +77,7 @@ class NuScenesDataset(DatasetTemplate):
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidar_path']).stem,
+            'metadata': {'token': info['token']}
         }
 
         if 'gt_boxes' in info:
@@ -91,6 +92,102 @@ class NuScenesDataset(DatasetTemplate):
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
 
         return data_dict
+
+    @staticmethod
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+        """
+        Args:
+            batch_dict:
+                frame_id:
+            pred_dicts: list of pred_dicts
+                pred_boxes: (N, 7), Tensor
+                pred_scores: (N), Tensor
+                pred_labels: (N), Tensor
+            class_names:
+            output_path:
+        Returns:
+        """
+        def get_template_prediction(num_samples):
+            ret_dict = {
+                'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
+                'boxes_lidar': np.zeros([num_samples, 7])
+            }
+            return ret_dict
+
+        def generate_single_sample_dict(box_dict):
+            pred_scores = box_dict['pred_scores'].cpu().numpy()
+            pred_boxes = box_dict['pred_boxes'].cpu().numpy()
+            pred_labels = box_dict['pred_labels'].cpu().numpy()
+            pred_dict = get_template_prediction(pred_scores.shape[0])
+            if pred_scores.shape[0] == 0:
+                return pred_dict
+
+            pred_dict['name'] = np.array(class_names)[pred_labels - 1]
+            pred_dict['score'] = pred_scores
+            pred_dict['boxes_lidar'] = pred_boxes
+            pred_dict['pred_labels'] = pred_labels
+
+            return pred_dict
+
+        annos = []
+        for index, box_dict in enumerate(pred_dicts):
+            single_pred_dict = generate_single_sample_dict(box_dict)
+            single_pred_dict['frame_id'] = batch_dict['frame_id'][index]
+            single_pred_dict['metadata'] = batch_dict['metadata'][index]
+            annos.append(single_pred_dict)
+
+        return annos
+
+    def evaluation(self, det_annos, class_names, **kwargs):
+        import json
+        from nuscenes.nuscenes import NuScenes
+        from . import nuscenes_utils
+        nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
+        nusc_annos = nuscenes_utils.transform_det_annos_to_nusc_annos(det_annos, nusc)
+        nusc_annos['meta'] = {
+            'use_camera': False,
+            'use_lidar': True,
+            'use_radar': False,
+            'use_map': False,
+            'use_external': False,
+        }
+
+        output_path = Path(kwargs['output_path'])
+        output_path.mkdir(exist_ok=True, parents=True)
+        res_path = str(output_path / 'results_nusc.json')
+        with open(res_path, 'w') as f:
+            json.dump(nusc_annos, f)
+
+        self.logger.info(f'The predictions of NuScenes have been saved to {res_path}')
+
+        if self.dataset_cfg.VERSION == 'v1.0-test':
+            return 'No ground-truth annotations for evaluation', {}
+
+        from nuscenes.eval.detection.config import config_factory
+        from nuscenes.eval.detection.evaluate import NuScenesEval
+
+        eval_version = 'cvpr_2019'
+        eval_set_map = {
+            'v1.0-mini': 'mini_val',
+            'v1.0-trainval': 'val',
+            'v1.0-test': 'test'
+        }
+
+        nusc_eval = NuScenesEval(
+            nusc,
+            config=config_factory(eval_version),
+            result_path=res_path,
+            eval_set=eval_set_map[self.dataset_cfg.VERSION],
+            output_dir=str(output_path),
+            verbose=True,
+        )
+        metrics_summary = nusc_eval.main(plot_examples=2, render_curves=False)
+
+        with open(output_path / 'metrics_summary.json', 'r') as f:
+            metrics = json.load(f)
+
+        result_str, result_dict = nuscenes_utils.format_nuscene_results(metrics, self.class_names, version=eval_version)
+        return result_str, result_dict
 
     def create_groundtruth_database(self, used_classes=None, max_sweeps=10):
         import torch

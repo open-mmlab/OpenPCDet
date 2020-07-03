@@ -5,9 +5,14 @@ VERSION: 'v1.0-trainval'
 MAX_SWEEPS: 10
 PRED_VELOCITY: False
 
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
 INFO_PATH: {
     'train': [nuscenes_infos_10sweeps_train.pkl],
-    'test': [nuscenes_infos_10sweeps_train.pkl],
+    'test': [nuscenes_infos_10sweeps_val.pkl],
 }
 
 POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]

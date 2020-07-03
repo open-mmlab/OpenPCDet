@@ -1,14 +1,16 @@
 """
-The NuScenes data pre-processing is borrowed from
+The NuScenes data pre-processing and evaluation is modified from
 https://github.com/traveller59/second.pytorch and https://github.com/poodarchu/Det3D
 """
 
 from pathlib import Path
 import tqdm
 import numpy as np
+import operator
 from functools import reduce
 from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
+from nuscenes.utils.data_classes import Box
 
 
 map_name_from_general_to_detection = {
@@ -35,6 +37,120 @@ map_name_from_general_to_detection = {
     'movable_object.pushable_pullable': 'ignore',
     'movable_object.debris': 'ignore',
     'static_object.bicycle_rack': 'ignore',
+}
+
+
+cls_attr_dist = {
+    'barrier': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 0,
+        'vehicle.parked': 0,
+        'vehicle.stopped': 0,
+    },
+    'bicycle': {
+        'cycle.with_rider': 2791,
+        'cycle.without_rider': 8946,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 0,
+        'vehicle.parked': 0,
+        'vehicle.stopped': 0,
+    },
+    'bus': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 9092,
+        'vehicle.parked': 3294,
+        'vehicle.stopped': 3881,
+    },
+    'car': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 114304,
+        'vehicle.parked': 330133,
+        'vehicle.stopped': 46898,
+    },
+    'construction_vehicle': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 882,
+        'vehicle.parked': 11549,
+        'vehicle.stopped': 2102,
+    },
+    'ignore': {
+        'cycle.with_rider': 307,
+        'cycle.without_rider': 73,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 165,
+        'vehicle.parked': 400,
+        'vehicle.stopped': 102,
+    },
+    'motorcycle': {
+        'cycle.with_rider': 4233,
+        'cycle.without_rider': 8326,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 0,
+        'vehicle.parked': 0,
+        'vehicle.stopped': 0,
+    },
+    'pedestrian': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 157444,
+        'pedestrian.sitting_lying_down': 13939,
+        'pedestrian.standing': 46530,
+        'vehicle.moving': 0,
+        'vehicle.parked': 0,
+        'vehicle.stopped': 0,
+    },
+    'traffic_cone': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 0,
+        'vehicle.parked': 0,
+        'vehicle.stopped': 0,
+    },
+    'trailer': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 3421,
+        'vehicle.parked': 19224,
+        'vehicle.stopped': 1895,
+    },
+    'truck': {
+        'cycle.with_rider': 0,
+        'cycle.without_rider': 0,
+        'pedestrian.moving': 0,
+        'pedestrian.sitting_lying_down': 0,
+        'pedestrian.standing': 0,
+        'vehicle.moving': 21339,
+        'vehicle.parked': 55626,
+        'vehicle.stopped': 11097,
+    },
 }
 
 
@@ -259,3 +375,123 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
 
     progress_bar.close()
     return train_nusc_infos, val_nusc_infos
+
+
+def boxes_lidar_to_nusenes(det_info):
+    boxes3d = det_info['boxes_lidar']
+    scores = det_info['score']
+    labels = det_info['pred_labels']
+
+    box_list = []
+    for k in range(boxes3d.shape[0]):
+        quat = Quaternion(axis=[0, 0, 1], radians=boxes3d[k, 6])
+        velocity = (*boxes3d[k, 7:9], 0.0) if boxes3d.shape[1] == 9 else (0.0, 0.0, 0.0)
+        box = Box(
+            boxes3d[k, :3],
+            boxes3d[k, [4, 3, 5]],  # wlh
+            quat, label=labels[k], score=scores[k], velocity=velocity,
+        )
+        box_list.append(box)
+    return box_list
+
+
+def lidar_nusc_box_to_global(nusc, boxes, sample_token):
+    s_record = nusc.get('sample', sample_token)
+    sample_data_token = s_record['data']['LIDAR_TOP']
+
+    sd_record = nusc.get('sample_data', sample_data_token)
+    cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
+    sensor_record = nusc.get('sensor', cs_record['sensor_token'])
+    pose_record = nusc.get('ego_pose', sd_record['ego_pose_token'])
+
+    data_path = nusc.get_sample_data_path(sample_data_token)
+    box_list = []
+    for box in boxes:
+        # Move box to ego vehicle coord system
+        box.rotate(Quaternion(cs_record['rotation']))
+        box.translate(np.array(cs_record['translation']))
+        # Move box to global coord system
+        box.rotate(Quaternion(pose_record['rotation']))
+        box.translate(np.array(pose_record['translation']))
+        box_list.append(box)
+    return box_list
+
+
+def transform_det_annos_to_nusc_annos(det_annos, nusc):
+    nusc_annos = {
+        'results': {},
+        'meta': None,
+    }
+
+    for det in det_annos:
+        annos = []
+        box_list = boxes_lidar_to_nusenes(det)
+        box_list = lidar_nusc_box_to_global(
+            nusc=nusc, boxes=box_list, sample_token=det['metadata']['token']
+        )
+
+        for k, box in enumerate(box_list):
+            name = det['name'][k]
+            if np.sqrt(box.velocity[0] ** 2 + box.velocity[1] ** 2) > 0.2:
+                if name in ['car', 'construction_vehicle', 'bus', 'truck', 'trailer']:
+                    attr = 'vehicle.moving'
+                elif name in ['bicycle', 'motorcycle']:
+                    attr = 'cycle.with_rider'
+                else:
+                    attr = None
+            else:
+                if name in ['pedestrian']:
+                    attr = 'pedestrian.standing'
+                elif name in ['bus']:
+                    attr = 'vehicle.stopped'
+                else:
+                    attr = None
+            attr = attr if attr is not None else max(
+                cls_attr_dist[name].items(), key=operator.itemgetter(1))[0]
+            nusc_anno = {
+                'sample_token': det['metadata']['token'],
+                'translation': box.center.tolist(),
+                'size': box.wlh.tolist(),
+                'rotation': box.orientation.elements.tolist(),
+                'velocity': box.velocity[:2].tolist(),
+                'detection_name': name,
+                'detection_score': box.score,
+                'attribute_name': attr
+            }
+            annos.append(nusc_anno)
+
+        nusc_annos['results'].update({det["metadata"]["token"]: annos})
+
+    return nusc_annos
+
+
+def format_nuscene_results(metrics, class_names, version='default'):
+    result = '----------------Nuscene %s results-----------------\n' % version
+    for name in class_names:
+        threshs = ', '.join(list(metrics['label_aps'][name].keys()))
+        ap_list = list(metrics['label_aps'][name].values())
+
+        err_name =', '.join([x.split('_')[0] for x in list(metrics['label_tp_errors'][name].keys())])
+        error_list = list(metrics['label_tp_errors'][name].values())
+
+        result += f'***{name} error@{err_name} | AP@{threshs}\n'
+        result += ', '.join(['%.2f' % x for x in error_list]) + ' | '
+        result += ', '.join(['%.2f' % (x * 100) for x in ap_list])
+        result += f" | mean AP: {metrics['mean_dist_aps'][name]}"
+        result += '\n'
+
+    result += '--------------average performance-------------\n'
+    details = {}
+    for key, val in metrics['tp_errors'].items():
+        result += '%s:\t %.4f\n' % (key, val)
+        details[key] = val
+
+    result += 'mAP:\t %.4f\n' % metrics['mean_ap']
+    result += 'NDS:\t %.4f\n' % metrics['nd_score']
+
+    details.update({
+        'mAP': metrics['mean_ap'],
+        'NDS': metrics['nd_score'],
+    })
+
+    return result, details
