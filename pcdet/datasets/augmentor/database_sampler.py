@@ -164,7 +164,7 @@ class DataBaseSampler(object):
 
         """
         gt_boxes = data_dict['gt_boxes']
-        gt_names = data_dict['gt_names']
+        gt_names = data_dict['gt_names'].astype(str)
         existed_boxes = gt_boxes
         total_valid_sampled_dict = []
         for class_name, sample_group in self.sample_groups.items():
