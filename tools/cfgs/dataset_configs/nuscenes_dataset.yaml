@@ -18,34 +18,36 @@ INFO_PATH: {
 POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
 
 DATA_AUGMENTOR:
-    - NAME: gt_sampling
-      DB_INFO_PATH:
-          - nuscenes_dbinfos_10sweeps_withvelo.pkl
-      PREPARE: {
-         filter_by_min_points: [
-             'car:5','truck:5', 'construction_vehicle:5', 'bus:5', 'trailer:5',
-             'barrier:5', 'motorcycle:5', 'bicycle:5', 'pedestrian:5', 'traffic_cone:5'
-         ],
-      }
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+        - NAME: gt_sampling
+          DB_INFO_PATH:
+              - nuscenes_dbinfos_10sweeps_withvelo.pkl
+          PREPARE: {
+             filter_by_min_points: [
+                 'car:5','truck:5', 'construction_vehicle:5', 'bus:5', 'trailer:5',
+                 'barrier:5', 'motorcycle:5', 'bicycle:5', 'pedestrian:5', 'traffic_cone:5'
+             ],
+          }
 
-      SAMPLE_GROUPS: [
-          'car:2','truck:3', 'construction_vehicle:7', 'bus:4', 'trailer:6',
-          'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
-      ]
+          SAMPLE_GROUPS: [
+              'car:2','truck:3', 'construction_vehicle:7', 'bus:4', 'trailer:6',
+              'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
+          ]
 
-      NUM_POINT_FEATURES: 5
-      DATABASE_WITH_FAKELIDAR: False
-      REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-      LIMIT_WHOLE_SCENE: True
+          NUM_POINT_FEATURES: 5
+          DATABASE_WITH_FAKELIDAR: False
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+          LIMIT_WHOLE_SCENE: True
 
-    - NAME: random_world_flip
-      ALONG_AXIS_LIST: ['x', 'y']
+        - NAME: random_world_flip
+          ALONG_AXIS_LIST: ['x', 'y']
 
-    - NAME: random_world_rotation
-      WORLD_ROT_ANGLE: [-0.3925, 0.3925]
+        - NAME: random_world_rotation
+          WORLD_ROT_ANGLE: [-0.3925, 0.3925]
 
-    - NAME: random_world_scaling
-      WORLD_SCALE_RANGE: [0.95, 1.05]
+        - NAME: random_world_scaling
+          WORLD_SCALE_RANGE: [0.95, 1.05]
 
 
 POINT_FEATURE_ENCODING: {

@@ -222,7 +222,7 @@ MODEL:
             NMS_TYPE: nms_gpu
             NMS_THRESH: 0.2
             NMS_PRE_MAXSIZE: 4096
-            NMS_POST_MAXSIZE: 500
+            NMS_POST_MAXSIZE: 250 
 
 
 OPTIMIZATION:
