@@ -28,7 +28,7 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadSingle
+        NAME: AnchorHeadMulti
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
@@ -36,6 +36,7 @@ MODEL:
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
 
+        USE_MULTI_HEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': car,
@@ -136,6 +137,57 @@ MODEL:
                 'feature_map_stride': 8,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.4
+            },
+        ]
+
+        RPN_HEAD_CFGS: [
+            {
+                'HEAD_CLS_NAME': ['car'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['truck', 'construction_vehicle'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['bus', 'trailer'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['barrier'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['motorcycle', 'bicycle'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
+            },
+            {
+                'HEAD_CLS_NAME': ['pedestrian', 'traffic_cone'],
+                'LAYER_NUMS': [0],
+                'LAYER_STRIDES': [1],
+                'NUM_FILTERS': [512],
+                'UPSAMPLE_STRIDES': [1],
+                'NUM_UPSAMPLE_FILTERS': [512]
             },
         ]
 

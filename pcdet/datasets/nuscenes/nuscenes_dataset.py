@@ -2,6 +2,7 @@ import pickle
 import copy
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 from ...utils import common_utils
 from ..dataset import DatasetTemplate
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
