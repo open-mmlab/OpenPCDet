@@ -35,7 +35,7 @@ MODEL:
         NUM_DIR_BINS: 2
         
         USE_MULTIHEAD: True
-        SEPERATE_MULTIHEAD: True
+        SEPARATE_MULTIHEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
