@@ -34,7 +34,8 @@ MODEL:
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
         
-        USE_MULTI_HEAD: True
+        USE_MULTIHEAD: True
+        SEPARATE_MULTIHEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
@@ -52,7 +53,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.6],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -62,36 +63,38 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.6],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             }
         ]
 
+        SHARED_CONV_NUM_FILTER: 64
+
         RPN_HEAD_CFGS: [
             {
                 'HEAD_CLS_NAME': ['Car'],
-                'LAYER_NUMS': [1],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [512],
-                'UPSAMPLE_STRIDES': [1],
-                'NUM_UPSAMPLE_FILTERS': [512]
+                'LAYER_NUMS': [],
+                'LAYER_STRIDES': [],
+                'NUM_FILTERS': [],
+                'UPSAMPLE_STRIDES': [],
+                'NUM_UPSAMPLE_FILTERS': []
             },
             {
                 'HEAD_CLS_NAME': ['Pedestrian'],
-                'LAYER_NUMS': [1],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [512],
-                'UPSAMPLE_STRIDES': [2],
-                'NUM_UPSAMPLE_FILTERS': [512]
+                'LAYER_NUMS': [],
+                'LAYER_STRIDES': [],
+                'NUM_FILTERS': [],
+                'UPSAMPLE_STRIDES': [],
+                'NUM_UPSAMPLE_FILTERS': []
             },
             {
                 'HEAD_CLS_NAME': ['Cyclist'],
-                'LAYER_NUMS': [1],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [512],
-                'UPSAMPLE_STRIDES': [2],
-                'NUM_UPSAMPLE_FILTERS': [512]
+                'LAYER_NUMS': [],
+                'LAYER_STRIDES': [],
+                'NUM_FILTERS': [],
+                'UPSAMPLE_STRIDES': [],
+                'NUM_UPSAMPLE_FILTERS': []
             }
         ]
 
