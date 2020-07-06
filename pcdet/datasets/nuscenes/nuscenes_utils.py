@@ -206,8 +206,7 @@ def get_sample_data(nusc, sample_data_token, selected_anntokens=None):
         cam_intrinsic = np.array(cs_record['camera_intrinsic'])
         imsize = (sd_record['width'], sd_record['height'])
     else:
-        cam_intrinsic = None
-        imsize = None
+        cam_intrinsic = imsize = None
 
     # Retrieve all sample annotations and map to sensor coordinate system.
     if selected_anntokens is not None:
@@ -218,6 +217,7 @@ def get_sample_data(nusc, sample_data_token, selected_anntokens=None):
     # Make list of Box objects including coord system transforms.
     box_list = []
     for box in boxes:
+        box.velocity = nusc.box_velocity(box.token)
         # Move box to ego vehicle coord system
         box.translate(-np.array(pose_record['translation']))
         box.rotate(Quaternion(pose_record['rotation']).inverse)
@@ -350,8 +350,9 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             annotations = [nusc.get('sample_annotation', token) for token in sample['anns']]
 
             # the filtering gives 0.5~1 map improvement
-            mask = np.array([(anno['num_lidar_pts'] + anno['num_radar_pts']) > 0
-                             for anno in annotations], dtype=bool).reshape(-1)
+            num_lidar_pts = np.array([anno['num_lidar_pts'] for anno in annotations])
+            num_radar_pts = np.array([anno['num_radar_pts'] for anno in annotations])
+            mask = (num_lidar_pts + num_radar_pts > 0)
 
             locs = np.array([b.center for b in ref_boxes]).reshape(-1, 3)
             dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
@@ -367,6 +368,8 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             info['gt_boxes_velocity'] = velocity[mask, :]
             info['gt_names'] = np.array([map_name_from_general_to_detection[name] for name in names])[mask]
             info['gt_boxes_token'] = tokens[mask]
+            info['num_lidar_pts'] = num_lidar_pts[mask]
+            info['num_radar_pts'] = num_radar_pts[mask]
 
         if sample['scene_token'] in train_scenes:
             train_nusc_infos.append(info)
