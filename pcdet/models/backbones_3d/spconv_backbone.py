@@ -199,8 +199,8 @@ class VoxelResBackBone8x(nn.Module):
         self.conv4 = spconv.SparseSequential(
             # [400, 352, 11] <- [200, 176, 5]
             block(64, 128, 3, norm_fn=norm_fn, stride=2, padding=(0, 1, 1), indice_key='spconv4', conv_type='spconv'),
-            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key='res3'),
-            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key='res3'),
+            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key='res4'),
+            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key='res4'),
         )
 
         last_pad = 0

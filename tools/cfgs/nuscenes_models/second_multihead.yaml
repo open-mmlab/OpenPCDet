@@ -36,7 +36,7 @@ MODEL:
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
 
-        USE_MULTI_HEAD: True
+        USE_MULTIHEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': car,
@@ -227,7 +227,7 @@ MODEL:
 
 OPTIMIZATION:
     OPTIMIZER: adam_onecycle
-    LR: 0.003 
+    LR: 0.003
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
