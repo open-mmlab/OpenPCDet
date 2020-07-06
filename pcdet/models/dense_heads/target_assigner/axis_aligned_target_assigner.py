@@ -4,8 +4,11 @@ from ....ops.iou3d_nms import iou3d_nms_utils
 
 
 class AxisAlignedTargetAssigner(object):
-    def __init__(self, anchor_target_cfg, anchor_generator_cfg, class_names, box_coder, match_height=False):
+    def __init__(self, model_cfg, class_names, box_coder, match_height=False):
         super().__init__()
+
+        anchor_generator_cfg = model_cfg.ANCHOR_GENERATOR_CONFIG
+        anchor_target_cfg = model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = box_coder
         self.match_height = match_height
         self.class_names = class_names
@@ -18,8 +21,17 @@ class AxisAlignedTargetAssigner(object):
         for config in anchor_generator_cfg:
             self.matched_thresholds[config['class_name']] = config['matched_threshold']
             self.unmatched_thresholds[config['class_name']] = config['unmatched_threshold']
+         
+        self.use_multihead = model_cfg.get('USE_MULTIHEAD', False)
+        self.seperate_multihead = model_cfg.get('SEPERATE_MULTIHEAD', False)
+        if self.seperate_multihead:
+            rpn_head_cfgs = model_cfg.RPN_HEAD_CFGS
+            self.gt_remapping = {}
+            for rpn_head_cfg in rpn_head_cfgs:
+                for idx, name in enumerate(rpn_head_cfg['HEAD_CLS_NAME']):
+                    self.gt_remapping[name] = idx + 1
 
-    def assign_targets(self, all_anchors, gt_boxes_with_classes, use_multihead=False):
+    def assign_targets(self, all_anchors, gt_boxes_with_classes):
         """
         Args:
             all_anchors: [(N, 7), ...]
@@ -48,27 +60,36 @@ class AxisAlignedTargetAssigner(object):
             for anchor_class_name, anchors in zip(self.anchor_class_names, all_anchors):
                 mask = torch.tensor([self.class_names[c-1] == anchor_class_name for c in cur_gt_classes], dtype=torch.bool)
 
-                if use_multihead:
+                if self.use_multihead:
                     anchors = anchors.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchors.shape[-1])
+                    if self.seperate_multihead:
+                        selected_classes = cur_gt_classes[mask].clone()
+                        if len(selected_classes) > 0:
+                            new_cls_id = self.gt_remapping[anchor_class_name]
+                            selected_classes[:] = new_cls_id
+                    else:
+                        selected_classes = cur_gt_classes[mask]
                 else:
                     feature_map_size = anchors.shape[:3]
                     anchors = anchors.view(-1, anchors.shape[-1])
-                    
+                    selected_classes = cur_gt_classes[mask]
+
                 single_target = self.assign_targets_single(
                     anchors,
                     cur_gt[mask],
-                    gt_classes=cur_gt_classes[mask],
+                    gt_classes=selected_classes,
                     matched_threshold=self.matched_thresholds[anchor_class_name],
                     unmatched_threshold=self.unmatched_thresholds[anchor_class_name]
                 )
                 target_list.append(single_target)
-            if use_multihead:
+
+            if self.use_multihead:
                 target_dict = {
                     'box_cls_labels': [t['box_cls_labels'].view(-1) for t in target_list],
                     'box_reg_targets': [t['box_reg_targets'].view(-1, self.box_coder.code_size) for t in target_list],
                     'reg_weights': [t['reg_weights'].view(-1) for t in target_list]
                 }
-                
+
                 target_dict['box_reg_targets'] = torch.cat(target_dict['box_reg_targets'], dim=0)
                 target_dict['box_cls_labels'] = torch.cat(target_dict['box_cls_labels'], dim=0).view(-1)
                 target_dict['reg_weights'] = torch.cat(target_dict['reg_weights'], dim=0).view(-1)
@@ -87,9 +108,8 @@ class AxisAlignedTargetAssigner(object):
             bbox_targets.append(target_dict['box_reg_targets'])
             cls_labels.append(target_dict['box_cls_labels'])
             reg_weights.append(target_dict['reg_weights'])
-        
+
         bbox_targets = torch.stack(bbox_targets, dim=0)
-        
         cls_labels = torch.stack(cls_labels, dim=0)
         reg_weights = torch.stack(reg_weights, dim=0)
         all_targets_dict = {

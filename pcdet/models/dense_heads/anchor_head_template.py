@@ -14,7 +14,7 @@ class AnchorHeadTemplate(nn.Module):
         self.num_class = num_class
         self.class_names = class_names
         self.predict_boxes_when_training = predict_boxes_when_training
-        self.use_multihead = self.model_cfg.get('USE_MULTI_HEAD', False)
+        self.use_multihead = self.model_cfg.get('USE_MULTIHEAD', False)
 
         anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
@@ -26,7 +26,7 @@ class AnchorHeadTemplate(nn.Module):
             anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range
         )
         self.anchors = [x.cuda() for x in anchors]
-        self.target_assigner = self.get_target_assigner(anchor_target_cfg, anchor_generator_cfg)
+        self.target_assigner = self.get_target_assigner(anchor_target_cfg)
 
         self.forward_ret_dict = {}
         self.build_losses(self.model_cfg.LOSS_CONFIG)
@@ -41,17 +41,17 @@ class AnchorHeadTemplate(nn.Module):
         anchors_list, num_anchors_per_location_list = anchor_generator.generate_anchors(feature_map_size)
         return anchors_list, num_anchors_per_location_list
 
-    def get_target_assigner(self, anchor_target_cfg, anchor_generator_cfg):
+    def get_target_assigner(self, anchor_target_cfg):
         if anchor_target_cfg.NAME == 'ATSS':
             target_assigner = ATSSTargetAssigner(
                 topk=anchor_target_cfg.TOPK,
                 box_coder=self.box_coder,
+                use_multihead=self.use_multihead,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
             )
         elif anchor_target_cfg.NAME == 'AxisAlignedTargetAssigner':
             target_assigner = AxisAlignedTargetAssigner(
-                anchor_target_cfg=anchor_target_cfg,
-                anchor_generator_cfg=anchor_generator_cfg,
+                model_cfg=self.model_cfg,
                 class_names=self.class_names,
                 box_coder=self.box_coder,
                 match_height=anchor_target_cfg.MATCH_HEIGHT
@@ -82,7 +82,7 @@ class AnchorHeadTemplate(nn.Module):
 
         """
         targets_dict = self.target_assigner.assign_targets(
-            self.anchors, gt_boxes, self.use_multihead
+            self.anchors, gt_boxes
         )
         return targets_dict
 
@@ -113,8 +113,6 @@ class AnchorHeadTemplate(nn.Module):
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)
         cls_preds = cls_preds.view(batch_size, -1, self.num_class)
         one_hot_targets = one_hot_targets[..., 1:]
-        # import pdb
-        # pdb.set_trace()
         cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
         cls_loss = cls_loss_src.sum() / batch_size
 
@@ -235,14 +233,14 @@ class AnchorHeadTemplate(nn.Module):
             anchors = self.anchors
         num_anchors = anchors.view(-1, anchors.shape[-1]).shape[0]
         batch_anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
-        batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float()
-        batch_box_preds = box_preds.view(batch_size, num_anchors, -1)
+        batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float() if not isinstance(cls_preds, list) else cls_preds
+        batch_box_preds = box_preds.view(batch_size, num_anchors, -1) if not isinstance(box_preds, list) else torch.cat(box_preds, dim=1).view(batch_size, num_anchors, -1)
         batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
 
         if dir_cls_preds is not None:
             dir_offset = self.model_cfg.DIR_OFFSET
             dir_limit_offset = self.model_cfg.DIR_LIMIT_OFFSET
-            dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1)
+            dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1) if not isinstance(dir_cls_preds, list) else torch.cat(dir_cls_preds, dim=1).view(batch_size, num_anchors, -1)
             dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
 
             period = (2 * np.pi / self.model_cfg.NUM_DIR_BINS)
