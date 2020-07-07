@@ -210,16 +210,21 @@ class NuScenesDataset(DatasetTemplate):
         from nuscenes.eval.detection.config import config_factory
         from nuscenes.eval.detection.evaluate import NuScenesEval
 
-        eval_version = 'detection_cvpr_2019'
         eval_set_map = {
             'v1.0-mini': 'mini_val',
             'v1.0-trainval': 'val',
             'v1.0-test': 'test'
         }
+        try:
+            eval_version = 'detection_cvpr_2019'
+            eval_config = config_factory(eval_version)
+        except:
+            eval_version = 'cvpr_2019'
+            eval_config = config_factory(eval_version)
 
         nusc_eval = NuScenesEval(
             nusc,
-            config=config_factory(eval_version),
+            config=eval_config,
             result_path=res_path,
             eval_set=eval_set_map[self.dataset_cfg.VERSION],
             output_dir=str(output_path),
