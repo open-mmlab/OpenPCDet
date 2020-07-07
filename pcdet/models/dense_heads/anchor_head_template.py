@@ -18,12 +18,14 @@ class AnchorHeadTemplate(nn.Module):
 
         anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
-            num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6)
+            num_dir_bins=anchor_target_cfg.get('NUM_DIR_BINS', 6),
+            **anchor_target_cfg.get('BOX_CODER_CONFIG', {})
         )
 
         anchor_generator_cfg = self.model_cfg.ANCHOR_GENERATOR_CONFIG
         anchors, self.num_anchors_per_location = self.generate_anchors(
-            anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range
+            anchor_generator_cfg, grid_size=grid_size, point_cloud_range=point_cloud_range,
+            anchor_ndim=self.box_coder.code_size
         )
         self.anchors = [x.cuda() for x in anchors]
         self.target_assigner = self.get_target_assigner(anchor_target_cfg)
@@ -32,13 +34,20 @@ class AnchorHeadTemplate(nn.Module):
         self.build_losses(self.model_cfg.LOSS_CONFIG)
 
     @staticmethod
-    def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range):
+    def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
         anchor_generator = AnchorGenerator(
             anchor_range=point_cloud_range,
             anchor_generator_config=anchor_generator_cfg
         )
         feature_map_size = [grid_size[:2] // config['feature_map_stride'] for config in anchor_generator_cfg]
         anchors_list, num_anchors_per_location_list = anchor_generator.generate_anchors(feature_map_size)
+
+        if anchor_ndim != 7:
+            for idx, anchors in enumerate(anchors_list):
+                pad_zeros = anchors.new_zeros([*anchors.shape[0:-1], anchor_ndim - 7])
+                new_anchors = torch.cat((anchors, pad_zeros), dim=-1)
+                anchors_list[idx] = new_anchors
+
         return anchors_list, num_anchors_per_location_list
 
     def get_target_assigner(self, anchor_target_cfg):
@@ -65,9 +74,11 @@ class AnchorHeadTemplate(nn.Module):
             'cls_loss_func',
             loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
         )
+        reg_loss_name = 'WeightedSmoothL1Loss' if losses_cfg.get('REG_LOSS_TYPE', None) is None \
+            else losses_cfg.REG_LOSS_TYPE
         self.add_module(
             'reg_loss_func',
-            loss_utils.WeightedSmoothL1Loss(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
+            getattr(loss_utils, reg_loss_name)(code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'])
         )
         self.add_module(
             'dir_loss_func',
@@ -233,14 +244,17 @@ class AnchorHeadTemplate(nn.Module):
             anchors = self.anchors
         num_anchors = anchors.view(-1, anchors.shape[-1]).shape[0]
         batch_anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
-        batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float() if not isinstance(cls_preds, list) else cls_preds
-        batch_box_preds = box_preds.view(batch_size, num_anchors, -1) if not isinstance(box_preds, list) else torch.cat(box_preds, dim=1).view(batch_size, num_anchors, -1)
+        batch_cls_preds = cls_preds.view(batch_size, num_anchors, -1).float() \
+            if not isinstance(cls_preds, list) else cls_preds
+        batch_box_preds = box_preds.view(batch_size, num_anchors, -1) if not isinstance(box_preds, list) \
+            else torch.cat(box_preds, dim=1).view(batch_size, num_anchors, -1)
         batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
 
         if dir_cls_preds is not None:
             dir_offset = self.model_cfg.DIR_OFFSET
             dir_limit_offset = self.model_cfg.DIR_LIMIT_OFFSET
-            dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1) if not isinstance(dir_cls_preds, list) else torch.cat(dir_cls_preds, dim=1).view(batch_size, num_anchors, -1)
+            dir_cls_preds = dir_cls_preds.view(batch_size, num_anchors, -1) if not isinstance(dir_cls_preds, list) \
+                else torch.cat(dir_cls_preds, dim=1).view(batch_size, num_anchors, -1)
             dir_labels = torch.max(dir_cls_preds, dim=-1)[1]
 
             period = (2 * np.pi / self.model_cfg.NUM_DIR_BINS)

@@ -6,13 +6,15 @@ import torch
 
 
 class SingleHead(BaseBEVBackbone):
-    def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, encode_conv_cfg=None):
+    def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, encode_conv_cfg=None,
+                 head_label_indices=None):
         super().__init__(encode_conv_cfg, input_channels)
 
         self.num_anchors_per_location = num_anchors_per_location
         self.num_class = num_class
         self.code_size = code_size
         self.model_cfg = model_cfg
+        self.register_buffer('head_label_indices', head_label_indices)
 
         self.conv_cls = nn.Conv2d(
             input_channels, self.num_anchors_per_location * self.num_class,
@@ -57,12 +59,13 @@ class SingleHead(BaseBEVBackbone):
                                        self.num_class, H, W).permute(0, 1, 3, 4, 2).contiguous()
             box_preds = box_preds.view(batch_size, -1, self.code_size)
             cls_preds = cls_preds.view(batch_size, -1, self.num_class)
-        
+
         if self.conv_dir_cls is not None:
             dir_cls_preds = self.conv_dir_cls(spatial_features_2d)
             if self.use_multihead:
                 dir_cls_preds = dir_cls_preds.view(
-                    -1, self.num_anchors_per_location, self.model_cfg.NUM_DIR_BINS, H, W).permute(0, 1, 3, 4, 2).contiguous()
+                    -1, self.num_anchors_per_location, self.model_cfg.NUM_DIR_BINS, H, W).permute(0, 1, 3, 4,
+                                                                                                  2).contiguous()
                 dir_cls_preds = dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
             else:
                 dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
@@ -90,10 +93,10 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         if self.model_cfg.get('SHARED_CONV_NUM_FILTER', None) is not None:
             shared_conv_num_filter = self.model_cfg.SHARED_CONV_NUM_FILTER
             self.shared_conv = nn.Sequential(
-                    nn.Conv2d(input_channels, shared_conv_num_filter, 3, stride=1, padding=1, bias=False),
-                    nn.BatchNorm2d(shared_conv_num_filter, eps=1e-3, momentum=0.01),
-                    nn.ReLU(),
-                )
+                nn.Conv2d(input_channels, shared_conv_num_filter, 3, stride=1, padding=1, bias=False),
+                nn.BatchNorm2d(shared_conv_num_filter, eps=1e-3, momentum=0.01),
+                nn.ReLU(),
+            )
         else:
             self.shared_conv = None
             shared_conv_num_filter = input_channels
@@ -110,10 +113,15 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         for rpn_head_cfg in rpn_head_cfgs:
             num_anchors_per_location = sum([self.num_anchors_per_location[class_names.index(head_cls)]
                                             for head_cls in rpn_head_cfg['HEAD_CLS_NAME']])
+            head_label_indices = torch.from_numpy(np.array([
+                self.class_names.index(cur_name) + 1 for cur_name in rpn_head_cfg['HEAD_CLS_NAME']
+            ]))
+
             rpn_head = SingleHead(
                 self.model_cfg, input_channels,
                 len(rpn_head_cfg['HEAD_CLS_NAME']) if self.separate_multihead else self.num_class,
-                num_anchors_per_location, self.box_coder.code_size, rpn_head_cfg
+                num_anchors_per_location, self.box_coder.code_size, rpn_head_cfg,
+                head_label_indices=head_label_indices
             )
             rpn_heads.append(rpn_head)
         self.rpn_heads = nn.ModuleList(rpn_heads)
@@ -126,7 +134,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         ret_dicts = []
         for rpn_head in self.rpn_heads:
             ret_dicts.append(rpn_head(spatial_features_2d))
-        
+
         cls_preds = [ret_dict['cls_preds'] for ret_dict in ret_dicts]
         box_preds = [ret_dict['box_preds'] for ret_dict in ret_dicts]
         ret = {
@@ -137,11 +145,9 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
             dir_cls_preds = [ret_dict['dir_cls_preds'] for ret_dict in ret_dicts]
             ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1)
-        else:
-            dir_cls_preds = None
- 
+
         self.forward_ret_dict.update(ret)
-       
+
         if self.training:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
@@ -150,8 +156,24 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         else:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=data_dict['batch_size'],
-                cls_preds=cls_preds, box_preds=box_preds, dir_cls_preds=dir_cls_preds
+                cls_preds=ret['cls_preds'], box_preds=ret['box_preds'], dir_cls_preds=ret['dir_cls_preds']
             )
+
+            if isinstance(batch_cls_preds, list):
+                all_pred_labels = []
+                all_cls_preds = []
+                for idx, cls_pred in enumerate(batch_cls_preds):
+                    pred_score, pred_head_label = torch.max(cls_pred, dim=-1)
+                    pred_label = self.rpn_heads[idx].head_label_indices[pred_head_label]
+
+                    all_pred_labels.append(pred_label)
+                    all_cls_preds.append(pred_score[:, :, None])
+
+                batch_cls_preds = torch.cat(all_cls_preds, dim=1)
+                batch_pred_labels = torch.cat(all_pred_labels, dim=1)
+                data_dict['batch_pred_labels'] = batch_pred_labels
+                data_dict['has_class_labels'] = True
+
             data_dict['batch_cls_preds'] = batch_cls_preds
             data_dict['batch_box_preds'] = batch_box_preds
             data_dict['cls_preds_normalized'] = False
@@ -190,11 +212,12 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             cur_num_class = self.rpn_heads[idx].num_class
             cls_pred = cls_pred.view(batch_size, -1, cur_num_class)
             if self.separate_multihead:
-                one_hot_target = one_hot_targets[:, start_idx:start_idx + cls_pred.shape[1], c_idx:c_idx+cur_num_class]
+                one_hot_target = one_hot_targets[:, start_idx:start_idx + cls_pred.shape[1],
+                                 c_idx:c_idx + cur_num_class]
                 c_idx += cur_num_class
             else:
-                one_hot_target = one_hot_targets[:, start_idx:start_idx+cls_pred.shape[1]]
-            cls_weight = cls_weights[:, start_idx:start_idx+cls_pred.shape[1]]
+                one_hot_target = one_hot_targets[:, start_idx:start_idx + cls_pred.shape[1]]
+            cls_weight = cls_weights[:, start_idx:start_idx + cls_pred.shape[1]]
             cls_loss_src = self.cls_loss_func(cls_pred, one_hot_target, weights=cls_weight)  # [N, M]
             cls_loss = cls_loss_src.sum() / batch_size
             cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']
@@ -237,10 +260,10 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         tb_dict = {}
         for idx, box_pred in enumerate(box_preds):
             box_pred = box_pred.view(batch_size, -1,
-                                   box_pred.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
-                                   box_pred.shape[-1])
-            box_reg_target = box_reg_targets[:, start_idx:start_idx+box_pred.shape[1]]
-            reg_weight = reg_weights[:, start_idx:start_idx+box_pred.shape[1]]
+                                     box_pred.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
+                                     box_pred.shape[-1])
+            box_reg_target = box_reg_targets[:, start_idx:start_idx + box_pred.shape[1]]
+            reg_weight = reg_weights[:, start_idx:start_idx + box_pred.shape[1]]
             # sin(a - b) = sinacosb-cosasinb
             box_pred_sin, reg_target_sin = self.add_sin_difference(box_pred, box_reg_target)
             loc_loss_src = self.reg_loss_func(box_pred_sin, reg_target_sin, weights=reg_weight)  # [N, M]
@@ -262,9 +285,9 @@ class AnchorHeadMulti(AnchorHeadTemplate):
                 dir_logit = box_dir_cls_pred.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
                 weights = positives.type_as(dir_logit)
                 weights /= torch.clamp(weights.sum(-1, keepdim=True), min=1.0)
-                
-                weight = weights[:, start_idx:start_idx+box_pred.shape[1]]
-                dir_target = dir_targets[:, start_idx:start_idx+box_pred.shape[1]]
+
+                weight = weights[:, start_idx:start_idx + box_pred.shape[1]]
+                dir_target = dir_targets[:, start_idx:start_idx + box_pred.shape[1]]
                 dir_loss = self.dir_loss_func(dir_logit, dir_target, weights=weight)
                 dir_loss = dir_loss.sum() / batch_size
                 dir_loss = dir_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['dir_weight']
