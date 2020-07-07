@@ -74,27 +74,12 @@ MODEL:
         RPN_HEAD_CFGS: [
             {
                 'HEAD_CLS_NAME': ['Car'],
-                'LAYER_NUMS': [],
-                'LAYER_STRIDES': [],
-                'NUM_FILTERS': [],
-                'UPSAMPLE_STRIDES': [],
-                'NUM_UPSAMPLE_FILTERS': []
             },
             {
                 'HEAD_CLS_NAME': ['Pedestrian'],
-                'LAYER_NUMS': [],
-                'LAYER_STRIDES': [],
-                'NUM_FILTERS': [],
-                'UPSAMPLE_STRIDES': [],
-                'NUM_UPSAMPLE_FILTERS': []
             },
             {
                 'HEAD_CLS_NAME': ['Cyclist'],
-                'LAYER_NUMS': [],
-                'LAYER_STRIDES': [],
-                'NUM_FILTERS': [],
-                'UPSAMPLE_STRIDES': [],
-                'NUM_UPSAMPLE_FILTERS': []
             }
         ]
 

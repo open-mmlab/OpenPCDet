@@ -6,7 +6,7 @@ from ..backbones_3d import vfe, pfe
 from ..backbones_2d import map_to_bev
 from ..model_utils.model_nms_utils import class_agnostic_nms
 from ...ops.iou3d_nms import iou3d_nms_utils
-import numpy as np
+
 
 class Detector3DTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, dataset):
@@ -170,7 +170,9 @@ class Detector3DTemplate(nn.Module):
                 batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
                 cls_preds_normalized: indicate whether batch_cls_preds is normalized
                 batch_index: optional (N1+N2+...)
+                has_class_labels: True/False
                 roi_labels: (B, num_rois)  1 .. num_classes
+                batch_pred_labels: (B, num_boxes, 1)
         Returns:
 
         """
@@ -183,45 +185,27 @@ class Detector3DTemplate(nn.Module):
                 assert batch_dict['batch_cls_preds'].shape.__len__() == 2
                 batch_mask = (batch_dict['batch_index'] == index)
             else:
-                if isinstance(batch_dict['batch_cls_preds'], list):
-                    assert batch_dict['batch_cls_preds'][0].shape.__len__() == 3
-                else:
-                    assert batch_dict['batch_cls_preds'].shape.__len__() == 3
+                assert batch_dict['batch_cls_preds'].shape.__len__() == 3
                 batch_mask = index
 
             box_preds = batch_dict['batch_box_preds'][batch_mask]
-            cls_preds = batch_dict['batch_cls_preds'][batch_mask] if not isinstance(batch_dict['batch_cls_preds'], list) else [batch_cls_pred[batch_mask] for batch_cls_pred in batch_dict['batch_cls_preds']]
+            cls_preds = batch_dict['batch_cls_preds'][batch_mask]
 
             src_cls_preds = cls_preds
             src_box_preds = box_preds
-            if isinstance(cls_preds, list):
-                assert cls_preds[0].shape[1] in [1, self.num_class]
-            else:
-                assert cls_preds.shape[1] in [1, self.num_class]
+            assert cls_preds.shape[1] in [1, self.num_class]
 
             if not batch_dict['cls_preds_normalized']:
-                cls_preds = torch.sigmoid(cls_preds) if not isinstance(cls_preds, list) else [torch.sigmoid(cls_pred) for cls_pred in cls_preds]
+                cls_preds = torch.sigmoid(cls_preds)
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 raise NotImplementedError
             else:
-                if isinstance(cls_preds, list):
-                    all_cls_preds = []
-                    label_preds = []
-                    rpn_head_cfgs = self.model_cfg.DENSE_HEAD.RPN_HEAD_CFGS
-                    head_cls_names = [np.array(rpn_head_cfg['HEAD_CLS_NAME']) for rpn_head_cfg in rpn_head_cfgs]
-                    
-                    for idx, cls_pred in enumerate(cls_preds):
-                        pred_score, pred_head_label = torch.max(cls_pred, dim=-1)
-                        pred_class_names = head_cls_names[idx][pred_head_label.cpu().numpy().astype(int)]
-                        label_pred = [self.class_names.index(cls_name)+1 for cls_name in pred_class_names]
-                        label_pred = torch.from_numpy(np.array(label_pred)).to(cls_pred.device).int()
-                        all_cls_preds.append(pred_score)
-                        label_preds.append(label_pred)
-                    cls_preds = torch.cat(all_cls_preds, dim=0)
-                    label_preds = torch.cat(label_preds, dim=0)
+                cls_preds, label_preds = torch.max(cls_preds, dim=-1)
+                if batch_dict.get('has_class_labels', False):
+                    label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
+                    label_preds = batch_dict[label_key][index]
                 else:
-                    cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                    label_preds = batch_dict['roi_labels'][index] if batch_dict.get('has_class_labels', False) else label_preds + 1
+                    label_preds + 1
 
                 selected, selected_scores = class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,

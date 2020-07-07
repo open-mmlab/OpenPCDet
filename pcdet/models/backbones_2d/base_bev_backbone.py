@@ -7,13 +7,20 @@ class BaseBEVBackbone(nn.Module):
         super().__init__()
         self.model_cfg = model_cfg
 
-        assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
-        assert len(self.model_cfg.UPSAMPLE_STRIDES) == len(self.model_cfg.NUM_UPSAMPLE_FILTERS)
-        layer_nums = self.model_cfg.LAYER_NUMS
-        layer_strides = self.model_cfg.LAYER_STRIDES
-        num_filters = self.model_cfg.NUM_FILTERS
-        num_upsample_filters = self.model_cfg.NUM_UPSAMPLE_FILTERS
-        upsample_strides = self.model_cfg.UPSAMPLE_STRIDES
+        if self.model_cfg.get('LAYER_NUMS', None) is not None:
+            assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
+            layer_nums = self.model_cfg.LAYER_NUMS
+            layer_strides = self.model_cfg.LAYER_STRIDES
+            num_filters = self.model_cfg.NUM_FILTERS
+        else:
+            layer_nums = layer_strides = num_filters = []
+
+        if self.model_cfg.get('UPSAMPLE_STRIDES', None) is not None:
+            assert len(self.model_cfg.UPSAMPLE_STRIDES) == len(self.model_cfg.NUM_UPSAMPLE_FILTERS)
+            num_upsample_filters = self.model_cfg.NUM_UPSAMPLE_FILTERS
+            upsample_strides = self.model_cfg.UPSAMPLE_STRIDES
+        else:
+            upsample_strides = num_upsample_filters = []
 
         num_levels = len(layer_nums)
         c_in_list = [input_channels, *num_filters[:-1]]
