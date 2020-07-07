@@ -145,37 +145,37 @@ MODEL:
         RPN_HEAD_CFGS: [
             {
                 'HEAD_CLS_NAME': ['car'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['truck', 'construction_vehicle'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['bus', 'trailer'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['barrier'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['motorcycle', 'bicycle'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['pedestrian', 'traffic_cone'],
-                'LAYER_NUMS': [1],
+                'LAYER_NUMS': [0],
                 'LAYER_STRIDES': [1],
                 'NUM_FILTERS': [64],
             },
