@@ -230,7 +230,7 @@ class NuScenesDataset(DatasetTemplate):
             output_dir=str(output_path),
             verbose=True,
         )
-        metrics_summary = nusc_eval.main(plot_examples=2, render_curves=False)
+        metrics_summary = nusc_eval.main(plot_examples=0, render_curves=False)
 
         with open(output_path / 'metrics_summary.json', 'r') as f:
             metrics = json.load(f)
