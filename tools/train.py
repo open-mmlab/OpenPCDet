@@ -9,7 +9,7 @@ from pcdet.models import build_network, model_fn_decorator
 from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
 import torch.distributed as dist
-
+from test import repeat_eval_ckpt
 from pathlib import Path
 import argparse
 import datetime
@@ -129,9 +129,8 @@ def main():
         model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])
     logger.info(model)
 
-    total_iters_each_epoch = len(train_loader) if not args.merge_all_iters_to_one_epoch else len(train_loader) // args.epochs
     lr_scheduler, lr_warmup_scheduler = build_scheduler(
-        optimizer, total_iters_each_epoch=total_iters_each_epoch, total_epochs=args.epochs,
+        optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
 
@@ -160,6 +159,26 @@ def main():
 
     logger.info('**********************End training %s/%s(%s)**********************\n\n\n'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
+    logger.info('**********************Start evaluation %s/%s(%s)**********************' %
+                (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+    test_set, test_loader, sampler = build_dataloader(
+        dataset_cfg=cfg.DATA_CONFIG,
+        class_names=cfg.CLASS_NAMES,
+        batch_size=args.batch_size,
+        dist=dist_train, workers=args.workers, logger=logger, training=False
+    )
+    eval_output_dir = output_dir / 'eval' / 'eval_with_train'
+    eval_output_dir.mkdir(parents=True, exist_ok=True)
+    args.start_epoch = max(args.epochs - 10, 0)  # Only evaluate the last 10 epochs
+
+    repeat_eval_ckpt(
+        model.module if dist_train else model,
+        test_loader, args, eval_output_dir, logger, ckpt_dir,
+        dist_test=dist_train
+    )
+    logger.info('**********************End evaluation %s/%s(%s)**********************' %
+                (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
 
 
 if __name__ == '__main__':
