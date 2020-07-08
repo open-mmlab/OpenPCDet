@@ -66,7 +66,7 @@ MODEL:
                 'anchor_bottom_heights': [-0.225],
                 'align_center': False,
                 'feature_map_stride': 8,
-                'matched_threshold': 0.55,
+                'matched_threshold': 0.5
                 'unmatched_threshold': 0.35
             },
             {
@@ -197,7 +197,7 @@ MODEL:
             REG_LOSS_TYPE: WeightedL1Loss
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
-                'loc_weight': 2.0,
+                'loc_weight': 0.25,
                 'dir_weight': 0.2,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
             }

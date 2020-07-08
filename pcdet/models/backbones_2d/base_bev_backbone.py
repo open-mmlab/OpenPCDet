@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class BaseBEVBackbone(nn.Module):
@@ -44,15 +45,28 @@ class BaseBEVBackbone(nn.Module):
                 ])
             self.blocks.append(nn.Sequential(*cur_layers))
             if len(upsample_strides) > 0:
-                self.deblocks.append(nn.Sequential(
-                    nn.ConvTranspose2d(
-                        num_filters[idx], num_upsample_filters[idx],
-                        upsample_strides[idx],
-                        stride=upsample_strides[idx], bias=False
-                    ),
-                    nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
-                    nn.ReLU()
-                ))
+                stride = upsample_strides[idx]
+                if stride > 1:
+                    self.deblocks.append(nn.Sequential(
+                        nn.ConvTranspose2d(
+                            num_filters[idx], num_upsample_filters[idx],
+                            upsample_strides[idx],
+                            stride=upsample_strides[idx], bias=False
+                        ),
+                        nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
+                        nn.ReLU()
+                    ))
+                else:
+                    stride = np.round(1 / stride).astype(np.int)
+                    self.deblocks.append(nn.Sequential(
+                        nn.Conv2d(
+                            num_filters[idx], num_upsample_filters[idx],
+                            stride,
+                            stride=stride, bias=False
+                        ),
+                        nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
+                        nn.ReLU()
+                    ))
 
         c_in = sum(num_upsample_filters)
         if len(upsample_strides) > num_levels:
