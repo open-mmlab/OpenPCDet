@@ -330,10 +330,16 @@ class KittiDataset(DatasetTemplate):
         return ap_result_str, ap_dict
 
     def __len__(self):
+        if self._merge_all_iters_to_one_epoch:
+            return len(self.kitti_infos) * self.total_epochs
+
         return len(self.kitti_infos)
 
     def __getitem__(self, index):
         # index = 4
+        if self._merge_all_iters_to_one_epoch:
+            index = index % len(self.kitti_infos)
+
         info = copy.deepcopy(self.kitti_infos[index])
 
         sample_idx = info['point_cloud']['lidar_idx']

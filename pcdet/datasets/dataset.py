@@ -34,6 +34,8 @@ class DatasetTemplate(torch_data.Dataset):
 
         self.grid_size = self.data_processor.grid_size
         self.voxel_size = self.data_processor.voxel_size
+        self.total_epochs = 0
+        self._merge_all_iters_to_one_epoch = False
 
     @property
     def mode(self):
@@ -64,6 +66,13 @@ class DatasetTemplate(torch_data.Dataset):
         Returns:
 
         """
+
+    def merge_all_iters_to_one_epoch(self, merge=True, epochs=None):
+        if merge:
+            self._merge_all_iters_to_one_epoch = True
+            self.total_epochs = epochs
+        else:
+            self._merge_all_iters_to_one_epoch = False
 
     def __len__(self):
         raise NotImplementedError
