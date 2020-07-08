@@ -66,7 +66,7 @@ MODEL:
                 'anchor_bottom_heights': [-0.225],
                 'align_center': False,
                 'feature_map_stride': 8,
-                'matched_threshold': 0.5
+                'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
             {
