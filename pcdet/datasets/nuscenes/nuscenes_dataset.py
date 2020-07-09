@@ -132,6 +132,11 @@ class NuScenesDataset(DatasetTemplate):
 
         data_dict = self.prepare_data(data_dict=input_dict)
 
+        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False):
+            gt_boxes = data_dict['gt_boxes']
+            gt_boxes[np.isnan(gt_boxes)] = 0
+            data_dict['gt_boxes'] = gt_boxes
+
         if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
 
