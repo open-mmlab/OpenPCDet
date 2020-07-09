@@ -96,7 +96,9 @@ def main():
         batch_size=args.batch_size,
         dist=dist_train, workers=args.workers,
         logger=logger,
-        training=True
+        training=True,
+        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
+        total_epochs=args.epochs
     )
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
