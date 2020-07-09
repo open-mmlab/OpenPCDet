@@ -107,9 +107,15 @@ class NuScenesDataset(DatasetTemplate):
         return points
 
     def __len__(self):
+        if self._merge_all_iters_to_one_epoch:
+            return len(self.infos) * self.total_epochs
+
         return len(self.infos)
 
     def __getitem__(self, index):
+        if self._merge_all_iters_to_one_epoch:
+            index = index % len(self.infos)
+
         info = copy.deepcopy(self.infos[index])
         points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
 
