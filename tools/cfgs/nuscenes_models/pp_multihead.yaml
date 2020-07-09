@@ -214,6 +214,8 @@ MODEL:
         LOSS_CONFIG:
             REG_LOSS_TYPE: WeightedL1Loss
             LOSS_WEIGHTS: {
+                'pos_cls_weight': 1.0,
+                'neg_cls_weight': 2.0,
                 'cls_weight': 1.0,
                 'loc_weight': 0.25,
                 'dir_weight': 0.2,
