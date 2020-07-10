@@ -1,5 +1,6 @@
 from functools import partial
 import numpy as np
+import spconv
 from ...utils import box_utils, common_utils
 
 
@@ -40,20 +41,38 @@ class DataProcessor(object):
 
     def transform_points_to_voxels(self, data_dict=None, config=None, voxel_generator=None):
         if data_dict is None:
-            from spconv.utils import VoxelGenerator
-
-            voxel_generator = VoxelGenerator(
-                voxel_size=config.VOXEL_SIZE,
-                point_cloud_range=self.point_cloud_range,
-                max_num_points=config.MAX_POINTS_PER_VOXEL,
-                max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
-            )
+            if hasattr(spconv.utils, 'VoxelGeneratorV2'):
+                from spconv.utils import VoxelGeneratorV2
+                voxel_generator = VoxelGeneratorV2(
+                    voxel_size=config.VOXEL_SIZE,
+                    point_cloud_range=self.point_cloud_range,
+                    max_num_points=config.MAX_POINTS_PER_VOXEL,
+                    max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
+                )
+            elif hasattr(spconv.utils, 'VoxelGenerator'):
+                from spconv.utils import VoxelGenerator
+                voxel_generator = VoxelGenerator(
+                    voxel_size=config.VOXEL_SIZE,
+                    point_cloud_range=self.point_cloud_range,
+                    max_num_points=config.MAX_POINTS_PER_VOXEL,
+                    max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
+                )
+            else:
+                raise NotImplementedError
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
             return partial(self.transform_points_to_voxels, voxel_generator=voxel_generator)
+
         points = data_dict['points']
-        voxels, coordinates, num_points = voxel_generator.generate(points)
+        if voxel_generator.__name__ == 'VoxelGenerator':
+            voxels, coordinates, num_points = voxel_generator.generate(points)
+        elif voxel_generator.__name__ == 'VoxelGeneratorV2':
+            res = voxel_generator.generate(points)
+            voxels, coordinates, num_points = res["voxels"], res["coordinates"], res["num_points_per_voxel"]
+        else:
+            raise NotImplementedError
+
         if not data_dict['use_lead_xyz']:
             voxels = voxels[..., 3:]  # remove xyz in voxels(N, 3)
 
