@@ -65,9 +65,9 @@ class DataProcessor(object):
             return partial(self.transform_points_to_voxels, voxel_generator=voxel_generator)
 
         points = data_dict['points']
-        if voxel_generator.__name__ == 'VoxelGenerator':
+        if voxel_generator.__class__.__name__ == 'VoxelGenerator':
             voxels, coordinates, num_points = voxel_generator.generate(points)
-        elif voxel_generator.__name__ == 'VoxelGeneratorV2':
+        elif voxel_generator.__class__.__name__ == 'VoxelGeneratorV2':
             res = voxel_generator.generate(points)
             voxels, coordinates, num_points = res["voxels"], res["coordinates"], res["num_points_per_voxel"]
         else:
