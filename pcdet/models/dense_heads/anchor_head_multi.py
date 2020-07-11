@@ -6,24 +6,43 @@ import torch
 
 
 class SingleHead(BaseBEVBackbone):
-    def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, encode_conv_cfg=None,
-                 head_label_indices=None):
-        super().__init__(encode_conv_cfg, input_channels)
+    def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, rpn_head_cfg=None,
+                 head_label_indices=None, separate_reg_config=None):
+        super().__init__(rpn_head_cfg, input_channels)
 
         self.num_anchors_per_location = num_anchors_per_location
         self.num_class = num_class
         self.code_size = code_size
         self.model_cfg = model_cfg
+        self.separate_reg_config = separate_reg_config
         self.register_buffer('head_label_indices', head_label_indices)
 
         self.conv_cls = nn.Conv2d(
             input_channels, self.num_anchors_per_location * self.num_class,
             kernel_size=1
         )
-        self.conv_box = nn.Conv2d(
-            input_channels, self.num_anchors_per_location * self.code_size,
-            kernel_size=1
-        )
+        if self.separate_reg_config is not None:
+            code_size_cnt = 0
+            self.conv_box = nn.ModuleDict()
+            self.conv_box_names = []
+            for reg_config in self.separate_reg_config:
+                reg_name, reg_channel = reg_config.split(':')
+                cur_conv = nn.Conv2d(
+                    input_channels, self.num_anchors_per_location * reg_channel,
+                    kernel_size=3, stride=1, padding=1, bias=True
+                )
+                nn.init.kaiming_normal_(cur_conv.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.constant_(cur_conv.bias, 0)
+                code_size_cnt += reg_channel
+                self.conv_box[f'conv_{reg_name}'] = cur_conv
+                self.conv_box_names.append(f'conv_{reg_name}')
+
+            assert code_size_cnt == code_size, f'Code size does not match: {code_size_cnt}:{code_size}'
+        else:
+            self.conv_box = nn.Conv2d(
+                input_channels, self.num_anchors_per_location * self.code_size,
+                kernel_size=1
+            )
 
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', None) is not None:
             self.conv_dir_cls = nn.Conv2d(
@@ -45,7 +64,14 @@ class SingleHead(BaseBEVBackbone):
         spatial_features_2d = super().forward({'spatial_features': spatial_features_2d})['spatial_features_2d']
 
         cls_preds = self.conv_cls(spatial_features_2d)
-        box_preds = self.conv_box(spatial_features_2d)
+
+        if self.separate_reg_config is not None:
+            box_preds = self.conv_box(spatial_features_2d)
+        else:
+            box_preds_list = []
+            for reg_name in self.conv_box_names:
+                box_preds_list.append(self.conv_box[f'conv_{reg_name}'](spatial_features_2d))
+            box_preds = torch.cat(box_preds_list, dim=1)
 
         if not self.use_multihead:
             box_preds = box_preds.permute(0, 2, 3, 1).contiguous()
@@ -121,7 +147,8 @@ class AnchorHeadMulti(AnchorHeadTemplate):
                 self.model_cfg, input_channels,
                 len(rpn_head_cfg['HEAD_CLS_NAME']) if self.separate_multihead else self.num_class,
                 num_anchors_per_location, self.box_coder.code_size, rpn_head_cfg,
-                head_label_indices=head_label_indices
+                head_label_indices=head_label_indices,
+                separate_reg_config=self.model_cfg.get('SEPARATE_REG_CONFIG', None)
             )
             rpn_heads.append(rpn_head)
         self.rpn_heads = nn.ModuleList(rpn_heads)
