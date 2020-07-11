@@ -31,7 +31,6 @@ MODEL:
         NAME: AnchorHeadMulti
         CLASS_AGNOSTIC: False
 
-        USE_DIRECTION_CLASSIFIER: True
         DIR_OFFSET: 0.78539
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
@@ -145,43 +144,29 @@ MODEL:
         RPN_HEAD_CFGS: [
             {
                 'HEAD_CLS_NAME': ['car'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['truck', 'construction_vehicle'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['bus', 'trailer'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['barrier'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['motorcycle', 'bicycle'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
             {
                 'HEAD_CLS_NAME': ['pedestrian', 'traffic_cone'],
-                'LAYER_NUMS': [0],
-                'LAYER_STRIDES': [1],
-                'NUM_FILTERS': [64],
             },
         ]
 
-        SEPARATE_REG_CONFIG: ['reg:2', 'height:1', 'size:3', 'angle:2', 'velo:2']
+        SEPARATE_REG_CONFIG: 
+            NUM_MIDDLE_CONV: 1
+            NUM_MIDDLE_FILTER: 64
+            REG_LIST: ['reg:2', 'height:1', 'size:3', 'angle:2', 'velo:2']
+
         TARGET_ASSIGNER_CONFIG:
             NAME: AxisAlignedTargetAssigner
             POS_FRACTION: -1.0
@@ -203,7 +188,7 @@ MODEL:
                 'cls_weight': 1.0,
                 'loc_weight': 0.25,
                 'dir_weight': 0.2,
-                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
             }
 
     POST_PROCESSING:
