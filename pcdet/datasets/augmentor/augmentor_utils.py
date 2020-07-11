@@ -56,7 +56,7 @@ def global_rotation(gt_boxes, points, rot_range):
         gt_boxes[:, 7:9] = common_utils.rotate_points_along_z(
             np.hstack((gt_boxes[:, 7:9], np.zeros((gt_boxes.shape[0], 1))))[np.newaxis, :, :],
             np.array([noise_rotation])
-        )[0]
+        )[0][:, 0:2]
 
     return gt_boxes, points
 
