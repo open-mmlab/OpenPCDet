@@ -224,7 +224,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         else:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=data_dict['batch_size'],
-                cls_preds=ret['cls_preds'], box_preds=ret['box_preds'], dir_cls_preds=ret['dir_cls_preds']
+                cls_preds=ret['cls_preds'], box_preds=ret['box_preds'], dir_cls_preds=ret.get('dir_cls_preds', None)
             )
 
             if isinstance(batch_cls_preds, list):
