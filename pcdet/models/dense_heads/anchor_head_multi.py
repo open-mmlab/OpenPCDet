@@ -342,8 +342,11 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             box_reg_target = box_reg_targets[:, start_idx:start_idx + box_pred.shape[1]]
             reg_weight = reg_weights[:, start_idx:start_idx + box_pred.shape[1]]
             # sin(a - b) = sinacosb-cosasinb
-            box_pred_sin, reg_target_sin = self.add_sin_difference(box_pred, box_reg_target)
-            loc_loss_src = self.reg_loss_func(box_pred_sin, reg_target_sin, weights=reg_weight)  # [N, M]
+            if box_dir_cls_preds is not None:
+                box_pred_sin, reg_target_sin = self.add_sin_difference(box_pred, box_reg_target)
+                loc_loss_src = self.reg_loss_func(box_pred_sin, reg_target_sin, weights=reg_weight)  # [N, M]
+            else:
+                loc_loss_src = self.reg_loss_func(box_pred, box_reg_target, weights=reg_weight)  # [N, M]
             loc_loss = loc_loss_src.sum() / batch_size
 
             loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
