@@ -51,7 +51,7 @@ class ResidualCoder(object):
 
         """
         xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
-        if self.encode_angle_by_sincos:
+        if not self.encode_angle_by_sincos:
             xt, yt, zt, dxt, dyt, dzt, rt, *cts = torch.split(box_encodings, 1, dim=-1)
         else:
             xt, yt, zt, dxt, dyt, dzt, cost, sint, *cts = torch.split(box_encodings, 1, dim=-1)
