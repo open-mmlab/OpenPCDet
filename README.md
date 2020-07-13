@@ -57,9 +57,9 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 |                                             |training time | Batch Size | AP_Easy | **AP_Moderate** | AP_Hard | download  |
 |---------------------------------------------|:----------:|:----------:|:-------:|:-------:|:-------:|:---------:|
 | [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~95 mins| 32 | 86.46 | 77.28 | 74.65 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
-| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2hours  | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
-| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | ~5hours| 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
-| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~5.8hours| 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
+| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2 hours  | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
+| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | ~5 hours| 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~6 hours| 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
 | [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | - | 32 | - | - | - | ongoing |
 | PointRCNN | - | 32 | - | - | - | ongoing|
 
