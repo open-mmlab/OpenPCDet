@@ -3,9 +3,9 @@
 # OpenPCDet
 
 ## Introduction
-`OpenPCDet` is an open source project for LiDAR-based 3D scene perception. 
-As of now, it mainly consists of `OpenPCDet` toolbox for 3D object detection from point cloud.
+`OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
 
+It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
 
 ### What does `OpenPCDet` toolbox do?
 
@@ -17,8 +17,6 @@ It currently supports multiple state-of-the-art 3D object detection methods with
 Based on `OpenPCDet` toolbox, we win the Waymo Open Dataset challenge in [3D Detection](https://waymo.com/open/challenges/3d-detection/), 
 [3D Tracking](https://waymo.com/open/challenges/3d-tracking/), [Domain Adaptation](https://waymo.com/open/challenges/domain-adaptation/) 
 three tracks among all LiDAR-only methods, and the Waymo related models will be released to `OpenPCDet` soon.    
-
-It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
 
 We are actively updating this repo currently, and more datasets and models will be supported soon. 
 Contributions are also welcomed. 
@@ -35,7 +33,9 @@ Contributions are also welcomed.
   <img src="docs/model_framework.png" width="95%">
 </p>
 
+
 * Clear, simple, self-contained code structure for better understanding and use. 
+
 
 ### Currently Supported Features
 
@@ -52,16 +52,16 @@ Contributions are also welcomed.
 
 ### KITTI 3D Object Detection Baselines
 Selected supported methods are shown in the below table. The results are the 3D detection performance of car class on the *val* set of KITTI dataset.
-All models are trained with 8 GPUs and are available for download.
+All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 
-|                                             | Batch Size | AP_Easy | **AP_Moderate** | AP_Hard | download  |
-|---------------------------------------------|:----------:|:-------:|:-------:|:-------:|:---------:|
-| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) | 32 | 86.46 | 77.28 | 74.65 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
-| [SECOND](tools/cfgs/kitti_models/second.yaml)           | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
-| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
-| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
-| [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | 32 | - | - | - | ongoing |
-| PointRCNN | 32 | - | - | - | ongoing|
+|                                             |training time | Batch Size | AP_Easy | **AP_Moderate** | AP_Hard | download  |
+|---------------------------------------------|:----------:|:----------:|:-------:|:-------:|:-------:|:---------:|
+| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~95 mins| 32 | 86.46 | 77.28 | 74.65 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
+| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2hours  | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
+| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | ~5hours| 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~5.8hours| 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
+| [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | - | 32 | - | - | - | ongoing |
+| PointRCNN | - | 32 | - | - | - | ongoing|
 
 ### Other datasets
 More datasets are on the way. 
