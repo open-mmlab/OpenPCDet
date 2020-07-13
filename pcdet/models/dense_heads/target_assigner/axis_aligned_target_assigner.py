@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from ....utils import box_utils
 from ....ops.iou3d_nms import iou3d_nms_utils
 
@@ -8,7 +9,7 @@ class AxisAlignedTargetAssigner(object):
         super().__init__()
         self.box_coder = box_coder
         self.match_height = match_height
-        self.class_names = class_names
+        self.class_names = np.array(class_names)
         self.anchor_class_names = [config['class_name'] for config in anchor_generator_cfg]
         self.pos_fraction = anchor_target_cfg.POS_FRACTION if anchor_target_cfg.POS_FRACTION >= 0 else None
         self.sample_size = anchor_target_cfg.SAMPLE_SIZE
@@ -46,7 +47,11 @@ class AxisAlignedTargetAssigner(object):
 
             target_list = []
             for anchor_class_name, anchors in zip(self.anchor_class_names, all_anchors):
-                mask = torch.tensor([self.class_names[c-1] == anchor_class_name for c in cur_gt_classes], dtype=torch.bool)
+                if cur_gt_classes.shape[0] > 1:
+                    mask = torch.from_numpy(self.class_names[cur_gt_classes.cpu() - 1] == anchor_class_name)
+                else:
+                    mask = torch.tensor([self.class_names[c - 1] == anchor_class_name
+                                         for c in cur_gt_classes], dtype=torch.bool)
 
                 if use_multihead:
                     anchors = anchors.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchors.shape[-1])
@@ -75,14 +80,15 @@ class AxisAlignedTargetAssigner(object):
             else:
                 target_dict = {
                     'box_cls_labels': [t['box_cls_labels'].view(*feature_map_size, -1) for t in target_list],
-                    'box_reg_targets': [t['box_reg_targets'].view(*feature_map_size, -1, self.box_coder.code_size) for t in target_list],
+                    'box_reg_targets': [t['box_reg_targets'].view(*feature_map_size, -1, self.box_coder.code_size)
+                                        for t in target_list],
                     'reg_weights': [t['reg_weights'].view(*feature_map_size, -1) for t in target_list]
                 }
             
-                target_dict['box_reg_targets'] = torch.cat(target_dict['box_reg_targets'], dim=-2).view(-1, self.box_coder.code_size)
+                target_dict['box_reg_targets'] = torch.cat(target_dict['box_reg_targets'],
+                                                           dim=-2).view(-1, self.box_coder.code_size)
                 target_dict['box_cls_labels'] = torch.cat(target_dict['box_cls_labels'], dim=-1).view(-1)
                 target_dict['reg_weights'] = torch.cat(target_dict['reg_weights'], dim=-1).view(-1)
-
 
             bbox_targets.append(target_dict['box_reg_targets'])
             cls_labels.append(target_dict['box_cls_labels'])
@@ -109,25 +115,25 @@ class AxisAlignedTargetAssigner(object):
 
         num_anchors = anchors.shape[0]
         num_gt = gt_boxes.shape[0]
-        box_ndim = anchors.shape[1]
+        # box_ndim = anchors.shape[1]
 
         labels = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
         gt_ids = torch.ones((num_anchors,), dtype=torch.int32, device=anchors.device) * -1
        
         if len(gt_boxes) > 0 and anchors.shape[0] > 0:
-            anchor_by_gt_overlap = iou3d_nms_utils.boxes_iou3d_gpu(anchors, gt_boxes) if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors, gt_boxes)
-            anchor_to_gt_argmax = anchor_by_gt_overlap.argmax(dim=1)
-            anchor_to_gt_max = anchor_by_gt_overlap[torch.arange(num_anchors),
-                                                    anchor_to_gt_argmax]  
+            anchor_by_gt_overlap = iou3d_nms_utils.boxes_iou3d_gpu(anchors[:, 0:7], gt_boxes[:, 0:7]) \
+                if self.match_height else box_utils.boxes3d_nearest_bev_iou(anchors[:, 0:7], gt_boxes[:, 0:7])
 
-            gt_to_anchor_argmax = anchor_by_gt_overlap.argmax(dim=0)
-            gt_to_anchor_max = anchor_by_gt_overlap[
-                gt_to_anchor_argmax,
-                torch.arange(num_gt)]
+            anchor_to_gt_argmax = torch.from_numpy(anchor_by_gt_overlap.cpu().numpy().argmax(axis=1)).cuda()
+            anchor_to_gt_max = anchor_by_gt_overlap[
+                torch.arange(num_anchors, device=anchors.device), anchor_to_gt_argmax
+            ]
+
+            gt_to_anchor_argmax = torch.from_numpy(anchor_by_gt_overlap.cpu().numpy().argmax(axis=0)).cuda()
+            gt_to_anchor_max = anchor_by_gt_overlap[gt_to_anchor_argmax, torch.arange(num_gt, device=anchors.device)]
             empty_gt_mask = gt_to_anchor_max == 0
             gt_to_anchor_max[empty_gt_mask] = -1
-            anchors_with_max_overlap = torch.nonzero(
-                anchor_by_gt_overlap == gt_to_anchor_max)[:, 0]
+            anchors_with_max_overlap = torch.nonzero(anchor_by_gt_overlap == gt_to_anchor_max)[:, 0]
             
             gt_inds_force = anchor_to_gt_argmax[anchors_with_max_overlap]
             labels[anchors_with_max_overlap] = gt_classes[gt_inds_force]
@@ -139,7 +145,7 @@ class AxisAlignedTargetAssigner(object):
             gt_ids[pos_inds] = gt_inds_over_thresh.int()
             bg_inds = torch.nonzero(anchor_to_gt_max < unmatched_threshold)[:, 0]
         else:
-            bg_inds = torch.arange(num_anchors)
+            bg_inds = torch.arange(num_anchors, device=anchors.device)
 
         fg_inds = torch.nonzero(labels > 0)[:, 0]
    
@@ -155,7 +161,7 @@ class AxisAlignedTargetAssigner(object):
             if len(bg_inds) > num_bg:
                 enable_inds = bg_inds[torch.randint(0, len(bg_inds), size=(num_bg,))]
                 labels[enable_inds] = 0
-            bg_inds = torch.nonzero(labels == 0)[:, 0]
+            # bg_inds = torch.nonzero(labels == 0)[:, 0]
         else:
             if len(gt_boxes) == 0 or anchors.shape[0] == 0:
                 labels[:] = 0
