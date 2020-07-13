@@ -324,8 +324,9 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         if isinstance(self.anchors, list):
             if self.use_multihead:
                 anchors = torch.cat(
-                    [anchor.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchor.shape[-1]) for anchor in
-                     self.anchors], dim=0)
+                    [anchor.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchor.shape[-1])
+                     for anchor in self.anchors], dim=0
+                )
             else:
                 anchors = torch.cat(self.anchors, dim=-3)
         else:
@@ -336,9 +337,10 @@ class AnchorHeadMulti(AnchorHeadTemplate):
         box_losses = 0
         tb_dict = {}
         for idx, box_pred in enumerate(box_preds):
-            box_pred = box_pred.view(batch_size, -1,
-                                     box_pred.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
-                                     box_pred.shape[-1])
+            box_pred = box_pred.view(
+                batch_size, -1,
+                box_pred.shape[-1] // self.num_anchors_per_location if not self.use_multihead else box_pred.shape[-1]
+            )
             box_reg_target = box_reg_targets[:, start_idx:start_idx + box_pred.shape[1]]
             reg_weight = reg_weights[:, start_idx:start_idx + box_pred.shape[1]]
             # sin(a - b) = sinacosb-cosasinb
@@ -351,7 +353,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
 
             loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
             box_losses += loc_loss
-            tb_dict['rpn_loss_loc'] = tb_dict.get('rpn_loss_loc', 0) + loc_loss
+            tb_dict['rpn_loss_loc'] = tb_dict.get('rpn_loss_loc', 0) + loc_loss.item()
 
             if box_dir_cls_preds is not None:
                 if not isinstance(box_dir_cls_preds, list):
