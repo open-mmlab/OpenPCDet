@@ -87,7 +87,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
     # tensorboard log
     if cfg.LOCAL_RANK == 0:
-        tb_log = SummaryWriter(log_dir=str(eval_output_dir / ('tensorboard_%s' % cfg.DATA_CONFIG.DATA_SPLIT['test'])))
+        tb_log = SummaryWriter(log_dir=str(eval_output_dir))
     total_time = 0
     first_eval = True
 

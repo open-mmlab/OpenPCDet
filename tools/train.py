@@ -170,13 +170,11 @@ def main():
         batch_size=args.batch_size,
         dist=dist_train, workers=args.workers, logger=logger, training=False
     )
-    eval_output_dir = output_dir / 'eval' / 'eval_with_train'
-    eval_output_dir.mkdir(parents=True, exist_ok=True)
     args.start_epoch = max(args.epochs - 10, 0)  # Only evaluate the last 10 epochs
 
     repeat_eval_ckpt(
         model.module if dist_train else model,
-        test_loader, args, eval_output_dir, logger, ckpt_dir,
+        test_loader, args, output_dir, logger, ckpt_dir,
         dist_test=dist_train
     )
     logger.info('**********************End evaluation %s/%s(%s)**********************' %
