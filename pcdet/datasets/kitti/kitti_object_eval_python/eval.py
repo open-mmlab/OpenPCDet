@@ -694,10 +694,10 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
                 result += print_str((f"aos  AP:{mAPaos[j, 0, i]:.2f}, "
                                      f"{mAPaos[j, 1, i]:.2f}, "
                                      f"{mAPaos[j, 2, i]:.2f}"))
-                if i == 0:
-                   ret_dict['%s_aos/easy' % class_to_name[curcls]] = mAPaos[j, 0, 0]
-                   ret_dict['%s_aos/moderate' % class_to_name[curcls]] = mAPaos[j, 1, 0]
-                   ret_dict['%s_aos/hard' % class_to_name[curcls]] = mAPaos[j, 2, 0]
+                # if i == 0:
+                   # ret_dict['%s_aos/easy' % class_to_name[curcls]] = mAPaos[j, 0, 0]
+                   # ret_dict['%s_aos/moderate' % class_to_name[curcls]] = mAPaos[j, 1, 0]
+                   # ret_dict['%s_aos/hard' % class_to_name[curcls]] = mAPaos[j, 2, 0]
 
             result += print_str(
                 (f"{class_to_name[curcls]} "
