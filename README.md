@@ -2,10 +2,12 @@
 
 # OpenPCDet
 
+
 ## Introduction
 `OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
 
 It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
+
 
 ### What does `OpenPCDet` toolbox do?
 
@@ -48,6 +50,16 @@ Contributions are also welcomed.
 - [x] Support GPU version 3D IoU calculation and rotated NMS 
 
 
+
+
+## ChangeLog
+[2020-07-17] Add simple visualization codes and a quick demo to test with custom data. 
+
+[2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
+
+[2020-03-16] `OpenPCDet` v0.1.0 is released. 
+
+
 ## Model Zoo
 
 ### KITTI 3D Object Detection Baselines
@@ -71,9 +83,14 @@ More datasets are on the way.
 Please refer to [INSTALL.md](docs/INSTALL.md) for installation and dataset preparation.
 
 
+## Quick Demo
+Please refer to [DEMO.md](docs/DEMO.md) for a quick demo to test with a pretrained model and 
+visualize the predicted results on your custom data or the original KITTI data.
+
 ## Get Started
 
 Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usage about this project.
+
 
 ## License
 
