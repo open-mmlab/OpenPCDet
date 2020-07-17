@@ -95,8 +95,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         cur_rcnn_recall = metric['recall_rcnn_%s' % str(cur_thresh)] / max(gt_num_cnt, 1)
         logger.info('recall_roi_%s: %f' % (cur_thresh, cur_roi_recall))
         logger.info('recall_rcnn_%s: %f' % (cur_thresh, cur_rcnn_recall))
-        ret_dict['recall_roi_%s' % str(cur_thresh)] = cur_roi_recall
-        ret_dict['recall_rcnn_%s' % str(cur_thresh)] = cur_rcnn_recall
+        ret_dict['recall/roi_%s' % str(cur_thresh)] = cur_roi_recall
+        ret_dict['recall/rcnn_%s' % str(cur_thresh)] = cur_rcnn_recall
 
     total_pred_objects = 0
     for anno in det_annos:

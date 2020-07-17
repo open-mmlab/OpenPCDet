@@ -39,6 +39,7 @@ class RoIHeadTemplate(nn.Module):
         fc_layers = nn.Sequential(*fc_layers)
         return fc_layers
 
+    @torch.no_grad()
     def proposal_layer(self, batch_dict, nms_config):
         """
         Args:
