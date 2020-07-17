@@ -25,18 +25,22 @@ Contributions are also welcomed.
 
 ### `OpenPCDet` design pattern
 
-* Data-Model separation with unified point cloud coordinate for easily extending to custom datasets: 
+* Data-Model separation with unified point cloud coordinate for easily extending to custom datasets:
 <p align="center">
   <img src="docs/dataset_vs_model.png" width="95%" height="320">
 </p>
+
+* Unified 3D box definition: (x, y, z, dx, dy, dz, heading).
 
 * Flexible and clear model structure to easily support various 3D detection models: 
 <p align="center">
   <img src="docs/model_framework.png" width="95%">
 </p>
 
-
-* Clear, simple, self-contained code structure for better understanding and use. 
+* Support various models within one framework as: 
+<p align="center">
+  <img src="docs/multiple_models_demo.png" width="95%">
+</p>
 
 
 ### Currently Supported Features
@@ -53,7 +57,7 @@ Contributions are also welcomed.
 
 
 ## ChangeLog
-[2020-07-17] Add simple visualization codes and a quick demo to test with custom data. 
+[2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
 
 [2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
 
