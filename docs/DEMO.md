@@ -17,15 +17,16 @@ the unified normative coordinate of `OpenPCDet`, that is, x-axis points towards 
 y-axis points towards to the left direction, and z-axis points towards to the top direction.
    * (Optional) the z-axis origin of your point cloud coordinate should be about 1.6m above the ground surface, 
    since currently the provided models are trained on the KITTI dataset. 
-   * Note to set the intensity information, and save your transformed custom data to `numpy file`: 
+   * Set the intensity information, and save your transformed custom data to `numpy file`: 
    ```python
    # Transform your point cloud data
    ...
    
    # Save it to the file. 
-   # The shape of points should be (num_points, 4), that is [x, y, z, intensity], 
-   # and the range of intensity should be within [0, 1]. 
-   # If you doesn't have the intensity information, just set points[:, 3] = 0, 
+   # The shape of points should be (num_points, 4), that is [x, y, z, intensity],  
+   # If you doesn't have the intensity information, just set them to zeros. 
+   # If you have the intensity information, you should normalize them to [0, 1].
+   points[:, 3] = 0 
    np.save(`my_data.npy`, points) 
    ```      
   
@@ -43,5 +44,5 @@ Here `${POINT_CLOUD_DATA}` could be the following format:
 Then you could see the predicted results with visualized point cloud as follows:
 
 <p align="center">
-  <img src="docs/demo.png" width="95%">
+  <img src="demo.png" width="95%">
 </p>
