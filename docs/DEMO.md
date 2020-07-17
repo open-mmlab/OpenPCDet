@@ -44,5 +44,5 @@ Here `${POINT_CLOUD_DATA}` could be the following format:
 Then you could see the predicted results with visualized point cloud as follows:
 
 <p align="center">
-  <img src="demo.png" width="95%">
+  <img src="demo.png" width="99%">
 </p>
