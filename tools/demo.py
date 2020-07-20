@@ -1,3 +1,6 @@
+import pickle
+import shutil
+import os
 import torch
 import argparse
 import glob
@@ -7,8 +10,14 @@ from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import common_utils
-from visual_utils import visualize_utils as V
-import mayavi.mlab as mlab
+
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    headless_server = True
+else:
+    headless_server = False
+    from tools.visual_utils import visualize_utils as V
+    import mayavi.mlab as mlab
+
 
 
 class DemoDataset(DatasetTemplate):
@@ -71,6 +80,7 @@ def main():
     args, cfg = parse_config()
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
+    logger.info(f'Headless Server Mode: {headless_server}')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
         root_path=Path(args.data_path), ext=args.ext, logger=logger
@@ -88,11 +98,40 @@ def main():
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-            )
-            mlab.show(stop=True)
+            if headless_server:
+                export_dir = Path(os.getcwd()).parent / 'output' / 'demo'
+                export_dir.mkdir(parents=True, exist_ok=True)
+
+                image_source_path = Path(args.data_path.replace('velodyne', 'image_2').replace('.bin', '.png'))
+                if image_source_path.exists():
+                    image_destination_path = export_dir / 'image.png'
+                    logger.info(f'Copying image to {image_destination_path}')
+                    shutil.copyfile(image_source_path, image_destination_path)
+
+                logger.info(f'Saving .pkl files to {export_dir}')
+
+                data_dict_cpu = {}
+
+                for key, value in data_dict.items():
+                    if key == 'points':
+                        data_dict_cpu[key] = value.cpu().numpy()
+
+                for pred_dict in pred_dicts:
+
+                    for key, value in pred_dict.items():
+                        if isinstance(pred_dict[key], torch.Tensor):
+                            pred_dict[key] = value.cpu().numpy()
+
+                with open(f'{export_dir}/data_dict.pkl', 'wb') as f:
+                    pickle.dump(data_dict_cpu, f, pickle.HIGHEST_PROTOCOL)
+                with open(f'{export_dir}/pred_dicts.pkl', 'wb') as f:
+                    pickle.dump(pred_dicts, f, pickle.HIGHEST_PROTOCOL)
+            else:
+                V.draw_scenes(
+                    points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                    ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                )
+                mlab.show(stop=True)
 
     logger.info('Demo done.')
 
