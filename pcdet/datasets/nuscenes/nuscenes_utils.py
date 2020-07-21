@@ -299,7 +299,7 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             if curr_sd_rec['prev'] == '':
                 if len(sweeps) == 0:
                     sweep = {
-                        'lidar_path': ref_lidar_path,
+                        'lidar_path': Path(ref_lidar_path).relative_to(data_path).__str__(),
                         'sample_data_token': curr_sd_rec['token'],
                         'transform_matrix': None,
                         'time_lag': curr_sd_rec['timestamp'] * 0,
