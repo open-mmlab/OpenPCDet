@@ -193,7 +193,7 @@ class VoxelSetAbstraction(nn.Module):
             xyz_batch_cnt = xyz.new_zeros(batch_size).int()
             for bs_idx in range(batch_size):
                 xyz_batch_cnt[bs_idx] = (raw_points[:, 0] == bs_idx).sum()
-            point_features = raw_points[:, 4:].contiguous() if len(raw_points) > 4 else None
+            point_features = raw_points[:, 4:].contiguous() if raw_points.shape[1] > 4 else None
 
             pooled_points, pooled_features = self.SA_rawpoints(
                 xyz=xyz.contiguous(),

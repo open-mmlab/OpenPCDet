@@ -105,7 +105,7 @@ def nms_normal_gpu(boxes, scores, thresh, **kwargs):
     :param thresh:
     :return:
     """
-    assert boxes.shape[0] == 7
+    assert boxes.shape[1] == 7
     order = scores.sort(0, descending=True)[1]
 
     boxes = boxes[order].contiguous()
