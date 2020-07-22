@@ -92,6 +92,7 @@ class RoIHeadTemplate(nn.Module):
         batch_dict['roi_scores'] = roi_scores
         batch_dict['roi_labels'] = roi_labels + 1
         batch_dict['has_class_labels'] = True if batch_cls_preds.shape[-1] > 1 else False
+        batch_dict.pop('batch_index', None)
         return batch_dict
 
     def assign_targets(self, batch_dict):
