@@ -19,7 +19,17 @@ class PointHeadTemplate(nn.Module):
             'cls_loss_func',
             loss_utils.SigmoidFocalClassificationLoss(alpha=0.25, gamma=2.0)
         )
-        self.reg_loss_func = F.smooth_l1_loss if losses_cfg.get('LOSS_REG', None) == 'smooth-l1' else F.l1_loss
+        reg_loss_type = losses_cfg.get('LOSS_REG', None)
+        if reg_loss_type == 'smooth-l1':
+            self.reg_loss_func = F.smooth_l1_loss
+        elif reg_loss_type == 'l1':
+            self.reg_loss_func = F.l1_loss
+        elif reg_loss_type == 'WeightedSmoothL1Loss':
+            self.reg_loss_func = loss_utils.WeightedSmoothL1Loss(
+                code_weights=losses_cfg.LOSS_WEIGHTS.get('code_weights', None)
+            )
+        else:
+            self.reg_loss_func = F.smooth_l1_loss
 
     @staticmethod
     def make_fc_layers(fc_cfg, input_channels, output_channels):
@@ -88,11 +98,15 @@ class PointHeadTemplate(nn.Module):
                 raise NotImplementedError
 
             gt_box_of_fg_points = gt_boxes[k][box_idxs_of_pts[fg_flag]]
-            point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, 7].long()
+            point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, -1].long()
             point_cls_labels[bs_mask] = point_cls_labels_single
+
             if ret_box_labels:
                 point_box_labels_single = point_box_labels.new_zeros((bs_mask.sum(), 8))
-                fg_point_box_labels = self.box_coder.encode_torch(points_single[fg_flag], gt_box_of_fg_points)
+                fg_point_box_labels = self.box_coder.encode_torch(
+                    gt_boxes=gt_box_of_fg_points[:, :-1], points=points_single[fg_flag],
+                    gt_classes=gt_box_of_fg_points[:, -1].long()
+                )
                 point_box_labels_single[fg_flag] = fg_point_box_labels
                 point_box_labels[bs_mask] = point_box_labels_single
 
@@ -148,6 +162,40 @@ class PointHeadTemplate(nn.Module):
         loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
         point_loss_part = point_loss_part * loss_weights_dict['point_part_weight']
         return point_loss_part, {'point_loss_part': point_loss_part.item()}
+
+    def get_box_layer_loss(self):
+        pos_mask = self.forward_ret_dict['point_cls_labels'] > 0
+        point_box_labels = self.forward_ret_dict['point_box_labels']
+        point_box_preds = self.forward_ret_dict['point_box_preds']
+
+        reg_weights = pos_mask.float()
+        pos_normalizer = pos_mask.sum().float()
+        reg_weights /= torch.clamp(pos_normalizer, min=1.0)
+
+        point_loss_box_src = self.reg_loss_func(
+            point_box_preds[None, ...], point_box_labels[None, ...], weights=reg_weights[None, ...]
+        )
+        point_loss_box = point_loss_box_src.sum()
+
+        loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
+        point_loss_box = point_loss_box * loss_weights_dict['point_box_weight']
+        return point_loss_box, {'point_loss_box': point_loss_box.item()}
+
+    def generate_predicted_boxes(self, points, point_cls_preds, point_box_preds):
+        """
+        Args:
+            points: (N, 3)
+            point_cls_preds: (N, num_class)
+            point_box_preds: (N, box_code_size)
+        Returns:
+            point_cls_preds: (N, num_class)
+            point_box_preds: (N, box_code_size)
+
+        """
+        _, pred_classes = point_cls_preds.max(dim=-1)
+        point_box_preds = self.box_coder.decode_torch(point_box_preds, points, pred_classes + 1)
+
+        return point_cls_preds, point_box_preds
 
     def forward(self, **kwargs):
         raise NotImplementedError
