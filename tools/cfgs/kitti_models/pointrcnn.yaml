@@ -7,6 +7,12 @@ DATA_CONFIG:
         -   NAME: mask_points_and_boxes_outside_range
             REMOVE_OUTSIDE_BOXES: True
 
+        -   NAME: sample_points
+            NUM_POINTS: {
+                'train': 16384,
+                'test': 16384
+            }
+
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
@@ -17,7 +23,7 @@ MODEL:
     NAME: PointRCNN
 
     BACKBONE_3D:
-        NAME: PointNet2Backbone
+        NAME: PointNet2MSG
         SA_CONFIG:
             NPOINTS: [4096, 1024, 256, 64]
             RADIUS: [[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]]

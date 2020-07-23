@@ -1,3 +1,10 @@
+/*
+Stacked-batch-data version of point interpolation, modified from the original implementation of official PointNet++ codes.
+Written by Shaoshuai Shi
+All Rights Reserved 2019-2020.
+*/
+
+
 #include <torch/serialize/tensor.h>
 #include <vector>
 #include <THC/THC.h>
