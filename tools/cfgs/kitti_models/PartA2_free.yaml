@@ -3,30 +3,15 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
 
-    DATA_PROCESSOR:
-        -   NAME: mask_points_and_boxes_outside_range
-            REMOVE_OUTSIDE_BOXES: True
-
-        -   NAME: shuffle_points
-            SHUFFLE_ENABLED: {
-                'train': True,
-                'test': False
-            }
 
 MODEL:
     NAME: PointRCNN
 
+    VFE:
+        NAME: MeanVFE
+
     BACKBONE_3D:
-        NAME: PointNet2Backbone
-        SA_CONFIG:
-            NPOINTS: [4096, 1024, 256, 64]
-            RADIUS: [[0.1, 0.5], [0.5, 1.0], [1.0, 2.0], [2.0, 4.0]]
-            NSAMPLE: [[16, 32], [16, 32], [16, 32], [16, 32]]
-            MLPS: [[[16, 16, 32], [32, 32, 64]],
-                   [[64, 64, 128], [64, 96, 128]],
-                   [[128, 196, 256], [128, 196, 256]],
-                   [[256, 256, 512], [256, 384, 512]]]
-        FP_MLPS: [[128, 128], [256, 256], [512, 512], [512, 512]]
+        NAME: UNetV2
 
     POINT_HEAD:
         NAME: PointHeadBox
@@ -75,9 +60,9 @@ MODEL:
             TEST:
                 NMS_TYPE: nms_gpu
                 MULTI_CLASSES_NMS: False
-                NMS_PRE_MAXSIZE: 1024
+                NMS_PRE_MAXSIZE: 9000
                 NMS_POST_MAXSIZE: 100
-                NMS_THRESH: 0.7
+                NMS_THRESH: 0.85
 
         ROI_AWARE_POOL:
             POOL_SIZE: 12
@@ -127,7 +112,7 @@ MODEL:
 
 OPTIMIZATION:
     OPTIMIZER: adam_onecycle
-    LR: 0.01
+    LR: 0.003
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
