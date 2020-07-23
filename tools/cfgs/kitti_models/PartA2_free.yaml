@@ -12,6 +12,7 @@ MODEL:
 
     BACKBONE_3D:
         NAME: UNetV2
+        RETURN_ENCODED_TENSOR: False
 
     POINT_HEAD:
         NAME: PointHeadBox
