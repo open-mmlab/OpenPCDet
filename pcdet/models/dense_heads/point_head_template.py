@@ -127,7 +127,7 @@ class PointHeadTemplate(nn.Module):
         }
         return targets_dict
 
-    def get_cls_layer_loss(self):
+    def get_cls_layer_loss(self, tb_dict=None):
         point_cls_labels = self.forward_ret_dict['point_cls_labels'].view(-1)
         point_cls_preds = self.forward_ret_dict['point_cls_preds'].view(-1, self.num_class)
 
@@ -145,13 +145,15 @@ class PointHeadTemplate(nn.Module):
 
         loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
         point_loss_cls = point_loss_cls * loss_weights_dict['point_cls_weight']
-        tb_dict = {
+        if tb_dict is None:
+            tb_dict = {}
+        tb_dict.update({
             'point_loss_cls': point_loss_cls.item(),
             'point_pos_num': pos_normalizer.item()
-        }
+        })
         return point_loss_cls, tb_dict
 
-    def get_part_layer_loss(self):
+    def get_part_layer_loss(self, tb_dict=None):
         pos_mask = self.forward_ret_dict['point_cls_labels'] > 0
         pos_normalizer = max(1, (pos_mask > 0).sum().item())
         point_part_labels = self.forward_ret_dict['point_part_labels']
@@ -161,9 +163,12 @@ class PointHeadTemplate(nn.Module):
 
         loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
         point_loss_part = point_loss_part * loss_weights_dict['point_part_weight']
-        return point_loss_part, {'point_loss_part': point_loss_part.item()}
+        if tb_dict is None:
+            tb_dict = {}
+        tb_dict.update({'point_loss_part': point_loss_part.item()})
+        return point_loss_part, tb_dict
 
-    def get_box_layer_loss(self):
+    def get_box_layer_loss(self, tb_dict=None):
         pos_mask = self.forward_ret_dict['point_cls_labels'] > 0
         point_box_labels = self.forward_ret_dict['point_box_labels']
         point_box_preds = self.forward_ret_dict['point_box_preds']
@@ -179,7 +184,10 @@ class PointHeadTemplate(nn.Module):
 
         loss_weights_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
         point_loss_box = point_loss_box * loss_weights_dict['point_box_weight']
-        return point_loss_box, {'point_loss_box': point_loss_box.item()}
+        if tb_dict is None:
+            tb_dict = {}
+        tb_dict.update({'point_loss_box': point_loss_box.item()})
+        return point_loss_box, tb_dict
 
     def generate_predicted_boxes(self, points, point_cls_preds, point_box_preds):
         """

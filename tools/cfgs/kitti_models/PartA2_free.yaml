@@ -15,9 +15,10 @@ MODEL:
         RETURN_ENCODED_TENSOR: False
 
     POINT_HEAD:
-        NAME: PointHeadBox
-        CLS_FC: [256, 256]
-        REG_FC: [256, 256]
+        NAME: PointIntraPartOffsetHead
+        CLS_FC: [128, 128]
+        PART_FC: [128, 128]
+        REG_FC: [128, 128]
         CLASS_AGNOSTIC: False
         USE_POINT_FEATURES_BEFORE_FUSION: False
         TARGET_CONFIG:
@@ -37,6 +38,7 @@ MODEL:
             LOSS_WEIGHTS: {
                 'point_cls_weight': 1.0,
                 'point_box_weight': 1.0,
+                'point_part_weight': 1.0,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 
