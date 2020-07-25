@@ -230,6 +230,7 @@ class Detector3DTemplate(nn.Module):
                     pred_scores.append(cur_pred_scores)
                     pred_labels.append(cur_pred_labels)
                     pred_boxes.append(cur_pred_boxes)
+                    cur_start_idx += cur_cls_preds.shape[0]
 
                 final_scores = torch.cat(pred_scores, dim=0)
                 final_labels = torch.cat(pred_labels, dim=0)
