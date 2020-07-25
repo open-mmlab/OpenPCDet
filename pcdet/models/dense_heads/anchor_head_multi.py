@@ -229,19 +229,11 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             )
 
             if isinstance(batch_cls_preds, list):
-                all_pred_labels = []
-                all_cls_preds = []
-                for idx, cls_pred in enumerate(batch_cls_preds):
-                    pred_score, pred_head_label = torch.max(cls_pred, dim=-1)
-                    pred_label = self.rpn_heads[idx].head_label_indices[pred_head_label]
+                multihead_label_mapping = []
+                for idx in range(len(batch_cls_preds)):
+                    multihead_label_mapping.append(self.rpn_heads[idx].head_label_indices)
 
-                    all_pred_labels.append(pred_label)
-                    all_cls_preds.append(pred_score[:, :, None])
-
-                batch_cls_preds = torch.cat(all_cls_preds, dim=1)
-                batch_pred_labels = torch.cat(all_pred_labels, dim=1)
-                data_dict['batch_pred_labels'] = batch_pred_labels
-                data_dict['has_class_labels'] = True
+                data_dict['multihead_label_mapping'] = multihead_label_mapping
 
             data_dict['batch_cls_preds'] = batch_cls_preds
             data_dict['batch_box_preds'] = batch_box_preds
