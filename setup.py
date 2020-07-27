@@ -68,6 +68,14 @@ if __name__ == '__main__':
                 ]
             ),
             make_cuda_ext(
+                name='roipoint_pool3d_cuda',
+                module='pcdet.ops.roipoint_pool3d',
+                sources=[
+                    'src/roipoint_pool3d.cpp',
+                    'src/roipoint_pool3d_kernel.cu',
+                ]
+            ),
+            make_cuda_ext(
                 name='pointnet2_stack_cuda',
                 module='pcdet.ops.pointnet2.pointnet2_stack',
                 sources=[
@@ -77,7 +85,25 @@ if __name__ == '__main__':
                     'src/group_points.cpp',
                     'src/group_points_gpu.cu',
                     'src/sampling.cpp',
+                    'src/sampling_gpu.cu', 
+                    'src/interpolate.cpp', 
+                    'src/interpolate_gpu.cu',
+                ],
+            ),
+            make_cuda_ext(
+                name='pointnet2_batch_cuda',
+                module='pcdet.ops.pointnet2.pointnet2_batch',
+                sources=[
+                    'src/pointnet2_api.cpp',
+                    'src/ball_query.cpp',
+                    'src/ball_query_gpu.cu',
+                    'src/group_points.cpp',
+                    'src/group_points_gpu.cu',
+                    'src/interpolate.cpp',
+                    'src/interpolate_gpu.cu',
+                    'src/sampling.cpp',
                     'src/sampling_gpu.cu',
+
                 ],
             ),
         ],
