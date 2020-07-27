@@ -1,0 +1,80 @@
+DATASET: 'NuScenesDataset'
+DATA_PATH: '../data/nuscenes'
+
+VERSION: 'v1.0-trainval'
+MAX_SWEEPS: 10
+PRED_VELOCITY: True
+SET_NAN_VELOCITY_TO_ZEROS: True
+FILTER_MIN_POINTS_IN_GT: 1
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+INFO_PATH: {
+    'train': [nuscenes_infos_10sweeps_train.pkl],
+    'test': [nuscenes_infos_10sweeps_val.pkl],
+}
+
+POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
+
+BALANCED_RESAMPLING: True 
+
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+        - NAME: gt_sampling
+          DB_INFO_PATH:
+              - nuscenes_dbinfos_10sweeps_withvelo.pkl
+          PREPARE: {
+             filter_by_min_points: [
+                 'car:5','truck:5', 'construction_vehicle:5', 'bus:5', 'trailer:5',
+                 'barrier:5', 'motorcycle:5', 'bicycle:5', 'pedestrian:5', 'traffic_cone:5'
+             ],
+          }
+
+          SAMPLE_GROUPS: [
+              'car:2','truck:3', 'construction_vehicle:7', 'bus:4', 'trailer:6',
+              'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
+          ]
+
+          NUM_POINT_FEATURES: 5
+          DATABASE_WITH_FAKELIDAR: False
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+          LIMIT_WHOLE_SCENE: True
+
+        - NAME: random_world_flip
+          ALONG_AXIS_LIST: ['x', 'y']
+
+        - NAME: random_world_rotation
+          WORLD_ROT_ANGLE: [-0.3925, 0.3925]
+
+        - NAME: random_world_scaling
+          WORLD_SCALE_RANGE: [0.95, 1.05]
+
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+    src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+}
+
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
+
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: {
+        'train': True,
+        'test': True
+      }
+
+    - NAME: transform_points_to_voxels
+      VOXEL_SIZE: [0.1, 0.1, 0.2]
+      MAX_POINTS_PER_VOXEL: 10
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 60000,
+        'test': 60000
+      }

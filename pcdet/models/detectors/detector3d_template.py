@@ -172,7 +172,9 @@ class Detector3DTemplate(nn.Module):
                 batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
                 cls_preds_normalized: indicate whether batch_cls_preds is normalized
                 batch_index: optional (N1+N2+...)
+                has_class_labels: True/False
                 roi_labels: (B, num_rois)  1 .. num_classes
+                batch_pred_labels: (B, num_boxes, 1)
         Returns:
 
         """
@@ -197,12 +199,15 @@ class Detector3DTemplate(nn.Module):
 
             if not batch_dict['cls_preds_normalized']:
                 cls_preds = torch.sigmoid(cls_preds)
-
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 raise NotImplementedError
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                label_preds = batch_dict['roi_labels'][index] if batch_dict.get('has_class_labels', False) else label_preds + 1
+                if batch_dict.get('has_class_labels', False):
+                    label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
+                    label_preds = batch_dict[label_key][index]
+                else:
+                    label_preds + 1
 
                 selected, selected_scores = class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
@@ -253,14 +258,14 @@ class Detector3DTemplate(nn.Module):
             k -= 1
         cur_gt = cur_gt[:k + 1]
 
-        if cur_gt.sum() > 0:
+        if cur_gt.shape[0] > 0:
             if box_preds.shape[0] > 0:
-                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds, cur_gt[:, 0:7])
+                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7])
             else:
                 iou3d_rcnn = torch.zeros((0, cur_gt.shape[0]))
 
             if rois is not None:
-                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois, cur_gt[:, 0:7])
+                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7])
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:
