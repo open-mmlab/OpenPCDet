@@ -133,6 +133,7 @@ def init_dist_slurm(tcp_port, local_rank, backend='nccl'):
     dist.init_process_group(backend=backend)
 
     total_gpus = dist.get_world_size()
+    rank = dist.get_rank()
     return total_gpus, rank
 
 
@@ -176,10 +177,10 @@ def merge_results_dist(result_part, size, tmpdir):
     dist.barrier()
     pickle.dump(result_part, open(os.path.join(tmpdir, 'result_part_{}.pkl'.format(rank)), 'wb'))
     dist.barrier()
-    
+
     if rank != 0:
         return None
-    
+
     part_list = []
     for i in range(world_size):
         part_file = os.path.join(tmpdir, 'result_part_{}.pkl'.format(i))
@@ -187,7 +188,7 @@ def merge_results_dist(result_part, size, tmpdir):
 
     ordered_results = []
     for res in zip(*part_list):
-        ordered_results.extend(list(res)) 
+        ordered_results.extend(list(res))
     ordered_results = ordered_results[:size]
     shutil.rmtree(tmpdir)
     return ordered_results

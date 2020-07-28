@@ -11,6 +11,7 @@ GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 CPUS_PER_TASK=${CPUS_PER_TASK:-5}
 SRUN_ARGS=${SRUN_ARGS:-""}
 
+PORT=$(( ( RANDOM % 10000 )  + 10000 ))
 
 srun -p ${PARTITION} \
     --job-name=${JOB_NAME} \
@@ -20,4 +21,4 @@ srun -p ${PARTITION} \
     --cpus-per-task=${CPUS_PER_TASK} \
     --kill-on-bad-exit=1 \
     ${SRUN_ARGS} \
-    python -u train.py --launcher slurm ${PY_ARGS}
+    python -u train.py --launcher slurm ${PY_ARGS} --tcp_port $PORT
