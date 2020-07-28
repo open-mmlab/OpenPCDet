@@ -11,12 +11,17 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 - [Changelog](#changelog)
 - [Design Pattern](#openpcdet-design-pattern)
 - [Model Zoo](#model-zoo)
-- [Quick Demo](#quick-demo)
-- [Getting Started](#Getting-Started)
+- [Installation](docs/INSTALL.md)
+- [Quick Demo](docs/DEMO.md)
+- [Getting Started](docs/GETTING_STARTED.md)
 - [Citation](#citation)
 
 
 ## Changelog
+[2020-07-29]  `OpenPCDet` v0.3.0 is released with the following features:
+   * The Point-based and Anchor-Free models (`PointRCNN`, `PartA2-Free`) are supported now.
+   * The NuScenes dataset is supported with strong baseline results (`CBGS`).
+
 [2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
 
 [2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
@@ -75,7 +80,7 @@ Contributions are also welcomed.
 ## Model Zoo
 
 ### KITTI 3D Object Detection Baselines
-Selected supported methods are shown in the below table. The results are the 3D detection performance of car class on the *val* set of KITTI dataset.
+Selected supported methods are shown in the below table. The results are the 3D detection performance of moderate difficulty on the *val* set of KITTI dataset.
 All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 
 |                                             | training time | Car | Pedestrian | Cyclist  | download | 
@@ -90,10 +95,12 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 | [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~6 hours| 83.69 | - | - | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
 
 ### NuScenes 3D Object Detection Baselines
+All models are trained with 8 GTX 1080Ti GPUs and are available for download.
+
 |                                             | mATE | mASE | mAOE | mAVE | mAAE | mAP | NDS | download | 
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|:-------:|:-------:|:---------:|
-| [PointPillar-MultiHead](tools/cfgs/nuscenes_models/pp_multihead.yaml) | 33.87	| 26.00 | 32.07	| 28.74 | 20.15 | 44.63 | 58.23	 | [model-]() | 
-| [SECOND-MultiHead (CBGS)](tools/cfgs/nuscenes_models/cbgs.yaml) | 31.15 |	25.51 |	26.64 | 26.26 | 20.46 | 50.59 | 62.29       | [model-]() |
+| [PointPillar-MultiHead](tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml) | 33.87	| 26.00 | 32.07	| 28.74 | 20.15 | 44.63 | 58.23	 | [model-]() | 
+| [SECOND-MultiHead (CBGS)](tools/cfgs/nuscenes_models/cbgs_second_multihead.yaml) | 31.15 |	25.51 |	26.64 | 26.26 | 20.46 | 50.59 | 62.29       | [model-]() |
 
 
 ### Other datasets

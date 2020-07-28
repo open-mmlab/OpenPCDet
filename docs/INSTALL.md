@@ -1,4 +1,4 @@
-## Installation
+# Installation
 
 ### Requirements
 All the codes are tested in the following environment:
