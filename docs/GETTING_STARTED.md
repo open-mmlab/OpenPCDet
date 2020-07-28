@@ -1,7 +1,63 @@
 ## Getting Started
 The dataset configs are located within [tools/cfgs/dataset_configs](tools/cfgs/dataset_configs), 
 and the model configs are located within [tools/cfgs](tools/cfgs) for different datasets, like [tools/cfgs/kitti_models/](tools/cfgs/kitti_models/). 
- 
+
+
+## Dataset Preparation
+
+Currently we provide the dataloader of KITTI dataset and NuScenes dataset, and the supporting of more datasets are on the way.  
+
+### KITTI Dataset
+* Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [[road plane]](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training):
+* NOTE: if you already have the data infos from `pcdet v0.1`, you can choose to use the old infos and set the DATABASE_WITH_FAKELIDAR option in tools/cfgs/dataset_configs/kitti_dataset.yaml as True. The second choice is that you can create the infos and gt database again and leave the config unchanged.
+
+```
+OpenPCDet
+├── data
+│   ├── kitti
+│   │   │── ImageSets
+│   │   │── training
+│   │   │   ├──calib & velodyne & label_2 & image_2 & (optional: planes)
+│   │   │── testing
+│   │   │   ├──calib & velodyne & image_2
+├── pcdet
+├── tools
+```
+
+* Generate the data infos by running the following command: 
+```python 
+python -m pcdet.datasets.kitti.kitti_dataset create_kitti_infos tools/cfgs/dataset_configs/kitti_dataset.yaml
+```
+
+### NuScenes Dataset
+* Please download the official [NuScenes 3D object detection dataset](https://www.nuscenes.org/download) and 
+organize the downloaded files as follows: 
+```
+OpenPCDet
+├── data
+│   ├── nuscenes
+│   │   │── v1.0-trainval (or v1.0-mini if you use mini)
+│   │   │   │── samples
+│   │   │   │── sweeps
+│   │   │   │── maps
+│   │   │   │── v1.0-trainval  
+├── pcdet
+├── tools
+```
+
+* Install the `nuscenes-devkit` with version `1.0.5` by running the following command: 
+```shell script
+pip install nuscenes-devkit==1.0.5
+```
+
+* Generate the data infos by running the following command: 
+```python 
+python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos \ 
+    --cfg_file tools/cfgs/dataset_configs/nuscenes_dataset.yaml \
+    --version v1.0-trainval
+```
+
+## Training & Testing
 
 
 ### Test and evaluate the pretrained models
