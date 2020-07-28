@@ -164,9 +164,11 @@ __global__ void three_interpolate_grad_kernel_stack(int N, int channels, const f
     weight += pt_idx * 3;
     idx += pt_idx * 3;
     
-    atomicAdd(grad_features + idx[0], grad_out[0] * weight[0]);
-    atomicAdd(grad_features + idx[1], grad_out[0] * weight[1]);
-    atomicAdd(grad_features + idx[2], grad_out[0] * weight[2]);
+    // printf("pt_idx=%d, c_idx=%d, idx=(%d, %d, %d), grad_out=%f\n", pt_idx, c_idx, idx[0], idx[1], idx[2], grad_out[0]);
+
+    atomicAdd(grad_features + idx[0] * channels + c_idx, grad_out[0] * weight[0]);
+    atomicAdd(grad_features + idx[1] * channels + c_idx, grad_out[0] * weight[1]);
+    atomicAdd(grad_features + idx[2] * channels + c_idx, grad_out[0] * weight[2]);
 }
 
 

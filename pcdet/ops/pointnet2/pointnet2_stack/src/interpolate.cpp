@@ -77,5 +77,6 @@ void three_interpolate_grad_wrapper_stack(at::Tensor grad_out_tensor, at::Tensor
     const int *idx = idx_tensor.data<int>();
     float *grad_features = grad_features_tensor.data<float>();
     
+    // printf("N=%d, channels=%d\n", N, channels);
     three_interpolate_grad_kernel_launcher_stack(N, channels, grad_out, idx, weight, grad_features);
 }
