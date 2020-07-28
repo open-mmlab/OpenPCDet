@@ -85,14 +85,13 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 
 |                                             | training time | Car | Pedestrian | Cyclist  | download | 
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|
-| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~95 mins| 77.28 | - | - | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
-| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2 hours  | 78.62 | - | - | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
-| [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | - | - | - | - | ongoing |
+| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~95 mins| 77.28 | 52.29 | 62.68 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
+| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2 hours  | 78.62 | 52.98 | 67.15 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
 | [PointRCNN](tools/cfgs/kitti_models/pointrcnn.yaml) | ~3 hours | 78.70 | - | - | ongoing| 
-| [PointRCNN-IoU](tools/cfgs/kitti_models/pointrcnn_iou.yaml) | ~3 hours | 78.70 | - | - | ongoing|
-| [Part-A^2-Free](tools/cfgs/kitti_models/PartA2_free.yaml)   | ~4 hours| 78.72 | 65.99 | 74.29 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PointRCNN-IoU](tools/cfgs/kitti_models/pointrcnn_iou.yaml) | ~3 hours | 78.90 | 54.62 | 71.52 | [model-]()|
+| [Part-A^2-Free](tools/cfgs/kitti_models/PartA2_free.yaml)   | ~4 hours| 78.72 | 65.99 | 74.29 | [model-](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
 | [Part-A^2-Anchor](tools/cfgs/kitti_models/PartA2.yaml)    | ~5 hours| 79.40 | - | - | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
-| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~6 hours| 83.69 | - | - | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~6 hours| 83.69 | 54.49 | 69.47 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
 
 ### NuScenes 3D Object Detection Baselines
 All models are trained with 8 GTX 1080Ti GPUs and are available for download.

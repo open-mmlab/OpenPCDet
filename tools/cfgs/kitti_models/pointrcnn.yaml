@@ -12,6 +12,10 @@ DATA_CONFIG:
                 'train': 16384,
                 'test': 16384
             }
+            FIX_SEED: {
+                'train': False,
+                'test': True
+            }
 
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {

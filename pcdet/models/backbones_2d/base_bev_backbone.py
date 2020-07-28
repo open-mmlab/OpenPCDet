@@ -46,7 +46,7 @@ class BaseBEVBackbone(nn.Module):
             self.blocks.append(nn.Sequential(*cur_layers))
             if len(upsample_strides) > 0:
                 stride = upsample_strides[idx]
-                if stride > 1:
+                if stride >= 1:
                     self.deblocks.append(nn.Sequential(
                         nn.ConvTranspose2d(
                             num_filters[idx], num_upsample_filters[idx],

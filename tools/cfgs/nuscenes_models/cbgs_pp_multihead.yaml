@@ -217,11 +217,11 @@ MODEL:
         EVAL_METRIC: kitti
 
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: False
+            MULTI_CLASSES_NMS: True
             NMS_TYPE: nms_gpu
             NMS_THRESH: 0.2
-            NMS_PRE_MAXSIZE: 4096
-            NMS_POST_MAXSIZE: 100
+            NMS_PRE_MAXSIZE: 1000
+            NMS_POST_MAXSIZE: 83
 
 
 OPTIMIZATION:

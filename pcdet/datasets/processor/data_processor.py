@@ -70,6 +70,9 @@ class DataProcessor(object):
         if num_points == -1:
             return data_dict
 
+        if config.FIX_SEED[self.mode]:
+            np.random.seed(512)
+
         points = data_dict['points']
         if num_points < len(points):
             pts_depth = np.linalg.norm(points[:, 0:3], axis=1)
