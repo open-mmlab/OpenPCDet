@@ -4,14 +4,14 @@
 
 `OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
 
-It is also the official code release of [`PointRCNN`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
+It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
 
 
 ## Overview
 - [Changelog](#changelog)
 - [Design Pattern](#openpcdet-design-pattern)
-- [Model Zoo](#model zoo)
-- [Quick Demo](#quick demo)
+- [Model Zoo](#model-zoo)
+- [Quick Demo](#quick-demo)
 - [Getting Started](#Getting-Started)
 - [Citation](#citation)
 
