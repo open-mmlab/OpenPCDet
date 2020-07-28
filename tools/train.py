@@ -20,8 +20,8 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
 
-    parser.add_argument('--batch_size', type=int, default=16, required=False, help='batch size for training')
-    parser.add_argument('--epochs', type=int, default=30, required=False, help='number of epochs to train for')
+    parser.add_argument('--batch_size', type=int, default=None, required=False, help='batch size for training')
+    parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
     parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint to start from')
@@ -58,10 +58,14 @@ def main():
     if args.launcher == 'none':
         dist_train = False
     else:
-        args.batch_size, cfg.LOCAL_RANK = getattr(common_utils, 'init_dist_%s' % args.launcher)(
-            args.batch_size, args.tcp_port, args.local_rank, backend='nccl'
+        total_gpus, cfg.LOCAL_RANK = getattr(common_utils, 'init_dist_%s' % args.launcher)(
+            args.tcp_port, args.local_rank, backend='nccl'
         )
         dist_train = True
+
+    args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU if args.batch_size is None else args.batch_size
+    args.epochs = cfg.OPTIMIZATION.NUM_EPOCHS if args.epochs is None else args.epochs
+
     if args.fix_random_seed:
         common_utils.set_random_seed(666)
 
@@ -79,7 +83,6 @@ def main():
     logger.info('CUDA_VISIBLE_DEVICES=%s' % gpu_list)
 
     if dist_train:
-        total_gpus = dist.get_world_size()
         logger.info('total_batch_size: %d' % (total_gpus * args.batch_size))
     for key, val in vars(args).items():
         logger.info('{:16} {}'.format(key, val))

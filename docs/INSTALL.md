@@ -10,7 +10,7 @@ All the codes are tested in the following environment:
 
 
 ### Install `pcdet v0.3`
-NOTE: Please re-install `pcdet v0.3` by running `python setup.py develop` if you have already installed `pcdet v0.1` previously.
+NOTE: Please re-install `pcdet v0.3` by running `python setup.py develop` even if you have already installed previous version.
 
 a. Clone this repository.
 ```shell

@@ -1,6 +1,6 @@
-## Getting Started
-The dataset configs are located within [tools/cfgs/dataset_configs](tools/cfgs/dataset_configs), 
-and the model configs are located within [tools/cfgs](tools/cfgs) for different datasets, like [tools/cfgs/kitti_models/](tools/cfgs/kitti_models/). 
+# Getting Started
+The dataset configs are located within [tools/cfgs/dataset_configs](../tools/cfgs/dataset_configs), 
+and the model configs are located within [tools/cfgs](../tools/cfgs) for different datasets. 
 
 
 ## Dataset Preparation
@@ -73,34 +73,30 @@ python test.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} --eval_all
 
 * To test with multiple GPUs:
 ```shell script
-sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \ 
+sh scripts/dist_test.sh ${NUM_GPUS} \
     --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 
 # or
 
-sh scripts/dist_test.sh ${NUM_GPUS} \
+sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \ 
     --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
-
 ```
 
 
 ### Train a model
-Note that the `--batch_size` depends on the number of your training GPUs, 
-please refer to `Model Zoo` of [README.md](../README.md) for the setting of batch_size for different models.  
+You could optionally add extra command line parameters `--batch_size ${BATCH_SIZE}` and `--epochs ${EPOCHS}` to specify your preferred parameters. 
+  
 
-* Train with multiple GPUs:
+* Train with multiple GPUs or multiple machines
 ```shell script
-sh scripts/dist_train.sh ${NUM_GPUS} \ 
-    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}  --epochs 80
-```
+sh scripts/dist_train.sh ${NUM_GPUS} --cfg_file ${CONFIG_FILE}
 
-* Train with multiple machines:
-```shell script
-sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} \ 
-    --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} --epochs 80
+# or 
+
+sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} --cfg_file ${CONFIG_FILE}
 ```
 
 * Train with a single GPU:
 ```shell script
-python train.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} --epochs 50
+python train.py --cfg_file ${CONFIG_FILE}
 ```
