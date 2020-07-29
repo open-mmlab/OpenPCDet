@@ -27,7 +27,7 @@ def write_version_to_file(version, target_file):
 
 
 if __name__ == '__main__':
-    version = '0.2.0+%s' % get_git_commit_number()
+    version = '0.3.0+%s' % get_git_commit_number()
     write_version_to_file(version, 'pcdet/version.py')
 
     setup(
@@ -37,7 +37,7 @@ if __name__ == '__main__':
         install_requires=[
             'numpy',
             'torch>=1.1',
-            'spconv==1.0',
+            'spconv',
             'numba',
             'tensorboardX',
             'easydict',

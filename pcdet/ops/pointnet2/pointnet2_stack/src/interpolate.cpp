@@ -17,6 +17,20 @@ All Rights Reserved 2019-2020.
 
 extern THCState *state;
 
+#define CHECK_CUDA(x) do { \
+  if (!x.type().is_cuda()) { \
+    fprintf(stderr, "%s must be CUDA tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
+#define CHECK_CONTIGUOUS(x) do { \
+  if (!x.is_contiguous()) { \
+    fprintf(stderr, "%s must be contiguous tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
+#define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
+
 
 void three_nn_wrapper_stack(at::Tensor unknown_tensor, 
     at::Tensor unknown_batch_cnt_tensor, at::Tensor known_tensor, 
@@ -28,6 +42,12 @@ void three_nn_wrapper_stack(at::Tensor unknown_tensor,
     // Return:
     // dist: (N1 + N2 ..., 3)  l2 distance to the three nearest neighbors
     // idx: (N1 + N2 ..., 3)  index of the three nearest neighbors
+    CHECK_INPUT(unknown_tensor);
+    CHECK_INPUT(unknown_batch_cnt_tensor);
+    CHECK_INPUT(known_tensor);
+    CHECK_INPUT(known_batch_cnt_tensor);
+    CHECK_INPUT(dist2_tensor);
+    CHECK_INPUT(idx_tensor);
 
     int batch_size = unknown_batch_cnt_tensor.size(0);
     int N = unknown_tensor.size(0);
@@ -50,6 +70,10 @@ void three_interpolate_wrapper_stack(at::Tensor features_tensor,
     // weight_tensor: [N1 + N2 ..., 3]
     // Return:
     // out_tensor: (N1 + N2 ..., C)
+    CHECK_INPUT(features_tensor);
+    CHECK_INPUT(idx_tensor);
+    CHECK_INPUT(weight_tensor);
+    CHECK_INPUT(out_tensor);
 
     int N = out_tensor.size(0);
     int channels = features_tensor.size(1);
@@ -69,6 +93,10 @@ void three_interpolate_grad_wrapper_stack(at::Tensor grad_out_tensor, at::Tensor
     // weight_tensor: [N1 + N2 ..., 3]
     // Return:
     // grad_features_tensor: (M1 + M2 ..., C)
+    CHECK_INPUT(grad_out_tensor);
+    CHECK_INPUT(idx_tensor);
+    CHECK_INPUT(weight_tensor);
+    CHECK_INPUT(grad_features_tensor);
 
     int N = grad_out_tensor.size(0);
     int channels = grad_out_tensor.size(1);
