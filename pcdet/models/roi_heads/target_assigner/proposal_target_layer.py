@@ -118,10 +118,10 @@ class ProposalTargetLayer(nn.Module):
         fg_rois_per_image = int(np.round(self.roi_sampler_cfg.FG_RATIO * self.roi_sampler_cfg.ROI_PER_IMAGE))
         fg_thresh = min(self.roi_sampler_cfg.REG_FG_THRESH, self.roi_sampler_cfg.CLS_FG_THRESH)
 
-        fg_inds = torch.nonzero((max_overlaps >= fg_thresh)).view(-1)
-        easy_bg_inds = torch.nonzero((max_overlaps < self.roi_sampler_cfg.CLS_BG_THRESH_LO)).view(-1)
-        hard_bg_inds = torch.nonzero((max_overlaps < self.roi_sampler_cfg.REG_FG_THRESH) &
-                                     (max_overlaps >= self.roi_sampler_cfg.CLS_BG_THRESH_LO)).view(-1)
+        fg_inds = ((max_overlaps >= fg_thresh)).nonzero().view(-1)
+        easy_bg_inds = ((max_overlaps < self.roi_sampler_cfg.CLS_BG_THRESH_LO)).nonzero().view(-1)
+        hard_bg_inds = ((max_overlaps < self.roi_sampler_cfg.REG_FG_THRESH) &
+                (max_overlaps >= self.roi_sampler_cfg.CLS_BG_THRESH_LO)).nonzero().view(-1)
 
         fg_num_rois = fg_inds.numel()
         bg_num_rois = hard_bg_inds.numel() + easy_bg_inds.numel()

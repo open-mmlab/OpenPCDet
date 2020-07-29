@@ -154,7 +154,7 @@ class AxisAlignedTargetAssigner(object):
             empty_gt_mask = gt_to_anchor_max == 0
             gt_to_anchor_max[empty_gt_mask] = -1
 
-            anchors_with_max_overlap = torch.nonzero(anchor_by_gt_overlap == gt_to_anchor_max)[:, 0]
+            anchors_with_max_overlap = (anchor_by_gt_overlap == gt_to_anchor_max).nonzero()[:, 0]
             gt_inds_force = anchor_to_gt_argmax[anchors_with_max_overlap]
             labels[anchors_with_max_overlap] = gt_classes[gt_inds_force]
             gt_ids[anchors_with_max_overlap] = gt_inds_force.int()
@@ -163,11 +163,11 @@ class AxisAlignedTargetAssigner(object):
             gt_inds_over_thresh = anchor_to_gt_argmax[pos_inds]
             labels[pos_inds] = gt_classes[gt_inds_over_thresh]
             gt_ids[pos_inds] = gt_inds_over_thresh.int()
-            bg_inds = torch.nonzero(anchor_to_gt_max < unmatched_threshold)[:, 0]
+            bg_inds = (anchor_to_gt_max < unmatched_threshold).nonzero()[:, 0]
         else:
             bg_inds = torch.arange(num_anchors, device=anchors.device)
 
-        fg_inds = torch.nonzero(labels > 0)[:, 0]
+        fg_inds = (labels > 0).nonzero()[:, 0]
 
         if self.pos_fraction is not None:
             num_fg = int(self.pos_fraction * self.sample_size)
@@ -175,7 +175,7 @@ class AxisAlignedTargetAssigner(object):
                 num_disabled = len(fg_inds) - num_fg
                 disable_inds = torch.randperm(len(fg_inds))[:num_disabled]
                 labels[disable_inds] = -1
-                fg_inds = torch.nonzero(labels > 0)[:, 0]
+                fg_inds = (labels > 0).nonzero()[:, 0]
 
             num_bg = self.sample_size - (labels > 0).sum()
             if len(bg_inds) > num_bg:

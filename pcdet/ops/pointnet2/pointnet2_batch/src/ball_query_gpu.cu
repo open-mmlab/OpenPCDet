@@ -52,7 +52,7 @@ __global__ void ball_query_kernel_fast(int b, int n, int m, float radius, int ns
 
 
 void ball_query_kernel_launcher_fast(int b, int n, int m, float radius, int nsample, \
-    const float *new_xyz, const float *xyz, int *idx, cudaStream_t stream) {
+    const float *new_xyz, const float *xyz, int *idx) {
     // new_xyz: (B, M, 3)
     // xyz: (B, N, 3)
     // output:
@@ -63,7 +63,7 @@ void ball_query_kernel_launcher_fast(int b, int n, int m, float radius, int nsam
     dim3 blocks(DIVUP(m, THREADS_PER_BLOCK), b);  // blockIdx.x(col), blockIdx.y(row)
     dim3 threads(THREADS_PER_BLOCK);
 
-    ball_query_kernel_fast<<<blocks, threads, 0, stream>>>(b, n, m, radius, nsample, new_xyz, xyz, idx);
+    ball_query_kernel_fast<<<blocks, threads>>>(b, n, m, radius, nsample, new_xyz, xyz, idx);
     // cudaDeviceSynchronize();  // for using printf in kernel function
     err = cudaGetLastError();
     if (cudaSuccess != err) {

@@ -10,6 +10,6 @@ int ball_query_wrapper_fast(int b, int n, int m, float radius, int nsample,
 	at::Tensor new_xyz_tensor, at::Tensor xyz_tensor, at::Tensor idx_tensor);
 
 void ball_query_kernel_launcher_fast(int b, int n, int m, float radius, int nsample, 
-	const float *xyz, const float *new_xyz, int *idx, cudaStream_t stream);
+	const float *xyz, const float *new_xyz, int *idx);
 
 #endif

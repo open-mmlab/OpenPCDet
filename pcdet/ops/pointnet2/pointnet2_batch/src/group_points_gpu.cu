@@ -31,7 +31,7 @@ __global__ void group_points_grad_kernel_fast(int b, int c, int n, int npoints, 
 }
 
 void group_points_grad_kernel_launcher_fast(int b, int c, int n, int npoints, int nsample, 
-    const float *grad_out, const int *idx, float *grad_points, cudaStream_t stream) {
+    const float *grad_out, const int *idx, float *grad_points) {
     // grad_out: (B, C, npoints, nsample)
     // idx: (B, npoints, nsample)
     // output:
@@ -40,7 +40,7 @@ void group_points_grad_kernel_launcher_fast(int b, int c, int n, int npoints, in
     dim3 blocks(DIVUP(npoints * nsample, THREADS_PER_BLOCK), c, b);  // blockIdx.x(col), blockIdx.y(row)
     dim3 threads(THREADS_PER_BLOCK);
 
-    group_points_grad_kernel_fast<<<blocks, threads, 0, stream>>>(b, c, n, npoints, nsample, grad_out, idx, grad_points);
+    group_points_grad_kernel_fast<<<blocks, threads>>>(b, c, n, npoints, nsample, grad_out, idx, grad_points);
 
     err = cudaGetLastError();
     if (cudaSuccess != err) {
@@ -73,7 +73,7 @@ __global__ void group_points_kernel_fast(int b, int c, int n, int npoints, int n
 
 
 void group_points_kernel_launcher_fast(int b, int c, int n, int npoints, int nsample, 
-    const float *points, const int *idx, float *out, cudaStream_t stream) {
+    const float *points, const int *idx, float *out) {
     // points: (B, C, N)
     // idx: (B, npoints, nsample)
     // output:
@@ -82,7 +82,7 @@ void group_points_kernel_launcher_fast(int b, int c, int n, int npoints, int nsa
     dim3 blocks(DIVUP(npoints * nsample, THREADS_PER_BLOCK), c, b);  // blockIdx.x(col), blockIdx.y(row)
     dim3 threads(THREADS_PER_BLOCK);
 
-    group_points_kernel_fast<<<blocks, threads, 0, stream>>>(b, c, n, npoints, nsample, points, idx, out);
+    group_points_kernel_fast<<<blocks, threads>>>(b, c, n, npoints, nsample, points, idx, out);
     // cudaDeviceSynchronize();  // for using printf in kernel function
     err = cudaGetLastError();
     if (cudaSuccess != err) {
