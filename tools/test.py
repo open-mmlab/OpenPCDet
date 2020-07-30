@@ -133,13 +133,18 @@ def main():
     args, cfg = parse_config()
     if args.launcher == 'none':
         dist_test = False
+        total_gpus = 1
     else:
         total_gpus, cfg.LOCAL_RANK = getattr(common_utils, 'init_dist_%s' % args.launcher)(
             args.tcp_port, args.local_rank, backend='nccl'
         )
         dist_test = True
 
-    args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU if args.batch_size is None else args.batch_size
+    if args.batch_size is None:
+        args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU
+    else:
+        assert args.batch_size % total_gpus == 0, 'Batch size should match the number of gpus'
+        args.batch_size = args.batch_size // total_gpus
 
     output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
     output_dir.mkdir(parents=True, exist_ok=True)
