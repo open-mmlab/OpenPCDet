@@ -2,13 +2,10 @@
 import rospy
 import ros_numpy
 import numpy as np
-import copy
-import json
 import os
 import sys
 import torch
 import time 
-import argparse
 import glob
 from pathlib import Path
 
@@ -17,7 +14,6 @@ from pyquaternion import Quaternion
 import sensor_msgs.point_cloud2 as pc2
 from sensor_msgs.msg import PointCloud2, PointField
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-
 
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -81,8 +77,8 @@ def get_annotations_indices(types, thresh, label_preds, scores):
 
 def remove_low_score_nu(image_anno, thresh):
     img_filtered_annotations = {}
-    label_preds_ = image_anno["label_preds"].detach().cpu().numpy()
-    scores_ = image_anno["scores"].detach().cpu().numpy()
+    label_preds_ = image_anno["pred_labels"].detach().cpu().numpy()
+    scores_ = image_anno["pred_scores"].detach().cpu().numpy()
     
     car_indices =                  get_annotations_indices(0, 0.45, label_preds_, scores_)
     truck_indices =                get_annotations_indices(1, 0.45, label_preds_, scores_)
@@ -143,7 +139,7 @@ class Processor_ROS:
     def run(self, points):
         t_t = time.time()
         print(f"input points shape: {points.shape}")
-        num_features = 4        
+        num_features = 4      
         self.points = points.reshape([-1, num_features])
 
         input_dict = {
@@ -162,6 +158,11 @@ class Processor_ROS:
         
         torch.cuda.synchronize()
         print(f" pvrcnn inference cost time: {time.time() - t}")
+
+        # pred = remove_low_score_nu(pred_dicts[0], 0.45)
+        # boxes_lidar = pred["pred_boxes"].detach().cpu().numpy()
+        # scores = pred["pred_scores"].detach().cpu().numpy()
+        # types = pred["pred_labels"].detach().cpu().numpy()
 
         boxes_lidar = pred_dicts[0]["pred_boxes"].detach().cpu().numpy()
         scores = pred_dicts[0]["pred_scores"].detach().cpu().numpy()
@@ -254,6 +255,31 @@ if __name__ == "__main__":
     ## PVRCNN
     config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml'
     model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pv_rcnn_8369.pth'
+
+    ## PointRCNN
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pointrcnn.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pointrcnn_7870.pth'
+
+    ## PartA2_free
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/PartA2_free.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/PartA2_free_7872.pth'
+
+    ## PointPillar
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pointpillar.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pointpillar_7728.pth'
+
+    ## SECOND
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/second.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/second_7862.pth'
+
+
+    ## SECOND_MultiHead (trained on nuscenes dataset)
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_second_multihead.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/cbgs_second_multihead_nds6229.pth'
+
+    ## PP_MutliHead (trained on nuscenes dataset)
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pp_multihead_nds5823.pth'
 
     proc_1 = Processor_ROS(config_path, model_path)
     
