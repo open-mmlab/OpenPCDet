@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Function
-from . import roipoint_pool3d_cuda
+
 from ...utils import box_utils
+from . import roipoint_pool3d_cuda
 
 
 class RoIPointPool3d(nn.Module):

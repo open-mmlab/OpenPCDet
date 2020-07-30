@@ -1,10 +1,12 @@
-import tqdm
-import time
 import pickle
+import time
+
 import numpy as np
 import torch
-from pcdet.utils import common_utils
+import tqdm
+
 from pcdet.models import load_data_to_gpu
+from pcdet.utils import common_utils
 
 
 def statistics_info(cfg, ret_dict, metric, disp_dict):

@@ -1,8 +1,9 @@
 import numpy as np
-import torch.nn as nn
-from .anchor_head_template import AnchorHeadTemplate
-from ..backbones_2d import BaseBEVBackbone
 import torch
+import torch.nn as nn
+
+from ..backbones_2d import BaseBEVBackbone
+from .anchor_head_template import AnchorHeadTemplate
 
 
 class SingleHead(BaseBEVBackbone):

@@ -1,7 +1,8 @@
-import torch
 import numpy as np
-from ....utils import box_utils
+import torch
+
 from ....ops.iou3d_nms import iou3d_nms_utils
+from ....utils import box_utils
 
 
 class AxisAlignedTargetAssigner(object):
@@ -210,5 +211,3 @@ class AxisAlignedTargetAssigner(object):
             'reg_weights': reg_weights,
         }
         return ret_dict
-
-

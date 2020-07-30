@@ -1,9 +1,10 @@
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from . import pointnet2_utils
-from typing import List
 
 
 class _PointnetSAModuleBase(nn.Module):

@@ -1,9 +1,10 @@
+import numpy as np
+import spconv
 import torch
 import torch.nn as nn
-import spconv
-import numpy as np
-from .roi_head_template import RoIHeadTemplate
+
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
+from .roi_head_template import RoIHeadTemplate
 
 
 class PartA2FCHead(RoIHeadTemplate):

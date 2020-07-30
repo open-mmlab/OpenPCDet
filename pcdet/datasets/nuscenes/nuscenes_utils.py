@@ -3,15 +3,15 @@ The NuScenes data pre-processing and evaluation is modified from
 https://github.com/traveller59/second.pytorch and https://github.com/poodarchu/Det3D
 """
 
-from pathlib import Path
-import tqdm
-import numpy as np
 import operator
 from functools import reduce
+from pathlib import Path
+
+import numpy as np
+import tqdm
+from nuscenes.utils.data_classes import Box
 from nuscenes.utils.geometry_utils import transform_matrix
 from pyquaternion import Quaternion
-from nuscenes.utils.data_classes import Box
-
 
 map_name_from_general_to_detection = {
     'human.pedestrian.adult': 'pedestrian',

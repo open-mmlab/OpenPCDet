@@ -1,6 +1,7 @@
 import torch
+
+from ...utils import box_coder_utils, box_utils
 from .point_head_template import PointHeadTemplate
-from ...utils import box_utils, box_coder_utils
 
 
 class PointIntraPartOffsetHead(PointHeadTemplate):

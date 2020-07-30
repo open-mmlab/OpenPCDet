@@ -1,9 +1,11 @@
 # This file is modified from https://github.com/traveller59/second.pytorch
 
-import numpy as np
 import math
 from functools import partial
+
+import numpy as np
 import torch.optim.lr_scheduler as lr_sched
+
 from .fastai_optim import OptimWrapper
 
 

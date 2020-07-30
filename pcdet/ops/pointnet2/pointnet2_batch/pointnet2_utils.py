@@ -1,8 +1,8 @@
-import torch
-from torch.autograd import Variable
-from torch.autograd import Function
-import torch.nn as nn
 from typing import Tuple
+
+import torch
+import torch.nn as nn
+from torch.autograd import Function, Variable
 
 from . import pointnet2_batch_cuda as pointnet2
 

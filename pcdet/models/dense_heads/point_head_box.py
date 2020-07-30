@@ -1,6 +1,7 @@
 import torch
-from .point_head_template import PointHeadTemplate
+
 from ...utils import box_coder_utils, box_utils
+from .point_head_template import PointHeadTemplate
 
 
 class PointHeadBox(PointHeadTemplate):

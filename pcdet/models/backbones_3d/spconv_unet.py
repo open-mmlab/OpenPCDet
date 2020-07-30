@@ -1,9 +1,11 @@
+from functools import partial
+
+import spconv
 import torch
 import torch.nn as nn
-import spconv
-from functools import partial
-from .spconv_backbone import post_act_block
+
 from ...utils import common_utils
+from .spconv_backbone import post_act_block
 
 
 class SparseBasicBlock(spconv.SparseModule):

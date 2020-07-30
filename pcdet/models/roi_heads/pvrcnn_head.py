@@ -1,7 +1,8 @@
 import torch.nn as nn
-from .roi_head_template import RoIHeadTemplate
-from ...utils import common_utils
+
 from ...ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
+from ...utils import common_utils
+from .roi_head_template import RoIHeadTemplate
 
 
 class PVRCNNHead(RoIHeadTemplate):

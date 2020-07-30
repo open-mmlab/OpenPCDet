@@ -1,11 +1,13 @@
-import pickle
 import copy
+import pickle
+from pathlib import Path
+
 import numpy as np
 from tqdm import tqdm
-from pathlib import Path
+
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils
 from ..dataset import DatasetTemplate
-from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
 
 class NuScenesDataset(DatasetTemplate):

@@ -1,9 +1,9 @@
 from .detector3d_template import Detector3DTemplate
-from .second_net import SECONDNet
 from .PartA2_net import PartA2Net
-from .pv_rcnn import PVRCNN
-from .pointpillar import PointPillar
 from .point_rcnn import PointRCNN
+from .pointpillar import PointPillar
+from .pv_rcnn import PVRCNN
+from .second_net import SECONDNet
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,

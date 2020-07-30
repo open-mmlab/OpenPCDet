@@ -2,9 +2,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .target_assigner.proposal_target_layer import ProposalTargetLayer
+
+from ...utils import box_coder_utils, common_utils, loss_utils
 from ..model_utils.model_nms_utils import class_agnostic_nms
-from ...utils import common_utils, loss_utils, box_coder_utils
+from .target_assigner.proposal_target_layer import ProposalTargetLayer
 
 
 class RoIHeadTemplate(nn.Module):
@@ -255,4 +256,3 @@ class RoIHeadTemplate(nn.Module):
         batch_box_preds[:, 0:3] += roi_xyz
         batch_box_preds = batch_box_preds.view(batch_size, -1, code_size)
         return batch_cls_preds, batch_box_preds
-

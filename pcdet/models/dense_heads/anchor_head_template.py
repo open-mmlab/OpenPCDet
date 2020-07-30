@@ -1,10 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
+
+from ...utils import box_coder_utils, common_utils, loss_utils
 from .target_assigner.anchor_generator import AnchorGenerator
 from .target_assigner.atss_target_assigner import ATSSTargetAssigner
 from .target_assigner.axis_aligned_target_assigner import AxisAlignedTargetAssigner
-from ...utils import box_coder_utils, loss_utils, common_utils
 
 
 class AnchorHeadTemplate(nn.Module):

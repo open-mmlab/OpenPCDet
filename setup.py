@@ -1,6 +1,7 @@
 import os
-from setuptools import setup, find_packages
 import subprocess
+
+from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 
@@ -108,4 +109,3 @@ if __name__ == '__main__':
             ),
         ],
     )
-

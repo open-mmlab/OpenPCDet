@@ -9,6 +9,7 @@ import numba
 import numpy as np
 from numba import cuda
 
+
 @numba.jit(nopython=True)
 def div_up(m, n):
     return m // n + (m % n > 0)

@@ -4,8 +4,8 @@ from collections import Iterable
 
 import torch
 from torch import nn
-from torch.nn.utils import parameters_to_vector
 from torch._utils import _unflatten_dense_tensors
+from torch.nn.utils import parameters_to_vector
 
 bn_types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, nn.SyncBatchNorm)
 

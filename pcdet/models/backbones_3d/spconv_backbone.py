@@ -1,6 +1,7 @@
-import torch.nn as nn
-import spconv
 from functools import partial
+
+import spconv
+import torch.nn as nn
 
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,

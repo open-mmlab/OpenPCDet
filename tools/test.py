@@ -1,18 +1,20 @@
+import argparse
+import datetime
+import glob
 import os
+import re
+import time
+from pathlib import Path
+
 import numpy as np
 import torch
 from tensorboardX import SummaryWriter
-import time
-import glob
-import re
-import datetime
-import argparse
-from pathlib import Path
+
+from eval_utils import eval_utils
+from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network
 from pcdet.utils import common_utils
-from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
-from eval_utils import eval_utils
 
 
 def parse_config():
@@ -195,4 +197,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

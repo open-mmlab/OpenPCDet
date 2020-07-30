@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from .roi_head_template import RoIHeadTemplate
+
 from ...ops.pointnet2.pointnet2_batch import pointnet2_modules
 from ...ops.roipoint_pool3d import roipoint_pool3d_utils
 from ...utils import common_utils
+from .roi_head_template import RoIHeadTemplate
 
 
 class PointRCNNHead(RoIHeadTemplate):

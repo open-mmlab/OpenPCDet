@@ -1,8 +1,10 @@
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from . import pointnet2_utils
-from typing import List
 
 
 class StackSAModuleMSG(nn.Module):
@@ -133,4 +135,3 @@ class StackPointnetFPModule(nn.Module):
 
         new_features = new_features.squeeze(dim=0).squeeze(dim=-1).permute(1, 0)  # (N1 + N2 ..., C)
         return new_features
-
