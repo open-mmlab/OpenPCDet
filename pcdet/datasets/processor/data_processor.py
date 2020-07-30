@@ -40,7 +40,10 @@ class DataProcessor(object):
 
     def transform_points_to_voxels(self, data_dict=None, config=None, voxel_generator=None):
         if data_dict is None:
-            from spconv.utils import VoxelGenerator
+            try:
+                from spconv.utils import VoxelGeneratorV2 as VoxelGenerator
+            except:
+                from spconv.utils import VoxelGenerator
 
             voxel_generator = VoxelGenerator(
                 voxel_size=config.VOXEL_SIZE,
@@ -52,8 +55,15 @@ class DataProcessor(object):
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
             return partial(self.transform_points_to_voxels, voxel_generator=voxel_generator)
+
         points = data_dict['points']
-        voxels, coordinates, num_points = voxel_generator.generate(points)
+        voxel_output = voxel_generator.generate(points)
+        if isinstance(voxel_output, dict):
+            voxels, coordinates, num_points = \
+                voxel_output['voxels'], voxel_output['coordinates'], voxel_output['num_points_per_voxel']
+        else:
+            voxels, coordinates, num_points = voxel_output
+
         if not data_dict['use_lead_xyz']:
             voxels = voxels[..., 3:]  # remove xyz in voxels(N, 3)
 
