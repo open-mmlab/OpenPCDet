@@ -1,9 +1,10 @@
+import numpy as np
+import spconv
 import torch
 import torch.nn as nn
-import spconv
-import numpy as np
-from .roi_head_template import RoIHeadTemplate
+
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
+from .roi_head_template import RoIHeadTemplate
 
 
 class PartA2FCHead(RoIHeadTemplate):
@@ -118,7 +119,8 @@ class PartA2FCHead(RoIHeadTemplate):
         point_coords = batch_dict['point_coords'][:, 1:4]
         point_features = batch_dict['point_features']
         part_features = torch.cat((
-            batch_dict['point_part_offset'], batch_dict['point_cls_scores'].view(-1, 1).detach()
+            batch_dict['point_part_offset'] if not self.model_cfg.get('DISABLE_PART', False) else point_coords,
+            batch_dict['point_cls_scores'].view(-1, 1).detach()
         ), dim=1)
         part_features[part_features[:, -1] < self.model_cfg.SEG_MASK_SCORE_THRESH, 0:3] = 0
 

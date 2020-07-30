@@ -11,9 +11,9 @@ All Rights Reserved 2019-2020.
 #include <assert.h>
 
 
-#define CHECK_CUDA(x) AT_CHECK(x.type().is_cuda(), #x, " must be a CUDAtensor ")
-#define CHECK_CONTIGUOUS(x) AT_CHECK(x.is_contiguous(), #x, " must be contiguous ")
-#define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
+//#define CHECK_CUDA(x) AT_CHECK(x.type().is_cuda(), #x, " must be a CUDAtensor ")
+//#define CHECK_CONTIGUOUS(x) AT_CHECK(x.is_contiguous(), #x, " must be contiguous ")
+//#define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
 
 
 void roiaware_pool3d_launcher(int boxes_num, int pts_num, int channels, int max_pts_each_voxel,
@@ -36,12 +36,12 @@ int roiaware_pool3d_gpu(at::Tensor rois, at::Tensor pts, at::Tensor pts_feature,
     // params pooled_features: (N, out_x, out_y, out_z, C)
     // params pool_method: 0: max_pool 1: avg_pool
 
-    CHECK_INPUT(rois);
-    CHECK_INPUT(pts);
-    CHECK_INPUT(pts_feature);
-    CHECK_INPUT(argmax);
-    CHECK_INPUT(pts_idx_of_voxels);
-    CHECK_INPUT(pooled_features);
+//    CHECK_INPUT(rois);
+//    CHECK_INPUT(pts);
+//    CHECK_INPUT(pts_feature);
+//    CHECK_INPUT(argmax);
+//    CHECK_INPUT(pts_idx_of_voxels);
+//    CHECK_INPUT(pooled_features);
 
     int boxes_num = rois.size(0);
     int pts_num = pts.size(0);
@@ -72,10 +72,10 @@ int roiaware_pool3d_gpu_backward(at::Tensor pts_idx_of_voxels, at::Tensor argmax
     // params grad_in: (npoints, C), return value
     // params pool_method: 0: max_pool 1: avg_pool
 
-    CHECK_INPUT(pts_idx_of_voxels);
-    CHECK_INPUT(argmax);
-    CHECK_INPUT(grad_out);
-    CHECK_INPUT(grad_in);
+//    CHECK_INPUT(pts_idx_of_voxels);
+//    CHECK_INPUT(argmax);
+//    CHECK_INPUT(grad_out);
+//    CHECK_INPUT(grad_in);
 
     int boxes_num = pts_idx_of_voxels.size(0);
     int out_x = pts_idx_of_voxels.size(1);
@@ -100,9 +100,9 @@ int points_in_boxes_gpu(at::Tensor boxes_tensor, at::Tensor pts_tensor, at::Tens
     // params pts: (B, npoints, 3) [x, y, z]
     // params boxes_idx_of_points: (B, npoints), default -1
 
-    CHECK_INPUT(boxes_tensor);
-    CHECK_INPUT(pts_tensor);
-    CHECK_INPUT(box_idx_of_points_tensor);
+//    CHECK_INPUT(boxes_tensor);
+//    CHECK_INPUT(pts_tensor);
+//    CHECK_INPUT(box_idx_of_points_tensor);
 
     int batch_size = boxes_tensor.size(0);
     int boxes_num = boxes_tensor.size(1);
@@ -145,9 +145,9 @@ int points_in_boxes_cpu(at::Tensor boxes_tensor, at::Tensor pts_tensor, at::Tens
     // params pts: (num_points, 3) [x, y, z]
     // params pts_indices: (N, num_points)
 
-    CHECK_CONTIGUOUS(boxes_tensor);
-    CHECK_CONTIGUOUS(pts_tensor);
-    CHECK_CONTIGUOUS(pts_indices_tensor);
+//    CHECK_CONTIGUOUS(boxes_tensor);
+//    CHECK_CONTIGUOUS(pts_tensor);
+//    CHECK_CONTIGUOUS(pts_indices_tensor);
 
     int boxes_num = boxes_tensor.size(0);
     int pts_num = pts_tensor.size(0);

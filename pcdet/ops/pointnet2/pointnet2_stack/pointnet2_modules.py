@@ -1,8 +1,10 @@
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from . import pointnet2_utils
-from typing import List
 
 
 class StackSAModuleMSG(nn.Module):
@@ -89,3 +91,47 @@ class StackSAModuleMSG(nn.Module):
 
         return new_xyz, new_features
 
+
+class StackPointnetFPModule(nn.Module):
+    def __init__(self, *, mlp: List[int]):
+        """
+        Args:
+            mlp: list of int
+        """
+        super().__init__()
+        shared_mlps = []
+        for k in range(len(mlp) - 1):
+            shared_mlps.extend([
+                nn.Conv2d(mlp[k], mlp[k + 1], kernel_size=1, bias=False),
+                nn.BatchNorm2d(mlp[k + 1]),
+                nn.ReLU()
+            ])
+        self.mlp = nn.Sequential(*shared_mlps)
+
+    def forward(self, unknown, unknown_batch_cnt, known, known_batch_cnt, unknown_feats=None, known_feats=None):
+        """
+        Args:
+            unknown: (N1 + N2 ..., 3)
+            known: (M1 + M2 ..., 3)
+            unknow_feats: (N1 + N2 ..., C1)
+            known_feats: (M1 + M2 ..., C2)
+
+        Returns:
+            new_features: (N1 + N2 ..., C_out)
+        """
+        dist, idx = pointnet2_utils.three_nn(unknown, unknown_batch_cnt, known, known_batch_cnt)
+        dist_recip = 1.0 / (dist + 1e-8)
+        norm = torch.sum(dist_recip, dim=-1, keepdim=True)
+        weight = dist_recip / norm
+
+        interpolated_feats = pointnet2_utils.three_interpolate(known_feats, idx, weight)
+
+        if unknown_feats is not None:
+            new_features = torch.cat([interpolated_feats, unknown_feats], dim=1)  # (N1 + N2 ..., C2 + C1)
+        else:
+            new_features = interpolated_feats
+        new_features = new_features.permute(1, 0)[None, :, :, None]  # (1, C, N1 + N2 ..., 1)
+        new_features = self.mlp(new_features)
+
+        new_features = new_features.squeeze(dim=0).squeeze(dim=-1).permute(1, 0)  # (N1 + N2 ..., C)
+        return new_features

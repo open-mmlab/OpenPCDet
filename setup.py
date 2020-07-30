@@ -1,6 +1,7 @@
 import os
-from setuptools import setup, find_packages
 import subprocess
+
+from setuptools import find_packages, setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 
@@ -27,7 +28,7 @@ def write_version_to_file(version, target_file):
 
 
 if __name__ == '__main__':
-    version = '0.2.0+%s' % get_git_commit_number()
+    version = '0.3.0+%s' % get_git_commit_number()
     write_version_to_file(version, 'pcdet/version.py')
 
     setup(
@@ -37,7 +38,7 @@ if __name__ == '__main__':
         install_requires=[
             'numpy',
             'torch>=1.1',
-            'spconv==1.0',
+            'spconv',
             'numba',
             'tensorboardX',
             'easydict',
@@ -68,6 +69,14 @@ if __name__ == '__main__':
                 ]
             ),
             make_cuda_ext(
+                name='roipoint_pool3d_cuda',
+                module='pcdet.ops.roipoint_pool3d',
+                sources=[
+                    'src/roipoint_pool3d.cpp',
+                    'src/roipoint_pool3d_kernel.cu',
+                ]
+            ),
+            make_cuda_ext(
                 name='pointnet2_stack_cuda',
                 module='pcdet.ops.pointnet2.pointnet2_stack',
                 sources=[
@@ -77,9 +86,26 @@ if __name__ == '__main__':
                     'src/group_points.cpp',
                     'src/group_points_gpu.cu',
                     'src/sampling.cpp',
+                    'src/sampling_gpu.cu', 
+                    'src/interpolate.cpp', 
+                    'src/interpolate_gpu.cu',
+                ],
+            ),
+            make_cuda_ext(
+                name='pointnet2_batch_cuda',
+                module='pcdet.ops.pointnet2.pointnet2_batch',
+                sources=[
+                    'src/pointnet2_api.cpp',
+                    'src/ball_query.cpp',
+                    'src/ball_query_gpu.cu',
+                    'src/group_points.cpp',
+                    'src/group_points_gpu.cu',
+                    'src/interpolate.cpp',
+                    'src/interpolate_gpu.cu',
+                    'src/sampling.cpp',
                     'src/sampling_gpu.cu',
+
                 ],
             ),
         ],
     )
-

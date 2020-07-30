@@ -1,6 +1,7 @@
-import torch
-import os
 import glob
+import os
+
+import torch
 import tqdm
 from torch.nn.utils import clip_grad_norm_
 

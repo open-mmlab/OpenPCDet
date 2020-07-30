@@ -1,14 +1,16 @@
-import torch
 import argparse
 import glob
-import numpy as np
 from pathlib import Path
+
+import mayavi.mlab as mlab
+import numpy as np
+import torch
+
+from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
-from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.utils import common_utils
 from visual_utils import visualize_utils as V
-import mayavi.mlab as mlab
 
 
 class DemoDataset(DatasetTemplate):

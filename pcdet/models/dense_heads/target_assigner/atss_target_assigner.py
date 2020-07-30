@@ -1,6 +1,7 @@
 import torch
-from ....utils import common_utils
+
 from ....ops.iou3d_nms import iou3d_nms_utils
+from ....utils import common_utils
 
 
 class ATSSTargetAssigner(object):
@@ -28,8 +29,8 @@ class ATSSTargetAssigner(object):
         cls_labels_list, reg_targets_list, reg_weights_list = [], [], []
         for anchors in anchors_list:
             batch_size = gt_boxes_with_classes.shape[0]
-            gt_classes = gt_boxes_with_classes[:, :, 7]
-            gt_boxes = gt_boxes_with_classes[:, :, :7]
+            gt_classes = gt_boxes_with_classes[:, :, -1]
+            gt_boxes = gt_boxes_with_classes[:, :, :-1]
             if use_multihead:
                 anchors = anchors.permute(3, 4, 0, 1, 2, 5).contiguous().view(-1, anchors.shape[-1])
             else:

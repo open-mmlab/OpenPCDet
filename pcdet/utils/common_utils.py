@@ -1,13 +1,14 @@
-import numpy as np
-import torch
-import random
 import logging
 import os
-import torch.multiprocessing as mp
-import torch.distributed as dist
-import subprocess
 import pickle
+import random
 import shutil
+import subprocess
+
+import numpy as np
+import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
 
 
 def check_numpy_to_torch(x):
@@ -110,11 +111,10 @@ def keep_arrays_by_name(gt_names, used_classes):
     return inds
 
 
-def init_dist_slurm(batch_size, tcp_port, local_rank, backend='nccl'):
+def init_dist_slurm(tcp_port, local_rank, backend='nccl'):
     """
     modified from https://github.com/open-mmlab/mmdetection
     Args:
-        batch_size:
         tcp_port:
         backend:
 
@@ -134,13 +134,11 @@ def init_dist_slurm(batch_size, tcp_port, local_rank, backend='nccl'):
     dist.init_process_group(backend=backend)
 
     total_gpus = dist.get_world_size()
-    assert batch_size % total_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, total_gpus)
-    batch_size_each_gpu = batch_size // total_gpus
     rank = dist.get_rank()
-    return batch_size_each_gpu, rank
+    return total_gpus, rank
 
 
-def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
+def init_dist_pytorch(tcp_port, local_rank, backend='nccl'):
     if mp.get_start_method(allow_none=True) is None:
         mp.set_start_method('spawn')
 
@@ -152,10 +150,9 @@ def init_dist_pytorch(batch_size, tcp_port, local_rank, backend='nccl'):
         rank=local_rank,
         world_size=num_gpus
     )
-    assert batch_size % num_gpus == 0, 'Batch size should be matched with GPUS: (%d, %d)' % (batch_size, num_gpus)
-    batch_size_each_gpu = batch_size // num_gpus
     rank = dist.get_rank()
-    return batch_size_each_gpu, rank
+    return num_gpus, rank
+
 
 def get_dist_info():
     if torch.__version__ < '1.0':
@@ -173,6 +170,7 @@ def get_dist_info():
         world_size = 1
     return rank, world_size
 
+
 def merge_results_dist(result_part, size, tmpdir):
     rank, world_size = get_dist_info()
     os.makedirs(tmpdir, exist_ok=True)
@@ -180,10 +178,10 @@ def merge_results_dist(result_part, size, tmpdir):
     dist.barrier()
     pickle.dump(result_part, open(os.path.join(tmpdir, 'result_part_{}.pkl'.format(rank)), 'wb'))
     dist.barrier()
-    
+
     if rank != 0:
         return None
-    
+
     part_list = []
     for i in range(world_size):
         part_file = os.path.join(tmpdir, 'result_part_{}.pkl'.format(i))
@@ -191,7 +189,7 @@ def merge_results_dist(result_part, size, tmpdir):
 
     ordered_results = []
     for res in zip(*part_list):
-        ordered_results.extend(list(res)) 
+        ordered_results.extend(list(res))
     ordered_results = ordered_results[:size]
     shutil.rmtree(tmpdir)
     return ordered_results

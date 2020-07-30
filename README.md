@@ -2,11 +2,35 @@
 
 # OpenPCDet
 
-
-## Introduction
 `OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
 
-It is also the official code release of [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
+It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670) and [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192). 
+
+
+## Overview
+- [Changelog](#changelog)
+- [Design Pattern](#openpcdet-design-pattern)
+- [Model Zoo](#model-zoo)
+- [Installation](docs/INSTALL.md)
+- [Quick Demo](docs/DEMO.md)
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Citation](#citation)
+
+
+## Changelog
+[2020-07-30] **NEW:** `OpenPCDet` v0.3.0 is released with the following features:
+   * The Point-based and Anchor-Free models ([`PointRCNN`](#KITTI-3D-Object-Detection-Baselines), [`PartA2-Free`](#KITTI-3D-Object-Detection-Baselines)) are supported now.
+   * The NuScenes dataset is supported with strong baseline results ([`SECOND-MultiHead (CBGS)`](#NuScenes-3D-Object-Detection-Baselines) and [`PointPillar-MultiHead`](#NuScenes-3D-Object-Detection-Baselines)).
+   * High efficiency than last version, support `PyTorch 1.1~1.5` and `spconv 1.0~1.2` simultaneously.
+   
+[2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
+
+[2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
+
+[2020-03-16] `OpenPCDet` v0.1.0 is released. 
+
+
+## Introduction
 
 
 ### What does `OpenPCDet` toolbox do?
@@ -54,44 +78,45 @@ Contributions are also welcomed.
 - [x] Support GPU version 3D IoU calculation and rotated NMS 
 
 
-
-
-## ChangeLog
-[2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
-
-[2020-06-24] `OpenPCDet` v0.2.0 is released with pretty new structures to support more models and datasets. 
-
-[2020-03-16] `OpenPCDet` v0.1.0 is released. 
-
-
 ## Model Zoo
 
 ### KITTI 3D Object Detection Baselines
-Selected supported methods are shown in the below table. The results are the 3D detection performance of car class on the *val* set of KITTI dataset.
+Selected supported methods are shown in the below table. The results are the 3D detection performance of moderate difficulty on the *val* set of KITTI dataset.
+* All models are trained with 8 GTX 1080Ti GPUs and are available for download. 
+* The training time is measured with 8 TITAN XP GPUs and PyTorch 1.5.
+
+|                                             | training time | Car | Pedestrian | Cyclist  | download | 
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|
+| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~1.2 hours| 77.28 | 52.29 | 62.68 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
+| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~1.7 hours  | 78.62 | 52.98 | 67.15 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
+| [PointRCNN](tools/cfgs/kitti_models/pointrcnn.yaml) | ~3 hours | 78.70 | 54.41 | 72.11 | [model-16M](https://drive.google.com/file/d/1BCX9wMn-GYAfSOPpyxf6Iv6fc0qKLSiU/view?usp=sharing)| 
+| [PointRCNN-IoU](tools/cfgs/kitti_models/pointrcnn_iou.yaml) | ~3 hours | 78.75 | 58.32 | 71.34 | [model-16M](https://drive.google.com/file/d/1V0vNZ3lAHpEEt0MlT80eL2f41K2tHm_D/view?usp=sharing)|
+| [Part-A^2-Free](tools/cfgs/kitti_models/PartA2_free.yaml)   | ~3.8 hours| 78.72 | 65.99 | 74.29 | [model-226M](https://drive.google.com/file/d/1lcUUxF8mJgZ_e-tZhP1XNQtTBuC-R0zr/view?usp=sharing) |
+| [Part-A^2-Anchor](tools/cfgs/kitti_models/PartA2.yaml)    | ~4.3 hours| 79.40 | 60.05 | 69.90 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
+| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~5 hours| 83.61 | 57.90 | 70.47 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
+
+### NuScenes 3D Object Detection Baselines
 All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 
-|                                             |training time | Batch Size | AP_Easy | **AP_Moderate** | AP_Hard | download  |
-|---------------------------------------------|:----------:|:----------:|:-------:|:-------:|:-------:|:---------:|
-| [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~95 mins| 32 | 86.46 | 77.28 | 74.65 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
-| [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~2 hours  | 32  | 88.61 | 78.62| 77.22 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
-| [Part-A^2](tools/cfgs/kitti_models/PartA2.yaml)    | ~5 hours| 32 | 89.55 | 79.40 | 78.84 | [model-244M](https://drive.google.com/file/d/10GK1aCkLqxGNeX3lVu8cLZyE0G8002hY/view?usp=sharing) |
-| [PV-RCNN](tools/cfgs/kitti_models/pv_rcnn.yaml) | ~6 hours| 16 | 89.34 | 83.69 | 78.70 | [model-50M](https://drive.google.com/file/d/1lIOq4Hxr0W3qsX83ilQv0nk1Cls6KAr-/view?usp=sharing) |
-| [SECOND-MultiHead](tools/cfgs/kitti_models/second_multihead.yaml) | - | 32 | - | - | - | ongoing |
-| PointRCNN | - | 32 | - | - | - | ongoing|
+|                                             | mATE | mASE | mAOE | mAVE | mAAE | mAP | NDS | download | 
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|:-------:|:-------:|:---------:|
+| [PointPillar-MultiHead](tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml) | 33.87	| 26.00 | 32.07	| 28.74 | 20.15 | 44.63 | 58.23	 | [model-23M](https://drive.google.com/file/d/1fnxKTUi79dSARhsREXR_UKnWs-83bgEV/view?usp=sharing) | 
+| [SECOND-MultiHead (CBGS)](tools/cfgs/nuscenes_models/cbgs_second_multihead.yaml) | 31.15 |	25.51 |	26.64 | 26.26 | 20.46 | 50.59 | 62.29 | [model-35M](https://drive.google.com/file/d/1s34D8g-h65qDyoYbgCraxcZQwinbxhaY/view?usp=sharing) |
+
 
 ### Other datasets
 More datasets are on the way. 
 
 ## Installation
 
-Please refer to [INSTALL.md](docs/INSTALL.md) for installation and dataset preparation.
+Please refer to [INSTALL.md](docs/INSTALL.md) for the installation of `OpenPCDet`.
 
 
 ## Quick Demo
 Please refer to [DEMO.md](docs/DEMO.md) for a quick demo to test with a pretrained model and 
 visualize the predicted results on your custom data or the original KITTI data.
 
-## Get Started
+## Getting Started
 
 Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usage about this project.
 

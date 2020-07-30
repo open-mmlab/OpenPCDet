@@ -1,7 +1,9 @@
 from functools import partial
+
 import numpy as np
-from . import augmentor_utils, database_sampler
+
 from ...utils import common_utils
+from . import augmentor_utils, database_sampler
 
 
 class DataAugmentor(object):

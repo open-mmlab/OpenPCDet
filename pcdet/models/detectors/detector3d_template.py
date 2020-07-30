@@ -1,11 +1,13 @@
-import torch
 import os
+
+import torch
 import torch.nn as nn
-from .. import backbones_3d, backbones_2d, dense_heads, roi_heads
-from ..backbones_3d import vfe, pfe
-from ..backbones_2d import map_to_bev
-from ..model_utils.model_nms_utils import class_agnostic_nms
+
 from ...ops.iou3d_nms import iou3d_nms_utils
+from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
+from ..backbones_2d import map_to_bev
+from ..backbones_3d import pfe, vfe
+from ..model_utils import model_nms_utils
 
 
 class Detector3DTemplate(nn.Module):
@@ -169,10 +171,14 @@ class Detector3DTemplate(nn.Module):
             batch_dict:
                 batch_size:
                 batch_cls_preds: (B, num_boxes, num_classes | 1) or (N1+N2+..., num_classes | 1)
+                                or [(B, num_boxes, num_class1), (B, num_boxes, num_class2) ...]
+                multihead_label_mapping: [(num_class1), (num_class2), ...]
                 batch_box_preds: (B, num_boxes, 7+C) or (N1+N2+..., 7+C)
                 cls_preds_normalized: indicate whether batch_cls_preds is normalized
                 batch_index: optional (N1+N2+...)
+                has_class_labels: True/False
                 roi_labels: (B, num_rois)  1 .. num_classes
+                batch_pred_labels: (B, num_boxes, 1)
         Returns:
 
         """
@@ -182,29 +188,63 @@ class Detector3DTemplate(nn.Module):
         pred_dicts = []
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
-                assert batch_dict['batch_cls_preds'].shape.__len__() == 2
+                assert batch_dict['batch_box_preds'].shape.__len__() == 2
                 batch_mask = (batch_dict['batch_index'] == index)
             else:
-                assert batch_dict['batch_cls_preds'].shape.__len__() == 3
+                assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
             box_preds = batch_dict['batch_box_preds'][batch_mask]
-            cls_preds = batch_dict['batch_cls_preds'][batch_mask]
-
-            src_cls_preds = cls_preds
             src_box_preds = box_preds
-            assert cls_preds.shape[1] in [1, self.num_class]
 
-            if not batch_dict['cls_preds_normalized']:
-                cls_preds = torch.sigmoid(cls_preds)
+            if not isinstance(batch_dict['batch_cls_preds'], list):
+                cls_preds = batch_dict['batch_cls_preds'][batch_mask]
+
+                src_cls_preds = cls_preds
+                assert cls_preds.shape[1] in [1, self.num_class]
+
+                if not batch_dict['cls_preds_normalized']:
+                    cls_preds = torch.sigmoid(cls_preds)
+            else:
+                cls_preds = [x[batch_mask] for x in batch_dict['batch_cls_preds']]
+                src_cls_preds = cls_preds
+                if not batch_dict['cls_preds_normalized']:
+                    cls_preds = [torch.sigmoid(x) for x in cls_preds]
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
-                raise NotImplementedError
+                if not isinstance(cls_preds, list):
+                    cls_preds = [cls_preds]
+                    multihead_label_mapping = [torch.arange(1, self.num_class, device=cls_preds[0].device)]
+                else:
+                    multihead_label_mapping = batch_dict['multihead_label_mapping']
+
+                cur_start_idx = 0
+                pred_scores, pred_labels, pred_boxes = [], [], []
+                for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
+                    assert cur_cls_preds.shape[1] == len(cur_label_mapping)
+                    cur_box_preds = box_preds[cur_start_idx: cur_start_idx + cur_cls_preds.shape[0]]
+                    cur_pred_scores, cur_pred_labels, cur_pred_boxes = model_nms_utils.multi_classes_nms(
+                        cls_scores=cur_cls_preds, box_preds=cur_box_preds,
+                        nms_config=post_process_cfg.NMS_CONFIG,
+                        score_thresh=post_process_cfg.SCORE_THRESH
+                    )
+                    cur_pred_labels = cur_label_mapping[cur_pred_labels]
+                    pred_scores.append(cur_pred_scores)
+                    pred_labels.append(cur_pred_labels)
+                    pred_boxes.append(cur_pred_boxes)
+                    cur_start_idx += cur_cls_preds.shape[0]
+
+                final_scores = torch.cat(pred_scores, dim=0)
+                final_labels = torch.cat(pred_labels, dim=0)
+                final_boxes = torch.cat(pred_boxes, dim=0)
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                label_preds = batch_dict['roi_labels'][index] if batch_dict.get('has_class_labels', False) else label_preds + 1
-
-                selected, selected_scores = class_agnostic_nms(
+                if batch_dict.get('has_class_labels', False):
+                    label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
+                    label_preds = batch_dict[label_key][index]
+                else:
+                    label_preds = label_preds + 1
+                selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
                     score_thresh=post_process_cfg.SCORE_THRESH
@@ -253,14 +293,14 @@ class Detector3DTemplate(nn.Module):
             k -= 1
         cur_gt = cur_gt[:k + 1]
 
-        if cur_gt.sum() > 0:
+        if cur_gt.shape[0] > 0:
             if box_preds.shape[0] > 0:
-                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds, cur_gt[:, 0:7])
+                iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7])
             else:
                 iou3d_rcnn = torch.zeros((0, cur_gt.shape[0]))
 
             if rois is not None:
-                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois, cur_gt[:, 0:7])
+                iou3d_roi = iou3d_nms_utils.boxes_iou3d_gpu(rois[:, 0:7], cur_gt[:, 0:7])
 
             for cur_thresh in thresh_list:
                 if iou3d_rcnn.shape[0] == 0:

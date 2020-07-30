@@ -1,7 +1,6 @@
 import torch
-from torch.autograd import Variable
-from torch.autograd import Function
 import torch.nn as nn
+from torch.autograd import Function, Variable
 
 from . import pointnet2_stack_cuda as pointnet2
 
@@ -183,6 +182,84 @@ class FurthestPointSampling(Function):
 
 
 furthest_point_sample = FurthestPointSampling.apply
+
+
+class ThreeNN(Function):
+    @staticmethod
+    def forward(ctx, unknown, unknown_batch_cnt, known, known_batch_cnt):
+        """
+        Args:
+            ctx:
+            unknown: (N1 + N2..., 3)
+            unknown_batch_cnt: (batch_size), [N1, N2, ...]
+            known: (M1 + M2..., 3)
+            known_batch_cnt: (batch_size), [M1, M2, ...]
+
+        Returns:
+            dist: (N1 + N2 ..., 3)  l2 distance to the three nearest neighbors
+            idx: (N1 + N2 ..., 3)  index of the three nearest neighbors, range [0, M1+M2+...]
+        """
+        assert unknown.shape.__len__() == 2 and unknown.shape[1] == 3
+        assert known.shape.__len__() == 2 and known.shape[1] == 3
+        assert unknown_batch_cnt.__len__() == known_batch_cnt.__len__()
+
+        dist2 = unknown.new_zeros(unknown.shape)
+        idx = unknown_batch_cnt.new_zeros(unknown.shape).int()
+
+        pointnet2.three_nn_wrapper(
+            unknown.contiguous(), unknown_batch_cnt.contiguous(),
+            known.contiguous(), known_batch_cnt.contiguous(), dist2, idx
+        )
+        return torch.sqrt(dist2), idx
+
+    @staticmethod
+    def backward(ctx, a=None, b=None):
+        return None, None
+
+
+three_nn = ThreeNN.apply
+
+
+class ThreeInterpolate(Function):
+
+    @staticmethod
+    def forward(ctx, features: torch.Tensor, idx: torch.Tensor, weight: torch.Tensor):
+        """
+        Args:
+            ctx:
+            features: (M1 + M2 ..., C)
+            idx: [N1 + N2 ..., 3]
+            weight: [N1 + N2 ..., 3]
+
+        Returns:
+            out_tensor: (N1 + N2 ..., C)
+        """
+        assert idx.shape[0] == weight.shape[0] and idx.shape[1] == weight.shape[1] == 3
+
+        ctx.three_interpolate_for_backward = (idx, weight, features.shape[0])
+        output = features.new_zeros((idx.shape[0], features.shape[1]))
+        pointnet2.three_interpolate_wrapper(features.contiguous(), idx.contiguous(), weight.contiguous(), output)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_out: torch.Tensor):
+        """
+        Args:
+            ctx:
+            grad_out: (N1 + N2 ..., C)
+
+        Returns:
+            grad_features: (M1 + M2 ..., C)
+        """
+        idx, weight, M = ctx.three_interpolate_for_backward
+        grad_features = grad_out.new_zeros((M, grad_out.shape[1]))
+        pointnet2.three_interpolate_grad_wrapper(
+            grad_out.contiguous(), idx.contiguous(), weight.contiguous(), grad_features
+        )
+        return grad_features, None, None
+
+
+three_interpolate = ThreeInterpolate.apply
 
 
 if __name__ == '__main__':

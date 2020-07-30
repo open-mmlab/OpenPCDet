@@ -1,4 +1,5 @@
 import torch
+
 from .vfe_template import VFETemplate
 
 

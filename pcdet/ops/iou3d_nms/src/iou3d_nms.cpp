@@ -11,8 +11,18 @@ All Rights Reserved 2019-2020.
 #include <cuda_runtime_api.h>
 #include "iou3d_nms.h"
 
-#define CHECK_CUDA(x) AT_CHECK(x.type().is_cuda(), #x, " must be a CUDAtensor ")
-#define CHECK_CONTIGUOUS(x) AT_CHECK(x.is_contiguous(), #x, " must be contiguous ")
+#define CHECK_CUDA(x) do { \
+  if (!x.type().is_cuda()) { \
+    fprintf(stderr, "%s must be CUDA tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
+#define CHECK_CONTIGUOUS(x) do { \
+  if (!x.is_contiguous()) { \
+    fprintf(stderr, "%s must be contiguous tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
 #define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
 
 #define DIVUP(m,n) ((m) / (n) + ((m) % (n) > 0))
@@ -80,7 +90,6 @@ int boxes_iou_bev_gpu(at::Tensor boxes_a, at::Tensor boxes_b, at::Tensor ans_iou
 int nms_gpu(at::Tensor boxes, at::Tensor keep, float nms_overlap_thresh){
     // params boxes: (N, 7) [x, y, z, dx, dy, dz, heading]
     // params keep: (N)
-
     CHECK_INPUT(boxes);
     CHECK_CONTIGUOUS(keep);
 

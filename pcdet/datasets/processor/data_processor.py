@@ -1,5 +1,7 @@
 from functools import partial
+
 import numpy as np
+
 from ...utils import box_utils, common_utils
 
 
@@ -40,7 +42,10 @@ class DataProcessor(object):
 
     def transform_points_to_voxels(self, data_dict=None, config=None, voxel_generator=None):
         if data_dict is None:
-            from spconv.utils import VoxelGenerator
+            try:
+                from spconv.utils import VoxelGeneratorV2 as VoxelGenerator
+            except:
+                from spconv.utils import VoxelGenerator
 
             voxel_generator = VoxelGenerator(
                 voxel_size=config.VOXEL_SIZE,
@@ -52,14 +57,49 @@ class DataProcessor(object):
             self.grid_size = np.round(grid_size).astype(np.int64)
             self.voxel_size = config.VOXEL_SIZE
             return partial(self.transform_points_to_voxels, voxel_generator=voxel_generator)
+
         points = data_dict['points']
-        voxels, coordinates, num_points = voxel_generator.generate(points)
+        voxel_output = voxel_generator.generate(points)
+        if isinstance(voxel_output, dict):
+            voxels, coordinates, num_points = \
+                voxel_output['voxels'], voxel_output['coordinates'], voxel_output['num_points_per_voxel']
+        else:
+            voxels, coordinates, num_points = voxel_output
+
         if not data_dict['use_lead_xyz']:
             voxels = voxels[..., 3:]  # remove xyz in voxels(N, 3)
 
         data_dict['voxels'] = voxels
         data_dict['voxel_coords'] = coordinates
         data_dict['voxel_num_points'] = num_points
+        return data_dict
+
+    def sample_points(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.sample_points, config=config)
+
+        num_points = config.NUM_POINTS[self.mode]
+        if num_points == -1:
+            return data_dict
+
+        points = data_dict['points']
+        if num_points < len(points):
+            pts_depth = np.linalg.norm(points[:, 0:3], axis=1)
+            pts_near_flag = pts_depth < 40.0
+            far_idxs_choice = np.where(pts_near_flag == 0)[0]
+            near_idxs = np.where(pts_near_flag == 1)[0]
+            near_idxs_choice = np.random.choice(near_idxs, num_points - len(far_idxs_choice), replace=False)
+
+            choice = np.concatenate((near_idxs_choice, far_idxs_choice), axis=0) \
+                if len(far_idxs_choice) > 0 else near_idxs_choice
+            np.random.shuffle(choice)
+        else:
+            choice = np.arange(0, len(points), dtype=np.int32)
+            if num_points > len(points):
+                extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
+                choice = np.concatenate((choice, extra_choice), axis=0)
+            np.random.shuffle(choice)
+        data_dict['points'] = points[choice]
         return data_dict
 
     def forward(self, data_dict):

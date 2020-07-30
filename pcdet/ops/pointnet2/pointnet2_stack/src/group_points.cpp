@@ -13,8 +13,18 @@ All Rights Reserved 2019-2020.
 #include "group_points_gpu.h"
 
 extern THCState *state;
-#define CHECK_CUDA(x) AT_CHECK(x.type().is_cuda(), #x, " must be a CUDAtensor ")
-#define CHECK_CONTIGUOUS(x) AT_CHECK(x.is_contiguous(), #x, " must be contiguous ")
+#define CHECK_CUDA(x) do { \
+  if (!x.type().is_cuda()) { \
+    fprintf(stderr, "%s must be CUDA tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
+#define CHECK_CONTIGUOUS(x) do { \
+  if (!x.is_contiguous()) { \
+    fprintf(stderr, "%s must be contiguous tensor at %s:%d\n", #x, __FILE__, __LINE__); \
+    exit(-1); \
+  } \
+} while (0)
 #define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
 
 
