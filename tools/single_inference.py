@@ -80,16 +80,16 @@ def remove_low_score_nu(image_anno, thresh):
     label_preds_ = image_anno["pred_labels"].detach().cpu().numpy()
     scores_ = image_anno["pred_scores"].detach().cpu().numpy()
     
-    car_indices =                  get_annotations_indices(0, 0.45, label_preds_, scores_)
-    truck_indices =                get_annotations_indices(1, 0.45, label_preds_, scores_)
-    construction_vehicle_indices = get_annotations_indices(2, 0.45, label_preds_, scores_)
-    bus_indices =                  get_annotations_indices(3, 0.35, label_preds_, scores_)
-    trailer_indices =              get_annotations_indices(4, 0.4, label_preds_, scores_)
-    barrier_indices =              get_annotations_indices(5, 0.4, label_preds_, scores_)
-    motorcycle_indices =           get_annotations_indices(6, 0.15, label_preds_, scores_)
-    bicycle_indices =              get_annotations_indices(7, 0.15, label_preds_, scores_)
-    pedestrain_indices =           get_annotations_indices(8, 0.10, label_preds_, scores_)
-    traffic_cone_indices =         get_annotations_indices(9, 0.1, label_preds_, scores_)
+    car_indices =                  get_annotations_indices(1, 0.15, label_preds_, scores_)
+    truck_indices =                get_annotations_indices(2, 0.1, label_preds_, scores_)
+    construction_vehicle_indices = get_annotations_indices(3, 0.1, label_preds_, scores_)
+    bus_indices =                  get_annotations_indices(4, 0.1, label_preds_, scores_)
+    trailer_indices =              get_annotations_indices(5, 0.1, label_preds_, scores_)
+    barrier_indices =              get_annotations_indices(6, 0.1, label_preds_, scores_)
+    motorcycle_indices =           get_annotations_indices(7, 0.1, label_preds_, scores_)
+    bicycle_indices =              get_annotations_indices(8, 0.1, label_preds_, scores_)
+    pedestrain_indices =           get_annotations_indices(9, 0.1, label_preds_, scores_)
+    traffic_cone_indices =         get_annotations_indices(10,0.1, label_preds_, scores_)
     
     for key in image_anno.keys():
         if key == 'metadata':
@@ -116,8 +116,6 @@ class Processor_ROS:
         self.model_path = model_path
         self.device = None
         self.net = None
-        self.voxel_generator = None
-        self.inputs = None
         
     def initialize(self):
         self.read_config()
@@ -139,7 +137,7 @@ class Processor_ROS:
     def run(self, points):
         t_t = time.time()
         print(f"input points shape: {points.shape}")
-        num_features = 4      
+        num_features = 5      
         self.points = points.reshape([-1, num_features])
 
         input_dict = {
@@ -159,18 +157,18 @@ class Processor_ROS:
         torch.cuda.synchronize()
         print(f" pvrcnn inference cost time: {time.time() - t}")
 
-        # pred = remove_low_score_nu(pred_dicts[0], 0.45)
-        # boxes_lidar = pred["pred_boxes"].detach().cpu().numpy()
-        # scores = pred["pred_scores"].detach().cpu().numpy()
-        # types = pred["pred_labels"].detach().cpu().numpy()
+        pred = remove_low_score_nu(pred_dicts[0], 0.45)
+        boxes_lidar = pred["pred_boxes"].detach().cpu().numpy()
+        scores = pred["pred_scores"].detach().cpu().numpy()
+        types = pred["pred_labels"].detach().cpu().numpy()
 
-        boxes_lidar = pred_dicts[0]["pred_boxes"].detach().cpu().numpy()
-        scores = pred_dicts[0]["pred_scores"].detach().cpu().numpy()
-        types = pred_dicts[0]["pred_labels"].detach().cpu().numpy()
+        # boxes_lidar = pred_dicts[0]["pred_boxes"].detach().cpu().numpy()
+        # scores = pred_dicts[0]["pred_scores"].detach().cpu().numpy()
+        # types = pred_dicts[0]["pred_labels"].detach().cpu().numpy()
 
-        # print(f" pred boxes: { boxes_lidar }")
-        # print(f" pred_scores: { scores }")
-        # print(f" pred_labels: { types }")
+        print(f" pred boxes: { boxes_lidar }")
+        print(f" pred_scores: { scores }")
+        print(f" pred_labels: { types }")
 
         return scores, boxes_lidar, types
 
@@ -181,7 +179,7 @@ def get_xyz_points(cloud_array, remove_nans=True, dtype=np.float):
         mask = np.isfinite(cloud_array['x']) & np.isfinite(cloud_array['y']) & np.isfinite(cloud_array['z'])
         cloud_array = cloud_array[mask]
 
-    points = np.zeros(cloud_array.shape + (4,), dtype=dtype)
+    points = np.zeros(cloud_array.shape + (5,), dtype=dtype)
     points[...,0] = cloud_array['x']
     points[...,1] = cloud_array['y']
     points[...,2] = cloud_array['z']
@@ -253,8 +251,8 @@ if __name__ == "__main__":
 
     global proc
     ## PVRCNN
-    config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml'
-    model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pv_rcnn_8369.pth'
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pv_rcnn_8369.pth'
 
     ## PointRCNN
     # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pointrcnn.yaml'
@@ -278,14 +276,14 @@ if __name__ == "__main__":
     # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/cbgs_second_multihead_nds6229.pth'
 
     ## PP_MutliHead (trained on nuscenes dataset)
-    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml'
-    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pp_multihead_nds5823.pth'
+    config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml'
+    model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pp_multihead_nds5823.pth'
 
     proc_1 = Processor_ROS(config_path, model_path)
     
     proc_1.initialize()
     
-    rospy.init_node('centerpoint_ros_node')
+    rospy.init_node('pcdet_ros_node')
     sub_lidar_topic = [ "/velodyne_points", 
                         "/top/rslidar_points",
                         "/points_raw", 
@@ -296,7 +294,7 @@ if __name__ == "__main__":
                         "/livox/lidar",
                         "/SimOneSM_PointCloud_0"]
     
-    sub_ = rospy.Subscriber(sub_lidar_topic[7], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
+    sub_ = rospy.Subscriber(sub_lidar_topic[5], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
     
     pub_arr_bbox = rospy.Publisher("pp_boxes", BoundingBoxArray, queue_size=1)
 
