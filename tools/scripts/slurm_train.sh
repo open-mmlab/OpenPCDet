@@ -21,4 +21,4 @@ srun -p ${PARTITION} \
     --cpus-per-task=${CPUS_PER_TASK} \
     --kill-on-bad-exit=1 \
     ${SRUN_ARGS} \
-    python -u train.py --launcher slurm ${PY_ARGS} --tcp_port $PORT
+    python -u train.py --launcher slurm --tcp_port $PORT ${PY_ARGS}
