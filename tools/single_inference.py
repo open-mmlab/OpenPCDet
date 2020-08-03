@@ -166,9 +166,9 @@ class Processor_ROS:
         # scores = pred_dicts[0]["pred_scores"].detach().cpu().numpy()
         # types = pred_dicts[0]["pred_labels"].detach().cpu().numpy()
 
-        print(f" pred boxes: { boxes_lidar }")
-        print(f" pred_scores: { scores }")
-        print(f" pred_labels: { types }")
+        # print(f" pred boxes: { boxes_lidar }")
+        # print(f" pred_scores: { scores }")
+        # print(f" pred_labels: { types }")
 
         return scores, boxes_lidar, types
 
@@ -251,8 +251,8 @@ if __name__ == "__main__":
 
     global proc
     ## PVRCNN
-    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml'
-    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pv_rcnn_8369.pth'
+    config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml'
+    model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pv_rcnn_8369.pth'
 
     ## PointRCNN
     # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/kitti_models/pointrcnn.yaml'
@@ -276,8 +276,8 @@ if __name__ == "__main__":
     # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/cbgs_second_multihead_nds6229.pth'
 
     ## PP_MutliHead (trained on nuscenes dataset)
-    config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml'
-    model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pp_multihead_nds5823.pth'
+    # config_path = '/home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml'
+    # model_path = '/home/muzi2045/Documents/project/OpenPCDet/data/model/pp_multihead_nds5823.pth'
 
     proc_1 = Processor_ROS(config_path, model_path)
     
@@ -294,7 +294,7 @@ if __name__ == "__main__":
                         "/livox/lidar",
                         "/SimOneSM_PointCloud_0"]
     
-    sub_ = rospy.Subscriber(sub_lidar_topic[5], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
+    sub_ = rospy.Subscriber(sub_lidar_topic[0], PointCloud2, rslidar_callback, queue_size=1, buff_size=2**24)
     
     pub_arr_bbox = rospy.Publisher("pp_boxes", BoundingBoxArray, queue_size=1)
 
