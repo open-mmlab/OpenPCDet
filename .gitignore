@@ -14,4 +14,4 @@ venv/
 *.zip
 *.bin
 .vscode
-pcdet/version.py
+*version*
