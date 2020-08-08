@@ -26,5 +26,5 @@ srun -p ${PARTITION} \
     --ntasks-per-node=${GPUS_PER_NODE} \
     --kill-on-bad-exit=1 \
     ${SRUN_ARGS} \
-    python -u test.py --launcher slurm ${PY_ARGS} --tcp_port $PORT
+    python -u test.py --launcher slurm --tcp_port $PORT ${PY_ARGS}
 
