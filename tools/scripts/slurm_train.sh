@@ -11,7 +11,15 @@ GPUS_PER_NODE=${GPUS_PER_NODE:-8}
 CPUS_PER_TASK=${CPUS_PER_TASK:-5}
 SRUN_ARGS=${SRUN_ARGS:-""}
 
-PORT=$(( ( RANDOM % 10000 )  + 10000 ))
+while true
+do
+    PORT=$(( ((RANDOM<<15)|RANDOM) % 49152 + 10000 ))
+    status="$(nc -z 127.0.0.1 $PORT < /dev/null &>/dev/null; echo $?)"
+    if [ "${status}" != "0" ]; then
+        break;
+    fi
+done
+echo $PORT
 
 srun -p ${PARTITION} \
     --job-name=${JOB_NAME} \
