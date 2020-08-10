@@ -157,7 +157,7 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_scores=None, ref_labe
         corners3d = boxes_to_corners_3d(gt_boxes)
         fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
 
-    if ref_boxes is not None:
+    if ref_boxes is not None and len(ref_boxes) > 0:
         ref_corners3d = boxes_to_corners_3d(ref_boxes)
         if ref_labels is None:
             fig = draw_corners3d(ref_corners3d, fig=fig, color=(0, 1, 0), cls=ref_scores, max_num=100)
