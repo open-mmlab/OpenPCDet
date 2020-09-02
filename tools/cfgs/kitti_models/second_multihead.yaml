@@ -101,14 +101,14 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        MULTI_CLASSES_NMS: False
+        MULTI_CLASSES_NMS: True
         SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
 
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: False
+            MULTI_CLASSES_NMS: True
             NMS_TYPE: nms_gpu
             NMS_THRESH: 0.1
             NMS_PRE_MAXSIZE: 4096
