@@ -35,7 +35,7 @@ class _PointnetSAModuleBase(nn.Module):
             ).transpose(1, 2).contiguous() if self.npoint is not None else None
 
         for i in range(len(self.groupers)):
-            new_features = self.groupers[i](xyz, new_xyz, features)  # (B, C, npoint, nsample)
+            new_features = self.groupers[i](xyz, new_xyz, features.contiguous())  # (B, C, npoint, nsample)
 
             new_features = self.mlps[i](new_features)  # (B, mlp[-1], npoint, nsample)
             if self.pool_method == 'max_pool':
