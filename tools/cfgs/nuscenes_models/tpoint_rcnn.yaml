@@ -22,7 +22,7 @@ DATA_CONFIG:
     PRED_VELOCITY: False
 
 MODEL:
-    NAME: PointRCNN
+    NAME: TPointRCNN
 
     BACKBONE_4D:
         NAME: PointNet2MSG
