@@ -10,7 +10,7 @@ from ..backbones_3d import pfe, vfe
 from ..model_utils import model_nms_utils
 
 
-class Detector3DTemplate(nn.Module):
+class Detector4DTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__()
         self.model_cfg = model_cfg
