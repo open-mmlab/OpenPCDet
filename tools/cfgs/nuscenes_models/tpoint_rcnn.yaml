@@ -24,7 +24,7 @@ DATA_CONFIG:
 MODEL:
     NAME: PointRCNN
 
-    BACKBONE_3D:
+    BACKBONE_4D:
         NAME: PointNet2MSG
         SA_CONFIG:
             NPOINTS: [4096, 1024, 256, 64]
