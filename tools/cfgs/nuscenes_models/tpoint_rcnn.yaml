@@ -22,9 +22,9 @@ DATA_CONFIG:
     PRED_VELOCITY: False
 
 MODEL:
-    NAME: PointRCNN
+    NAME: TPointRCNN
 
-    BACKBONE_3D:
+    BACKBONE_4D:
         NAME: PointNet2MSG
         SA_CONFIG:
             NPOINTS: [4096, 1024, 256, 64]
@@ -142,8 +142,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 2
-    # NUM_EPOCHS: 1
-    NUM_EPOCHS: 3
+    NUM_EPOCHS: 1
 
     OPTIMIZER: adam_onecycle
     LR: 0.01
