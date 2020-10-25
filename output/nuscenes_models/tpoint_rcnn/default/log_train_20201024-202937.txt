@@ -481,3 +481,24 @@ cfg.OPTIMIZATION = edict()
   )
 )
 2020-10-24 20:29:39,702   INFO  **********************Start training nuscenes_models/tpoint_rcnn(default)**********************
+2020-10-24 21:25:08,366   INFO  **********************End training nuscenes_models/tpoint_rcnn(default)**********************
+
+
+
+2020-10-24 21:25:08,367   INFO  **********************Start evaluation nuscenes_models/tpoint_rcnn(default)**********************
+2020-10-24 21:25:08,367   INFO  Loading NuScenes dataset
+2020-10-24 21:25:08,379   INFO  Total samples for NuScenes dataset: 81
+2020-10-24 21:25:08,381   INFO  ==> Loading parameters from checkpoint /home/ubuntu/pointcloud/OpenPCDet/output/nuscenes_models/tpoint_rcnn/default/ckpt/checkpoint_epoch_1.pth to CPU
+2020-10-24 21:25:08,433   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+f982b5b
+2020-10-24 21:25:09,060   INFO  ==> Done (loaded 309/309)
+2020-10-24 21:25:09,064   INFO  *************** EPOCH 1 EVALUATION *****************
+2020-10-24 21:25:47,683   INFO  *************** Performance of EPOCH 1 *****************
+2020-10-24 21:25:47,683   INFO  Generate label finished(sec_per_example: 0.4766 second).
+2020-10-24 21:25:47,683   INFO  recall_roi_0.3: 0.033082
+2020-10-24 21:25:47,683   INFO  recall_rcnn_0.3: 0.035772
+2020-10-24 21:25:47,683   INFO  recall_roi_0.5: 0.001076
+2020-10-24 21:25:47,684   INFO  recall_rcnn_0.5: 0.001614
+2020-10-24 21:25:47,684   INFO  recall_roi_0.7: 0.000000
+2020-10-24 21:25:47,684   INFO  recall_rcnn_0.7: 0.000000
+2020-10-24 21:25:47,684   INFO  Average predicted number of objects(81 samples): 0.000
+2020-10-24 21:25:48,659   INFO  The predictions of NuScenes have been saved to /home/ubuntu/pointcloud/OpenPCDet/output/nuscenes_models/tpoint_rcnn/default/eval/eval_with_train/epoch_1/val/final_result/data/results_nusc.json

@@ -12,7 +12,7 @@ __all__ = {
     'PartA2Net': PartA2Net,
     'PVRCNN': PVRCNN,
     'PointPillar': PointPillar,
-    'PointRCNN': PointRCNN
+    'PointRCNN': PointRCNN,
     'TPointRCNN': TPointRCNN
 }
 
