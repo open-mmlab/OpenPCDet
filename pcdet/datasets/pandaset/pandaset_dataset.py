@@ -9,7 +9,9 @@ import pandaset as ps
 import numpy as np
 
 from ..dataset import DatasetTemplate
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
+import torch
 
 class PandasetDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -275,6 +277,57 @@ class PandasetDataset(DatasetTemplate):
         return infos
 
 
+    def create_groundtruth_database(self, info_path=None, used_classes=None, split='train'):
+        database_save_path = os.path.join(self.root_path,
+                'gt_database' if split == 'train' else 'gt_database_{}'.format(split))
+        db_info_save_path = os.path.join(self.root_path,
+                'pandaset_dbinfos_{}.pkl'.format(split))
+
+        os.makedirs(database_save_path, exist_ok=True)
+        all_db_infos = {}
+
+        with open(info_path, 'rb') as f:
+            infos = pickle.load(f)
+
+        for k in range(len(infos)):
+            print('gt_database sample: %d/%d' % (k + 1, len(infos)))
+            info = infos[k]
+            sample_idx = info['frame_idx']
+            pose = self._get_pose(info)
+            points = self._get_lidar_points(info, pose)
+            gt_boxes, names = self._get_annotations(info, pose)
+
+            num_obj = gt_boxes.shape[0]
+
+            point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
+                torch.from_numpy(points[:, 0:3]), torch.from_numpy(gt_boxes)
+            ).numpy()  # (nboxes, npoints)
+
+            for i in range(num_obj):
+                tmp_name = names[i].replace("/", "").replace(" ", "")
+                filename = '%s_%s_%d.bin' % (sample_idx, tmp_name, i)
+                filepath = os.path.join(database_save_path, filename)
+                gt_points = points[point_indices[i] > 0]
+                gt_points[:, :3] -= gt_boxes[i, :3]
+                with open(filepath, 'wb') as f:
+                    gt_points.tofile(f)
+
+                if (used_classes is None) or names[i] in used_classes:
+                    db_path = os.path.relpath(filepath, self.root_path)  # gt_database/xxxxx.bin
+                    db_info = {'name': names[i], 'path': db_path, 'gt_idx': i,
+                               'box3d_lidar': gt_boxes[i], 'num_points_in_gt': gt_points.shape[0],
+                               'difficulty': -1}
+                    if names[i] in all_db_infos:
+                        all_db_infos[names[i]].append(db_info)
+                    else:
+                        all_db_infos[names[i]] = [db_info]
+        for k, v in all_db_infos.items():
+            print('Database %s: %d' % (k, len(v)))
+
+        with open(db_info_save_path, 'wb') as f:
+            pickle.dump(all_db_infos, f)
+
+
 def create_pandaset_infos(dataset_cfg, class_names, data_path, save_path):
     """
     Create dataset_infos files in order not to have it in a preprocessed pickle
@@ -290,6 +343,15 @@ def create_pandaset_infos(dataset_cfg, class_names, data_path, save_path):
         with open(file_path, 'wb') as f:
             pickle.dump(infos, f)
         print("Pandaset info {} file is saved to {}".format(split, file_path))
+
+    print('---------------Start create groundtruth database for data augmentation---------------')
+    dataset.set_split("train")
+    dataset.create_groundtruth_database(
+        os.path.join(save_path, 'pandaset_infos_train.pkl'),
+        split="train"
+    )
+
+    print('---------------Data preparation Done---------------')
 
 
 if __name__ == '__main__':
