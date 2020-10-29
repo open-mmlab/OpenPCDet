@@ -161,6 +161,9 @@ class PandasetDataset(DatasetTemplate):
 
         del cuboids  # There seem to be issues with the automatic deletion of pandas datasets sometimes
 
+        labels = np.array([self.dataset_cfg.TRAINING_CATEGORIES.get(lab, lab)
+                           for lab in labels] )
+
         # Compute the center points coordinates in ego coordinates
         centers = np.vstack([xs, ys, zs]).T
         ego_centers = ps.geometry.lidar_points_to_ego(centers, pose)
