@@ -13,6 +13,39 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
 import torch
 
+
+def pose_dict_to_numpy(pose):
+    """
+        Conert pandaset pose dict to a numpy vector in order to pass it through the network
+    """
+    pose_np = [pose["position"]["x"],
+               pose["position"]["y"],
+               pose["position"]["z"],
+               pose["heading"]["w"],
+               pose["heading"]["x"],
+               pose["heading"]["y"],
+               pose["heading"]["z"]]
+
+    return pose_np
+
+
+def pose_numpy_to_dict(pose):
+    """
+        Conert pandaset pose dict to a numpy vector in order to pass it through the network
+    """
+    pose_dict = {'position':
+                    {'x': pose[0],
+                     'y': pose[1],
+                     'z': pose[2]},
+                 'heading':
+                    {'w': pose[3],
+                     'x': pose[4],
+                     'y': pose[5],
+                     'z': pose[6]}}
+
+    return pose_dict
+
+
 class PandasetDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
@@ -79,15 +112,21 @@ class PandasetDataset(DatasetTemplate):
 
         pose = self._get_pose(info)
         points = self._get_lidar_points(info, pose)
-        boxes, labels = self._get_annotations(info, pose)
+        boxes, labels, zrot_world_to_ego = self._get_annotations(info, pose)
+        pose_np = pose_dict_to_numpy(pose)
 
         input_dict = {'points': points,
                       'gt_boxes': boxes,
                       'gt_names': labels,
                       'sequence': int(seq_idx),
-                      'frame_idx': info['frame_idx']}
+                      'frame_idx': info['frame_idx'],
+                      'zrot_world_to_ego': zrot_world_to_ego,
+                      'pose': pose_dict_to_numpy(pose)
+                     }
         # seq_idx is converted to int because strings can't be passed to
         # the gpu in pytorch
+        # zrot_world_to_ego is propagated in order to be able to transform the
+        # predicted yaws back to world coordinates
 
         data_dict = self.prepare_data(data_dict=input_dict)
 
@@ -180,8 +219,8 @@ class PandasetDataset(DatasetTemplate):
             if self.logger is not None:
                 self.logger.warning("The car's pitch is supposed to be negligible sin(pitch) is >= 10**-1 ({})".format(yaxis_from_pose[-1]))
 
-        zrot = np.arctan2(-yaxis_from_pose[0], yaxis_from_pose[1])  # rotation angle in rads of the y axis around thz z axis
-        ego_yaws = yaws + zrot
+        zrot_world_to_ego = np.arctan2(-yaxis_from_pose[0], yaxis_from_pose[1])  # rotation angle in rads of the y axis around thz z axis
+        ego_yaws = yaws + zrot_world_to_ego
 
         # Pandaset ego coordinates are:
         # - x pointing to the right
@@ -201,7 +240,7 @@ class PandasetDataset(DatasetTemplate):
 
         ego_boxes = np.vstack([ego_xs, ego_ys, ego_zs, ego_dxs, ego_dys, ego_dzs, ego_yaws]).T
 
-        return ego_boxes.astype(np.float32), labels
+        return ego_boxes.astype(np.float32), labels, zrot_world_to_ego
 
 
     @staticmethod
@@ -222,16 +261,66 @@ class PandasetDataset(DatasetTemplate):
 
         """
 
-        def generate_single_sample_dataframe(batch_index, box_dict):
-            print(box_dict)
-            raise NotImplementedError
+        def generate_single_sample_dataframe(batch_index, box_dict, zrot_world_to_ego, pose):
+            pred_boxes = box_dict["pred_boxes"].cpu().numpy()
+            pred_scores = box_dict["pred_scores"].cpu().numpy()
+            pred_labels = box_dict["pred_labels"].cpu().numpy()
+            zrot = zrot_world_to_ego.cpu().numpy()
+            pose_dict = pose_numpy_to_dict(pose.cpu().numpy())
+
+            xs = pred_boxes[:, 0]
+            ys = pred_boxes[:, 1]
+            zs = pred_boxes[:, 2]
+            dxs = pred_boxes[:, 3]
+            dys = pred_boxes[:, 4]
+            dzs = pred_boxes[:, 5]
+            yaws = pred_boxes[:, 6]
+            names = np.array(class_names)[pred_labels - 1]  # Predicted labels start on 1
+
+            # convert from normative coordinates to pandaset ego coordinates
+            ego_xs = - ys
+            ego_ys = xs
+            ego_zs = zs
+            ego_dxs = dys
+            ego_dys = dxs
+            ego_dzs = dzs
+            ego_yaws = yaws
+
+            # convert from pandaset ego coordinates to world coordinates
+            # for the moment, an simplified estimation of the ego yaw is computed in __getitem__
+            # which sets ego_yaw = world_yaw + zrot_world_to_ego
+            world_yaws = ego_yaws - zrot
+
+            ego_centers = np.vstack([ego_xs, ego_ys, ego_zs]).T
+            world_centers = ps.geometry.ego_to_lidar_points(ego_centers, pose_dict)
+            world_xs = world_centers[:, 0]
+            world_ys = world_centers[:, 1]
+            world_zs = world_centers[:, 2]
+            # dx, dy, dz remain unchanged as the bbox orientation is handled by
+            # the yaw information
+
+            data_dict = {'position.x': world_xs,
+                         'position.y': world_ys,
+                         'position.z': world_zs,
+                         'dimensions.x': ego_dxs,
+                         'dimensions.y': ego_dys,
+                         'dimensions.z': ego_dzs,
+                         'yaw': world_yaws % (2 * np.pi),
+                         'label': names,
+                         'score': pred_scores
+            }
+
+            return pd.DataFrame(data_dict)
 
 
         annos = []
         for index, box_dict in enumerate(pred_dicts):
             frame_idx = batch_dict['frame_idx'][index]
             seq_idx = batch_dict['sequence'][index]
-            single_pred_df = generate_single_sample_dataframe(index, box_dict)
+            zrot = batch_dict['zrot_world_to_ego'][index]
+            pose = batch_dict['pose'][index]
+
+            single_pred_df = generate_single_sample_dataframe(index, box_dict, zrot, pose)
 
             single_pred_dict = {'preds': single_pred_df,
                                 'frame_idx': frame_idx,
@@ -242,13 +331,14 @@ class PandasetDataset(DatasetTemplate):
             # provided in pandaset format with 3 digits
 
             if output_path is not None:
-                cur_det_file = os.path.join(output_path, seq_idx, 'predictions',
-                                            'cuboids', ("{:02d}.pkl.gz".format(frame_idx)))
+                frame_id = str(int(frame_idx)).zfill(2)
+                seq_id = str(int(seq_idx)).zfill(3)
+                cur_det_file = os.path.join(output_path, seq_id, 'predictions',
+                                            'cuboids', ("{}.pkl.gz".format(frame_id)))
                 os.makedirs(os.path.dirname(cur_det_file), exist_ok=True)
                 single_pred_df.to_pickle(cur_det_file)
 
             annos.append(single_pred_dict)
-
 
         return annos
 
@@ -298,7 +388,7 @@ class PandasetDataset(DatasetTemplate):
             sample_idx = info['frame_idx']
             pose = self._get_pose(info)
             points = self._get_lidar_points(info, pose)
-            gt_boxes, names = self._get_annotations(info, pose)
+            gt_boxes, names, _ = self._get_annotations(info, pose)
 
             num_obj = gt_boxes.shape[0]
 
@@ -347,13 +437,13 @@ def create_pandaset_infos(dataset_cfg, class_names, data_path, save_path):
             pickle.dump(infos, f)
         print("Pandaset info {} file is saved to {}".format(split, file_path))
 
-    print('---------------Start create groundtruth database for data augmentation---------------')
+    print('------------Start create groundtruth database for data augmentation-----------')
+    dataset = PandasetDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
     dataset.set_split("train")
     dataset.create_groundtruth_database(
         os.path.join(save_path, 'pandaset_infos_train.pkl'),
         split="train"
     )
-
     print('---------------Data preparation Done---------------')
 
 
