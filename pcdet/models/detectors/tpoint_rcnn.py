@@ -27,4 +27,5 @@ class TPointRCNN(Detector4DTemplate):
         loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict)
 
         loss = loss_point + loss_rcnn
+        print("--------", loss)
         return loss, tb_dict, disp_dict

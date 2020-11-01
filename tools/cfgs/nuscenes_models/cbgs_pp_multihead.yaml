@@ -22,6 +22,7 @@ DATA_CONFIG:
                 'train': 30000,
                 'test': 30000
             }
+    CONSECUTIVE_SWEEPS: True
 
 MODEL:
     NAME: PointPillar
