@@ -91,7 +91,6 @@ class PillarVFE(VFETemplate):
         return paddings_indicator
 
     def forward(self, batch_dict, **kwargs):
-        print("=---------", batch_dict["points"].shape)
         voxel_features, voxel_num_points, coords = batch_dict['voxels'], batch_dict['voxel_num_points'], batch_dict['voxel_coords']
         points_mean = voxel_features[:, :, :3].sum(dim=1, keepdim=True) / voxel_num_points.type_as(voxel_features).view(-1, 1, 1)
         f_cluster = voxel_features[:, :, :3] - points_mean
@@ -116,11 +115,9 @@ class PillarVFE(VFETemplate):
         mask = torch.unsqueeze(mask, -1).type_as(voxel_features)
         features *= mask
 
-        print(features.shape)
         for pfn in self.pfn_layers:
             features = pfn(features)
 
         features = features.squeeze()
-        print("SHHHHAAAAPPEE", features.shape)
         batch_dict['pillar_features'] = features
         return batch_dict
