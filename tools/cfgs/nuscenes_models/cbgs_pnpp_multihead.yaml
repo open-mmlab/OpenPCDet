@@ -22,6 +22,7 @@ DATA_CONFIG:
                 'train': 30000,
                 'test': 30000
             }
+
     CONSECUTIVE_SWEEPS: True
 
 MODEL:
@@ -33,6 +34,9 @@ MODEL:
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
 
+        # The range of number of points allowed in a batch inside a sweep.
+        SWEEP_BATCH_LOWER_BOUND: 1000
+        SWEEP_BATCH_UPPER_BOUND: 30000
         MERGE_INTERVAL: 10
 
     MAP_TO_BEV:
