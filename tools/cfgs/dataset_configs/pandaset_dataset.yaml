@@ -1,7 +1,7 @@
 DATASET: 'PandasetDataset'
 DATA_PATH: '../data/pandaset'
 
-POINT_CLOUD_RANGE: [-70, -40, -3, 70, 40, 1] # xmin, ymin, zmin, xmax, ymax, zmax 
+POINT_CLOUD_RANGE: [-70, -40, -3, 70, 40, 1] # xmin, ymin, zmin, xmax, ymax, zmax
 
 DATA_SPLIT: {
     'train': train,
@@ -14,6 +14,17 @@ SEQUENCES: {
     'test': ['074', '004', '086', '062', '068', '008', '001', '110', '053', '115', '054', '065', '017', '103', '072', '013', '029', '090', '112', '149', '070', '032'] # ~20% of the sequences, randomly chosen
 }
 
+# Acquisition device to consider when loading the data
+# Pandaset contains data from:
+# - a pandar64 spinning lidar
+# - a pandarGT forward facing lidar
+# To use data from:
+# - the pandar64 lidar only (default), set LIDAR_DEVICE to 0,
+# - the pandarGT lidar onlu, set it to 1
+# - both devices, set it to -1
+LIDAR_DEVICE: 0
+
+
 INFO_PATH: {
     'train': [pandaset_infos_train.pkl],
     'test': [pandaset_infos_val.pkl],
@@ -21,7 +32,7 @@ INFO_PATH: {
 
 TRAINING_CATEGORIES: {
 # This maps raw dataset categories with the corresponding categories used in training
-# This map can be incomplete. In case a category is not present, the category 
+# This map can be incomplete. In case a category is not present, the category
 # for training is the same as the raw dataset category
   'Car': 'Car',
   'Pickup Truck': 'Car',

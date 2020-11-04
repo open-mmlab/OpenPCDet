@@ -151,9 +151,10 @@ class PandasetDataset(DatasetTemplate):
         """
         # get lidar points
         lidar_frame = pd.read_pickle(info['lidar_path'])
-        # get points for pandar64 rotating lidar only
-        # TODO: move lidar choice to parameters
-        lidar_frame = lidar_frame[lidar_frame.d == 0]
+        # get points for the required lidar(s) only
+        device = self.dataset_cfg.get('LIDAR_DEVICE', 0)
+        if device != -1:
+            lidar_frame = lidar_frame[lidar_frame.d == device]
         world_points = lidar_frame.to_numpy()
         # There seems to be issues with the automatic deletion of pandas datasets sometimes
         del lidar_frame
@@ -187,8 +188,10 @@ class PandasetDataset(DatasetTemplate):
 
         # get boxes
         cuboids = pd.read_pickle(info["cuboids_path"])
-        # TODO: check compatibility with having the sensor id as  a parameter
-        cuboids = cuboids[cuboids["cuboids.sensor_id"] != 1]  # keep only points from the rotating lidar
+        device = self.dataset_cfg.get('LIDAR_DEVICE', 0)
+        if device != -1:
+            # keep cuboids that are seen by a given device
+            cuboids = cuboids[cuboids["cuboids.sensor_id"] != 1 - device]
 
         xs = cuboids['position.x'].to_numpy()
         ys = cuboids['position.y'].to_numpy()
