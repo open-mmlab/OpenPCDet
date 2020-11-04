@@ -155,7 +155,8 @@ class PandasetDataset(DatasetTemplate):
         # TODO: move lidar choice to parameters
         lidar_frame = lidar_frame[lidar_frame.d == 0]
         world_points = lidar_frame.to_numpy()
-        del lidar_frame  # There seem to be issues with the automatic deletion of pandas datasets sometimes
+        # There seems to be issues with the automatic deletion of pandas datasets sometimes
+        del lidar_frame
 
         points_loc = world_points[:, :3]
         points_int = world_points[:, 3]
@@ -217,9 +218,11 @@ class PandasetDataset(DatasetTemplate):
 
         if yaxis_from_pose[-1] >= 10**-1:
             if self.logger is not None:
-                self.logger.warning("The car's pitch is supposed to be negligible sin(pitch) is >= 10**-1 ({})".format(yaxis_from_pose[-1]))
+                self.logger.warning("The car's pitch is supposed to be negligible " +
+                                    "sin(pitch) is >= 10**-1 ({})".format(yaxis_from_pose[-1]))
 
-        zrot_world_to_ego = np.arctan2(-yaxis_from_pose[0], yaxis_from_pose[1])  # rotation angle in rads of the y axis around thz z axis
+        # rotation angle in rads of the y axis around thz z axis
+        zrot_world_to_ego = np.arctan2(-yaxis_from_pose[0], yaxis_from_pose[1])
         ego_yaws = yaws + zrot_world_to_ego
 
         # Pandaset ego coordinates are:
@@ -322,7 +325,10 @@ class PandasetDataset(DatasetTemplate):
 
             single_pred_df = generate_single_sample_dataframe(index, box_dict, zrot, pose)
 
-            single_pred_dict = {'preds': single_pred_df,
+
+            single_pred_dict = {'preds' : single_pred_df,
+                                # 'name 'ensures testing the number of detections in a compatible format as kitti
+                                'name' : single_pred_df['label'].tolist(),
                                 'frame_idx': frame_idx,
                                 'sequence': str(seq_idx).zfill(3)}
             # seq_idx was converted to int in self.__getitem__` because strings
@@ -362,7 +368,8 @@ class PandasetDataset(DatasetTemplate):
             info = [{'sequence': seq,
                      'frame_idx': ii,
                      'lidar_path': os.path.join(self.root_path, 'dataset', seq, 'lidar', ("{:02d}.pkl.gz".format(ii))),
-                     'cuboids_path': os.path.join(self.root_path, 'dataset', seq, 'annotations', 'cuboids', ("{:02d}.pkl.gz".format(ii)))
+                     'cuboids_path': os.path.join(self.root_path, 'dataset', seq,
+                                                  'annotations', 'cuboids', ("{:02d}.pkl.gz".format(ii)))
                     } for ii in range(len(s.lidar.data))]
             infos.extend(info)
             del self.dataset._sequences[seq]
@@ -419,6 +426,15 @@ class PandasetDataset(DatasetTemplate):
 
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
+
+
+    def evaluation(self, det_annos, class_names, **kwargs):
+        self.logger.warning('Evaluation is not implemented for Pandaset as there is no official one. ' +
+                            'Returning an empty evaluation result.')
+        ap_result_str = ''
+        ap_dict = {}
+
+        return ap_result_str, ap_dict
 
 
 def create_pandaset_infos(dataset_cfg, class_names, data_path, save_path):
