@@ -24,6 +24,7 @@ DATA_CONFIG:
             }
 
     CONSECUTIVE_SWEEPS: True
+    REL_SWEEPS: 5
 
 MODEL:
     NAME: PointPillar

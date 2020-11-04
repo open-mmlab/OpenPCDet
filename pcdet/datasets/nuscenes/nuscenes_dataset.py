@@ -89,7 +89,7 @@ class NuScenesDataset(DatasetTemplate):
         cur_times = sweep_info['time_lag'] * np.ones((1, points_sweep.shape[1]))
         return points_sweep.T, cur_times.T
 
-    def get_lidar_with_sweeps(self, index, max_sweeps=1):
+    def get_lidar_with_sweeps(self, index, max_sweeps=1, rel_sweeps=1):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidar_path']
         points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
@@ -99,11 +99,27 @@ class NuScenesDataset(DatasetTemplate):
         if self.dataset_cfg.get('CONSECUTIVE_SWEEPS', False):
             for k in range(max_sweeps-1):
                 points_sweep, times_sweep = self.get_sweep(info['sweeps'][k])
+                point_indices = list(range(len(points_sweep)))
+
+                if rel_sweeps < max_sweeps: # subsample each sweep so that the total result has rel_sweeps worth of points
+                    num_sampled_pts = int(np.floor((rel_sweeps/max_sweeps)*len(point_indices)))
+                    point_indices = np.random.choice(point_indices, size=num_sampled_pts ,replace=False)
+
+                points_sweep = [points_sweep[i] for i in point_indices] # select only given indices
+                times_sweep = [times_sweep[i] for i in point_indices] 
                 sweep_points_list.append(points_sweep)
                 sweep_times_list.append(times_sweep)
         else:
             for k in np.random.choice(len(info['sweeps']), max_sweeps - 1, replace=False):
                 points_sweep, times_sweep = self.get_sweep(info['sweeps'][k])
+                point_indices = list(range(len(points_sweep)))
+
+                if rel_sweeps < max_sweeps: # subsample each sweep so that the total result has rel_sweeps worth of points
+                    num_sampled_pts = int(np.floor((rel_sweeps/max_sweeps)*len(point_indices)))
+                    point_indices = np.random.choice(point_indices, size=num_sampled_pts ,replace=False)
+
+                points_sweep = [points_sweep[i] for i in point_indices] # select only given indices
+                times_sweep = [times_sweep[i] for i in point_indices] 
                 sweep_points_list.append(points_sweep)
                 sweep_times_list.append(times_sweep)
 
@@ -124,7 +140,7 @@ class NuScenesDataset(DatasetTemplate):
             index = index % len(self.infos)
 
         info = copy.deepcopy(self.infos[index])
-        points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS)
+        points = self.get_lidar_with_sweeps(index, max_sweeps=self.dataset_cfg.MAX_SWEEPS, rel_sweeps=self.dataset_cfg.REL_SWEEPS)
 
         input_dict = {
             'points': points,
