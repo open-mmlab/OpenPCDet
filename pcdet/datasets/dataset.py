@@ -139,7 +139,7 @@ class DatasetTemplate(torch_data.Dataset):
             data_dict=data_dict
         )
 
-        if len(data_dict['gt_boxes']) == 0:
+        if self.training and len(data_dict['gt_boxes']) == 0:
             new_index = np.random.randint(self.__len__())
             return self.__getitem__(new_index)
 
