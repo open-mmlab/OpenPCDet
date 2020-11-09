@@ -347,12 +347,18 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
 
 
 if __name__ == '__main__':
-    import sys
-    if sys.argv.__len__() > 1 and sys.argv[1] == 'create_waymo_infos':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='arg parser')
+    parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
+    parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    args = parser.parse_args()
+
+    if args.func == 'create_waymo_infos':
         import yaml
         from pathlib import Path
         from easydict import EasyDict
-        dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
+        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
