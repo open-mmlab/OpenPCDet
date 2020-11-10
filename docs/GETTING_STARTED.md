@@ -87,8 +87,8 @@ pip3 install waymo-open-dataset-tf-2-0-0==1.2.0 --user
 
 * Extract point cloud data from tfrecord and generate data infos by running the following command (it takes several hours): 
 ```python 
-python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \ -
-    -cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
+python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
+    --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
 ```
 
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 

@@ -90,7 +90,7 @@ class WaymoDataset(DatasetTemplate):
             for sequence_file in self.sample_sequence_list
         ]
 
-        process_single_sequence(sample_sequence_file_list[0])
+        # process_single_sequence(sample_sequence_file_list[0])
         with futures.ThreadPoolExecutor(num_workers) as executor:
             sequence_infos = executor.map(process_single_sequence, sample_sequence_file_list)
         sequence_infos = list(sequence_infos)
