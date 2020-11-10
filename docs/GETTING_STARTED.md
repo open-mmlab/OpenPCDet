@@ -85,7 +85,8 @@ pip3 install --upgrade pip
 pip3 install waymo-open-dataset-tf-2-0-0==1.2.0 --user
 ```
 
-* Extract point cloud data from tfrecord and generate data infos by running the following command (it takes several hours): 
+* Extract point cloud data from tfrecord and generate data infos by running the following command (it takes several hours, 
+and you could refer to `data/waymo/waymo_processed_data` to see how many records that have been processed): 
 ```python 
 python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
     --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
