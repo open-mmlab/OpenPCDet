@@ -110,10 +110,10 @@ class PointNetPillarVFE(VFETemplate):
         if self.with_distance:
             num_point_features += 1
 
-        # Set up network here
-
         # Point dimension should exclude the time info and batch IDs.
+        self.output_dim = self.model_cfg.OUTPUT_DIM
         self.point_net = BasePointNet(3)
+        self.rnn = nn.LSTM(1024, self.output_dim, 1, batch_first=True)
 
     def get_output_feature_dim(self):
         return 1024
@@ -208,6 +208,7 @@ class PointNetPillarVFE(VFETemplate):
         return res
 
     def forward(self, batch_dict, **kwargs):
+        print(batch_dict.keys())
         points = batch_dict['points']
 
         # Find unique time delays. Delays will be sorted in an ascending order (starting from 0).
@@ -218,7 +219,7 @@ class PointNetPillarVFE(VFETemplate):
         raw_sweeps = []
         for i in unique_delays:
             raw_sweeps.append(points[points[:, -1] == i])
-        print("*********** raw sweeps:", ",".join(['(%d,%d)' % (unique_delays[i], raw_sweeps[i].shape[0]) for i in range(len(unique_delays))]))
+        # print("*********** raw sweeps:", ",".join(['(%d,%d)' % (unique_delays[i], raw_sweeps[i].shape[0]) for i in range(len(unique_delays))]))
 
         # Merge close time delays.
         sweeps = self.merge_sweeps(unique_delays, raw_sweeps)
@@ -226,23 +227,38 @@ class PointNetPillarVFE(VFETemplate):
         for s in sweeps: 
             point_cnt += s.shape[0]
         assert point_cnt==len(points)
-        print("*********** merged sweeps:", ",".join([str(sweep.shape[0]) for sweep in sweeps]))
+        # print("*********** merged sweeps:", ",".join([str(sweep.shape[0]) for sweep in sweeps]))
 
         # Filter out small sweeps.
         sweeps[:] = [sweep for sweep in sweeps if len(sweep) > self.sweep_batch_lower_bound]
 
-        # Split sweeps into batches 
+        # Split sweeps into batches.
         sweeps_of_batches = self.split_batches_in_sweeps(points, sweeps)
+        assert len(sweeps_of_batches) > 0
+        batch_size = sweeps_of_batches[0].shape[0]
 
-        print(len(sweeps_of_batches))
-        # TODO: setup a recurrent network.
+        # TODO: memory issues. 
+        # Output features by batches.
+        output = torch.empty(size=(batch_size, 1, self.output_dim), device=torch.device('cuda:0'))
+        hidden = torch.empty(size=(1, batch_size, self.output_dim), device=torch.device('cuda:0'))
+        mem = torch.empty(size=(1, batch_size, self.output_dim), device=torch.device('cuda:0'))
         for sweep in sweeps_of_batches: 
             # Input sweeps into PointNet with only x, y, z.
-            x, features = self.point_net(sweep[:, :, :3].cuda())
-            print(sweep[:, :, :3].shape, x.shape)
+            print(self.get_gpu_memory_map())
+            global_features, _ = self.point_net(sweep[:, :, :3].cuda())
+            print(self.get_gpu_memory_map())
+            global_features = global_features.unsqueeze(1)
+            output, (hidden, mem) = self.rnn(global_features, (hidden, mem))
 
-        # TODO(yuhaohe): please note that the encoder is a placeholder and the model won't work beyond this point. 
-        features = self.recurrent_feature_encoder(unique_delays, sweeps)
-        batch_dict['pillar_features'] = features
-
-        return batch_dict
+        print("out!", output.shape)
+        return output
+        
+    def get_gpu_memory_map(self):   
+        import subprocess
+        result = subprocess.check_output(
+            [
+                'nvidia-smi', '--query-gpu=memory.used',
+                '--format=csv,nounits,noheader'
+            ])
+        
+        return float(result)

@@ -24,25 +24,34 @@ DATA_CONFIG:
             }
 
     CONSECUTIVE_SWEEPS: True
-    REL_SWEEPS: 5
+    REL_SWEEPS: 10
 
 MODEL:
     NAME: PointPillar
 
     VFE:
-        NAME: PointNetPillarVFE
+        # NAME: PointNetPillarVFE # used for debugging
+        NAME: TPillar
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
+        NUM_FILTERS: [64]
 
+        USE_FURTHEST_SAMPLER: True
+        USE_LSTM: False # If True, use LSTM; otherwise use GRU.
+        RNN_INPUT_FEATURES: 128
+
+        OUTPUT_DIM: 128
+        HIDDEN_DIM: 128
         # The range of number of points allowed in a batch inside a sweep.
-        SWEEP_BATCH_LOWER_BOUND: 1000
-        SWEEP_BATCH_UPPER_BOUND: 30000
+        MIN_SWEEP_BATCH: 250
+        # given memory limitation, we have to subsample the points. As a reference, PointRCNN uses sample 16384 points.
+        MAX_SWEEP_BATCH: 2500
         MERGE_INTERVAL: 10
 
     MAP_TO_BEV:
         NAME: PointPillarScatter
-        NUM_BEV_FEATURES: 1024
+        NUM_BEV_FEATURES: 192 # VFE.NUM_FILTERS + VFE.HIDDEN_DIM
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
