@@ -110,7 +110,7 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 
 ### Waymo Open Dataset Baselines
 We provide the setting of `DATA_CONFIG.SAMPLED_INTERVAL` on the Waymo Open Dataset (WOD) to subsample partial samples for training and evaluation, 
-so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` if you only have limited GPU resources. 
+so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` even if you only have limited GPU resources. 
 
 By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set.    
 
@@ -160,10 +160,10 @@ If you find this project useful in your research, please consider cite:
 
 ```
 @misc{openpcdet2020,
-	title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Clouds},
-	author={OpenPCDet Development Team},
-	howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}},
-	year={2020}
+    title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Clouds},
+    author={OpenPCDet Development Team},
+    howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}},
+    year={2020}
 }
 ```
 
