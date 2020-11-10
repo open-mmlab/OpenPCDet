@@ -8,7 +8,7 @@ import pickle
 import copy
 import numpy as np
 import torch
-from path import Path
+from pathlib import Path
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
