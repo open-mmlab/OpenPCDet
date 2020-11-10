@@ -78,8 +78,8 @@ class WaymoDataset(DatasetTemplate):
         import concurrent.futures as futures
         from functools import partial
         from . import waymo_utils
-        # tf.enable_eager_execution()
-        print('The waymo sample interval is %d, total sequecnes is %d' % (sampled_interval, len(self.sample_sequence_list)))
+        print('---------------The waymo sample interval is %d, total sequecnes is %d-----------------'
+              % (sampled_interval, len(self.sample_sequence_list)))
 
         process_single_sequence = partial(
             waymo_utils.process_single_sequence,
@@ -90,7 +90,7 @@ class WaymoDataset(DatasetTemplate):
             for sequence_file in self.sample_sequence_list
         ]
 
-        # process_single_sequence(sample_sequence_file_list[0])
+        process_single_sequence(sample_sequence_file_list[0])
         with futures.ThreadPoolExecutor(num_workers) as executor:
             sequence_infos = executor.map(process_single_sequence, sample_sequence_file_list)
         sequence_infos = list(sequence_infos)
@@ -325,7 +325,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     )
     with open(train_filename, 'wb') as f:
         pickle.dump(waymo_infos_train, f)
-    print('Waymo info train file is saved to %s' % train_filename)
+    print('----------------Waymo info train file is saved to %s----------------' % train_filename)
 
     dataset.set_split(val_split)
     waymo_infos_val = dataset.get_infos(
@@ -335,7 +335,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     )
     with open(val_filename, 'wb') as f:
         pickle.dump(waymo_infos_val, f)
-    print('Waymo info val file is saved to %s' % val_filename)
+    print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
     dataset.set_split(train_split)

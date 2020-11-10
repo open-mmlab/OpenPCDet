@@ -12,6 +12,11 @@ import tensorflow as tf
 from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
 from waymo_open_dataset import dataset_pb2
 
+try:
+    tf.enable_eager_execution()
+except:
+    pass
+
 WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Sign', 'Cyclist']
 
 
@@ -167,7 +172,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
 
     # print('Load record (sampled_interval=%d): %s' % (sampled_interval, sequence_name))
     if not sequence_file.exists():
-        print('NotFoundError: %s' % sequence_name)
+        print('NotFoundError: %s' % sequence_file)
         return []
 
     dataset = tf.data.TFRecordDataset(str(sequence_file), compression_type='')

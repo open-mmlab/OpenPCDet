@@ -26,7 +26,7 @@ configs and results of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Datase
 [2020-07-30] `OpenPCDet` v0.3.0 is released with the following features:
    * The Point-based and Anchor-Free models ([`PointRCNN`](#KITTI-3D-Object-Detection-Baselines), [`PartA2-Free`](#KITTI-3D-Object-Detection-Baselines)) are supported now.
    * The NuScenes dataset is supported with strong baseline results ([`SECOND-MultiHead (CBGS)`](#NuScenes-3D-Object-Detection-Baselines) and [`PointPillar-MultiHead`](#NuScenes-3D-Object-Detection-Baselines)).
-   * High efficiency than last version, support `PyTorch 1.1~1.5` and `spconv 1.0~1.2` simultaneously.
+   * High efficiency than last version, support **PyTorch 1.1~1.7** and **spconv 1.0~1.2** simultaneously.
    
 [2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
 
@@ -112,12 +112,12 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 We provide the setting of `DATA_CONFIG.SAMPLED_INTERVAL` on the Waymo Open Dataset (WOD) to subsample partial samples for training and evaluation, 
 so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` even if you only have limited GPU resources. 
 
-By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set.    
+By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set (version 1.2).    
 
 |                                             | Vec_L1 | Vec_L2 | Ped_L1 | Ped_L2 | Cyc_L1 | Cyc_L2 |  
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:-------:|:-------:|
 | [SECOND](tools/cfgs/waymo_models/second.yaml) | 68.03/67.44	| 59.57/59.04 | 61.14/50.33	| 53.00/43.56 | 54.66/53.31 | 52.67/51.37 | 
-| [PartA2](tools/cfgs/waymo_models/PartA2.yaml) | 71.82/71.29 | 64.33/63.82 | 63.15/54.96 | 54.24/47.11 | 65.23/63.92 | 62.61/61.35 |
+| [Part-A^2-Anchor](tools/cfgs/waymo_models/PartA2.yaml) | 71.82/71.29 | 64.33/63.82 | 63.15/54.96 | 54.24/47.11 | 65.23/63.92 | 62.61/61.35 |
 | [PV-RCNN](tools/cfgs/waymo_models/pv_rcnn.yaml) | 74.06/73.38 | 64.99/64.38 |	62.66/52.68 | 53.80/45.14 |	63.32/61.71	| 60.72/59.18 | 
 
 We could not provide the above pretrained models due to [Waymo Dataset License Agreement](https://waymo.com/open/terms/), 
