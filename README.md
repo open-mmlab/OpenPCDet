@@ -18,8 +18,8 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
-[2020-11-10] **NEW:** The Waymo Open Dataset has been supported with SoTA results. By now we provid the 
-configs of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Dataset, and more models could be easily supported by modifying their dataset configs. 
+[2020-11-10] **NEW:** The [Waymo Open Dataset](#waymo-open-dataset-baselines) has been supported with state-of-the-art results. Currently we provide the 
+configs and results of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Dataset, and more models could be easily supported by modifying their dataset configs. 
 
 [2020-08-10] Bugfixed: The provided NuScenes models have been updated to fix the loading bugs. Please redownload it if you need to use the pretrained NuScenes models.
 
@@ -112,7 +112,7 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 We provide the setting of `DATA_CONFIG.SAMPLED_INTERVAL` on the Waymo Open Dataset (WOD) to subsample partial samples for training and evaluation, 
 so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` if you only have limited GPU resources. 
 
-By default, all models are trained with **20% data (~32k frames)** of all the training samples, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set.    
+By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set.    
 
 |                                             | Vec_L1 | Vec_L2 | Ped_L1 | Ped_L2 | Cyc_L1 | Cyc_L2 |  
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:-------:|:-------:|
@@ -120,6 +120,8 @@ By default, all models are trained with **20% data (~32k frames)** of all the tr
 | [PartA2](tools/cfgs/waymo_models/PartA2.yaml) | 71.82/71.29 | 64.33/63.82 | 63.15/54.96 | 54.24/47.11 | 65.23/63.92 | 62.61/61.35 |
 | [PV-RCNN](tools/cfgs/waymo_models/pv_rcnn.yaml) | 74.06/73.38 | 64.99/64.38 |	62.66/52.68 | 53.80/45.14 |	63.32/61.71	| 60.72/59.18 | 
 
+We could not provide the above pretrained models due to [Waymo Dataset License Agreement](https://waymo.com/open/terms/), 
+but you could easily achieve similar performance by training with the default configs.
 
 
 
@@ -158,9 +160,9 @@ If you find this project useful in your research, please consider cite:
 
 ```
 @misc{openpcdet2020,
-	title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Cloud},
+	title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Clouds},
 	author={OpenPCDet Development Team},
-	howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}}
+	howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}},
 	year={2020}
 }
 ```
