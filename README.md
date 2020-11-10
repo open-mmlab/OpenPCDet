@@ -18,12 +18,15 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
-[2020-08-10] **NEW:** Bugfixed: The provided NuScenes models have been updated to fix the loading bugs. Please redownload it if you need to use the pretrained NuScenes models.
+[2020-11-10] **NEW:** The [Waymo Open Dataset](#waymo-open-dataset-baselines) has been supported with state-of-the-art results. Currently we provide the 
+configs and results of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Dataset, and more models could be easily supported by modifying their dataset configs. 
 
-[2020-07-30] **NEW:** `OpenPCDet` v0.3.0 is released with the following features:
+[2020-08-10] Bugfixed: The provided NuScenes models have been updated to fix the loading bugs. Please redownload it if you need to use the pretrained NuScenes models.
+
+[2020-07-30] `OpenPCDet` v0.3.0 is released with the following features:
    * The Point-based and Anchor-Free models ([`PointRCNN`](#KITTI-3D-Object-Detection-Baselines), [`PartA2-Free`](#KITTI-3D-Object-Detection-Baselines)) are supported now.
    * The NuScenes dataset is supported with strong baseline results ([`SECOND-MultiHead (CBGS)`](#NuScenes-3D-Object-Detection-Baselines) and [`PointPillar-MultiHead`](#NuScenes-3D-Object-Detection-Baselines)).
-   * High efficiency than last version, support `PyTorch 1.1~1.5` and `spconv 1.0~1.2` simultaneously.
+   * High efficiency than last version, support **PyTorch 1.1~1.7** and **spconv 1.0~1.2** simultaneously.
    
 [2020-07-17]  Add simple visualization codes and a quick demo to test with custom data. 
 
@@ -87,7 +90,7 @@ Selected supported methods are shown in the below table. The results are the 3D 
 * All models are trained with 8 GTX 1080Ti GPUs and are available for download. 
 * The training time is measured with 8 TITAN XP GPUs and PyTorch 1.5.
 
-|                                             | training time | Car | Pedestrian | Cyclist  | download | 
+|                                             | training time | Car@R11 | Pedestrian@R11 | Cyclist@R11  | download | 
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|
 | [PointPillar](tools/cfgs/kitti_models/pointpillar.yaml) |~1.2 hours| 77.28 | 52.29 | 62.68 | [model-18M](https://drive.google.com/file/d/1wMxWTpU1qUoY3DsCH31WJmvJxcjFXKlm/view?usp=sharing) | 
 | [SECOND](tools/cfgs/kitti_models/second.yaml)       |  ~1.7 hours  | 78.62 | 52.98 | 67.15 | [model-20M](https://drive.google.com/file/d/1-01zsPOsqanZQqIIyy7FpNXStL3y4jdR/view?usp=sharing) |
@@ -104,6 +107,22 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 |---------------------------------------------|----------:|:-------:|:-------:|:-------:|:---------:|:-------:|:-------:|:---------:|
 | [PointPillar-MultiHead](tools/cfgs/nuscenes_models/cbgs_pp_multihead.yaml) | 33.87	| 26.00 | 32.07	| 28.74 | 20.15 | 44.63 | 58.23	 | [model-23M](https://drive.google.com/file/d/1p-501mTWsq0G9RzroTWSXreIMyTUUpBM/view?usp=sharing) | 
 | [SECOND-MultiHead (CBGS)](tools/cfgs/nuscenes_models/cbgs_second_multihead.yaml) | 31.15 |	25.51 |	26.64 | 26.26 | 20.46 | 50.59 | 62.29 | [model-35M](https://drive.google.com/file/d/1bNzcOnE3u9iooBFMk2xK7HqhdeQ_nwTq/view?usp=sharing) |
+
+### Waymo Open Dataset Baselines
+We provide the setting of [`DATA_CONFIG.SAMPLED_INTERVAL`](tools/cfgs/dataset_configs/waymo_dataset.yaml) on the Waymo Open Dataset (WOD) to subsample partial samples for training and evaluation, 
+so you could also play with WOD by setting a smaller `DATA_CONFIG.SAMPLED_INTERVAL` even if you only have limited GPU resources. 
+
+By default, all models are trained with **20% data (~32k frames)** of all the training samples on 8 GTX 1080Ti GPUs, and the results of each cell here are mAP/mAPH calculated by the official Waymo evaluation metrics on the **whole** validation set (version 1.2).    
+
+|                                             | Vec_L1 | Vec_L2 | Ped_L1 | Ped_L2 | Cyc_L1 | Cyc_L2 |  
+|---------------------------------------------|----------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+| [SECOND](tools/cfgs/waymo_models/second.yaml) | 68.03/67.44	| 59.57/59.04 | 61.14/50.33	| 53.00/43.56 | 54.66/53.31 | 52.67/51.37 | 
+| [Part-A^2-Anchor](tools/cfgs/waymo_models/PartA2.yaml) | 71.82/71.29 | 64.33/63.82 | 63.15/54.96 | 54.24/47.11 | 65.23/63.92 | 62.61/61.35 |
+| [PV-RCNN](tools/cfgs/waymo_models/pv_rcnn.yaml) | 74.06/73.38 | 64.99/64.38 |	62.66/52.68 | 53.80/45.14 |	63.32/61.71	| 60.72/59.18 | 
+
+We could not provide the above pretrained models due to [Waymo Dataset License Agreement](https://waymo.com/open/terms/), 
+but you could easily achieve similar performance by training with the default configs.
+
 
 
 ### Other datasets
@@ -140,31 +159,15 @@ If you find this project useful in your research, please consider cite:
 
 
 ```
-@inproceedings{shi2020pv,
-  title={Pv-rcnn: Point-voxel feature set abstraction for 3d object detection},
-  author={Shi, Shaoshuai and Guo, Chaoxu and Jiang, Li and Wang, Zhe and Shi, Jianping and Wang, Xiaogang and Li, Hongsheng},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  pages={10529--10538},
-  year={2020}
-}
-
-
-@article{shi2020points,
-  title={From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network},
-  author={Shi, Shaoshuai and Wang, Zhe and Shi, Jianping and Wang, Xiaogang and Li, Hongsheng},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2020},
-  publisher={IEEE}
-}
-
-@inproceedings{shi2019pointrcnn,
-  title={PointRCNN: 3d Object Progposal Generation and Detection from Point Cloud},
-  author={Shi, Shaoshuai and Wang, Xiaogang and Li, Hongsheng},
-  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
-  pages={770--779},
-  year={2019}
+@misc{openpcdet2020,
+    title={OpenPCDet: An Open-source Toolbox for 3D Object Detection from Point Clouds},
+    author={OpenPCDet Development Team},
+    howpublished = {\url{https://github.com/open-mmlab/OpenPCDet}},
+    year={2020}
 }
 ```
 
-## Contact
-This project is currently maintained by Shaoshuai Shi ([@sshaoshuai](http://github.com/sshaoshuai)) and Chaoxu Guo ([@Gus-Guo](https://github.com/Gus-Guo)).
+## Contribution
+Welcome to be a member of the OpenPCDet development team by contributing to this repo, and feel free to contact us for any potential contributions. 
+
+
