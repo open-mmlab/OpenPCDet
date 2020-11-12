@@ -105,6 +105,22 @@ def boxes3d_kitti_camera_to_lidar(boxes3d_camera, calib):
     return np.concatenate([xyz_lidar, l, w, h, -(r + np.pi / 2)], axis=-1)
 
 
+def boxes3d_neolix_camera_to_lidar(boxes3d_camera):
+    """
+    Args:
+        boxes3d_camera: (N, 7) [x, y, z, l, h, w, r] in rect camera coords
+
+    Returns:
+        boxes3d_lidar: [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
+
+    """
+    xyz_camera = boxes3d_camera[:, 0:3]
+    l, h, w, r = boxes3d_camera[:, 3:4], boxes3d_camera[:, 4:5], boxes3d_camera[:, 5:6], boxes3d_camera[:, 6:7]
+    xyz_lidar = xyz_camera
+    # xyz_lidar[:, 2] += h[:, 0] / 2
+    return np.concatenate([xyz_lidar, l, w, h, -(r + np.pi / 2)], axis=-1)
+
+
 def boxes3d_kitti_fakelidar_to_lidar(boxes3d_lidar):
     """
     Args:
@@ -161,6 +177,22 @@ def boxes3d_lidar_to_kitti_camera(boxes3d_lidar, calib):
 
     xyz_lidar[:, 2] -= h.reshape(-1) / 2
     xyz_cam = calib.lidar_to_rect(xyz_lidar)
+    # xyz_cam[:, 1] += h.reshape(-1) / 2
+    r = -r - np.pi / 2
+    return np.concatenate([xyz_cam, l, h, w, r], axis=-1)
+
+
+def boxes3d_lidar_to_neolix_camera(boxes3d_lidar):
+    """
+    :param boxes3d_lidar: (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
+    :return:
+        boxes3d_camera: (N, 7) [x, y, z, l, h, w, r] in rect camera coords
+    """
+    xyz_lidar = boxes3d_lidar[:, 0:3]
+    l, w, h, r = boxes3d_lidar[:, 3:4], boxes3d_lidar[:, 4:5], boxes3d_lidar[:, 5:6], boxes3d_lidar[:, 6:7]
+
+    # xyz_lidar[:, 2] -= h.reshape(-1) / 2
+    xyz_cam = xyz_lidar
     # xyz_cam[:, 1] += h.reshape(-1) / 2
     r = -r - np.pi / 2
     return np.concatenate([xyz_cam, l, h, w, r], axis=-1)
