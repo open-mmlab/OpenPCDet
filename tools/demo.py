@@ -9,12 +9,12 @@ import torch
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
-from pcdet.utils import common_utils
+from pcdet.utils import common_utils, object3d_neolix
 from visual_utils import visualize_utils as V
 
 
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin', label_path=None):
         """
         Args:
             root_path:
@@ -32,6 +32,13 @@ class DemoDataset(DatasetTemplate):
         data_file_list.sort()
         self.sample_file_list = data_file_list
 
+        self.sample_label_list = None
+        if label_path is not None:
+            self.label_ext = '.txt'
+            data_label_list = glob.glob(str(label_path / f'*{self.label_ext}')) if label_path.is_dir() else [label_path]
+            data_label_list.sort()
+            self.sample_label_list = data_label_list
+
     def __len__(self):
         return len(self.sample_file_list)
 
@@ -46,7 +53,23 @@ class DemoDataset(DatasetTemplate):
         input_dict = {
             'points': points,
             'frame_id': index,
+            'gt_boxes': None
         }
+
+        if self.sample_label_list is not None:
+            obj_list = object3d_neolix.get_objects_from_label(self.sample_label_list[index])
+            loc = np.concatenate([obj.loc.reshape(1, 3) for obj in obj_list], axis=0)
+            dims = np.array([[obj.l, obj.w, obj.h] for obj in obj_list])
+            rots = np.array([obj.ry for obj in obj_list])
+            h = dims[:, 2:3]
+            loc[:, 2] += h[:, 0] / 2
+            gt_boxes_lidar = np.concatenate([loc, dims, -(np.pi / 2 + rots[..., np.newaxis])], axis=1)
+            gt_names = np.array([obj.cls_type for obj in obj_list])
+
+        input_dict.update({
+                'gt_names': gt_names,
+                'gt_boxes': gt_boxes_lidar
+            })
 
         data_dict = self.prepare_data(data_dict=input_dict)
         return data_dict
@@ -60,6 +83,8 @@ def parse_config():
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
+    parser.add_argument('--label_path', type=str, default='../data/neolix/training/label_2/000004.txt',
+                        help='specify the point cloud data label or directory')
 
     args = parser.parse_args()
 
@@ -74,7 +99,7 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path)
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
@@ -89,9 +114,13 @@ def main():
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
             V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
+            # V.draw_scenes(
+            #     points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+            #     ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+            # )
             mlab.show(stop=True)
 
     logger.info('Demo done.')

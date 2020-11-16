@@ -2,6 +2,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
+    POINT_CLOUD_RANGE: [-24, -24, -1.5, 24, 24, 2.5]
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
