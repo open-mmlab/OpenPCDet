@@ -66,7 +66,7 @@ class DemoDataset(DatasetTemplate):
             gt_boxes_lidar = np.concatenate([loc, dims, -(np.pi / 2 + rots[..., np.newaxis])], axis=1)
             gt_names = np.array([obj.cls_type for obj in obj_list])
 
-        input_dict.update({
+            input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar
             })
@@ -83,7 +83,7 @@ def parse_config():
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
-    parser.add_argument('--label_path', type=str, default='../data/neolix/training/label_2/000004.txt',
+    parser.add_argument('--label_path', type=str, default=None,
                         help='specify the point cloud data label or directory')
 
     args = parser.parse_args()
