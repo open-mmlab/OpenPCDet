@@ -64,9 +64,9 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.6, 3.9, 1.56]],
+                'anchor_sizes': [[1.88, 4.46, 1.65]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.78],
+                'anchor_bottom_heights': [-0.32],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.6,
@@ -74,9 +74,9 @@ MODEL:
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.6, 0.8, 1.73]],
+                'anchor_sizes': [[0.67, 0.67, 1.75]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-0.32],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -84,9 +84,9 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.6, 1.76, 1.73]],
+                'anchor_sizes': [[0.85, 1.97, 1.58]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-0.32],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -94,9 +94,9 @@ MODEL:
             },
             {
                 'class_name': 'Unknown',
-                'anchor_sizes': [[0.6, 0.8, 1.73]],
+                'anchor_sizes': [[1.12, 1.31, 0.98]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-0.32],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
