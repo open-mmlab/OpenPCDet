@@ -57,6 +57,43 @@ python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos 
     --version v1.0-trainval
 ```
 
+### Waymo Open Dataset
+* Please download the official [Waymo Open Dataset](https://waymo.com/open/download/), 
+including the training data `training_0000.tar~training_0031.tar` and the validation 
+data `validation_0000.tar~validation_0007.tar`.
+* Unzip all the above `xxxx.tar` files to the directory of `data/waymo/raw_data` as follows (You could get 798 *train* tfrecord and 202 *val* tfrecord ):  
+```
+OpenPCDet
+├── data
+│   ├── waymo
+│   │   │── ImageSets
+│   │   │── raw_data
+│   │   │   │── segment-xxxxxxxx.tfrecord
+|   |   |   |── ...
+|   |   |── waymo_processed_data
+│   │   │   │── segment-xxxxxxxx/
+|   |   |   |── ...
+│   │   │── pcdet_gt_database_train_sampled_xx/
+│   │   │── pcdet_waymo_dbinfos_train_sampled_xx.pkl   
+├── pcdet
+├── tools
+```
+* Install the official `waymo-open-dataset` by running the following command: 
+```shell script
+pip3 install --upgrade pip
+# tf 2.0.0
+pip3 install waymo-open-dataset-tf-2-0-0==1.2.0 --user
+```
+
+* Extract point cloud data from tfrecord and generate data infos by running the following command (it takes several hours, 
+and you could refer to `data/waymo/waymo_processed_data` to see how many records that have been processed): 
+```python 
+python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
+    --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
+```
+
+Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
+
 ## Training & Testing
 
 
