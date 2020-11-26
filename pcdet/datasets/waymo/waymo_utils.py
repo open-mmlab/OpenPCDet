@@ -23,7 +23,7 @@ WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Sign', 'Cyclist']
 def generate_labels(frame):
     obj_name, difficulty, dimensions, locations, heading_angles = [], [], [], [], []
     tracking_difficulty, speeds, accelerations, obj_ids = [], [], [], []
-
+    num_points_in_gt = []
     laser_labels = frame.laser_labels
     for i in range(len(laser_labels)):
         box = laser_labels[i].box
@@ -36,6 +36,7 @@ def generate_labels(frame):
         dimensions.append([box.length, box.width, box.height])  # lwh in unified coordinate of OpenPCDet
         locations.append(loc)
         obj_ids.append(laser_labels[i].id)
+        num_points_in_gt.append(laser_labels[i].num_lidar_points_in_box)
 
     annotations = {}
     annotations['name'] = np.array(obj_name)
@@ -46,6 +47,7 @@ def generate_labels(frame):
 
     annotations['obj_ids'] = np.array(obj_ids)
     annotations['tracking_difficulty'] = np.array(tracking_difficulty)
+    annotations['num_points_in_gt'] = np.array(num_points_in_gt)
 
     annotations = common_utils.drop_info_with_name(annotations, name='unknown')
     if annotations['name'].__len__() > 0:
