@@ -18,6 +18,10 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
+[2020-11-27] **Bugfixed:** Please re-prepare the validation infos of Waymo dataset (version 1.2) if you would like to 
+use our provided Waymo evaluation tool (see [PR](https://github.com/open-mmlab/OpenPCDet/pull/383)). 
+Note that you do not need to re-prepare the training data and ground-truth database. 
+
 [2020-11-10] **NEW:** The [Waymo Open Dataset](#waymo-open-dataset-baselines) has been supported with state-of-the-art results. Currently we provide the 
 configs and results of `SECOND`, `PartA2` and `PV-RCNN` on the Waymo Open Dataset, and more models could be easily supported by modifying their dataset configs. 
 
