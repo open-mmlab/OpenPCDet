@@ -25,7 +25,7 @@ class AxisAlignedTargetAssigner(object):
             self.unmatched_thresholds[config['class_name']] = config['unmatched_threshold']
          
         self.use_multihead = model_cfg.get('USE_MULTIHEAD', False)
-        self.seperate_multihead = model_cfg.get('SEPERATE_MULTIHEAD', False)
+        self.seperate_multihead = model_cfg.get('SEPARATE_MULTIHEAD', False)
         if self.seperate_multihead:
             rpn_head_cfgs = model_cfg.RPN_HEAD_CFGS
             self.gt_remapping = {}

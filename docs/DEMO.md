@@ -23,7 +23,7 @@ y-axis points towards to the left direction, and z-axis points towards to the to
    ...
    
    # Save it to the file. 
-   # The shape of points should be (num_points, 4), that is [x, y, z, intensity],  
+   # The shape of points should be (num_points, 4), that is [x, y, z, intensity] (Only for KITTI dataset).  
    # If you doesn't have the intensity information, just set them to zeros. 
    # If you have the intensity information, you should normalize them to [0, 1].
    points[:, 3] = 0 
