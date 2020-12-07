@@ -14,7 +14,7 @@ __all__ = {
     'DatasetTemplate': DatasetTemplate,
     'KittiDataset': KittiDataset,
     'NuScenesDataset': NuScenesDataset,
-    'NeolixDataset': NeolixDataset
+    'NeolixDataset': NeolixDataset,
     'WaymoDataset': WaymoDataset
 }
 
