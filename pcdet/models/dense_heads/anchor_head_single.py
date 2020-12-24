@@ -73,3 +73,18 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             data_dict['cls_preds_normalized'] = False
 
         return data_dict
+
+    # forward for export pointpillars onnx
+    # def forward(self, spatial_features_2d):
+    #     # spatial_features_2d = data_dict['spatial_features_2d']
+
+    #     cls_preds = self.conv_cls(spatial_features_2d)
+    #     box_preds = self.conv_box(spatial_features_2d)
+
+    #     cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
+    #     box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
+
+    #     dir_cls_preds = self.conv_dir_cls(spatial_features_2d)
+    #     dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
+        
+    #     return cls_preds, box_preds, dir_cls_preds

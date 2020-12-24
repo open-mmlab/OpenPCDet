@@ -5,7 +5,27 @@ and the model configs are located within [tools/cfgs](../tools/cfgs) for differe
 
 ## Dataset Preparation
 
-Currently we provide the dataloader of KITTI dataset and NuScenes dataset, and the supporting of more datasets are on the way.  
+Currently we provide the dataloader of KITTI dataset and NuScenes dataset, and the supporting of more datasets are on the way.
+
+### Neolix Dataset
+
+```
+OpenPCDet
+├── data
+│   ├── neolix
+│   │   │── ImageSets
+│   │   │── training
+│   │   │   ├──velodyne & label_2
+│   │   │── testing
+│   │   │   ├──velodyne
+├── pcdet
+├── tools
+```
+
+* Generate the data infos by running the following command: 
+```python 
+python -m pcdet.datasets.neolix.neolix_dataset create_neolix_infos tools/cfgs/dataset_configs/neolix_dataset.yaml
+```
 
 ### KITTI Dataset
 * Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [[road plane]](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training):
@@ -137,3 +157,12 @@ sh scripts/slurm_train.sh ${PARTITION} ${JOB_NAME} ${NUM_GPUS} --cfg_file ${CONF
 ```shell script
 python train.py --cfg_file ${CONFIG_FILE}
 ```
+
+
+### Export a pointpillars onnx model
+* Firstly, choose the forward function version for exporting a onnx model in base_bev_backbone.py and anchor_head_single.py, respectively. 
+* Secondly, run the export onnx script
+```shell script
+python export_onnx.py --cfg_file cfgs/neolix_models/pointpillar.yaml --data_path neolix_000004.bin --ckpt pp_checkpoint_epoch_80.pth
+```
+There will be four onnx models generated: vfe.onnx, backbone.onnx, head.onnx and rpn.onnx, and rpn.onnx is merged from backbone.onnx and head.onnx.
