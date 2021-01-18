@@ -52,7 +52,7 @@ pip install nuscenes-devkit==1.0.5
 
 * Generate the data infos by running the following command (it may take several hours): 
 ```python 
-python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos \ 
+python -m pcdet.datasets.nuscenes.nuscenes_dataset --func create_nuscenes_infos \
     --cfg_file tools/cfgs/dataset_configs/nuscenes_dataset.yaml \
     --version v1.0-trainval
 ```
@@ -115,7 +115,7 @@ sh scripts/dist_test.sh ${NUM_GPUS} \
 
 # or
 
-sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \ 
+sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \
     --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
 
