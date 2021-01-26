@@ -23,7 +23,7 @@ class AxisAlignedTargetAssigner(object):
         for config in anchor_generator_cfg:
             self.matched_thresholds[config['class_name']] = config['matched_threshold']
             self.unmatched_thresholds[config['class_name']] = config['unmatched_threshold']
-         
+
         self.use_multihead = model_cfg.get('USE_MULTIHEAD', False)
         # self.separate_multihead = model_cfg.get('SEPARATE_MULTIHEAD', False)
         # if self.seperate_multihead:
