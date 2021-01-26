@@ -166,3 +166,12 @@ python train.py --cfg_file ${CONFIG_FILE}
 python export_onnx.py --cfg_file cfgs/neolix_models/pointpillar.yaml --data_path neolix_000004.bin --ckpt pp_checkpoint_epoch_80.pth
 ```
 There will be four onnx models generated: vfe.onnx, backbone.onnx, head.onnx and rpn.onnx, and rpn.onnx is merged from backbone.onnx and head.onnx.
+
+
+### Inference and save the results.
+* Set the inference folder in neolix_dataset.py/get_lidar()/line 74;
+* Set the path of saving results in neolix_dataset.py/generate_single_sample_dict/line 333;
+* run inference.py;
+```shell script
+python inference.py --cfg_file cfgs/neolix_models/pointpillar.yaml --ckpt ../output/neolix_models/pointpillar/default/ckpt/checkpoint_epoch_160.pth --batch_size 1 --workers 1 --save_to_file  --inference
+```

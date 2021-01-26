@@ -2,7 +2,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
-    POINT_CLOUD_RANGE: [-24, -24, -1.5, 24, 24, 2.5]
+    POINT_CLOUD_RANGE: [-20, -70, -1.5, 20, 70, 2.5]
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
@@ -64,9 +64,9 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.88, 4.46, 1.65]],
+                'anchor_sizes': [[1.89, 4.56, 1.66]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.6,
@@ -74,9 +74,9 @@ MODEL:
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.67, 0.67, 1.75]],
+                'anchor_sizes': [[0.64, 0.62, 1.71]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -84,9 +84,9 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.85, 1.97, 1.58]],
+                'anchor_sizes': [[0.78, 1.88, 1.68]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -94,9 +94,9 @@ MODEL:
             },
             {
                 'class_name': 'Unknown',
-                'anchor_sizes': [[1.12, 1.31, 0.98]],
+                'anchor_sizes': [[1.16, 1.51, 1.01]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -239,8 +239,8 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 3
-    NUM_EPOCHS: 80
+    BATCH_SIZE_PER_GPU: 4
+    NUM_EPOCHS: 160
 
     OPTIMIZER: adam_onecycle
     LR: 0.01

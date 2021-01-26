@@ -4,14 +4,16 @@ from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
+import os
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils
 from ..dataset import DatasetTemplate
 
-
+data_id = -1
+write_data_id = -1
 class NuScenesDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, inference=False):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
@@ -20,6 +22,7 @@ class NuScenesDataset(DatasetTemplate):
         self.include_nuscenes_data(self.mode)
         if self.training and self.dataset_cfg.get('BALANCED_RESAMPLING', False):
             self.infos = self.balanced_infos_resampling(self.infos)
+        self.inference = inference
 
     def include_nuscenes_data(self, mode):
         self.logger.info('Loading NuScenes dataset')
@@ -92,15 +95,24 @@ class NuScenesDataset(DatasetTemplate):
     def get_lidar_with_sweeps(self, index, max_sweeps=1):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidar_path']
-        points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
+        if not self.inference:
+            points = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
+            sweep_points_list = [points]
+            sweep_times_list = [np.zeros((points.shape[0], 1))]
 
-        sweep_points_list = [points]
-        sweep_times_list = [np.zeros((points.shape[0], 1))]
-
-        for k in np.random.choice(len(info['sweeps']), max_sweeps - 1, replace=False):
-            points_sweep, times_sweep = self.get_sweep(info['sweeps'][k])
-            sweep_points_list.append(points_sweep)
-            sweep_times_list.append(times_sweep)
+            for k in np.random.choice(len(info['sweeps']), max_sweeps - 1, replace=False):
+                points_sweep, times_sweep = self.get_sweep(info['sweeps'][k])
+                sweep_points_list.append(points_sweep)
+                sweep_times_list.append(times_sweep)
+        else:
+            pc_root_path = "/home/songhongli/bins/"
+            pc_ls = sorted(os.listdir(pc_root_path))
+            global data_id
+            data_id += 1
+            pc_file = pc_root_path + pc_ls[data_id]
+            points = np.fromfile(pc_file, dtype=np.float32, count=-1).reshape([-1, 4])
+            sweep_points_list = [points]
+            sweep_times_list = [np.zeros((points.shape[0], 1))]
 
         points = np.concatenate(sweep_points_list, axis=0)
         times = np.concatenate(sweep_times_list, axis=0).astype(points.dtype)
@@ -151,7 +163,7 @@ class NuScenesDataset(DatasetTemplate):
         return data_dict
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, inference=False):
         """
         Args:
             batch_dict:
@@ -183,6 +195,26 @@ class NuScenesDataset(DatasetTemplate):
             pred_dict['score'] = pred_scores
             pred_dict['boxes_lidar'] = pred_boxes
             pred_dict['pred_labels'] = pred_labels
+
+            if inference:
+                global write_data_id
+                write_data_id += 1
+                obj_num = pred_scores.shape[0]
+                label_path = './pre_test/'
+                if not os.path.exists(label_path):
+                    os.makedirs(label_path)
+                content_ls = []
+                for i in range(obj_num):
+                    line_ls = [str(pred_dict['name'][i]), '0', '0', '0', '0', '0', '0', '0', str(pred_dict['boxes_lidar'][i][5]),
+                               str(pred_dict['boxes_lidar'][i][4]), str(pred_dict['boxes_lidar'][i][3]),
+                    str(pred_dict['boxes_lidar'][i][0]),
+                               str(pred_dict['boxes_lidar'][i][1]), str(pred_dict['boxes_lidar'][i][2]),
+                               str(pred_dict['boxes_lidar'][i][6])]
+                    content_ls.append(" ".join(line_ls))
+                # print(content_ls)
+                print("write_id", write_data_id)
+                with open(label_path + "%06d.txt" % write_data_id, 'w') as f:
+                    f.write("\n".join(content_ls))
 
             return pred_dict
 
@@ -361,14 +393,14 @@ if __name__ == '__main__':
         dataset_cfg.VERSION = args.version
         create_nuscenes_info(
             version=dataset_cfg.VERSION,
-            data_path=ROOT_DIR / 'data' / 'nuscenes',
-            save_path=ROOT_DIR / 'data' / 'nuscenes',
+            data_path=Path('/nfs/nas/datasets/nuScenes/nuscenes_datasets/nuscenes/'),
+            save_path=Path('/nfs/nas/datasets/nuScenes/nuscenes_datasets/nuscenes/'),
             max_sweeps=dataset_cfg.MAX_SWEEPS,
         )
 
         nuscenes_dataset = NuScenesDataset(
             dataset_cfg=dataset_cfg, class_names=None,
-            root_path=ROOT_DIR / 'data' / 'nuscenes',
+            root_path=Path('/nfs/nas/datasets/nuScenes/nuscenes_datasets/nuscenes/'),
             logger=common_utils.create_logger(), training=True
         )
         nuscenes_dataset.create_groundtruth_database(max_sweeps=dataset_cfg.MAX_SWEEPS)

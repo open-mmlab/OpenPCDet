@@ -2,7 +2,8 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
-    POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
+    # POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
+    POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -81,9 +82,9 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.88, 4.46, 1.65]],
+                'anchor_sizes': [[1.89, 4.56, 1.66]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.6,
@@ -91,9 +92,9 @@ MODEL:
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.67, 0.67, 1.75]],
+                'anchor_sizes': [[0.64, 0.62, 1.71]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.5,
@@ -101,9 +102,9 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.85, 1.97, 1.58]],
+                'anchor_sizes': [[0.78, 1.88, 1.68]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.5,
@@ -111,9 +112,9 @@ MODEL:
             },
             {
                 'class_name': 'Unknown',
-                'anchor_sizes': [[1.12, 1.31, 0.98]],
+                'anchor_sizes': [[1.16, 1.51, 1.01]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.32],
+                'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.5,
@@ -139,7 +140,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.2
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -154,7 +155,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 80
+    NUM_EPOCHS: 160
 
     OPTIMIZER: adam_onecycle
     LR: 0.003

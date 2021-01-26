@@ -1,31 +1,48 @@
-CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
-              'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
+CLASS_NAMES: ['car', 'barrier', 'bicycle', 'pedestrian']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
 
+    POINT_CLOUD_RANGE: [-20.48, -71.68, -3, 20.48, 71.68, 3.0]
+    DATA_PROCESSOR:
+        -   NAME: mask_points_and_boxes_outside_range
+            REMOVE_OUTSIDE_BOXES: True
+
+        -   NAME: shuffle_points
+            SHUFFLE_ENABLED: {
+                'train': True,
+                'test': True
+            }
+
+        -   NAME: transform_points_to_voxels
+            VOXEL_SIZE: [0.16, 0.16, 6.0]
+            MAX_POINTS_PER_VOXEL: 20
+            MAX_NUMBER_OF_VOXELS: {
+                'train': 30000,
+                'test': 30000
+            }
 
 MODEL:
-    NAME: SECONDNet
+    NAME: PointPillar
 
     VFE:
-        NAME: MeanVFE
-
-    BACKBONE_3D:
-        NAME: VoxelResBackBone8x
+        NAME: PillarVFE
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_NORM: True
+        NUM_FILTERS: [64]
 
     MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+        NAME: PointPillarScatter
+        NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
+        LAYER_NUMS: [3, 5, 5]
+        LAYER_STRIDES: [2, 2, 2]
+        NUM_FILTERS: [64, 128, 256]
+        UPSAMPLE_STRIDES: [1, 2, 4]
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
         NAME: AnchorHeadMulti
@@ -44,49 +61,9 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.95],
                 'align_center': False,
-                'feature_map_stride': 8,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
-            },
-            {
-                'class_name': truck,
-                'anchor_sizes': [[6.93, 2.51, 2.84]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
-                'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.55,
-                'unmatched_threshold': 0.4
-            },
-            {
-                'class_name': construction_vehicle,
-                'anchor_sizes': [[6.37, 2.85, 3.19]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.225],
-                'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.5,
-                'unmatched_threshold': 0.35
-            },
-            {
-                'class_name': bus,
-                'anchor_sizes': [[10.5, 2.94, 3.47]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.085],
-                'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.55,
-                'unmatched_threshold': 0.4
-            },
-            {
-                'class_name': trailer,
-                'anchor_sizes': [[12.29, 2.90, 3.87]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0.115],
-                'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.5,
-                'unmatched_threshold': 0.35
             },
             {
                 'class_name': barrier,
@@ -94,19 +71,9 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.33],
                 'align_center': False,
-                'feature_map_stride': 8,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.55,
                 'unmatched_threshold': 0.4
-            },
-            {
-                'class_name': motorcycle,
-                'anchor_sizes': [[2.11, 0.77, 1.47]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.085],
-                'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.5,
-                'unmatched_threshold': 0.3
             },
             {
                 'class_name': bicycle,
@@ -114,7 +81,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.18],
                 'align_center': False,
-                'feature_map_stride': 8,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -124,44 +91,28 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.935],
                 'align_center': False,
-                'feature_map_stride': 8,
-                'matched_threshold': 0.6,
-                'unmatched_threshold': 0.4
-            },
-            {
-                'class_name': traffic_cone,
-                'anchor_sizes': [[0.41, 0.41, 1.07]],
-                'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.285],
-                'align_center': False,
-                'feature_map_stride': 8,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.4
             },
         ]
 
         SHARED_CONV_NUM_FILTER: 64
+
         RPN_HEAD_CFGS: [
             {
                 'HEAD_CLS_NAME': ['car'],
             },
             {
-                'HEAD_CLS_NAME': ['truck', 'construction_vehicle'],
-            },
-            {
-                'HEAD_CLS_NAME': ['bus', 'trailer'],
-            },
-            {
                 'HEAD_CLS_NAME': ['barrier'],
             },
             {
-                'HEAD_CLS_NAME': ['motorcycle', 'bicycle'],
+                'HEAD_CLS_NAME': ['bicycle'],
             },
             {
-                'HEAD_CLS_NAME': ['pedestrian', 'traffic_cone'],
+                'HEAD_CLS_NAME': ['pedestrian'],
             },
         ]
-
         SEPARATE_REG_CONFIG: 
             NUM_MIDDLE_CONV: 1
             NUM_MIDDLE_FILTER: 64
@@ -193,7 +144,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.25 #0.1
+        SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -201,7 +152,7 @@ MODEL:
         NMS_CONFIG:
             MULTI_CLASSES_NMS: True
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.1 #0.2
+            NMS_THRESH: 0.2
             NMS_PRE_MAXSIZE: 1000
             NMS_POST_MAXSIZE: 83
 
@@ -211,7 +162,7 @@ OPTIMIZATION:
     NUM_EPOCHS: 20
 
     OPTIMIZER: adam_onecycle
-    LR: 0.003
+    LR: 0.001
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
