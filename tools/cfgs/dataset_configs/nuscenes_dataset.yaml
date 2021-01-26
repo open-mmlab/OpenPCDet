@@ -1,5 +1,5 @@
 DATASET: 'NuScenesDataset'
-DATA_PATH: '../data/nuscenes'
+DATA_PATH: '/nfs/nas/datasets/nuScenes/nuscenes_datasets/nuscenes/'
 
 VERSION: 'v1.0-trainval'
 MAX_SWEEPS: 10
@@ -34,9 +34,13 @@ DATA_AUGMENTOR:
              ],
           }
 
+#          SAMPLE_GROUPS: [
+#              'car:2','truck:3', 'construction_vehicle:7', 'bus:4', 'trailer:6',
+#              'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
+#          ]
           SAMPLE_GROUPS: [
-              'car:2','truck:3', 'construction_vehicle:7', 'bus:4', 'trailer:6',
-              'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
+            'car:2', 'construction_vehicle:7', 'bus:4', 'trailer:6',
+            'barrier:2', 'motorcycle:6', 'bicycle:6', 'pedestrian:2', 'traffic_cone:2'
           ]
 
           NUM_POINT_FEATURES: 5

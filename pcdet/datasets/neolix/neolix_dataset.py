@@ -1,5 +1,6 @@
 import copy
 import pickle
+import os
 
 import numpy as np
 from skimage import io
@@ -9,8 +10,12 @@ from ...utils import box_utils, calibration_neolix, common_utils, object3d_neoli
 from ..dataset import DatasetTemplate
 
 
+data_id = -1
+write_data_id = -1
+
+
 class NeolixDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, inference=False):
         """
         Args:
             root_path:
@@ -30,6 +35,7 @@ class NeolixDataset(DatasetTemplate):
 
         self.neolix_infos = []
         self.include_neolix_data(self.mode)
+        self.inference = inference
 
     def include_neolix_data(self, mode):
         if self.logger is not None:
@@ -60,9 +66,20 @@ class NeolixDataset(DatasetTemplate):
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
     def get_lidar(self, idx):
-        lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
-        assert lidar_file.exists()
-        return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
+        if not self.inference:
+            lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
+            assert lidar_file.exists()
+            return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
+        else:
+            root_path = "/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/hard_example_bins/"
+            fl_ls = sorted(os.listdir(root_path))
+            global data_id
+            data_id += 1
+            print("fl_ls[data_id]", fl_ls[data_id])
+            lidar_file = root_path + fl_ls[data_id]
+            pc = np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
+            pc[:, 3] = 0
+            return pc
 
     def get_image_shape(self, idx):
         img_file = self.root_split_path / 'image_2' / ('%s.png' % idx)
@@ -248,7 +265,7 @@ class NeolixDataset(DatasetTemplate):
             pickle.dump(all_db_infos, f)
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, inference=False):
         """
         Args:
             batch_dict:
@@ -310,19 +327,44 @@ class NeolixDataset(DatasetTemplate):
             annos.append(single_pred_dict)
 
             if output_path is not None:
-                cur_det_file = output_path / ('%s.txt' % frame_id)
-                with open(cur_det_file, 'w') as f:
-                    bbox = single_pred_dict['bbox']
-                    loc = single_pred_dict['location']
-                    dims = single_pred_dict['dimensions']  # lhw -> hwl
+                if inference:
+                    global write_data_id
+                    write_data_id += 1
+                    label_path = './pre_test/'
+                    with open(label_path + "%06d.txt" % write_data_id, 'w') as f:
+                        bbox = single_pred_dict['bbox']
+                        loc = single_pred_dict['location']
+                        dims = single_pred_dict['dimensions']  # lhw -> hwl
+                        content = []
+                        for idx in range(len(bbox)):
+                            content.append('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                  % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                                     bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                     dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                     loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
+                                     single_pred_dict['score'][idx]))
 
-                    for idx in range(len(bbox)):
-                        print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
-                              % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
-                                 bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
-                                 dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
-                                 loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
-                                 single_pred_dict['score'][idx]), file=f)
+                            # print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                            #       % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                            #          bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                            #          dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                            #          loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
+                            #          single_pred_dict['score'][idx]), file=f)
+                        print("f", f)
+                        f.write("\n".join(content))
+                else:
+                    cur_det_file = output_path / ('%s.txt' % frame_id)
+                    with open(cur_det_file, 'w') as f:
+                        bbox = single_pred_dict['bbox']
+                        loc = single_pred_dict['location']
+                        dims = single_pred_dict['dimensions']  # lhw -> hwl
+                        for idx in range(len(bbox)):
+                            print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                  % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                                     bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                     dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                     loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
+                                     single_pred_dict['score'][idx]), file=f)
 
         return annos
 
@@ -440,10 +482,13 @@ if __name__ == '__main__':
         from pathlib import Path
         from easydict import EasyDict
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
-        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        # ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/shanghai32_lidars')
         create_neolix_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown'],
-            data_path=ROOT_DIR / 'data' / 'neolix',
-            save_path=ROOT_DIR / 'data' / 'neolix'
+            data_path=ROOT_DIR,
+            save_path=ROOT_DIR
+            # data_path=ROOT_DIR / 'data' / 'neolix',
+            # save_path=ROOT_DIR / 'data' / 'neolix'
         )
