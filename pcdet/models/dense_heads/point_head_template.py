@@ -102,7 +102,7 @@ class PointHeadTemplate(nn.Module):
             point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, -1].long()
             point_cls_labels[bs_mask] = point_cls_labels_single
 
-            if ret_box_labels:
+            if ret_box_labels and gt_box_of_fg_points.shape[0] > 0:
                 point_box_labels_single = point_box_labels.new_zeros((bs_mask.sum(), 8))
                 fg_point_box_labels = self.box_coder.encode_torch(
                     gt_boxes=gt_box_of_fg_points[:, :-1], points=points_single[fg_flag],
