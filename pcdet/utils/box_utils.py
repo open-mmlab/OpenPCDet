@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import torch
+import copy
 from scipy.spatial import Delaunay
 
 from ..ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -98,8 +99,10 @@ def boxes3d_kitti_camera_to_lidar(boxes3d_camera, calib):
         boxes3d_lidar: [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
 
     """
-    xyz_camera = boxes3d_camera[:, 0:3]
-    l, h, w, r = boxes3d_camera[:, 3:4], boxes3d_camera[:, 4:5], boxes3d_camera[:, 5:6], boxes3d_camera[:, 6:7]
+    boxes3d_camera_copy = copy.deepcopy(boxes3d_camera)
+    xyz_camera, r = boxes3d_camera_copy[:, 0:3], boxes3d_camera_copy[:, 6:7]
+    l, h, w = boxes3d_camera_copy[:, 3:4], boxes3d_camera_copy[:, 4:5], boxes3d_camera_copy[:, 5:6]
+
     xyz_lidar = calib.rect_to_lidar(xyz_camera)
     xyz_lidar[:, 2] += h[:, 0] / 2
     return np.concatenate([xyz_lidar, l, w, h, -(r + np.pi / 2)], axis=-1)
@@ -114,9 +117,12 @@ def boxes3d_kitti_fakelidar_to_lidar(boxes3d_lidar):
         boxes3d_lidar: [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
 
     """
-    w, l, h, r = boxes3d_lidar[:, 3:4], boxes3d_lidar[:, 4:5], boxes3d_lidar[:, 5:6], boxes3d_lidar[:, 6:7]
-    boxes3d_lidar[:, 2] += h[:, 0] / 2
-    return np.concatenate([boxes3d_lidar[:, 0:3], l, w, h, -(r + np.pi / 2)], axis=-1)
+    boxes3d_lidar_copy = copy.deepcopy(boxes3d_lidar)
+    w, l, h = boxes3d_lidar_copy[:, 3:4], boxes3d_lidar_copy[:, 4:5], boxes3d_lidar_copy[:, 5:6]
+    r = boxes3d_lidar_copy[:, 6:7]
+
+    boxes3d_lidar_copy[:, 2] += h[:, 0] / 2
+    return np.concatenate([boxes3d_lidar_copy[:, 0:3], l, w, h, -(r + np.pi / 2)], axis=-1)
 
 
 def boxes3d_kitti_lidar_to_fakelidar(boxes3d_lidar):
@@ -128,9 +134,12 @@ def boxes3d_kitti_lidar_to_fakelidar(boxes3d_lidar):
         boxes3d_fakelidar: [x, y, z, w, l, h, r] in old LiDAR coordinates, z is bottom center
 
     """
-    dx, dy, dz, heading = boxes3d_lidar[:, 3:4], boxes3d_lidar[:, 4:5], boxes3d_lidar[:, 5:6], boxes3d_lidar[:, 6:7]
-    boxes3d_lidar[:, 2] -= dz[:, 0] / 2
-    return np.concatenate([boxes3d_lidar[:, 0:3], dy, dx, dz, -heading - np.pi / 2], axis=-1)
+    boxes3d_lidar_copy = copy.deepcopy(boxes3d_lidar)
+    dx, dy, dz = boxes3d_lidar_copy[:, 3:4], boxes3d_lidar_copy[:, 4:5], boxes3d_lidar_copy[:, 5:6]
+    heading = boxes3d_lidar_copy[:, 6:7]
+
+    boxes3d_lidar_copy[:, 2] -= dz[:, 0] / 2
+    return np.concatenate([boxes3d_lidar_copy[:, 0:3], dy, dx, dz, -heading - np.pi / 2], axis=-1)
 
 
 def enlarge_box3d(boxes3d, extra_width=(0, 0, 0)):
@@ -156,8 +165,10 @@ def boxes3d_lidar_to_kitti_camera(boxes3d_lidar, calib):
     :return:
         boxes3d_camera: (N, 7) [x, y, z, l, h, w, r] in rect camera coords
     """
-    xyz_lidar = boxes3d_lidar[:, 0:3]
-    l, w, h, r = boxes3d_lidar[:, 3:4], boxes3d_lidar[:, 4:5], boxes3d_lidar[:, 5:6], boxes3d_lidar[:, 6:7]
+    boxes3d_lidar_copy = copy.deepcopy(boxes3d_lidar)
+    xyz_lidar = boxes3d_lidar_copy[:, 0:3]
+    l, w, h = boxes3d_lidar_copy[:, 3:4], boxes3d_lidar_copy[:, 4:5], boxes3d_lidar_copy[:, 5:6]
+    r = boxes3d_lidar_copy[:, 6:7]
 
     xyz_lidar[:, 2] -= h.reshape(-1) / 2
     xyz_cam = calib.lidar_to_rect(xyz_lidar)
