@@ -82,7 +82,7 @@ class CarS(nn.Module):
                              indice_key="subm_4")
         self.conv5 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
         self.conv6 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
-        self.block = nn.Sequential(self.conv_input, self.conv1, self.conv2, self.conv3, self.conv4, self.conv5,
+        self.block = spconv.SparseSequential(self.conv_input, self.conv1, self.conv2, self.conv3, self.conv4, self.conv5,
                                    self.conv6)
 
         self.num_point_features = 96
