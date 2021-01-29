@@ -106,8 +106,24 @@ class CarS(nn.Module):
             spatial_shape=self.sparse_shape,
             batch_size=batch_size
         )
-        out = self.conv_input(input_sp_tensor)
-        out = self.conv1(out)
-        out = self.conv2(out)
+        x_conv_input = self.conv_input(input_sp_tensor)
+        x_conv1 = self.conv1(x_conv_input)
+        x_conv2 = self.conv2(x_conv1)
+        x_conv3 = self.conv3(x_conv2)
+        x_conv4 = self.conv4(x_conv3)
+        x_conv5 = self.conv5(x_conv4)
+        x_conv6 = self.conv6(x_conv5)
         # out = self.block(input_sp_tensor)
-        return out
+        batch_dict.update({
+            'encoded_spconv_tensor': x_conv6,
+            'encoded_spconv_tensor_stride': 4
+        })
+        # batch_dict.update({
+        #     'multi_scale_3d_features': {
+        #         'x_conv1': x_conv1,
+        #         'x_conv2': x_conv2,
+        #         'x_conv3': x_conv3,
+        #         'x_conv4': x_conv4,
+        #     }
+        # })
+        return x_conv6
