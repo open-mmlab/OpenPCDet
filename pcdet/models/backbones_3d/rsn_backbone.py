@@ -27,7 +27,7 @@ class B1Block(spconv.SparseModule):
         out.features = self.bn1(out.features)
         out.features = self.relu(out.features)
 
-        out.features = self.conv2(out.features)  # type: spconv.SparseConvTensor
+        out = self.conv2(out)  # type: spconv.SparseConvTensor
         out.features = self.bn2(out.features)
 
         out.features += identity.features
