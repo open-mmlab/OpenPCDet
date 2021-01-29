@@ -87,14 +87,25 @@ class CarS(nn.Module):
 
         self.num_point_features = 96
 
-    def forward(self, x):
+    def forward(self, batch_dict):
         """
-        Too many things need to complete, mark.
         Args:
-            x:
-
+            batch_dict:
+                batch_size: int
+                vfe_features: (num_voxels, C)
+                voxel_coords: (num_voxels, 4), [batch_idx, z_idx, y_idx, x_idx]
         Returns:
-
+            batch_dict:
+                encoded_spconv_tensor: sparse tensor
         """
-        out = self.block(x)
+        voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
+        batch_size = batch_dict['batch_size']
+        input_sp_tensor = spconv.SparseConvTensor(
+            features=voxel_features,
+            indices=voxel_coords.int(),
+            spatial_shape=self.sparse_shape,
+            batch_size=batch_size
+        )
+
+        out = self.block(input_sp_tensor)
         return out
