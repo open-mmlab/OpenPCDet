@@ -59,15 +59,16 @@ class B0Block(spconv.SparseModule):
 
 
 class CarS(nn.Module):
-    def __init__(self, in_channels, grid_size, **kwargs):
+    def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
         super(CarS, self).__init__()
+        self.model_cfg = model_cfg
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
 
         self.sparse_shape = grid_size[::-1] + [1, 0, 0]
 
         out_channels = 96
         self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(in_channels=in_channels, out_channels=out_channels,
+            spconv.SubMConv3d(in_channels=input_channels, out_channels=out_channels,
                               kernel_size=3, padding=1, bias=False, indice_key='subm_input'),
             norm_fn(out_channels),
             nn.ReLU()
