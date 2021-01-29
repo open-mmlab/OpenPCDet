@@ -57,6 +57,8 @@ class B0Block(spconv.SparseModule):
 
         out = self.B1Block(out)
 
+        return out
+
 
 class CarS(nn.Module):
     def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
