@@ -45,7 +45,7 @@ class B0Block(spconv.SparseModule):
         bias = norm_fn is not None  # bool type
 
         self.conv0 = spconv.SparseConv3d(in_channels=in_channels, out_channels=out_channels,
-                                         stride=stride, padding=1, bias=bias, indice_key=indice_key)
+                                         kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key)
         self.bn0 = norm_fn(out_channels)
         self.relu0 = nn.ReLU()
         self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn, indice_key=indice_key)
@@ -85,7 +85,7 @@ class CarS(nn.Module):
         self.block = nn.Sequential(self.conv_input, self.conv1, self.conv2, self.conv3, self.conv4, self.conv5,
                                    self.conv6)
 
-    def forward(self,x):
+    def forward(self, x):
         """
         Too many things need to complete, mark.
         Args:
