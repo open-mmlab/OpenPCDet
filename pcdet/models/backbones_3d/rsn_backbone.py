@@ -106,6 +106,8 @@ class CarS(nn.Module):
             spatial_shape=self.sparse_shape,
             batch_size=batch_size
         )
-
-        out = self.block(input_sp_tensor)
+        out = self.conv_input(input_sp_tensor)
+        out = self.conv1(out)
+        out = self.conv2(out)
+        # out = self.block(input_sp_tensor)
         return out
