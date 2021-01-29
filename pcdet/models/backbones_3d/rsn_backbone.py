@@ -48,7 +48,7 @@ class B0Block(spconv.SparseModule):
                                          kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key)
         self.bn0 = norm_fn(out_channels)
         self.relu0 = nn.ReLU()
-        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn, indice_key=indice_key)
+        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn)
 
     def forward(self, x):
         out = self.conv0(x)  # type: spconv.SparseConvTensor
