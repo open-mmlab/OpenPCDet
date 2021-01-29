@@ -128,4 +128,4 @@ class CarS(nn.Module):
         #         'x_conv4': x_conv4,
         #     }
         # })
-        return x_conv6
+        return batch_dict
