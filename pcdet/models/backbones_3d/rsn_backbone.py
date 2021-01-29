@@ -120,12 +120,14 @@ class CarS(nn.Module):
             'encoded_spconv_tensor': x_conv6,
             'encoded_spconv_tensor_stride': 4
         })
-        # batch_dict.update({
-        #     'multi_scale_3d_features': {
-        #         'x_conv1': x_conv1,
-        #         'x_conv2': x_conv2,
-        #         'x_conv3': x_conv3,
-        #         'x_conv4': x_conv4,
-        #     }
-        # })
+        batch_dict.update({
+            'multi_scale_3d_features': {
+                'x_conv1': x_conv1,
+                'x_conv2': x_conv2,
+                'x_conv3': x_conv3,
+                'x_conv4': x_conv4,
+                'x_conv5': x_conv5,
+                'x_conv6': x_conv6,
+            }
+        })
         return batch_dict
