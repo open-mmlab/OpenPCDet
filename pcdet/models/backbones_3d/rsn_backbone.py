@@ -1,6 +1,7 @@
 import torch.nn as nn
 import spconv
 from functools import partial
+import pdb
 
 
 class B1Block(spconv.SparseModule):
@@ -115,6 +116,7 @@ class CarS(nn.Module):
         x_conv4 = self.conv4(x_conv3)
         x_conv5 = self.conv5(x_conv4)
         x_conv6 = self.conv6(x_conv5)
+        pdb.set_trace()
         # out = self.block(input_sp_tensor)
         batch_dict.update({
             'encoded_spconv_tensor': x_conv6,
