@@ -85,6 +85,8 @@ class CarS(nn.Module):
         self.block = nn.Sequential(self.conv_input, self.conv1, self.conv2, self.conv3, self.conv4, self.conv5,
                                    self.conv6)
 
+        self.num_point_features = 96
+
     def forward(self, x):
         """
         Too many things need to complete, mark.
