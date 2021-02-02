@@ -1,5 +1,6 @@
 DATASET: 'NuScenesDataset'
 DATA_PATH: '../data/nuscenes'
+CLOUD_DATA_PATH: '/cache/nuscenes'
 
 VERSION: 'v1.0-trainval'
 MAX_SWEEPS: 10

@@ -43,6 +43,8 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
+    parser.add_argument('--runs_on', type=str, default='server', choices=['server', 'cloud'])
+
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -57,6 +59,10 @@ def parse_config():
 
 def main():
     args, cfg = parse_config()
+
+    if args.runs_on == 'cloud':
+        cfg.DATA_CONFIG.DATA_PATH = cfg.DATA_CONFIG.CLOUD_DATA_PATH
+
     if args.launcher == 'none':
         dist_train = False
         total_gpus = 1
@@ -79,6 +85,11 @@ def main():
 
     output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
     ckpt_dir = output_dir / 'ckpt'
+
+    if args.runs_on == 'cloud':
+        output_dir = Path('/cache/output') / cfg.TAG
+        ckpt_dir = output_dir / 'ckpt'
+
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
 
@@ -111,6 +122,11 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
+
+    # if args.runs_on =='cloud':
+    #     cfg.MODEL.PRE_PATH = ''
+    # else:
+    #     cfg.MODEL.PRE_PATH = ''
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
     if args.sync_bn:

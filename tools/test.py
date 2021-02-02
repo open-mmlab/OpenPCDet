@@ -38,6 +38,9 @@ def parse_config():
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
+    parser.add_argument('--runs_on', type=str, default='server',choices=['server', 'cloud'])
+
+
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -133,6 +136,10 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
 def main():
     args, cfg = parse_config()
+
+    if args.runs_on == 'cloud':
+        cfg.DATA_CONFIG.DATA_PATH = cfg.DATA_CONFIG.CLOUD_DATA_PATH
+
     if args.launcher == 'none':
         dist_test = False
         total_gpus = 1
@@ -149,6 +156,10 @@ def main():
         args.batch_size = args.batch_size // total_gpus
 
     output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
+
+    if args.runs_on == 'cloud':
+        output_dir = Path('/cache/output/') / cfg.TAG
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     eval_output_dir = output_dir / 'eval'
