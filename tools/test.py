@@ -198,6 +198,9 @@ def main():
         dist=dist_test, workers=args.workers, logger=logger, training=False
     )
 
+    # if args.runs_on == 'cloud':
+    #     cfg.MODEL.PRE_PATH = '/home'
+
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
     with torch.no_grad():
         if args.eval_all:
