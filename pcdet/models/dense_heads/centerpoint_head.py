@@ -1,17 +1,20 @@
 import copy
 import numpy as np
 import torch
-from mmcv.cnn import ConvModule, build_conv_layer, kaiming_init
-from mmcv.runner import force_fp32
 from torch import nn
 
-from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
-                          xywhr2xyxyr)
-from mmdet3d.models import builder
 
-from mmdet3d.models.utils import clip_sigmoid
-from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
-from mmdet.core import build_bbox_coder, multi_apply
+# from mmcv.cnn import ConvModule, build_conv_layer, kaiming_init
+# from mmcv.runner import force_fp32
+
+#
+# from mmdet3d.core import (circle_nms, draw_heatmap_gaussian, gaussian_radius,
+#                           xywhr2xyxyr)
+# from mmdet3d.models import builder
+#
+# from mmdet3d.models.utils import clip_sigmoid
+# from mmdet3d.ops.iou3d.iou3d_utils import nms_gpu
+# from mmdet.core import build_bbox_coder, multi_apply
 
 def kaiming_init(module,
                  a=0,
@@ -133,7 +136,6 @@ class SeparateHead(nn.Module):
         return ret_dict
 
 
-
 class DCNSeperateHead(nn.Module):
     r"""DCNSeperateHead for CenterHead.
 
@@ -246,7 +248,6 @@ class DCNSeperateHead(nn.Module):
         return ret
 
 
-
 class CenterHead(nn.Module):
     """CenterHead for CenterPoint.
 
@@ -278,32 +279,17 @@ class CenterHead(nn.Module):
         bias (str): Type of bias. Default: 'auto'.
     """
 
-    def __init__(self,
-                 in_channels=[128],
-                 tasks=None,
-                 train_cfg=None,
-                 test_cfg=None,
-                 bbox_coder=None,
-                 common_heads=dict(),
-                 loss_cls=dict(type='GaussianFocalLoss', reduction='mean'),
-                 loss_bbox=dict(
-                     type='L1Loss', reduction='none', loss_weight=0.25),
-                 seperate_head=dict(
-                     type='SeparateHead', init_bias=-2.19, final_kernel=3),
-                 share_conv_channel=64,
-                 num_heatmap_convs=2,
-                 conv_cfg=dict(type='Conv2d'),
-                 norm_cfg=dict(type='BN2d'),
-                 bias='auto',
-                 norm_bbox=True):
+    def __init__(self, model_cfg, num_class, class_names, grid_size, voxel_size, point_cloud_range,
+                 predict_boxes_when_training=True, **kwargs):
         super(CenterHead, self).__init__()
 
-        num_classes = [len(t['class_names']) for t in tasks]
-        self.class_names = [t['class_names'] for t in tasks]
-        self.train_cfg = train_cfg
-        self.test_cfg = test_cfg
-        self.in_channels = in_channels
-        self.num_classes = num_classes
+        self.model_cfg = model_cfg
+        self.num_class = num_class
+        self.class_names = class_names
+        self.predict_boxes_when_training = predict_boxes_when_training
+        self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]
+        self.class_names = [t['class_names'] for t in model_cfg.TASKS]
+
         self.norm_bbox = norm_bbox
 
         self.loss_cls = build_loss(loss_cls)
@@ -519,11 +505,11 @@ class CenterHead(nn.Module):
                         1], task_boxes[idx][k][2]
 
                     coor_x = (
-                        x - pc_range[0]
-                    ) / voxel_size[0] / self.train_cfg['out_size_factor']
+                                     x - pc_range[0]
+                             ) / voxel_size[0] / self.train_cfg['out_size_factor']
                     coor_y = (
-                        y - pc_range[1]
-                    ) / voxel_size[1] / self.train_cfg['out_size_factor']
+                                     y - pc_range[1]
+                             ) / voxel_size[1] / self.train_cfg['out_size_factor']
 
                     center = torch.tensor([coor_x, coor_y],
                                           dtype=torch.float32,
@@ -567,7 +553,6 @@ class CenterHead(nn.Module):
             inds.append(ind)
         return heatmaps, anno_boxes, inds, masks
 
-    @force_fp32(apply_to=('preds_dicts'))
     def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):
         """Loss function for CenterHead.
 
