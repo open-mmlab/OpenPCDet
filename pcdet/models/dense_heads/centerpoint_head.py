@@ -271,13 +271,7 @@ class CenterHead(nn.Module):
 
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
-
-        self.norm_bbox = norm_bbox
-
-        self.loss_cls = build_loss(loss_cls)
-        self.loss_bbox = build_loss(loss_bbox)
-        self.bbox_coder = build_bbox_coder(bbox_coder)
-        self.num_anchor_per_locs = [n for n in num_classes]
+        self.forwad_ret_dict = {}   # return dict filtered by assigner
 
 
         # a shared convolution
@@ -323,6 +317,12 @@ class CenterHead(nn.Module):
         spatial_features_2d = data_dict['spatial_features_2d']
         if self.shared_conv is not None:
             spatial_features_2d = self.shared_conv(spatial_features_2d)
+
+        multi_head_features = []
+        for task in self.task_heads:
+            multi_head_features.append(task(spatial_features_2d))
+
+        self.forwad_ret_dict['multi_head_features'] = multi_head_features
 
         # there is something ambiguous that need to be understood
         # if self.training:
