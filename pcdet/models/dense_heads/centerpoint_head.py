@@ -253,30 +253,7 @@ class CenterHead(nn.Module):
 
     Args:
         mode (str): Mode of the head. Default: '3d'.
-        in_channels (list[int] | int): Channels of the input feature map.
-            Default: [128].
-        tasks (list[dict]): Task information including class number
-            and class names. Default: None.
-        dataset (str): Name of the dataset. Default: 'nuscenes'.
-        weight (float): Weight for location loss. Default: 0.25.
-        code_weights (list[int]): Code weights for location loss. Default: [].
-        common_heads (dict): Conv information for common heads.
-            Default: dict().
-        loss_cls (dict): Config of classification loss function.
-            Default: dict(type='GaussianFocalLoss', reduction='mean').
-        loss_bbox (dict): Config of regression loss function.
-            Default: dict(type='L1Loss', reduction='none').
-        seperate_head (dict): Config of seperate head. Default: dict(
-            type='SeparateHead', init_bias=-2.19, final_kernel=3)
-        share_conv_channel (int): Output channels for share_conv_layer.
-            Default: 64.
-        num_heatmap_convs (int): Number of conv layers for heatmap conv layer.
-            Default: 2.
-        conv_cfg (dict): Config of conv layer.
-            Default: dict(type='Conv2d')
-        norm_cfg (dict): Config of norm layer.
-            Default: dict(type='BN2d').
-        bias (str): Type of bias. Default: 'auto'.
+
     """
 
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, voxel_size, point_cloud_range,
@@ -291,6 +268,7 @@ class CenterHead(nn.Module):
         self.voxel_size = voxel_size
         self.point_cloud_range = point_cloud_range
         self.predict_boxes_when_training = predict_boxes_when_training
+
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
 
@@ -300,62 +278,63 @@ class CenterHead(nn.Module):
         self.loss_bbox = build_loss(loss_bbox)
         self.bbox_coder = build_bbox_coder(bbox_coder)
         self.num_anchor_per_locs = [n for n in num_classes]
-        self.fp16_enabled = False
+
 
         # a shared convolution
-        self.shared_conv = ConvModule(
-            in_channels,
-            share_conv_channel,
-            kernel_size=3,
-            padding=1,
-            conv_cfg=conv_cfg,
-            norm_cfg=norm_cfg,
-            bias=bias)
+        share_conv_channel = model_cfg.PARAMETERS.share_conv_channel
+        self.shared_conv = nn.Sequential(
+            nn.Conv2d(self.in_channels,share_conv_channel,
+                      3,1,bias=True),
+            nn.BatchNorm2d(share_conv_channel),
+            nn.ReLU(inplace=True)   # change input data
+        )
 
+        self.common_heads = model_cfg.PARAMETERS.common_heads
+        self.init_bias = model_cfg.PARAMETERS.init_bias
         self.task_heads = nn.ModuleList()
 
-        for num_cls in num_classes:
-            heads = copy.deepcopy(common_heads)
-            heads.update(dict(heatmap=(num_cls, num_heatmap_convs)))
-            seperate_head.update(
-                in_channels=share_conv_channel, heads=heads, num_cls=num_cls)
-            self.task_heads.append(builder.build_head(seperate_head))
+        self.use_dcn = model_cfg.USE_DCN
+        for num_cls in self.num_classes:
+            heads = copy.deepcopy(self.common_heads)
+            heads.update(dict(heatmap=(num_cls, 2)))
+            # need to complete
+            # if self.use_dcn:
+            #     self.task_heads.append(DCNSeperateHead)
+            # else:
+            #     self.task_heads.append(SeparateHead)
 
     def init_weights(self):
         """Initialize weights."""
         for task_head in self.task_heads:
             task_head.init_weights()
 
-    def forward_single(self, x):
-        """Forward function for CenterPoint.
+    def assign_target(self, gt_boxes):
+        """
 
         Args:
-            x (torch.Tensor): Input feature map with the shape of
-                [B, 512, 128, 128].
+            gt_boxes: (B, M, 8)
 
         Returns:
-            list[dict]: Output results for tasks.
+
         """
-        ret_dicts = []
+        pass
 
-        x = self.shared_conv(x)
+    def forwad(self, data_dict):
+        spatial_features_2d = data_dict['spatial_features_2d']
+        if self.shared_conv is not None:
+            spatial_features_2d = self.shared_conv(spatial_features_2d)
 
-        for task in self.task_heads:
-            ret_dicts.append(task(x))
+        # there is something ambiguous that need to be understood
+        # if self.training:
+        #     targets_dict = self.assign_target(
+        #         gt_boxes=data_dict['gt_boxes']
+        #     )
+        #     self.forward_ret_dict.update(targets_dict)
 
-        return ret_dicts
+        if not self.training or self.predict_boxes_when_training:
+            data_dict = self.generate_predicted_boxes(data_dict)
 
-    def forward(self, feats):
-        """Forward pass.
-
-        Args:
-            feats (list[torch.Tensor]): Multi-level features, e.g.,
-                features produced by FPN.
-
-        Returns:
-            tuple(list[dict]): Output results for tasks.
-        """
-        return multi_apply(self.forward_single, feats)
+        return data_dict
 
     def _gather_feat(self, feat, ind, mask=None):
         """Gather feature map.
@@ -816,3 +795,6 @@ class CenterHead(nn.Module):
 
             predictions_dicts.append(predictions_dict)
         return predictions_dicts
+
+    def generate_predicted_boxes(self,data_dict):
+        pass
