@@ -279,13 +279,17 @@ class CenterHead(nn.Module):
         bias (str): Type of bias. Default: 'auto'.
     """
 
-    def __init__(self, model_cfg, num_class, class_names, grid_size, voxel_size, point_cloud_range,
+    def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, voxel_size, point_cloud_range,
                  predict_boxes_when_training=True, **kwargs):
         super(CenterHead, self).__init__()
 
         self.model_cfg = model_cfg
+        self.in_channels = input_channels
         self.num_class = num_class
         self.class_names = class_names
+        self.grid_size = grid_size
+        self.voxel_size = voxel_size
+        self.point_cloud_range = point_cloud_range
         self.predict_boxes_when_training = predict_boxes_when_training
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
