@@ -102,18 +102,18 @@ class VoxelBackBone8x(nn.Module):
             # [400, 352, 11] <- [200, 176, 5]
             block(64, 64, 3, norm_fn=norm_fn, stride=2, padding=(0, 1, 1), indice_key='spconv4', conv_type='spconv'),
             block(64, 64, 3, norm_fn=norm_fn, padding=1, indice_key='subm4'),
-            block(64, 64, 3, norm_fn=norm_fn, padding=1, indice_key='subm4'),
+            block(64, 128, 3, norm_fn=norm_fn, padding=1, indice_key='subm4'),
         )
 
         last_pad = 0
         last_pad = self.model_cfg.get('last_pad', last_pad)
-        self.conv_out = spconv.SparseSequential(
-            # [200, 150, 5] -> [200, 150, 2]
-            spconv.SparseConv3d(64, 128, (3, 1, 1), stride=(2, 1, 1), padding=last_pad,
-                                bias=False, indice_key='spconv_down2'),
-            norm_fn(128),
-            nn.ReLU(),
-        )
+        # self.conv_out = spconv.SparseSequential(
+        #     # [200, 150, 5] -> [200, 150, 2]
+        #     spconv.SparseConv3d(64, 128, (3, 1, 1), stride=(2, 1, 1), padding=last_pad,
+        #                         bias=False, indice_key='spconv_down2'),
+        #     norm_fn(128),
+        #     nn.ReLU(),
+        # )
         self.num_point_features = 128
 
     def forward(self, batch_dict):
@@ -145,7 +145,8 @@ class VoxelBackBone8x(nn.Module):
 
         # for detection head
         # [200, 176, 5] -> [200, 176, 2]
-        out = self.conv_out(x_conv4)
+        out = x_conv4
+
 
         batch_dict.update({
             'encoded_spconv_tensor': out,
