@@ -829,7 +829,7 @@ class CenterHead(nn.Module):
                                         reg=batch_reg,cfg=self.post_cfg,task_id=task_id)
 
 
-    def proposal_layer(self,heat,rot,hei,dim,vel,reg=None,
+    def proposal_layer(self,heat,rot_sine,rot_cosine,hei,dim,vel,reg=None,
                        post_center_range=None, score_threshold=None,cfg=None, raw_rot=False, task_d=-1):
         """Decode bboxes.
 
@@ -852,8 +852,10 @@ class CenterHead(nn.Module):
                     list[dict]: Decoded boxes.
                 """
         batch, cat, _, _ = heat.size()
-
-        scores, inds, clses, ys, xs = self._topk(heat, K=self.max_num)
+        # nms_cfg = cfg.nms.train if self.training else cfg.nms.test
+        nms_cfg = cfg.nms
+        K = nms_cfg.nms_pre_max_size
+        scores, inds, clses, ys, xs = self._topk(heat, K)
 
         if reg is not None:
             reg = self._transpose_and_gather_feat(reg, inds)
