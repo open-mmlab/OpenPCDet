@@ -2,6 +2,7 @@ import copy
 import numpy as np
 import torch
 from torch import nn
+from ...utils import loss_utils
 
 
 # from mmcv.cnn import ConvModule, build_conv_layer, kaiming_init
@@ -270,7 +271,7 @@ class CenterHead(nn.Module):
         self.point_cloud_range = point_cloud_range
         self.predict_boxes_when_training = predict_boxes_when_training
 
-        self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]
+        self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS] # task number
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
         self.forwad_ret_dict = {}   # return dict filtered by assigner
 
@@ -586,6 +587,14 @@ class CenterHead(nn.Module):
             loss_dict[f'task{task_id}.loss_bbox'] = loss_bbox
         return loss_dict
 
+    def build_loss(self):
+        self.add_module(
+            'crit',loss_utils.CenterNetFocalLoss()
+        )
+        self.add_module(
+            'crit_reg',loss_utils.CenterNetRegLoss()
+        )
+
     def get_bboxes(self, preds_dicts, img_metas, img=None, rescale=False):
         """Generate bboxes from bbox head predictions.
 
@@ -810,9 +819,9 @@ class CenterHead(nn.Module):
         double_flip = not self.training and self.post_cfg.get('double_flip', False) # type: bool
         pre_dicts = self.forwad_ret_dict['multi_head_features'] # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
+        batch_size = pre_dicts[0]['hm'].shape(0)
 
         for task_id, pre_dict in enumerate(pre_dicts):
-            batch_size = pre_dict['hm'].shape[0]
             if double_flip:
                 pass
             else:
@@ -828,9 +837,15 @@ class CenterHead(nn.Module):
             boxes = self.proposal_layer(batch_hm,batch_rot_sine,batch_rot_cosine ,batch_hei,batch_dim,bat_vel,
                                         reg=batch_reg,cfg=self.post_cfg,task_id=task_id)
 
+        pre_dicts = []
+        nms_cfg = self.post_cfg.nms
+        num_rois = nms_cfg.nms_pre_max_size * self.num_class
+        for batch_idx in range(batch_size):
+
+
 
     def proposal_layer(self,heat,rot_sine,rot_cosine,hei,dim,vel,reg=None,
-                       post_center_range=None, score_threshold=None,cfg=None, raw_rot=False, task_d=-1):
+                       cfg=None, raw_rot=False, task_id=-1):
         """Decode bboxes.
 
                 Args:

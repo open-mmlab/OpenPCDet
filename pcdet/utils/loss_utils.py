@@ -206,6 +206,18 @@ class WeightedCrossEntropyLoss(nn.Module):
         return loss
 
 
+class CenterNetFocalLoss(nn.Module):
+
+    def __init__(self):
+        super(CenterNetFocalLoss, self).__init__()
+
+
+class CenterNetRegLoss(nn.Module):
+
+    def __init__(self):
+        super(CenterNetRegLoss, self).__init__()
+
+
 def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
     """
     Args:
