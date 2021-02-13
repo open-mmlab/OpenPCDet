@@ -211,11 +211,86 @@ class CenterNetFocalLoss(nn.Module):
     def __init__(self):
         super(CenterNetFocalLoss, self).__init__()
 
+    def _neg_loss(self, pred, gt, alpha=2, beta=4):
+        """
+
+        Args:
+            pred:
+            gt:tensor
+
+        Returns:
+
+        """
+        pos_inds = gt.eq(1).float()
+        neg_inds = gt.lt(1).float()
+
+        neg_weights = torch.pow(1-gt, beta)
+
+
+        pos_loss = torch.log(pred) * torch.pow(1 - pred, alpha) * pos_inds
+        neg_loss = torch.log(1 - pred) * torch.pow(pred, alpha) * neg_weights * neg_inds
+
+        num_pos = pos_inds.sum()
+
+        pos_loss = pos_loss.sum()
+        neg_loss = neg_loss.sum()
+
+        loss = -(pos_loss + neg_loss)/max(num_pos,1)
+
+        # if num_pos == 0:
+        #     loss = -neg_loss
+        # else:
+        #     loss = -(pos_loss + neg_loss)/num_pos
+
+        return loss
+
+    def forward(self, input, target, alpha=2, beta=4):
+        return self._neg_loss(input, target, alpha=2, beta=4)
 
 class CenterNetRegLoss(nn.Module):
+    """
+    Regression loss for an output tensor
+    """
 
     def __init__(self):
         super(CenterNetRegLoss, self).__init__()
+
+    def _reg_loss(self,regr,gt_regr,mask):
+        """
+
+        Args:
+            regr:(batch, max_objects, dim)
+            gt_regr: ↑
+            mask: (batch, max_objects)
+
+        Returns:
+
+        """
+        num = mask.float().sum()
+
+    def forward(self,input, target, mask, ind):
+        pred = _transpose_and_gather_feat(input,ind)
+        loss = self._reg_loss(pred,target,mask)
+        return loss
+
+
+
+
+def _transpose_and_gather_feat(feat, ind):
+    """Given feats and indexes, returns the transposed and gathered feats.
+
+    Args:
+        feat (torch.Tensor): Features to be transposed and gathered
+            with the shape of [B, 2, W, H].
+        ind (torch.Tensor): Indexes with the shape of [B, N].
+
+    Returns:
+        torch.Tensor: Transposed and gathered feats.
+    """
+    feat = feat.permute(0, 2, 3, 1).contiguous()
+    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = _gather_feat(feat, ind)
+    return feat
 
 
 def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):

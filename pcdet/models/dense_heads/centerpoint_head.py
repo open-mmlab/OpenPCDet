@@ -274,6 +274,8 @@ class CenterHead(nn.Module):
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS] # task number
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
         self.forwad_ret_dict = {}   # return dict filtered by assigner
+        self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights # weights between different heads
+        self.weight = self.model_cfg.LOSS_CONFIG.weight # weight between local loss and hm loss
 
 
         # a shared convolution
@@ -538,6 +540,42 @@ class CenterHead(nn.Module):
             inds.append(ind)
         return heatmaps, anno_boxes, inds, masks
 
+    def get_loss(self, tb_dict=None):
+        tb_dict = {} if tb_dict is None else tb_dict
+        pred_dicts = self.forwad_ret_dict['multi_head_features']
+        center_loss = []
+        self.forwad_ret_dict['pred_box_enconding'] = {}
+        for task_id, pred_dict in enumerate(pred_dicts):
+            pred_dict['hm'] = self.clip_sigmoid(pred_dict['hm'])
+            hm_loss = self.crit(pred_dict['hm'], self.forwad_ret_dict['heatmap'][task_id])
+
+            target_box_encoding = self.forwad_ret_dict['box_encoding'][task_id]
+            # encoding format [x, y, z, w, l, h, sinr, cosr, vx, vy]
+            pred_box_encoding = torch.cat([
+                pred_dict['reg'],
+                pred_dict['hei'],
+                pred_dict['dim'],
+                pred_dict['rot'],
+                pred_dict['vel']
+            ],dim=1).contiguous() # (B, 10, H, W)
+
+            self.forwad_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
+
+            box_loss = self.crit_reg(
+                pred_box_encoding,
+                target_box_encoding,
+                self.forwad_ret_dict['mask'][task_id],
+                self.forwad_ret_dict['ind'][task_id]
+            )
+            # local offset loss
+            loc_loss = (box_loss * box_loss.new_tensor(self.code_weights)).sum()
+            loss = hm_loss + self.weight * loc_loss
+            center_loss.append(loss)
+            # TODO: update tbdict
+
+
+        return sum(center_loss),tb_dict
+
     def loss(self, gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs):
         """Loss function for CenterHead.
 
@@ -588,6 +626,7 @@ class CenterHead(nn.Module):
         return loss_dict
 
     def build_loss(self):
+        # criterion
         self.add_module(
             'crit',loss_utils.CenterNetFocalLoss()
         )
@@ -817,27 +856,27 @@ class CenterHead(nn.Module):
 
         """
         double_flip = not self.training and self.post_cfg.get('double_flip', False) # type: bool
-        pre_dicts = self.forwad_ret_dict['multi_head_features'] # output of forward func.
+        pred_dicts = self.forwad_ret_dict['multi_head_features'] # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
-        batch_size = pre_dicts[0]['hm'].shape(0)
+        batch_size = pred_dicts[0]['hm'].shape(0)
 
-        for task_id, pre_dict in enumerate(pre_dicts):
+        for task_id, pred_dict in enumerate(pred_dicts):
             if double_flip:
                 pass
             else:
-                batch_hm = pre_dict['hm'].sigmoid()
-                batch_reg = pre_dict['reg']
-                batch_hei = pre_dict['height']
-                batch_dim = pre_dict['dim']
-                batch_rot_sine = pre_dict['rot'][:,0].unsqueeze(1)
-                batch_rot_cosine = pre_dict['rot'][:,1].unsqueeze(1)
-                bat_vel =pre_dict['vel']
+                batch_hm = pred_dict['hm'].sigmoid()
+                batch_reg = pred_dict['reg']
+                batch_hei = pred_dict['height']
+                batch_dim = pred_dict['dim']
+                batch_rot_sine = pred_dict['rot'][:,0].unsqueeze(1)
+                batch_rot_cosine = pred_dict['rot'][:,1].unsqueeze(1)
+                bat_vel =pred_dict['vel']
 
             # decode
             boxes = self.proposal_layer(batch_hm,batch_rot_sine,batch_rot_cosine ,batch_hei,batch_dim,bat_vel,
                                         reg=batch_reg,cfg=self.post_cfg,task_id=task_id)
 
-        pre_dicts = []
+        pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
         for batch_idx in range(batch_size):
@@ -1005,6 +1044,19 @@ class CenterHead(nn.Module):
         feat = self._gather_feat(feat, ind)
         return feat
 
+    def clip_sigmoid(self, x, eps=1e-4):
+        """Sigmoid function for input feature.
+
+        Args:
+            x (torch.Tensor): Input feature map with the shape of [B, N, H, W].
+            eps (float): Lower bound of the range to be clamped to. Defaults
+                to 1e-4.
+
+        Returns:
+            torch.Tensor: Feature map after sigmoid.
+        """
+        y = torch.clamp(x.sigmoid_(), min=eps, max=1 - eps)
+        return y
 
 
 
