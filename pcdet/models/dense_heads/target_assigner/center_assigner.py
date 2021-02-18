@@ -4,7 +4,7 @@ import numpy as np
 
 
 class CenterAssigner(object):
-    def __init__(self, assigner_cfg, num_class, no_log, grid_size, point_cloud_range, voxel_size):
+    def __init__(self, assigner_cfg, num_class, no_log, grid_size, point_cloud_range, voxel_size,dataset):
         """Return CenterNet training labels likt heatmap, height, offset"""
         self.assigner_cfg = assigner_cfg
         self.dense_reg = assigner_cfg.dense_reg
@@ -14,6 +14,7 @@ class CenterAssigner(object):
         self._max_objs = assigner_cfg.max_objs
         self._min_radius = assigner_cfg.min_radius
         self.no_log = no_log
+        self.dataset = dataset
 
         self.num_class = num_class
         self.grid_size = grid_size
@@ -36,7 +37,6 @@ class CenterAssigner(object):
         """
 
         height, width = det_size
-
 
         a1 = 1
         b1 = (height + width)
@@ -107,8 +107,8 @@ class CenterAssigner(object):
         # 将高斯分布结果约束在边界内
         masked_gaussian = torch.from_numpy(
             gaussian[radius - top:radius + bottom,
-                     radius - left:radius + right]).to(heatmap.device,
-                                                       torch.float32)
+            radius - left:radius + right]).to(heatmap.device,
+                                              torch.float32)
         if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:
             torch.max(masked_heatmap, masked_gaussian * k, out=masked_heatmap)
         # 将高斯分布覆盖到heatmap 上，相当于不断的在heatmap 基础上添加关键点的高斯，
@@ -130,15 +130,15 @@ class CenterAssigner(object):
         feature_map_size = self.grid_size[:2] // self.out_size_factor
 
         batch_size = gt_boxes.shape[0]
-        gt_classes = gt_boxes[:,:,-1] # last layer
-        gt_boxes = gt_boxes[:,:,:-1] # except for last layer
+        gt_classes = gt_boxes[:, :, -1]  # last layer
+        gt_boxes = gt_boxes[:, :, :-1]  # except for last layer
 
         heatmaps = {}
         gt_inds = {}
         gt_masks = {}
         gt_box_encodings = {}
         gt_cats = {}
-        for task_id,task in enumerate(self.tasks):
+        for task_id, task in enumerate(self.tasks):
             heatmaps[task_id] = []
             gt_inds[task_id] = []
             gt_masks[task_id] = []
@@ -148,7 +148,8 @@ class CenterAssigner(object):
         for k in range(batch_size):
             # TODO: I dont understand this part
             cur_gt = gt_boxes[k]
-            cnt = cur_gt.__len__() - 1
+            cnt = cur_gt.__len__() - 1 # M gt boxes, second dim
+            # 看看是不是填充的0，只看非0的箱子
             while cnt > 0 and cur_gt[cnt].sum() == 0:
                 cnt -= 1
             cur_gt = cur_gt[:cnt + 1]
@@ -159,8 +160,8 @@ class CenterAssigner(object):
                 heatmap = torch.zeros(
                     (len(task.class_names),
                      feature_map_size[1],
-                     feature_map_size[0]),dtype=torch.float32,device=cur_gt.device)
-                gt_ind = torch.zeros(max_objs,dtype=torch.long,device=cur_gt.device)
+                     feature_map_size[0]), dtype=torch.float32, device=cur_gt.device)
+                gt_ind = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_mask = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_cat = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_box_encoding = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
@@ -170,23 +171,83 @@ class CenterAssigner(object):
                 class_offset = 0
                 for class_name in task.class_names:
                     class_idx = self.class_to_idx[class_name]
-                    class_mask = (gt_classes ==class_idx)
+                    class_mask = (cur_gt_classes == class_idx)
                     cur_gt_of_task = cur_gt[class_mask]
                     # fill will class offset number
-                    cur_class_of_task = cur_gt.new_full((cur_gt_of_task.shape[0],),class_offset).long()
+                    cur_class_of_task = cur_gt.new_full((cur_gt_of_task.shape[0],), class_offset).long()
                     cur_gts_of_task.append(cur_gt_of_task)
                     cur_classes_of_task.append(cur_class_of_task)
                     class_offset += 1
-                cur_gts_of_task = torch.cat(cur_gts_of_task,dim=0)
-                cur_classes_of_task = torch.cat(cur_classes_of_task,dim=0)
+                cur_gts_of_task = torch.cat(cur_gts_of_task, dim=0)
+                cur_classes_of_task = torch.cat(cur_classes_of_task, dim=0)
 
                 num_boxes_of_task = cur_gts_of_task.shape[0]
+                for i in range(num_boxes_of_task):
+                    cat = cur_classes_of_task[i] # category
+                    # TODO: different datasets have different format
+                    x, y, z, w, l, h, r = cur_gts_of_task[i][:7]
+                    if self.dataset == 'nuscenes':
+                        x, y, z, w, l, h, r, vx, vy = cur_gts_of_task[i]
+                    elif self.dataset == 'waymo':
+                        x, y, z, w, l, h, r = cur_gts_of_task[i]
+                    # -pi < r - 2 * pi * k < pi, find k:int
+                    r = r - np.floor(r / (2 * np.pi) + 0.5) * 2 * np.pi
+                    w, l = w / self.voxel_size[0] / self.out_size_factor, l / self.voxel_size[1] / self.out_size_factor
+                    if w > 0 and l > 0:
+                        radius = self.gaussian_radius((l, w), min_overlap=self.gaussian_overlap)
+                        radius = max(self._min_radius, int(radius))
+
+                        # 坐标系转换
+                        # be really careful for the coordinate system of your box annotation.
+                        coor_x, coor_y = (x - self.point_cloud_range[0]) / self.voxel_size[0] / self.out_size_factor, \
+                                         (y - self.point_cloud_range[1]) / self.voxel_size[1] / self.out_size_factor
+
+                        ct_ft = torch.tensor(
+                            [coor_x, coor_y], dtype=torch.float32)
+                        ct_int = ct_ft.int()
+
+                        # throw out not in range objects to avoid out of array area when creating the heatmap
+                        if not (0 <= ct_int[0] < feature_map_size[0] and 0 <= ct_int[1] < feature_map_size[1]):
+                            continue
+
+                        self.draw_heatmap_gaussian(heatmap[cat], ct_int, radius)
+
+                        new_idx = k
+                        x, y = ct_int[0], ct_int[1]
+
+                        if not (y * feature_map_size[0] + x < feature_map_size[0] * feature_map_size[1]):
+                            # a double check, should never happen
+                            print(x, y, y * feature_map_size[0] + x)
+                            assert False
+
+                        cat[new_idx] = cat
+                        gt_ind[new_idx] = y * feature_map_size[0] + x
+                        gt_mask[new_idx] = 1
+
+                        # w,l has been modified, so in box encoding, we use original w,l,h
+                        if not self.no_log:
+                            w,l,h = np.log(cur_gts_of_task[i,3]),np.log(cur_gts_of_task[i,4]),np.log(cur_gts_of_task[i,5])
+                        else:
+                            w,l,h = cur_gts_of_task[i,3],cur_gts_of_task[i,4],cur_gts_of_task[i,5]
+                        if self.dataset == 'nuscenes':
+                            gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
+                                                           ct_ft[1] - ct_int[1],
+                                                           z,w,l,h,
+                                                           np.sin(r),np.cos(r),
+                                                           vx,vy
+                                                           ],dtype=torch.float32,device=gt_box_encoding.device)
+                        elif self.dataset == 'waymo':
+                            gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
+                                                               ct_ft[1] - ct_int[1],
+                                                               z, w, l, h,
+                                                               np.sin(r), np.cos(r)
+                                                               ], dtype=torch.float32, device=gt_box_encoding.device)
+                        else:
+                            raise NotImplementedError("Only Support KITTI and nuScene for Now!")
 
 
-
-
-        for task_id,task in enumerate(self.tasks):
-            heatmaps[task_id] = torch.stack(heatmaps[task_id],dim = 0).contiguous()
+        for task_id, task in enumerate(self.tasks):
+            heatmaps[task_id] = torch.stack(heatmaps[task_id], dim=0).contiguous()
             gt_inds[task_id] = torch.stack(gt_inds[task_id], dim=0).contiguous()
             gt_masks[task_id] = torch.stack(gt_masks[task_id], dim=0).contiguous()
             gt_box_encodings[task_id] = torch.stack(gt_box_encodings[task_id], dim=0).contiguous()
@@ -201,178 +262,3 @@ class CenterAssigner(object):
         }
 
         return target_dict
-
-    def get_targets(self, gt_bboxes_3d, gt_labels_3d):
-        """Generate targets.
-
-        Args:
-            gt_bboxes_3d (list[:obj:`LiDARInstance3DBoxes`]): Ground
-                truth gt boxes.
-            gt_labels_3d (list[torch.Tensor]): Labels of boxes.
-
-        Returns:
-            Returns:
-                tuple[list[torch.Tensor]]: Tuple of target including \
-                    the following results in order.
-
-                    - list[torch.Tensor]: Heatmap scores.
-                    - list[torch.Tensor]: Ground truth boxes.
-                    - list[torch.Tensor]: Indexes indicating the \
-                        position of the valid boxes.
-                    - list[torch.Tensor]: Masks indicating which \
-                        boxes are valid.
-        """
-        heatmaps, anno_boxes, inds, masks = multi_apply(
-            self.get_targets_single, gt_bboxes_3d, gt_labels_3d)
-        # transpose heatmaps, because the dimension of tensors in each task is
-        # different, we have to use numpy instead of torch to do the transpose.
-        heatmaps = np.array(heatmaps).transpose(1, 0).tolist()
-        heatmaps = [torch.stack(hms_) for hms_ in heatmaps]
-        # transpose anno_boxes
-        anno_boxes = np.array(anno_boxes).transpose(1, 0).tolist()
-        anno_boxes = [torch.stack(anno_boxes_) for anno_boxes_ in anno_boxes]
-        # transpose inds
-        inds = np.array(inds).transpose(1, 0).tolist()
-        inds = [torch.stack(inds_) for inds_ in inds]
-        # transpose inds
-        masks = np.array(masks).transpose(1, 0).tolist()
-        masks = [torch.stack(masks_) for masks_ in masks]
-        return heatmaps, anno_boxes, inds, masks
-
-    def get_targets_single(self, gt_bboxes_3d, gt_labels_3d):
-        """Generate training targets for a single sample.
-
-        Args:
-            gt_bboxes_3d (:obj:`LiDARInstance3DBoxes`): Ground truth gt boxes.
-            gt_labels_3d (torch.Tensor): Labels of boxes.
-
-        Returns:
-            tuple[list[torch.Tensor]]: Tuple of target including \
-                the following results in order.
-
-                - list[torch.Tensor]: Heatmap scores.
-                - list[torch.Tensor]: Ground truth boxes.
-                - list[torch.Tensor]: Indexes indicating the position \
-                    of the valid boxes.
-                - list[torch.Tensor]: Masks indicating which boxes \
-                    are valid.
-        """
-        device = gt_labels_3d.device
-        gt_bboxes_3d = torch.cat(
-            (gt_bboxes_3d.gravity_center, gt_bboxes_3d.tensor[:, 3:]),
-            dim=1).to(device)
-        max_objs = self.train_cfg['max_objs'] * self.train_cfg['dense_reg']
-        grid_size = torch.tensor(self.train_cfg['grid_size'])
-        pc_range = torch.tensor(self.train_cfg['point_cloud_range'])
-        voxel_size = torch.tensor(self.train_cfg['voxel_size'])
-
-        feature_map_size = grid_size[:2] // self.train_cfg['out_size_factor']
-
-        # reorganize the gt_dict by tasks
-        task_masks = []
-        flag = 0
-        for class_name in self.class_names:
-            task_masks.append([
-                torch.where(gt_labels_3d == class_name.index(i) + flag)
-                for i in class_name
-            ])
-            flag += len(class_name)
-
-        task_boxes = []
-        task_classes = []
-        flag2 = 0
-        for idx, mask in enumerate(task_masks):
-            task_box = []
-            task_class = []
-            for m in mask:
-                task_box.append(gt_bboxes_3d[m])
-                # 0 is background for each task, so we need to add 1 here.
-                task_class.append(gt_labels_3d[m] + 1 - flag2)
-            task_boxes.append(torch.cat(task_box, axis=0).to(device))
-            task_classes.append(torch.cat(task_class).long().to(device))
-            flag2 += len(mask)
-        draw_gaussian = self.draw_heatmap_gaussian
-        heatmaps, anno_boxes, inds, masks = [], [], [], []
-
-        for idx, task_head in enumerate(self.task_heads):
-            heatmap = gt_bboxes_3d.new_zeros(
-                (len(self.class_names[idx]), feature_map_size[1],
-                 feature_map_size[0]))
-
-            anno_box = gt_bboxes_3d.new_zeros((max_objs, 10),
-                                              dtype=torch.float32)
-
-            ind = gt_labels_3d.new_zeros((max_objs), dtype=torch.int64)
-            mask = gt_bboxes_3d.new_zeros((max_objs), dtype=torch.uint8)
-
-            num_objs = min(task_boxes[idx].shape[0], max_objs)
-
-            for k in range(num_objs):
-                cls_id = task_classes[idx][k] - 1
-
-                width = task_boxes[idx][k][3]
-                length = task_boxes[idx][k][4]
-                width = width / voxel_size[0] / self.train_cfg[
-                    'out_size_factor']
-                length = length / voxel_size[1] / self.train_cfg[
-                    'out_size_factor']
-
-                if width > 0 and length > 0:
-                    radius = self.gaussian_radius(
-                        (length, width),
-                        min_overlap=self.train_cfg['gaussian_overlap'])
-                    radius = max(self.train_cfg['min_radius'], int(radius))
-
-                    # be really careful for the coordinate system of
-                    # your box annotation.
-                    x, y, z = task_boxes[idx][k][0], task_boxes[idx][k][
-                        1], task_boxes[idx][k][2]
-
-                    coor_x = (
-                                     x - pc_range[0]
-                             ) / voxel_size[0] / self.train_cfg['out_size_factor']
-                    coor_y = (
-                                     y - pc_range[1]
-                             ) / voxel_size[1] / self.train_cfg['out_size_factor']
-
-                    center = torch.tensor([coor_x, coor_y],
-                                          dtype=torch.float32,
-                                          device=device)
-                    center_int = center.to(torch.int32)
-
-                    # throw out not in range objects to avoid out of array
-                    # area when creating the heatmap
-                    if not (0 <= center_int[0] < feature_map_size[0]
-                            and 0 <= center_int[1] < feature_map_size[1]):
-                        continue
-
-                    draw_gaussian(heatmap[cls_id], center_int, radius)
-
-                    new_idx = k
-                    x, y = center_int[0], center_int[1]
-
-                    assert (y * feature_map_size[0] + x <
-                            feature_map_size[0] * feature_map_size[1])
-
-                    ind[new_idx] = y * feature_map_size[0] + x
-                    mask[new_idx] = 1
-                    # TODO: support other outdoor dataset
-                    vx, vy = task_boxes[idx][k][7:]
-                    rot = task_boxes[idx][k][6]
-                    box_dim = task_boxes[idx][k][3:6]
-                    if self.norm_bbox:
-                        box_dim = box_dim.log()
-                    anno_box[new_idx] = torch.cat([
-                        center - torch.tensor([x, y], device=device),
-                        z.unsqueeze(0), box_dim,
-                        torch.sin(rot).unsqueeze(0),
-                        torch.cos(rot).unsqueeze(0),
-                        vx.unsqueeze(0),
-                        vy.unsqueeze(0)
-                    ])
-
-            heatmaps.append(heatmap)
-            anno_boxes.append(anno_box)
-            masks.append(mask)
-            inds.append(ind)
-        return heatmaps, anno_boxes, inds, masks

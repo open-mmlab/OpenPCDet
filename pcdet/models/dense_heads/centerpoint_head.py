@@ -271,6 +271,7 @@ class CenterHead(nn.Module):
         self.voxel_size = voxel_size
         self.point_cloud_range = point_cloud_range
         self.predict_boxes_when_training = predict_boxes_when_training
+        self.dataset = model_cfg.DATASET
 
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS] # task number
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
@@ -309,7 +310,8 @@ class CenterHead(nn.Module):
             self.no_log,
             self.grid_size,
             self.point_cloud_range,
-            self.voxel_size
+            self.voxel_size,
+            self.dataset
         )
 
     def init_weights(self):
@@ -377,7 +379,6 @@ class CenterHead(nn.Module):
             feat = feat[mask]
             feat = feat.view(-1, dim)
         return feat
-
 
 
     def get_loss(self, tb_dict=None):
