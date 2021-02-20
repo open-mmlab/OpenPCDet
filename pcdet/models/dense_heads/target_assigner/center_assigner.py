@@ -212,7 +212,7 @@ class CenterAssigner(object):
 
                         self.draw_heatmap_gaussian(heatmap[cat], ct_int, radius)
 
-                        new_idx = k
+                        new_idx = i
                         x, y = ct_int[0], ct_int[1]
 
                         if not (y * feature_map_size[0] + x < feature_map_size[0] * feature_map_size[1]):
@@ -244,6 +244,12 @@ class CenterAssigner(object):
                                                                ], dtype=torch.float32, device=gt_box_encoding.device)
                         else:
                             raise NotImplementedError("Only Support KITTI and nuScene for Now!")
+
+                heatmaps[task_id].append(heatmap)
+                gt_inds[task_id].append(gt_ind)
+                gt_cats[task_id].append(gt_cat)
+                gt_masks[task_id].append(gt_mask)
+                gt_box_encodings[task_id].append(gt_box_encoding)
 
 
         for task_id, task in enumerate(self.tasks):
