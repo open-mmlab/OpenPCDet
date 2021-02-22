@@ -223,7 +223,7 @@ class CenterAssigner(object):
                             print(x, y, y * feature_map_size[0] + x)
                             assert False
 
-                        cat[new_idx] = cat
+                        gt_cat[new_idx] = cat
                         gt_ind[new_idx] = y * feature_map_size[0] + x
                         gt_mask[new_idx] = 1
 
