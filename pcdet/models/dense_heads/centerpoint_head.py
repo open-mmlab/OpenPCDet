@@ -277,6 +277,8 @@ class CenterHead(nn.Module):
             self.dataset
         )
 
+        self.build_loss()
+
     def init_weights(self):
         """Initialize weights."""
         for task_head in self.task_heads:
