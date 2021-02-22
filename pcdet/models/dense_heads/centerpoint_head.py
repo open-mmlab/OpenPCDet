@@ -295,7 +295,7 @@ class CenterHead(nn.Module):
 
         return targets_dict
 
-    def forwad(self, data_dict):
+    def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
         if self.shared_conv is not None:
             spatial_features_2d = self.shared_conv(spatial_features_2d)
