@@ -249,7 +249,7 @@ class CenterHead(nn.Module):
         share_conv_channel = model_cfg.PARAMETERS.share_conv_channel
         self.shared_conv = nn.Sequential(
             nn.Conv2d(self.in_channels,share_conv_channel,
-                      3,1,bias=True),
+                      kernel_size=3,padding=1,bias=True),
             nn.BatchNorm2d(share_conv_channel),
             nn.ReLU(inplace=True)   # change input data
         )
@@ -317,7 +317,6 @@ class CenterHead(nn.Module):
         if not self.training or self.predict_boxes_when_training:
             data_dict = self.generate_predicted_boxes(data_dict)
 
-        pdb.set_trace()
         return data_dict
 
     def get_loss(self, tb_dict=None):
