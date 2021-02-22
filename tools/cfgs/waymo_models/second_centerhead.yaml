@@ -66,7 +66,7 @@ MODEL:
             }
 
         TEST_CONFIG:
-            post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
+            post_center_range: [-80, -80, -10.0, 80, 80, 10.0]
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
             out_size_factor: 8
