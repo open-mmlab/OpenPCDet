@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import pdb
 
 
 class BaseBEVBackbone(nn.Module):
@@ -90,6 +91,7 @@ class BaseBEVBackbone(nn.Module):
         ret_dict = {}
         x = spatial_features
         for i in range(len(self.blocks)):
+            pdb.set_trace()
             x = self.blocks[i](x)
 
             stride = int(spatial_features.shape[2] / x.shape[2])
