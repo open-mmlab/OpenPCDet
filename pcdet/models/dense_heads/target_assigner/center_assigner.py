@@ -1,5 +1,6 @@
 import torch
 import math
+import numpy as np
 
 
 class CenterAssigner(object):
@@ -68,11 +69,14 @@ class CenterAssigner(object):
             math.ndarray: Generated gaussian map.
         """
         m, n = [(ss - 1.) / 2. for ss in shape]
-        y, x = math.ogrid[-m:m + 1, -n:n + 1]
+        y, x = np.ogrid[-m:m + 1, -n:n + 1]
 
-        h = math.exp(-(x * x + y * y) / (2 * sigma * sigma))
+        h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
         # limit extreme small number
-        h[h < math.finfo(h.dtype).eps * h.max()] = 0
+        h[h < np.finfo(h.dtype).eps * h.max()] = 0
+        h = torch.from_numpy(h)
+        if torch.cuda.is_available():
+            h = h.cuda()
         return h
 
     def draw_heatmap_gaussian(self, heatmap, center, radius, k=1):
