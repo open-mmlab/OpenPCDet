@@ -413,7 +413,8 @@ class CenterHead(nn.Module):
                 batch_dim = pred_dict['dim']
             batch_rot_sine = pred_dict['rot'][:, 0].unsqueeze(1)
             batch_rot_cosine = pred_dict['rot'][:, 1].unsqueeze(1)
-            bat_vel = pred_dict['vel']
+
+            bat_vel = pred_dict['vel'] if self.dataset == 'nuscenes' else None
 
             # decode
             boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, bat_vel,
