@@ -393,7 +393,7 @@ class CenterHead(nn.Module):
         double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
         pred_dicts = self.forward_ret_dict['multi_head_features']  # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
-        batch_size = pred_dicts[0]['hm'].shape(0)
+        batch_size = data_dict['batch_size']
 
         task_preds = {}
         task_preds['bboxes'] = {}
