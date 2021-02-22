@@ -32,7 +32,7 @@ MODEL:
         DATASET: waymo
         MODE: 3d
         USE_DCN: False
-        TASK: &tasks_head
+        TASKS: &tasks_head
           - num_class: 1
             class_names: ['Vehicle']
           - num_class: 1
@@ -52,6 +52,7 @@ MODEL:
         TARGET_ASSIGNER_CONFIG:
             NAME: CenterAssigner
             BOX_CODER: ResidualCoder
+            tasks: *tasks_head
             out_size_factor: 8
             dense_reg: 1
             gaussian_overlap: 0.1
