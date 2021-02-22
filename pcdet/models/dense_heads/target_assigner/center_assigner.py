@@ -167,7 +167,12 @@ class CenterAssigner(object):
                 gt_ind = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_mask = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_cat = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
-                gt_box_encoding = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
+                if self.dataset == 'nuscenes':
+                    gt_box_encoding = torch.zeros((max_objs,10), dtype=torch.long, device=cur_gt.device)
+                elif self.dataset == 'waymo':
+                    gt_box_encoding = torch.zeros((max_objs, 8), dtype=torch.long, device=cur_gt.device)
+                else:
+                    raise NotImplementedError("Only Support KITTI and nuScene for Now!")
 
                 cur_gts_of_task = []
                 cur_classes_of_task = []
