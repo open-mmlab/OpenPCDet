@@ -275,7 +275,6 @@ class CenterNetRegLoss(nn.Module):
         isnotnan = (~torch.isnan(gt_regr)).float()
         mask *= isnotnan
         regr *= mask
-        pdb.set_trace()
         gt_regr *= mask
 
         loss = torch.abs(regr - gt_regr)

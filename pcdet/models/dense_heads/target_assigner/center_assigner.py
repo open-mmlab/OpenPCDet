@@ -166,12 +166,12 @@ class CenterAssigner(object):
                      feature_map_size[1],
                      feature_map_size[0]), dtype=torch.float32, device=cur_gt.device)
                 gt_ind = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
-                gt_mask = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
+                gt_mask = torch.zeros(max_objs, dtype=torch.bool, device=cur_gt.device)
                 gt_cat = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 if self.dataset == 'nuscenes':
-                    gt_box_encoding = torch.zeros((max_objs, 10), dtype=torch.long, device=cur_gt.device)
+                    gt_box_encoding = torch.zeros((max_objs, 10), dtype=torch.float32, device=cur_gt.device)
                 elif self.dataset == 'waymo':
-                    gt_box_encoding = torch.zeros((max_objs, 8), dtype=torch.long, device=cur_gt.device)
+                    gt_box_encoding = torch.zeros((max_objs, 8), dtype=torch.float32, device=cur_gt.device)
                 else:
                     raise NotImplementedError("Only Support KITTI and nuScene for Now!")
 
@@ -269,7 +269,6 @@ class CenterAssigner(object):
             gt_box_encodings[task_id] = torch.stack(gt_box_encodings[task_id], dim=0).contiguous()
             gt_cats[task_id] = torch.stack(gt_cats[task_id], dim=0).contiguous()
 
-        pdb.set_trace()
         target_dict = {
             'heatmap': heatmaps,
             'ind': gt_inds,
