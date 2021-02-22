@@ -63,6 +63,19 @@ MODEL:
                 'Cyclist': 3
             }
 
+        TEST_CONFIG:
+            post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
+            score_threshold: 0.1
+            pc_range: [-75.2, -75.2]
+            out_size_factor: 8
+            voxel_size: [0.1, 0.1]
+            nms:
+                use_rotate_nms: True
+                use_multi_class_nms: False
+                nms_pre_max_size: 4096
+                nms_post_max_size: 500
+                nms_iou_threshold: 0.7
+
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
