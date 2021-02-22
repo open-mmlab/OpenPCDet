@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pdb
 
 
 from . import box_utils
@@ -274,6 +275,7 @@ class CenterNetRegLoss(nn.Module):
         isnotnan = (~torch.isnan(gt_regr)).float()
         mask *= isnotnan
         regr *= mask
+        pdb.set_trace()
         gt_regr *= mask
 
         loss = torch.abs(regr - gt_regr)
