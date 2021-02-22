@@ -277,6 +277,7 @@ class CenterHead(nn.Module):
             self.voxel_size,
             self.dataset
         )
+        self.build_loss()
 
     def init_weights(self):
         """Initialize weights."""
