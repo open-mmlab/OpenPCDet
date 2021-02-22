@@ -32,6 +32,7 @@ MODEL:
         DATASET: waymo
         MODE: 3d
         USE_DCN: False
+        NO_LOG: False
         TASKS: &tasks_head
           - num_class: 1
             class_names: ['Vehicle']
