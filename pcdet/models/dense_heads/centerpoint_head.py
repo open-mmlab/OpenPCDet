@@ -238,7 +238,7 @@ class CenterHead(nn.Module):
 
         self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS] # task number
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
-        self.forwad_ret_dict = {}   # return dict filtered by assigner
+        self.forward_ret_dict = {}   # return dict filtered by assigner
         self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights # weights between different heads
         self.weight = self.model_cfg.LOSS_CONFIG.weight # weight between local loss and hm loss
         self.no_log = self.model_cfg.NO_LOG
@@ -304,7 +304,7 @@ class CenterHead(nn.Module):
         for task in self.task_heads:
             multi_head_features.append(task(spatial_features_2d))
 
-        self.forwad_ret_dict['multi_head_features'] = multi_head_features
+        self.forward_ret_dict['multi_head_features'] = multi_head_features
 
         # there is something ambiguous that need to be understood
         if self.training:
@@ -320,14 +320,14 @@ class CenterHead(nn.Module):
 
     def get_loss(self, tb_dict=None):
         tb_dict = {} if tb_dict is None else tb_dict
-        pred_dicts = self.forwad_ret_dict['multi_head_features']
+        pred_dicts = self.forward_ret_dict['multi_head_features']
         center_loss = []
-        self.forwad_ret_dict['pred_box_enconding'] = {}
+        self.forward_ret_dict['pred_box_enconding'] = {}
         for task_id, pred_dict in enumerate(pred_dicts):
             pred_dict['hm'] = self.clip_sigmoid(pred_dict['hm'])
-            hm_loss = self.crit(pred_dict['hm'], self.forwad_ret_dict['heatmap'][task_id])
+            hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id])
 
-            target_box_encoding = self.forwad_ret_dict['box_encoding'][task_id]
+            target_box_encoding = self.forward_ret_dict['box_encoding'][task_id]
             if self.dataset == 'nuscenes':
                 # nuscenes encoding format [x, y, z, w, l, h, sinr, cosr, vx, vy]
                 pred_box_encoding = torch.cat([
@@ -347,13 +347,13 @@ class CenterHead(nn.Module):
             else:
                 raise NotImplementedError("Only Support KITTI and nuScene for Now!")
 
-            self.forwad_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
+            self.forward_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
 
             box_loss = self.crit_reg(
                 pred_box_encoding,
                 target_box_encoding,
-                self.forwad_ret_dict['mask'][task_id],
-                self.forwad_ret_dict['ind'][task_id]
+                self.forward_ret_dict['mask'][task_id],
+                self.forward_ret_dict['ind'][task_id]
             )
             # local offset loss
             loc_loss = (box_loss * box_loss.new_tensor(self.code_weights)).sum()
@@ -386,7 +386,7 @@ class CenterHead(nn.Module):
 
         """
         double_flip = not self.training and self.post_cfg.get('double_flip', False) # type: bool
-        pred_dicts = self.forwad_ret_dict['multi_head_features'] # output of forward func.
+        pred_dicts = self.forward_ret_dict['multi_head_features'] # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
         batch_size = pred_dicts[0]['hm'].shape(0)
 
