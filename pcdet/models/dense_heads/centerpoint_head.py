@@ -512,10 +512,10 @@ class CenterHead(nn.Module):
 
         xs = xs.view(
             batch, K,
-            1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
+            1) * self.out_size_factor * self.voxel_size[0] + self.point_cloud_range[0]
         ys = ys.view(
             batch, K,
-            1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
+            1) * self.out_size_factor * self.voxel_size[1] + self.point_cloud_range[1]
 
         if vel is None:  # KITTI FORMAT
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
