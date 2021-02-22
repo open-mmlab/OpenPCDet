@@ -74,9 +74,9 @@ class CenterAssigner(object):
         h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
         # limit extreme small number
         h[h < np.finfo(h.dtype).eps * h.max()] = 0
-        h = torch.from_numpy(h)
-        if torch.cuda.is_available():
-            h = h.cuda()
+        # h = torch.from_numpy(h)
+        # if torch.cuda.is_available():
+        #     h = h.cuda()
         return h
 
     def draw_heatmap_gaussian(self, heatmap, center, radius, k=1):
@@ -107,7 +107,7 @@ class CenterAssigner(object):
 
         # 选择对应区域
         masked_heatmap = heatmap[y - top:y + bottom, x - left:x + right]
-        # 将高斯分布结果约束在边界内
+        # 将高斯分布结果约束在边界内, gaussian 格式为numpy, 转为tensor
         masked_gaussian = torch.from_numpy(
             gaussian[radius - top:radius + bottom,
             radius - left:radius + right]).to(heatmap.device,
