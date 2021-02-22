@@ -5,7 +5,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: SECONDNet
+    NAME: CenterPoints
 
     VFE:
         NAME: MeanVFE
@@ -27,7 +27,7 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadSingle
+        NAME: CenterHead
         CLASS_AGNOSTIC: False
         DATASET: waymo
         MODE: 3d
@@ -43,7 +43,7 @@ MODEL:
         PARAMETERS:
           share_conv_channel: 64 # may not correct
           init_bias: -2.19
-          common_heads: {'reg': [2,2], 'height': [1,2], 'dim': [3,2], rot: [2,2]}
+          common_heads: {'reg': [2,2], 'height': [1,2], 'dim': [3,2], rot: [2,2]} # {cat: [classes, num_conv]}
 
         LOSS_CONFIG:
           code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]

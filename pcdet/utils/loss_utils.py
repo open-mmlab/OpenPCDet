@@ -269,28 +269,54 @@ class CenterNetRegLoss(nn.Module):
         num = mask.float().sum()
 
     def forward(self,input, target, mask, ind):
-        pred = _transpose_and_gather_feat(input,ind)
+        pred = self._transpose_and_gather_feat(input,ind)
         loss = self._reg_loss(pred,target,mask)
         return loss
 
 
 
 
-def _transpose_and_gather_feat(feat, ind):
-    """Given feats and indexes, returns the transposed and gathered feats.
+    def _transpose_and_gather_feat(self, feat, ind):
+        """Given feats and indexes, returns the transposed and gathered feats.
 
-    Args:
-        feat (torch.Tensor): Features to be transposed and gathered
-            with the shape of [B, 2, W, H].
-        ind (torch.Tensor): Indexes with the shape of [B, N].
+        Args:
+            feat (torch.Tensor): Features to be transposed and gathered
+                with the shape of [B, 2, W, H].
+            ind (torch.Tensor): Indexes with the shape of [B, N].
 
-    Returns:
-        torch.Tensor: Transposed and gathered feats.
-    """
-    feat = feat.permute(0, 2, 3, 1).contiguous()
-    feat = feat.view(feat.size(0), -1, feat.size(3))
-    feat = _gather_feat(feat, ind)
-    return feat
+        Returns:
+            torch.Tensor: Transposed and gathered feats.
+        """
+        feat = feat.permute(0, 2, 3, 1).contiguous()
+        feat = feat.view(feat.size(0), -1, feat.size(3))
+        feat = self._gather_feat(feat, ind)
+        return feat
+
+
+    def _gather_feat(self, feat, ind, mask=None):
+        """Gather feature map.
+
+        Given feature map and index, return indexed feature map.
+
+        Args:
+            feat (torch.tensor): Feature map with the shape of [B, H*W, 10].
+            ind (torch.Tensor): Index of the ground truth boxes with the
+                shape of [B, max_obj].
+            mask (torch.Tensor): Mask of the feature map with the shape
+                of [B, max_obj]. Default: None.
+
+        Returns:
+            torch.Tensor: Feature map after gathering with the shape
+                of [B, max_obj, 10].
+        """
+        dim = feat.size(2)
+        ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
+        feat = feat.gather(1, ind)
+        if mask is not None:
+            mask = mask.unsqueeze(2).expand_as(feat)
+            feat = feat[mask]
+            feat = feat.view(-1, dim)
+        return feat
 
 
 def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
