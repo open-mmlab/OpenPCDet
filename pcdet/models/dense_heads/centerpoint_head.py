@@ -324,7 +324,7 @@ class CenterHead(nn.Module):
         tb_dict = {} if tb_dict is None else tb_dict
         pred_dicts = self.forward_ret_dict['multi_head_features']
         center_loss = []
-        self.forward_ret_dict['pred_box_enconding'] = {}
+        self.forward_ret_dict['pred_box_encoding'] = {}
         for task_id, pred_dict in enumerate(pred_dicts):
             pred_dict['hm'] = self.clip_sigmoid(pred_dict['hm'])
 
