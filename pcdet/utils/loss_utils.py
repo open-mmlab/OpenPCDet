@@ -269,6 +269,9 @@ class CenterNetRegLoss(nn.Module):
 
         """
         num = mask.float().sum()
+        mask = mask.unsqueeze(2).expand_as(gt_regr).float()
+        isnotnan = (~torch.isnan(gt_regr)).float()
+        mask *= isnotnan
 
     def forward(self, input, target, mask, ind):
         pred = self._transpose_and_gather_feat(input, ind)
