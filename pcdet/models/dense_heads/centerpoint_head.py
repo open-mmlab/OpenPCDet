@@ -482,45 +482,45 @@ class CenterHead(nn.Module):
 
         if reg is not None:
             reg = self._transpose_and_gather_feat(reg, inds)
-            reg = reg.view(batch, self.max_num, 2)
-            xs = xs.view(batch, self.max_num, 1) + reg[:, :, 0:1]
-            ys = ys.view(batch, self.max_num, 1) + reg[:, :, 1:2]
+            reg = reg.view(batch, K, 2)
+            xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
+            ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
         else:
-            xs = xs.view(batch, self.max_num, 1) + 0.5
-            ys = ys.view(batch, self.max_num, 1) + 0.5
+            xs = xs.view(batch, K, 1) + 0.5
+            ys = ys.view(batch, K, 1) + 0.5
 
         # rotation value and direction label
         rot_sine = self._transpose_and_gather_feat(rot_sine, inds)
-        rot_sine = rot_sine.view(batch, self.max_num, 1)
+        rot_sine = rot_sine.view(batch, K, 1)
 
         rot_cosine = self._transpose_and_gather_feat(rot_cosine, inds)
-        rot_cosine = rot_cosine.view(batch, self.max_num, 1)
+        rot_cosine = rot_cosine.view(batch, K, 1)
         rot = torch.atan2(rot_sine, rot_cosine)
 
         # height in the bev
         hei = self._transpose_and_gather_feat(hei, inds)
-        hei = hei.view(batch, self.max_num, 1)
+        hei = hei.view(batch, K, 1)
 
         # dim of the box
         dim = self._transpose_and_gather_feat(dim, inds)
-        dim = dim.view(batch, self.max_num, 3)
+        dim = dim.view(batch, K, 3)
 
         # class label
-        clses = clses.view(batch, self.max_num).float()
-        scores = scores.view(batch, self.max_num)
+        clses = clses.view(batch, K).float()
+        scores = scores.view(batch, K)
 
         xs = xs.view(
-            batch, self.max_num,
+            batch, K,
             1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
         ys = ys.view(
-            batch, self.max_num,
+            batch, K,
             1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
 
         if vel is None:  # KITTI FORMAT
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
         else:  # exist velocity, nuscene format
             vel = self._transpose_and_gather_feat(vel, inds)
-            vel = vel.view(batch, self.max_num, 2)
+            vel = vel.view(batch, K, 2)
             final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
 
         final_scores = scores
