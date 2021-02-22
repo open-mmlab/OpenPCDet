@@ -477,6 +477,9 @@ class CenterHead(nn.Module):
         batch, cat, _, _ = heat.size()
         # nms_cfg = cfg.nms.train if self.training else cfg.nms.test
         nms_cfg = cfg.nms
+        self.pc_range = cfg.pc_range
+        self.score_threshold = cfg.score_threshold
+        self.post_center_limit_range = cfg.post_center_limit_range
         self.out_size_factor = cfg.out_size_factor
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
@@ -512,10 +515,10 @@ class CenterHead(nn.Module):
 
         xs = xs.view(
             batch, K,
-            1) * self.out_size_factor * self.voxel_size[0] + self.point_cloud_range[0]
+            1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
         ys = ys.view(
             batch, K,
-            1) * self.out_size_factor * self.voxel_size[1] + self.point_cloud_range[1]
+            1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
 
         if vel is None:  # KITTI FORMAT
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
