@@ -404,7 +404,7 @@ class CenterHead(nn.Module):
             # TODO: double flip
             batch_hm = pred_dict['hm'].sigmoid()
             batch_reg = pred_dict['reg']
-            batch_hei = pred_dict['height']
+            batch_hei = pred_dict['hei']
             if not self.no_log:
                 batch_dim = torch.exp(pred_dict['dim'])
                 # clamp for good init, otherwise it will goes inf with exp
