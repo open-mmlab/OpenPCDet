@@ -260,11 +260,11 @@ class CenterHead(nn.Module):
         self.use_dcn = model_cfg.USE_DCN
         for num_cls in self.num_classes:
             heads = copy.deepcopy(self.common_heads)
-            heads.update(dict(heatmap=(num_cls, 2)))
             # need to complete
             if self.use_dcn:
                 self.task_heads.append(DCNSepHead(share_conv_channel,heads,final_kernel=3,bn=True,init_bias=self.init_bias))
             else:
+                heads.update(dict(hm=(num_cls, 2)))
                 self.task_heads.append(SepHead(share_conv_channel,heads,final_kernel=3,bn=True,init_bias=self.init_bias))
 
         self.target_assigner = CenterAssigner(
