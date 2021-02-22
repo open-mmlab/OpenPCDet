@@ -317,6 +317,7 @@ class CenterHead(nn.Module):
         if not self.training or self.predict_boxes_when_training:
             data_dict = self.generate_predicted_boxes(data_dict)
 
+        pdb.set_trace()
         return data_dict
 
     def get_loss(self, tb_dict=None):
@@ -326,7 +327,7 @@ class CenterHead(nn.Module):
         self.forward_ret_dict['pred_box_enconding'] = {}
         for task_id, pred_dict in enumerate(pred_dicts):
             pred_dict['hm'] = self.clip_sigmoid(pred_dict['hm'])
-            pdb.set_trace()
+
             hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id])
 
             target_box_encoding = self.forward_ret_dict['box_encoding'][task_id]
