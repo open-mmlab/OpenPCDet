@@ -81,6 +81,7 @@ class WeightedSmoothL1Loss(nn.Module):
                   | abs(x) - 0.5 * beta   otherwise,
     where x = input - target.
     """
+
     def __init__(self, beta: float = 1.0 / 9.0, code_weights: list = None):
         """
         Args:
@@ -183,6 +184,7 @@ class WeightedCrossEntropyLoss(nn.Module):
     Transform input to fit the fomation of PyTorch offical cross entropy loss
     with anchor-wise weighting.
     """
+
     def __init__(self):
         super(WeightedCrossEntropyLoss, self).__init__()
 
@@ -224,8 +226,7 @@ class CenterNetFocalLoss(nn.Module):
         pos_inds = gt.eq(1).float()
         neg_inds = gt.lt(1).float()
 
-        neg_weights = torch.pow(1-gt, beta)
-
+        neg_weights = torch.pow(1 - gt, beta)
 
         pos_loss = torch.log(pred) * torch.pow(1 - pred, alpha) * pos_inds
         neg_loss = torch.log(1 - pred) * torch.pow(pred, alpha) * neg_weights * neg_inds
@@ -235,7 +236,7 @@ class CenterNetFocalLoss(nn.Module):
         pos_loss = pos_loss.sum()
         neg_loss = neg_loss.sum()
 
-        loss = -(pos_loss + neg_loss)/max(num_pos,1)
+        loss = -(pos_loss + neg_loss) / max(num_pos, 1)
 
         # if num_pos == 0:
         #     loss = -neg_loss
@@ -247,6 +248,7 @@ class CenterNetFocalLoss(nn.Module):
     def forward(self, input, target, alpha=2, beta=4):
         return self._neg_loss(input, target, alpha=2, beta=4)
 
+
 class CenterNetRegLoss(nn.Module):
     """
     Regression loss for an output tensor
@@ -255,7 +257,7 @@ class CenterNetRegLoss(nn.Module):
     def __init__(self):
         super(CenterNetRegLoss, self).__init__()
 
-    def _reg_loss(self,regr,gt_regr,mask):
+    def _reg_loss(self, regr, gt_regr, mask):
         """
 
         Args:
@@ -268,13 +270,10 @@ class CenterNetRegLoss(nn.Module):
         """
         num = mask.float().sum()
 
-    def forward(self,input, target, mask, ind):
-        pred = self._transpose_and_gather_feat(input,ind)
-        loss = self._reg_loss(pred,target,mask)
+    def forward(self, input, target, mask, ind):
+        pred = self._transpose_and_gather_feat(input, ind)
+        loss = self._reg_loss(pred, target, mask)
         return loss
-
-
-
 
     def _transpose_and_gather_feat(self, feat, ind):
         """Given feats and indexes, returns the transposed and gathered feats.
@@ -291,7 +290,6 @@ class CenterNetRegLoss(nn.Module):
         feat = feat.view(feat.size(0), -1, feat.size(3))
         feat = self._gather_feat(feat, ind)
         return feat
-
 
     def _gather_feat(self, feat, ind, mask=None):
         """Gather feature map.
