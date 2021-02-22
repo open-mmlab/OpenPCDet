@@ -477,6 +477,7 @@ class CenterHead(nn.Module):
         batch, cat, _, _ = heat.size()
         # nms_cfg = cfg.nms.train if self.training else cfg.nms.test
         nms_cfg = cfg.nms
+        self.out_size_factor = cfg.out_size_factor
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
 
