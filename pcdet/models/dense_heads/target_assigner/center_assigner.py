@@ -1,6 +1,7 @@
 import torch
 import math
 import numpy as np
+import pdb
 
 
 class CenterAssigner(object):
@@ -268,6 +269,7 @@ class CenterAssigner(object):
             gt_box_encodings[task_id] = torch.stack(gt_box_encodings[task_id], dim=0).contiguous()
             gt_cats[task_id] = torch.stack(gt_cats[task_id], dim=0).contiguous()
 
+        pdb.set_trace()
         target_dict = {
             'heatmap': heatmaps,
             'ind': gt_inds,
