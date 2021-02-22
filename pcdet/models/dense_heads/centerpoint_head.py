@@ -479,7 +479,7 @@ class CenterHead(nn.Module):
         nms_cfg = cfg.nms
         self.pc_range = cfg.pc_range
         self.score_threshold = cfg.score_threshold
-        self.post_center_range = cfg.post_center_range
+        self.post_center_range = cfg.post_center_limit_range
         self.out_size_factor = cfg.out_size_factor
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
