@@ -5,7 +5,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: CenterPoints
+    NAME: CenterPoint
 
     VFE:
         NAME: MeanVFE

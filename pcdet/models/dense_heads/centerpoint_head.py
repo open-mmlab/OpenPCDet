@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import nn
 from ...utils import loss_utils
-from target_assigner.center_assigner import CenterAssigner
+from .target_assigner.center_assigner import CenterAssigner
 import numba
 
 
