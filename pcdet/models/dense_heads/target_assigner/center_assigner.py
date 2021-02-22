@@ -1,6 +1,5 @@
 import torch
 import math
-import numpy as np
 
 
 class CenterAssigner(object):
@@ -41,19 +40,19 @@ class CenterAssigner(object):
         a1 = 1
         b1 = (height + width)
         c1 = width * height * (1 - min_overlap) / (1 + min_overlap)
-        sq1 = np.sqrt(b1 ** 2 - 4 * a1 * c1)
+        sq1 = math.sqrt(b1 ** 2 - 4 * a1 * c1)
         r1 = (b1 - sq1) / (2 * a1)
 
         a2 = 4
         b2 = 2 * (height + width)
         c2 = (1 - min_overlap) * width * height
-        sq2 = np.sqrt(b2 ** 2 - 4 * a2 * c2)
+        sq2 = math.sqrt(b2 ** 2 - 4 * a2 * c2)
         r2 = (b2 - sq2) / (2 * a2)
 
         a3 = 4 * min_overlap
         b3 = -2 * min_overlap * (height + width)
         c3 = (min_overlap - 1) * width * height
-        sq3 = np.sqrt(b3 ** 2 - 4 * a3 * c3)
+        sq3 = math.sqrt(b3 ** 2 - 4 * a3 * c3)
         r3 = (b3 + sq3) / (2 * a3)
         return min(r1, r2, r3)
 
@@ -66,14 +65,14 @@ class CenterAssigner(object):
                 Defaults to 1.
 
         Returns:
-            np.ndarray: Generated gaussian map.
+            math.ndarray: Generated gaussian map.
         """
         m, n = [(ss - 1.) / 2. for ss in shape]
-        y, x = np.ogrid[-m:m + 1, -n:n + 1]
+        y, x = math.ogrid[-m:m + 1, -n:n + 1]
 
-        h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
+        h = math.exp(-(x * x + y * y) / (2 * sigma * sigma))
         # limit extreme small number
-        h[h < np.finfo(h.dtype).eps * h.max()] = 0
+        h[h < math.finfo(h.dtype).eps * h.max()] = 0
         return h
 
     def draw_heatmap_gaussian(self, heatmap, center, radius, k=1):
@@ -191,7 +190,7 @@ class CenterAssigner(object):
                     elif self.dataset == 'waymo':
                         x, y, z, w, l, h, r = cur_gts_of_task[i]
                     # -pi < r - 2 * pi * k < pi, find k:int
-                    r = r - np.floor(r / (2 * np.pi) + 0.5) * 2 * np.pi
+                    r = r - math.floor(r / (2 * math.pi) + 0.5) * 2 * math.pi
                     w, l = w / self.voxel_size[0] / self.out_size_factor, l / self.voxel_size[1] / self.out_size_factor
                     if w > 0 and l > 0:
                         radius = self.gaussian_radius((l, w), min_overlap=self.gaussian_overlap)
@@ -226,21 +225,21 @@ class CenterAssigner(object):
 
                         # w,l has been modified, so in box encoding, we use original w,l,h
                         if not self.no_log:
-                            w,l,h = np.log(cur_gts_of_task[i,3]),np.log(cur_gts_of_task[i,4]),np.log(cur_gts_of_task[i,5])
+                            w,l,h = math.log(cur_gts_of_task[i,3]),math.log(cur_gts_of_task[i,4]),math.log(cur_gts_of_task[i,5])
                         else:
                             w,l,h = cur_gts_of_task[i,3],cur_gts_of_task[i,4],cur_gts_of_task[i,5]
                         if self.dataset == 'nuscenes':
                             gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
                                                            ct_ft[1] - ct_int[1],
                                                            z,w,l,h,
-                                                           np.sin(r),np.cos(r),
+                                                           math.sin(r),math.cos(r),
                                                            vx,vy
                                                            ],dtype=torch.float32,device=gt_box_encoding.device)
                         elif self.dataset == 'waymo':
                             gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
                                                                ct_ft[1] - ct_int[1],
                                                                z, w, l, h,
-                                                               np.sin(r), np.cos(r)
+                                                               math.sin(r), math.cos(r)
                                                                ], dtype=torch.float32, device=gt_box_encoding.device)
                         else:
                             raise NotImplementedError("Only Support KITTI and nuScene for Now!")
