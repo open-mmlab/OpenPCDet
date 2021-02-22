@@ -8,7 +8,6 @@ import numba
 import pdb
 
 
-
 def kaiming_init(module,
                  a=0,
                  mode='fan_out',
@@ -40,10 +39,10 @@ class SepHead(nn.Module):
         bias (str): Type of bias. Default: 'auto'.
     """
 
-    def __init__(self,in_channels,heads,head_conv=64,final_kernel=1,init_bias=-2.19,bn = False,**kwargs):
+    def __init__(self, in_channels, heads, head_conv=64, final_kernel=1, init_bias=-2.19, bn=False, **kwargs):
         super(SepHead, self).__init__()
 
-        self.heads = heads # {cat: [classes, num_conv]}
+        self.heads = heads  # {cat: [classes, num_conv]}
         self.init_bias = init_bias
         for head in self.heads:
             classes, num_conv = self.heads[head]
@@ -51,13 +50,15 @@ class SepHead(nn.Module):
             conv_layers = []
             c_in = in_channels
             for i in range(num_conv - 1):
-                conv_layers.append(nn.Conv2d(c_in,head_conv,final_kernel,stride=1,padding=final_kernel//2,bias=True))
+                conv_layers.append(
+                    nn.Conv2d(c_in, head_conv, final_kernel, stride=1, padding=final_kernel // 2, bias=True))
                 if bn:
                     conv_layers.append(nn.BatchNorm2d(head_conv))
                 conv_layers.append(nn.ReLU())
                 c_in = head_conv
 
-            conv_layers.append(nn.Conv2d(head_conv,classes,final_kernel,stride=1,padding=final_kernel//2,bias=True))
+            conv_layers.append(
+                nn.Conv2d(head_conv, classes, final_kernel, stride=1, padding=final_kernel // 2, bias=True))
             conv_layers = nn.Sequential(*conv_layers)
 
             self.__setattr__(head, conv_layers)
@@ -100,6 +101,7 @@ class SepHead(nn.Module):
             ret_dict[head] = self.__getattr__(head)(x)
 
         return ret_dict
+
 
 # TODO
 class DCNSepHead(nn.Module):
@@ -237,21 +239,20 @@ class CenterHead(nn.Module):
         self.predict_boxes_when_training = predict_boxes_when_training
         self.dataset = model_cfg.DATASET
 
-        self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS] # task number
+        self.num_classes = [len(t['class_names']) for t in model_cfg.TASKS]  # task number
         self.class_names = [t['class_names'] for t in model_cfg.TASKS]
-        self.forward_ret_dict = {}   # return dict filtered by assigner
-        self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights # weights between different heads
-        self.weight = self.model_cfg.LOSS_CONFIG.weight # weight between local loss and hm loss
+        self.forward_ret_dict = {}  # return dict filtered by assigner
+        self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights  # weights between different heads
+        self.weight = self.model_cfg.LOSS_CONFIG.weight  # weight between local loss and hm loss
         self.no_log = self.model_cfg.NO_LOG
-
 
         # a shared convolution
         share_conv_channel = model_cfg.PARAMETERS.share_conv_channel
         self.shared_conv = nn.Sequential(
-            nn.Conv2d(self.in_channels,share_conv_channel,
-                      kernel_size=3,padding=1,bias=True),
+            nn.Conv2d(self.in_channels, share_conv_channel,
+                      kernel_size=3, padding=1, bias=True),
             nn.BatchNorm2d(share_conv_channel),
-            nn.ReLU(inplace=True)   # change input data
+            nn.ReLU(inplace=True)  # change input data
         )
 
         self.common_heads = model_cfg.PARAMETERS.common_heads
@@ -263,10 +264,12 @@ class CenterHead(nn.Module):
             heads = copy.deepcopy(self.common_heads)
             # need to complete
             if self.use_dcn:
-                self.task_heads.append(DCNSepHead(share_conv_channel,heads,final_kernel=3,bn=True,init_bias=self.init_bias))
+                self.task_heads.append(
+                    DCNSepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias))
             else:
                 heads.update(dict(hm=(num_cls, 2)))
-                self.task_heads.append(SepHead(share_conv_channel,heads,final_kernel=3,bn=True,init_bias=self.init_bias))
+                self.task_heads.append(
+                    SepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias))
 
         self.target_assigner = CenterAssigner(
             model_cfg.TARGET_ASSIGNER_CONFIG,
@@ -339,7 +342,7 @@ class CenterHead(nn.Module):
                     pred_dict['dim'],
                     pred_dict['rot'],
                     pred_dict['vel']
-                ],dim=1).contiguous() # (B, 10, H, W)
+                ], dim=1).contiguous()  # (B, 10, H, W)
             elif self.dataset == 'waymo':
                 pred_box_encoding = torch.cat([
                     pred_dict['reg'],
@@ -364,20 +367,19 @@ class CenterHead(nn.Module):
             center_loss.append(loss)
             # TODO: update tbdict
 
-
-        return sum(center_loss),tb_dict
+        return sum(center_loss), tb_dict
 
     def build_loss(self):
         # criterion
         self.add_module(
-            'crit',loss_utils.CenterNetFocalLoss()
+            'crit', loss_utils.CenterNetFocalLoss()
         )
         self.add_module(
-            'crit_reg',loss_utils.CenterNetRegLoss()
+            'crit_reg', loss_utils.CenterNetRegLoss()
         )
 
     @torch.no_grad()
-    def generate_predicted_boxes(self,data_dict):
+    def generate_predicted_boxes(self, data_dict):
         """
         Generate box predictions with decode, topk and circular nms
         used in self.forward
@@ -388,8 +390,8 @@ class CenterHead(nn.Module):
         Returns:
 
         """
-        double_flip = not self.training and self.post_cfg.get('double_flip', False) # type: bool
-        pred_dicts = self.forward_ret_dict['multi_head_features'] # output of forward func.
+        double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
+        pred_dicts = self.forward_ret_dict['multi_head_features']  # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
         batch_size = pred_dicts[0]['hm'].shape(0)
 
@@ -406,28 +408,26 @@ class CenterHead(nn.Module):
             if not self.no_log:
                 batch_dim = torch.exp(pred_dict['dim'])
                 # clamp for good init, otherwise it will goes inf with exp
-                batch_dim = torch.clamp(batch_dim,min=0.001,max=30)
+                batch_dim = torch.clamp(batch_dim, min=0.001, max=30)
             else:
                 batch_dim = pred_dict['dim']
-            batch_rot_sine = pred_dict['rot'][:,0].unsqueeze(1)
-            batch_rot_cosine = pred_dict['rot'][:,1].unsqueeze(1)
-            bat_vel =pred_dict['vel']
+            batch_rot_sine = pred_dict['rot'][:, 0].unsqueeze(1)
+            batch_rot_cosine = pred_dict['rot'][:, 1].unsqueeze(1)
+            bat_vel = pred_dict['vel']
 
             # decode
-            boxes = self.proposal_layer(batch_hm,batch_rot_sine,batch_rot_cosine ,batch_hei,batch_dim,bat_vel,
-                                        reg=batch_reg,cfg=self.post_cfg,task_id=task_id)
+            boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, bat_vel,
+                                        reg=batch_reg, cfg=self.post_cfg, task_id=task_id)
             task_preds['bboxes'][task_id] = [box['bboxes'] for box in boxes]
             task_preds['scores'][task_id] = [box['scores'] for box in boxes]
-            task_preds['labels'][task_id] = [box['labels'] for box in boxes]    # labels are local here
-
-
+            task_preds['labels'][task_id] = [box['labels'] for box in boxes]  # labels are local here
 
         pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
         for batch_idx in range(batch_size):
             final_bboxes, final_scores, final_labels = [], [], []
-            for task_id,class_name in enumerate(self.class_names):
+            for task_id, class_name in enumerate(self.class_names):
                 offset = 1
                 final_bboxes.append(task_preds['bboxes'][batch_idx])
                 final_scores.append(task_preds['scores'][batch_idx])
@@ -446,14 +446,12 @@ class CenterHead(nn.Module):
                 'pred_labels': final_labels
             }
 
-
-
         data_dict['pre_dicts'] = pred_dicts
 
         return data_dict
 
-    @ torch.no_grad()
-    def proposal_layer(self,heat,rot_sine,rot_cosine,hei,dim,vel=None,reg=None,
+    @torch.no_grad()
+    def proposal_layer(self, heat, rot_sine, rot_cosine, hei, dim, vel=None, reg=None,
                        cfg=None, raw_rot=False, task_id=-1):
         """Decode bboxes.
 
@@ -904,4 +902,3 @@ class CenterHead(nn.Module):
 
             predictions_dicts.append(predictions_dict)
         return predictions_dicts
-

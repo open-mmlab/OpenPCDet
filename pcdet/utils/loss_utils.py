@@ -274,6 +274,17 @@ class CenterNetRegLoss(nn.Module):
         mask = mask.unsqueeze(2).expand_as(gt_regr).float()
         isnotnan = (~torch.isnan(gt_regr)).float()
         mask *= isnotnan
+        regr *= mask
+        gt_regr *= mask
+
+        loss = torch.abs(regr - gt_regr)
+        loss = loss.transpose(2, 0).contiguous()
+
+        loss = torch.sum(loss, dim=2)
+        loss = torch.sum(loss, dim=1)
+
+        loss = loss / (num + 1e-4)
+        return loss
 
     def forward(self, input, target, mask, ind):
         pred = self._transpose_and_gather_feat(input, ind)

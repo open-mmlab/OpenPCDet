@@ -4,7 +4,7 @@ import numpy as np
 
 
 class CenterAssigner(object):
-    def __init__(self, assigner_cfg, num_class, no_log, grid_size, point_cloud_range, voxel_size,dataset):
+    def __init__(self, assigner_cfg, num_class, no_log, grid_size, point_cloud_range, voxel_size, dataset):
         """Return CenterNet training labels likt heatmap, height, offset"""
         self.assigner_cfg = assigner_cfg
         self.dense_reg = assigner_cfg.dense_reg
@@ -151,7 +151,7 @@ class CenterAssigner(object):
         for k in range(batch_size):
             # TODO: I dont understand this part
             cur_gt = gt_boxes[k]
-            cnt = cur_gt.__len__() - 1 # M gt boxes, second dim
+            cnt = cur_gt.__len__() - 1  # M gt boxes, second dim
             # 看看是不是填充的0，只看非0的箱子
             while cnt > 0 and cur_gt[cnt].sum() == 0:
                 cnt -= 1
@@ -168,7 +168,7 @@ class CenterAssigner(object):
                 gt_mask = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 gt_cat = torch.zeros(max_objs, dtype=torch.long, device=cur_gt.device)
                 if self.dataset == 'nuscenes':
-                    gt_box_encoding = torch.zeros((max_objs,10), dtype=torch.long, device=cur_gt.device)
+                    gt_box_encoding = torch.zeros((max_objs, 10), dtype=torch.long, device=cur_gt.device)
                 elif self.dataset == 'waymo':
                     gt_box_encoding = torch.zeros((max_objs, 8), dtype=torch.long, device=cur_gt.device)
                 else:
@@ -179,6 +179,7 @@ class CenterAssigner(object):
                 class_offset = 0
                 for class_name in task.class_names:
                     class_idx = self.class_to_idx[class_name]
+                    # some question about mask in this part
                     class_mask = (cur_gt_classes == class_idx)
                     cur_gt_of_task = cur_gt[class_mask]
                     # fill will class offset number
@@ -191,7 +192,7 @@ class CenterAssigner(object):
 
                 num_boxes_of_task = cur_gts_of_task.shape[0]
                 for i in range(num_boxes_of_task):
-                    cat = cur_classes_of_task[i] # category
+                    cat = cur_classes_of_task[i]  # category
                     # TODO: different datasets have different format
                     x, y, z, w, l, h, r = cur_gts_of_task[i][:7]
                     if self.dataset == 'nuscenes':
@@ -234,16 +235,17 @@ class CenterAssigner(object):
 
                         # w,l has been modified, so in box encoding, we use original w,l,h
                         if not self.no_log:
-                            w,l,h = math.log(cur_gts_of_task[i,3]),math.log(cur_gts_of_task[i,4]),math.log(cur_gts_of_task[i,5])
+                            w, l, h = math.log(cur_gts_of_task[i, 3]), math.log(cur_gts_of_task[i, 4]), math.log(
+                                cur_gts_of_task[i, 5])
                         else:
-                            w,l,h = cur_gts_of_task[i,3],cur_gts_of_task[i,4],cur_gts_of_task[i,5]
+                            w, l, h = cur_gts_of_task[i, 3], cur_gts_of_task[i, 4], cur_gts_of_task[i, 5]
                         if self.dataset == 'nuscenes':
                             gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
-                                                           ct_ft[1] - ct_int[1],
-                                                           z,w,l,h,
-                                                           math.sin(r),math.cos(r),
-                                                           vx,vy
-                                                           ],dtype=torch.float32,device=gt_box_encoding.device)
+                                                               ct_ft[1] - ct_int[1],
+                                                               z, w, l, h,
+                                                               math.sin(r), math.cos(r),
+                                                               vx, vy
+                                                               ], dtype=torch.float32, device=gt_box_encoding.device)
                         elif self.dataset == 'waymo':
                             gt_box_encoding[i] = torch.tensor([ct_ft[0] - ct_int[0],
                                                                ct_ft[1] - ct_int[1],
@@ -258,7 +260,6 @@ class CenterAssigner(object):
                 gt_cats[task_id].append(gt_cat)
                 gt_masks[task_id].append(gt_mask)
                 gt_box_encodings[task_id].append(gt_box_encoding)
-
 
         for task_id, task in enumerate(self.tasks):
             heatmaps[task_id] = torch.stack(heatmaps[task_id], dim=0).contiguous()
