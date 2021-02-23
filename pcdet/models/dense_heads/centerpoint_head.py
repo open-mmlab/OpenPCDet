@@ -452,8 +452,6 @@ class CenterHead(nn.Module):
                 final_labels = final_labels[indices[:select_num]]
 
 
-
-            pdb.set_trace()
             record_dict = {
                 'pred_boxes': final_bboxes,
                 'pred_scores': final_scores,
