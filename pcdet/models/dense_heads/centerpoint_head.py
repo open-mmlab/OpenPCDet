@@ -424,7 +424,7 @@ class CenterHead(nn.Module):
             task_preds['scores'][task_id] = [box['scores'] for box in boxes]
             task_preds['labels'][task_id] = [box['labels'] for box in boxes]  # labels are local here
 
-        pdb.set_trace()
+        # pdb.set_trace()
         pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
@@ -450,6 +450,7 @@ class CenterHead(nn.Module):
             }
             pred_dicts.append(record_dict)
 
+        pdb.set_trace()
         data_dict['pred_dicts'] = pred_dicts
 
         return data_dict
