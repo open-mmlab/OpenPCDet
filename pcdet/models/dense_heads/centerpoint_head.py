@@ -447,7 +447,7 @@ class CenterHead(nn.Module):
                 'pred_labels': final_labels
             }
 
-        data_dict['pre_dicts'] = pred_dicts
+        data_dict['pred_dicts'] = pred_dicts
 
         return data_dict
 
