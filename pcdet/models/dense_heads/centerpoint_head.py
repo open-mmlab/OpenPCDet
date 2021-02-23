@@ -419,11 +419,12 @@ class CenterHead(nn.Module):
             # decode
             boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, bat_vel,
                                         reg=batch_reg, cfg=self.post_cfg, task_id=task_id)
-            pdb.set_trace()
+
             task_preds['bboxes'][task_id] = [box['bboxes'] for box in boxes]
             task_preds['scores'][task_id] = [box['scores'] for box in boxes]
             task_preds['labels'][task_id] = [box['labels'] for box in boxes]  # labels are local here
 
+        pdb.set_trace()
         pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
