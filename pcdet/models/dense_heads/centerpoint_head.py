@@ -443,14 +443,26 @@ class CenterHead(nn.Module):
             final_scores = torch.cat(final_scores)
             final_labels = torch.cat(final_labels)
 
-            record_dict = {
-                'pred_boxes': final_bboxes,
-                'pred_scores': final_scores,
-                'pred_labels': final_labels
-            }
+            if len(final_bboxes) >= 10:
+                record_dict = {
+                        'pred_boxes': final_bboxes[:10],
+                        'pred_scores': final_scores[:10],
+                        'pred_labels': final_labels[:10]
+                    }
+            else:
+                record_dict = {
+                        'pred_boxes': final_bboxes,
+                        'pred_scores': final_scores,
+                        'pred_labels': final_labels
+                    }
+
+            # record_dict = {
+            #     'pred_boxes': final_bboxes,
+            #     'pred_scores': final_scores,
+            #     'pred_labels': final_labels
+            # }
             pred_dicts.append(record_dict)
 
-        pdb.set_trace()
         data_dict['pred_dicts'] = pred_dicts
 
         return data_dict
