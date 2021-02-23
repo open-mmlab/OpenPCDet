@@ -444,7 +444,7 @@ class CenterHead(nn.Module):
             final_labels = torch.cat(final_labels)
 
             # sort
-            select_num = 2000
+            select_num = 200
             if len(final_scores) > select_num:
                 sorted, indices = torch.sort(final_scores,descending=True)
                 final_bboxes = final_bboxes[indices[:select_num]]
