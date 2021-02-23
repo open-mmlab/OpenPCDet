@@ -443,6 +443,16 @@ class CenterHead(nn.Module):
             final_scores = torch.cat(final_scores)
             final_labels = torch.cat(final_labels)
 
+            # sort
+            select_num = 2000
+            if len(final_scores) > select_num:
+                sorted, indices = torch.sort(final_scores,descending=True)
+                final_bboxes = final_bboxes[indices[:select_num]]
+                final_scores = final_scores[indices[:select_num]]
+                final_labels = final_labels[indices[:select_num]]
+
+
+
             pdb.set_trace()
             record_dict = {
                 'pred_boxes': final_bboxes,
