@@ -510,7 +510,7 @@ class CenterHead(nn.Module):
         dim = self._transpose_and_gather_feat(dim, inds)
         dim = dim.view(batch, K, 3)
 
-        # class label
+        # class label, must be int, there is something need to be implemented
         clses = clses.view(batch, K).float()
         scores = scores.view(batch, K)
 
@@ -555,7 +555,7 @@ class CenterHead(nn.Module):
                 predictions_dict = {
                     'bboxes': boxes3d,
                     'scores': scores,
-                    'labels': labels
+                    'labels': labels.long()
                 }
 
                 predictions_dicts.append(predictions_dict)
