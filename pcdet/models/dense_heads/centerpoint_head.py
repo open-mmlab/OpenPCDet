@@ -430,11 +430,10 @@ class CenterHead(nn.Module):
             final_bboxes, final_scores, final_labels = [], [], []
             for task_id, class_name in enumerate(self.class_names):
                 offset = 1
-                final_bboxes.append(task_preds['bboxes'][batch_idx])
-                final_scores.append(task_preds['scores'][batch_idx])
+                final_bboxes.append(task_preds['bboxes'][task_id][batch_idx])
+                final_scores.append(task_preds['scores'][task_id][batch_idx])
                 # convert to global labels
-                pdb.set_trace()
-                final_labels.append(task_preds['labels'][batch_idx] + offset)
+                final_labels.append(task_preds['labels'][task_id][batch_idx] + offset)
                 # predict class in local categories
                 offset += len(class_name)
 
