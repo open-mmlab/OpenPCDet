@@ -446,6 +446,7 @@ class CenterHead(nn.Module):
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }
+            pred_dicts.append(record_dict)
 
         data_dict['pred_dicts'] = pred_dicts
 
