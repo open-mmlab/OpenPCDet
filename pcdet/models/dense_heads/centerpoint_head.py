@@ -446,11 +446,10 @@ class CenterHead(nn.Module):
             # sort
             select_num = 200
             if len(final_scores) > select_num:
-                sorted, indices = torch.sort(final_scores,descending=True)
+                sorted, indices = torch.sort(final_scores, descending=True)
                 final_bboxes = final_bboxes[indices[:select_num]]
                 final_scores = final_scores[indices[:select_num]]
                 final_labels = final_labels[indices[:select_num]]
-
 
             record_dict = {
                 'pred_boxes': final_bboxes,
@@ -542,38 +541,30 @@ class CenterHead(nn.Module):
         final_scores = scores
         final_preds = clses
 
+        # restrict center range
+        assert self.post_center_range is not None
+        self.post_center_range = torch.tensor(self.post_center_range, device=heat.device)
+        mask = (final_box_preds[..., :3] >= self.post_center_range[:3]).all(2)
+        mask &= (final_box_preds[..., :3] <= self.post_center_range[3:]).all(2)
+
         # use score threshold
-        if self.score_threshold is not None:
-            thresh_mask = final_scores > self.score_threshold
+        assert self.score_threshold is not None
+        thresh_mask = final_scores > self.score_threshold
+        mask &= thresh_mask
 
-        if self.post_center_range is not None:
-            self.post_center_range = torch.tensor(
-                self.post_center_range, device=heat.device)
-            mask = (final_box_preds[..., :3] >=
-                    self.post_center_range[:3]).all(2)
-            mask &= (final_box_preds[..., :3] <=
-                     self.post_center_range[3:]).all(2)
+        predictions_dicts = []
+        for i in range(batch):
+            cmask = mask[i, :]
+            boxes3d = final_box_preds[i, cmask]
+            scores = final_scores[i, cmask]
+            labels = final_preds[i, cmask]
+            predictions_dict = {
+                'bboxes': boxes3d,
+                'scores': scores,
+                'labels': labels.long()
+            }
 
-            predictions_dicts = []
-            for i in range(batch):
-                cmask = mask[i, :]
-                if self.score_threshold:
-                    cmask &= thresh_mask[i]
-
-                boxes3d = final_box_preds[i, cmask]
-                scores = final_scores[i, cmask]
-                labels = final_preds[i, cmask]
-                predictions_dict = {
-                    'bboxes': boxes3d,
-                    'scores': scores,
-                    'labels': labels.long()
-                }
-
-                predictions_dicts.append(predictions_dict)
-        else:
-            raise NotImplementedError(
-                'Need to reorganize output as a batch, only '
-                'support post_center_range is not None for now!')
+            predictions_dicts.append(predictions_dict)
 
         return predictions_dicts
 
