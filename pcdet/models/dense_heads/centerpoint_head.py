@@ -390,7 +390,7 @@ class CenterHead(nn.Module):
         Returns:
 
         """
-        double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
+        self.double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
         pred_dicts = self.forward_ret_dict['multi_head_features']  # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
         batch_size = data_dict['batch_size']
@@ -402,22 +402,28 @@ class CenterHead(nn.Module):
 
         for task_id, pred_dict in enumerate(pred_dicts):
             # TODO: double flip
-            batch_hm = pred_dict['hm'].sigmoid()
-            batch_reg = pred_dict['reg']
-            batch_hei = pred_dict['hei']
-            if not self.no_log:
-                batch_dim = torch.exp(pred_dict['dim'])
-                # clamp for good init, otherwise it will goes inf with exp
-                batch_dim = torch.clamp(batch_dim, min=0.001, max=30)
+            if self.double_flip:
+                assert batch_size % 4 == 0, print(batch_size)
+                batch_size = int(batch_size / 4)
+                batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel,batch_reg = self._double_flip(pred_dict,batch_size)
+                batch_size = data_dict['batch_size']
             else:
-                batch_dim = pred_dict['dim']
-            batch_rot_sine = pred_dict['rot'][:, 0].unsqueeze(1)
-            batch_rot_cosine = pred_dict['rot'][:, 1].unsqueeze(1)
+                batch_hm = pred_dict['hm'].sigmoid()
+                batch_reg = pred_dict['reg']
+                batch_hei = pred_dict['hei']
+                if not self.no_log:
+                    batch_dim = torch.exp(pred_dict['dim'])
+                    # clamp for good init, otherwise it will goes inf with exp
+                    batch_dim = torch.clamp(batch_dim, min=0.001, max=30)
+                else:
+                    batch_dim = pred_dict['dim']
+                batch_rot_sine = pred_dict['rot'][:, 0].unsqueeze(1)
+                batch_rot_cosine = pred_dict['rot'][:, 1].unsqueeze(1)
 
-            bat_vel = pred_dict['vel'] if self.dataset == 'nuscenes' else None
+                batch_vel = pred_dict['vel'] if self.dataset == 'nuscenes' else None
 
             # decode
-            boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, bat_vel,
+            boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel,
                                         reg=batch_reg, cfg=self.post_cfg, task_id=task_id)
 
             task_preds['bboxes'][task_id] = [box['bboxes'] for box in boxes]
@@ -657,6 +663,89 @@ class CenterHead(nn.Module):
         """
         y = torch.clamp(x.sigmoid_(), min=eps, max=1 - eps)
         return y
+
+    def _double_flip(self, pred_dict, batch_size):
+        """
+        transform the prediction map back to their original coordinate before flipping
+        the flipped predictions are ordered in a group of 4. The first one is the original pointcloud
+        the second one is X flip pointcloud(y=-y), the third one is Y flip pointcloud(x=-x), and the last one is
+        X and Y flip pointcloud(x=-x, y=-y).
+        Also please note that pytorch's flip function is defined on higher dimensional space, so dims=[2] means that
+        it is flipping along the axis with H length(which is normaly the Y axis), however in our traditional word, it is flipping along
+        the X axis. The below flip follows pytorch's definition yflip(y=-y) xflip(x=-x)
+        Args:
+            pred_dict:
+            batch_size:
+
+        Returns:
+
+        """
+        for k in pred_dict.keys():
+            _, C, H, W = pred_dict[k].shape
+            pred_dict[k] = pred_dict[k].reshape(int(batch_size), 4, C, H, W)
+            pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2])
+            pred_dict[k][:, 2] = torch.flip(pred_dict[k][:, 2], dims=[3])
+            pred_dict[k][:, 3] = torch.flip(pred_dict[k][:, 3], dims=[2, 3])
+
+        # batch_hm = pred_dict['hm'].sigmoid_()
+        # inplace may cause problem
+        batch_hm = pred_dict['hm'].sigmoid()
+
+        batch_reg = pred_dict['reg']
+        batch_hei = pred_dict['height']
+
+        if not self.no_log:
+            batch_dim = torch.exp(pred_dict['dim'])
+        else:
+            batch_dim = pred_dict['dim']
+
+        batch_hm = batch_hm.mean(dim=1)
+        batch_hei = batch_hei.mean(dim=1)
+        batch_dim = batch_dim.mean(dim=1)
+
+        # y = -y reg_y = 1-reg_y
+        batch_reg[:, 1, 1] = 1 - batch_reg[:, 1, 1]
+        batch_reg[:, 2, 0] = 1 - batch_reg[:, 2, 0]
+
+        batch_reg[:, 3, 0] = 1 - batch_reg[:, 3, 0]
+        batch_reg[:, 3, 1] = 1 - batch_reg[:, 3, 1]
+        batch_reg = batch_reg.mean(dim=1)
+
+        batch_rots = pred_dict['rot'][:, :, 0:1]
+        batch_rotc = pred_dict['rot'][:, :, 1:2]
+
+        # first yflip
+        # y = -y theta = pi -theta
+        # sin(pi-theta) = sin(theta) cos(pi-theta) = -cos(theta)
+        # batch_rots[:, 1] the same
+        batch_rotc[:, 1] = -batch_rotc[:, 1]
+
+        # then xflip x = -x theta = 2pi - theta
+        # sin(2pi - theta) = -sin(theta) cos(2pi - theta) = cos(theta)
+        # batch_rots[:, 2] the same
+        batch_rots[:, 2] = -batch_rots[:, 2]
+
+        # double flip
+        batch_rots[:, 3] = -batch_rots[:, 3]
+        batch_rotc[:, 3] = -batch_rotc[:, 3]
+
+        batch_rotc = batch_rotc.mean(dim=1)
+        batch_rots = batch_rots.mean(dim=1)
+
+        batch_vel = None
+        if 'vel' in pred_dict:
+            batch_vel = pred_dict['vel']
+            # flip vy
+            batch_vel[:, 1, 1] = - batch_vel[:, 1, 1]
+            # flip vx
+            batch_vel[:, 2, 0] = - batch_vel[:, 2, 0]
+
+            batch_vel[:, 3] = - batch_vel[:, 3]
+
+            batch_vel = batch_vel.mean(dim=1)
+
+
+        return batch_hm, batch_rots, batch_rotc, batch_hei, batch_dim, batch_vel, batch_reg
 
     @numba.jit(nopython=True)
     def circle_nms(dets, thresh, post_max_size=83):
