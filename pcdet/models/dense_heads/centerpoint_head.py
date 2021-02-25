@@ -592,7 +592,7 @@ class CenterHead(nn.Module):
         batch, cat, height, width = scores.size()
 
         topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -1), K)
-
+        pdb.set_trace()
         topk_inds = topk_inds % (height * width)
         topk_ys = (topk_inds.float() /
                    torch.tensor(width, dtype=torch.float)).int().float()
@@ -692,7 +692,7 @@ class CenterHead(nn.Module):
         batch_hm = pred_dict['hm'].sigmoid()
 
         batch_reg = pred_dict['reg']
-        batch_hei = pred_dict['height']
+        batch_hei = pred_dict['hei']
 
         if not self.no_log:
             batch_dim = torch.exp(pred_dict['dim'])
