@@ -406,7 +406,8 @@ class CenterHead(nn.Module):
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
                 batch_size = int(batch_size / 4)
-                batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel,batch_reg = self._double_flip(pred_dict,batch_size)
+                batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel, batch_reg = self._double_flip(
+                    pred_dict, batch_size)
                 batch_size = data_dict['batch_size']
             else:
                 batch_hm = pred_dict['hm'].sigmoid()
@@ -499,6 +500,12 @@ class CenterHead(nn.Module):
         self.score_threshold = cfg.score_threshold
         self.post_center_range = cfg.post_center_limit_range
         self.out_size_factor = cfg.out_size_factor
+        self.use_circle_nms = nms_cfg.use_circle_nms
+        self.use_rotate_nms = nms_cfg.use_rotate_nms
+        self.use_multi_class_nms = nms_cfg.use_multi_class_nms
+        self.use_max_pool_nms = nms_cfg.use_max_pool_nms
+        if self.use_max_pool_nms:
+            heat =self._nms(heat)
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
 
@@ -531,12 +538,8 @@ class CenterHead(nn.Module):
         clses = clses.view(batch, K).float()
         scores = scores.view(batch, K)
 
-        xs = xs.view(
-            batch, K,
-            1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
-        ys = ys.view(
-            batch, K,
-            1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
+        xs = xs.view(batch, K, 1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
+        ys = ys.view(batch, K, 1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
 
         if vel is None:  # KITTI FORMAT
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
@@ -557,7 +560,9 @@ class CenterHead(nn.Module):
         # use score threshold
         assert self.score_threshold is not None
         thresh_mask = final_scores > self.score_threshold
-        mask &= thresh_mask
+        mask &= thresh_mask  # (B, K)
+        a = torch.ones([2, 2], dtype=torch.bool)
+        a.all()
 
         predictions_dicts = []
         for i in range(batch):
@@ -567,6 +572,14 @@ class CenterHead(nn.Module):
             labels = final_preds[i, cmask]
 
             # circle nms
+            if self.use_circle_nms:
+                centers = boxes3d[:, [0, 1]]    # centers: (K, 2), scores:(K,)
+                dets = torch.cat([centers, scores.views(-1, 1)], dim=1)
+                keep = self._circle_nms(dets,nms_cfg.min_radius[task_id],post_max_size=self.nms_post_max_size)
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             # rotate nms
 
@@ -691,7 +704,7 @@ class CenterHead(nn.Module):
         for k in pred_dict.keys():
             _, C, H, W = pred_dict[k].shape
             pred_dict[k] = pred_dict[k].reshape(int(batch_size), 4, C, H, W)
-            pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2]) # y = -y
+            pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2])  # y = -y
             pred_dict[k][:, 2] = torch.flip(pred_dict[k][:, 2], dims=[3])
             pred_dict[k][:, 3] = torch.flip(pred_dict[k][:, 3], dims=[2, 3])
 
@@ -755,11 +768,10 @@ class CenterHead(nn.Module):
 
             batch_vel = batch_vel.mean(dim=1)
 
-
         return batch_hm, batch_rots, batch_rotc, batch_hei, batch_dim, batch_vel, batch_reg
 
     @numba.jit(nopython=True)
-    def circle_nms(dets, thresh, post_max_size=83):
+    def _circle_nms(self, dets, thresh, post_max_size=83):
         """Circular NMS.
 
         An object is only counted as positive if no other center
@@ -799,3 +811,11 @@ class CenterHead(nn.Module):
                 if dist <= thresh:
                     suppressed[j] = 1
         return keep[:post_max_size]
+
+    def _nms(self, heat, kernel=3):
+        pad = (kernel - 1) // 2
+
+        hmax = nn.functional.max_pool2d(
+            heat, (kernel, kernel), stride=1, padding=pad)
+        keep = (hmax == heat).float()
+        return heat * keep
