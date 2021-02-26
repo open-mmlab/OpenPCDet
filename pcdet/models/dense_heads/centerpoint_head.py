@@ -408,7 +408,8 @@ class CenterHead(nn.Module):
                 batch_size = int(batch_size / 4)
                 batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel, batch_reg = self._double_flip(
                     pred_dict, batch_size)
-                batch_size = data_dict['batch_size']
+                # convert data_dict format
+                data_dict['batch_size'] = batch_size
             else:
                 batch_hm = pred_dict['hm'].sigmoid()
                 batch_reg = pred_dict['reg']
@@ -434,7 +435,6 @@ class CenterHead(nn.Module):
 
         # pdb.set_trace()
         pred_dicts = []
-        batch_size = len(task_preds['bboxes'][0])
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
         for batch_idx in range(batch_size):
