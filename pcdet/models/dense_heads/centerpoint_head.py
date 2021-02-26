@@ -434,6 +434,7 @@ class CenterHead(nn.Module):
 
         # pdb.set_trace()
         pred_dicts = []
+        batch_size = len(task_preds['bboxes'][0])
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
         for batch_idx in range(batch_size):
