@@ -592,7 +592,7 @@ class CenterHead(nn.Module):
         batch, cat, height, width = scores.size()
 
         topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -1), K)
-        pdb.set_trace()
+
         topk_inds = topk_inds % (height * width)
         topk_ys = (topk_inds.float() /
                    torch.tensor(width, dtype=torch.float)).int().float()
