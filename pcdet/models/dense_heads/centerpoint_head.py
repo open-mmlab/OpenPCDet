@@ -302,6 +302,7 @@ class CenterHead(nn.Module):
 
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
+        pdb.set_trace()
         if self.shared_conv is not None:
             spatial_features_2d = self.shared_conv(spatial_features_2d)
 
@@ -693,7 +694,7 @@ class CenterHead(nn.Module):
 
         batch_reg = pred_dict['reg']
         batch_hei = pred_dict['hei']
-        pdb.set_trace()
+        # pdb.set_trace()
         if not self.no_log:
             batch_dim = torch.exp(pred_dict['dim'])
         else:
