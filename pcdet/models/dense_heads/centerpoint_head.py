@@ -394,7 +394,7 @@ class CenterHead(nn.Module):
         self.double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
         pred_dicts = self.forward_ret_dict['multi_head_features']  # output of forward func.
         post_center_range = self.post_cfg.post_center_limit_range
-        batch_size = data_dict['batch_size']
+
 
         task_preds = {}
         task_preds['bboxes'] = {}
@@ -402,6 +402,7 @@ class CenterHead(nn.Module):
         task_preds['labels'] = {}
 
         for task_id, pred_dict in enumerate(pred_dicts):
+            batch_size = pred_dict['hm'].shape[0]
             # TODO: double flip
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
