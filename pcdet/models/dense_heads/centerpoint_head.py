@@ -693,7 +693,7 @@ class CenterHead(nn.Module):
 
         batch_reg = pred_dict['reg']
         batch_hei = pred_dict['hei']
-
+        pdb.set_trace()
         if not self.no_log:
             batch_dim = torch.exp(pred_dict['dim'])
         else:
