@@ -302,7 +302,7 @@ class CenterHead(nn.Module):
 
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
-        pdb.set_trace()
+
         if self.shared_conv is not None:
             spatial_features_2d = self.shared_conv(spatial_features_2d)
 
@@ -565,6 +565,13 @@ class CenterHead(nn.Module):
             boxes3d = final_box_preds[i, cmask]
             scores = final_scores[i, cmask]
             labels = final_preds[i, cmask]
+
+            # circle nms
+
+            # rotate nms
+
+            # iou 3d nms
+
             predictions_dict = {
                 'bboxes': boxes3d,
                 'scores': scores,
@@ -684,7 +691,7 @@ class CenterHead(nn.Module):
         for k in pred_dict.keys():
             _, C, H, W = pred_dict[k].shape
             pred_dict[k] = pred_dict[k].reshape(int(batch_size), 4, C, H, W)
-            pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2])
+            pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2]) # y = -y
             pred_dict[k][:, 2] = torch.flip(pred_dict[k][:, 2], dims=[3])
             pred_dict[k][:, 3] = torch.flip(pred_dict[k][:, 3], dims=[2, 3])
 
@@ -705,7 +712,9 @@ class CenterHead(nn.Module):
         batch_dim = batch_dim.mean(dim=1)
 
         # y = -y reg_y = 1-reg_y
+        # reg是以左下角为原点的全局坐标系，预测x,y的offset,正常应该在0-1之间,flip之后应该用1去减
         batch_reg[:, 1, 1] = 1 - batch_reg[:, 1, 1]
+
         batch_reg[:, 2, 0] = 1 - batch_reg[:, 2, 0]
 
         batch_reg[:, 3, 0] = 1 - batch_reg[:, 3, 0]
@@ -737,6 +746,7 @@ class CenterHead(nn.Module):
         if 'vel' in pred_dict:
             batch_vel = pred_dict['vel']
             # flip vy
+            # if flip along x axis, y = -y, vy = -vy
             batch_vel[:, 1, 1] = - batch_vel[:, 1, 1]
             # flip vx
             batch_vel[:, 2, 0] = - batch_vel[:, 2, 0]
