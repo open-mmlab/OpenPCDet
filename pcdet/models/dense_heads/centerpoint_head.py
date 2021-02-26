@@ -402,8 +402,9 @@ class CenterHead(nn.Module):
         task_preds['labels'] = {}
 
         for task_id, pred_dict in enumerate(pred_dicts):
-            batch_size = pred_dict['hm'].shape[0]
-            # TODO: double flip
+            batch_size = pred_dict['hm'].shape[0] # can't use data_dict['batch_size'], because it will change after double flip
+            batch_size = pred_dict['hm'].shape[0] # can't use data_dict['batch_size'], because it will change after double flip
+            # TODO: in waymo_eval.py, len(pred_infos) != len(gt_infos)
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
                 batch_size = int(batch_size / 4)
