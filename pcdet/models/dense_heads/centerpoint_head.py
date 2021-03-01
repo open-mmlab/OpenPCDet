@@ -707,13 +707,12 @@ class CenterHead(nn.Module):
         """
         for k in pred_dict.keys():
             _, C, H, W = pred_dict[k].shape
+            pdb.set_trace()
             pred_dict[k] = pred_dict[k].reshape(int(batch_size), 4, C, H, W)
             pred_dict[k][:, 1] = torch.flip(pred_dict[k][:, 1], dims=[2])  # y = -y
             pred_dict[k][:, 2] = torch.flip(pred_dict[k][:, 2], dims=[3])
             pred_dict[k][:, 3] = torch.flip(pred_dict[k][:, 3], dims=[2, 3])
 
-        # batch_hm = pred_dict['hm'].sigmoid_()
-        # inplace may cause problem
         batch_hm = pred_dict['hm'].sigmoid()
 
         batch_reg = pred_dict['reg']
