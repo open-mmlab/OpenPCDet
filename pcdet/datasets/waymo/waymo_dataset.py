@@ -14,6 +14,7 @@ from pathlib import Path
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
+import pdb
 
 
 class WaymoDataset(DatasetTemplate):
@@ -108,6 +109,9 @@ class WaymoDataset(DatasetTemplate):
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
+    def double_flip(self, input_dict):
+        points = input_dict['points']
+
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
             return len(self.infos) * self.total_epochs
@@ -144,9 +148,13 @@ class WaymoDataset(DatasetTemplate):
                 'num_points_in_gt': annos.get('num_points_in_gt', None)
             })
 
+        pdb.set_trace()
         data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
         data_dict.pop('num_points_in_gt', None)
+
+        if not self.training and self.dataset_cfg.get('USE_DOUBLE_FLIP_TEST',False):
+            pass
         return data_dict
 
     @staticmethod
