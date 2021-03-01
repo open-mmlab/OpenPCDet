@@ -1,4 +1,5 @@
 from .detector3d_template import Detector3DTemplate
+import pdb
 
 
 class CenterPoint(Detector3DTemplate):
@@ -7,6 +8,7 @@ class CenterPoint(Detector3DTemplate):
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict):
+        pdb.set_trace()
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
 

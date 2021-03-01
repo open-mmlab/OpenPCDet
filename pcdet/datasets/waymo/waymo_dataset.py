@@ -147,7 +147,7 @@ class WaymoDataset(DatasetTemplate):
         data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
         data_dict.pop('num_points_in_gt', None)
-        return data_dict
+        return (data_dict,data_dict)
 
     @staticmethod
     def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
