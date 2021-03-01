@@ -99,7 +99,7 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
+    BATCH_SIZE_PER_GPU: 1
     NUM_EPOCHS: 30
 
     OPTIMIZER: adam_onecycle
