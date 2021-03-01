@@ -77,7 +77,8 @@ class WaymoDataset(DatasetTemplate):
 
         return sequence_file
 
-    def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True, sampled_interval=1):
+    def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True,
+                  sampled_interval=1):
         import concurrent.futures as futures
         from functools import partial
         from . import waymo_utils
@@ -110,7 +111,27 @@ class WaymoDataset(DatasetTemplate):
         return points_all
 
     def double_flip(self, input_dict):
-        points = input_dict['points']
+        points = input_dict['points']  # type: np.numarray
+        yflip_points = points.copy()
+        yflip_points[:, 1] = -yflip_points[:, 1]
+        xflip_points = points.copy()
+        xflip_points[:, 0] = -xflip_points[:, 0]
+        # double flip
+        dflip_points = points.copy()
+        dflip_points[:, 0] = -dflip_points[:, 0]
+        dflip_points[:, 1] = -dflip_points[:, 1]
+
+        xflip_dict, yflip_dict, dflip_dict = {}, {}, {}
+        for key, value in input_dict.items():
+            if key == "points":
+                xflip_dict['points'] = xflip_points
+                yflip_dict['points'] = yflip_points
+                dflip_dict['points'] = dflip_points
+            else:
+                xflip_dict[key] = value
+                yflip_dict[key] = value
+                dflip_dict[key] = value
+        return yflip_dict, xflip_dict, dflip_dict
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -148,13 +169,19 @@ class WaymoDataset(DatasetTemplate):
                 'num_points_in_gt': annos.get('num_points_in_gt', None)
             })
 
-        pdb.set_trace()
+        #  double flip, must ahead of prepare data, because point in voxel may change
+        if not self.training and self.dataset_cfg.get('USE_DOUBLE_FLIP_TEST', False):
+            yflip_dict, xflip_dict, dflip_dict = self.double_flip(input_dict)
+            xflip_dict = self.prepare_data(data_dict=xflip_dict)
+            yflip_dict = self.prepare_data(data_dict=yflip_dict)
+            dflip_dict = self.prepare_data(data_dict=dflip_dict)
+
         data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
         data_dict.pop('num_points_in_gt', None)
 
-        if not self.training and self.dataset_cfg.get('USE_DOUBLE_FLIP_TEST',False):
-            pass
+        if not self.training and self.dataset_cfg.get('USE_DOUBLE_FLIP_TEST', False):
+            return (data_dict, yflip_dict, xflip_dict, dflip_dict)
         return data_dict
 
     @staticmethod
@@ -368,6 +395,7 @@ if __name__ == '__main__':
     if args.func == 'create_waymo_infos':
         import yaml
         from easydict import EasyDict
+
         dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_waymo_infos(

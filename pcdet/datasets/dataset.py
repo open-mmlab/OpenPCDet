@@ -150,9 +150,24 @@ class DatasetTemplate(torch_data.Dataset):
     @staticmethod
     def collate_batch(batch_list, _unused=False):
         data_dict = defaultdict(list)
+        use_double_flip_test = False
         for cur_sample in batch_list:
-            for key, val in cur_sample.items():
-                data_dict[key].append(val)
+            if isinstance(cur_sample, dict):
+                for key, val in cur_sample.items():
+                    data_dict[key].append(val)
+            if isinstance(cur_sample, tuple):
+                use_double_flip_test = True
+                i_dict, y_dict, x_dict, d_dict = cur_sample
+                for key in i_dict.keys():
+                    if key not in ['gt_boxes', 'frame_id', 'metadata']:
+                        data_dict[key].append(i_dict[key])
+                        data_dict[key].append(y_dict[key])
+                        data_dict[key].append(x_dict[key])
+                        data_dict[key].append(d_dict[key])
+                    else:
+                        # only save one copy of annotations
+                        data_dict[key].append(i_dict[key])
+
         batch_size = len(batch_list)
         ret = {}
 
@@ -178,5 +193,5 @@ class DatasetTemplate(torch_data.Dataset):
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError
 
-        ret['batch_size'] = batch_size
+        ret['batch_size'] = batch_size * 4 if use_double_flip_test else batch_size
         return ret
