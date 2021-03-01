@@ -438,7 +438,7 @@ class CenterHead(nn.Module):
         pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
-        pdb.set_trace()
+        # pdb.set_trace()
         batch_size = len(task_preds['bboxes'][0])
         for batch_idx in range(batch_size):
             final_bboxes, final_scores, final_labels = [], [], []
