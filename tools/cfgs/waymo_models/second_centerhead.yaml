@@ -77,7 +77,7 @@ MODEL:
                 use_rotate_nms: True
                 use_multi_class_nms: False
                 use_circle_nms: False
-                use_max_pool_nms: True
+                use_max_pool_nms: False
                 nms_pre_max_size: 4096
                 nms_post_max_size: 500
                 nms_iou_threshold: 0.7

@@ -5,6 +5,7 @@ from torch import nn
 from ...utils import loss_utils
 from .target_assigner.center_assigner import CenterAssigner
 import numba
+from ...ops.iou3d_nms.iou3d_nms_utils import nms_gpu,nms_normal_gpu
 import pdb
 
 
@@ -403,7 +404,7 @@ class CenterHead(nn.Module):
 
         for task_id, pred_dict in enumerate(pred_dicts):
             batch_size = pred_dict['hm'].shape[0] # can't use data_dict['batch_size'], because it will change after double flip
-            # TODO: in waymo_eval.py, len(pred_infos) != len(gt_infos)
+            # must change dataset.py and waymo.py, batchsize = batchsize * 4
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
                 batch_size = int(batch_size / 4)
@@ -434,11 +435,9 @@ class CenterHead(nn.Module):
             task_preds['scores'][task_id] = [box['scores'] for box in boxes]
             task_preds['labels'][task_id] = [box['labels'] for box in boxes]  # labels are local here
 
-        # pdb.set_trace()
         pred_dicts = []
         nms_cfg = self.post_cfg.nms
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
-        # pdb.set_trace()
         batch_size = len(task_preds['bboxes'][0])
         for batch_idx in range(batch_size):
             final_bboxes, final_scores, final_labels = [], [], []
@@ -455,13 +454,13 @@ class CenterHead(nn.Module):
             final_scores = torch.cat(final_scores)
             final_labels = torch.cat(final_labels)
 
-            # sort
-            select_num = 200
-            if len(final_scores) > select_num:
-                sorted, indices = torch.sort(final_scores, descending=True)
-                final_bboxes = final_bboxes[indices[:select_num]]
-                final_scores = final_scores[indices[:select_num]]
-                final_labels = final_labels[indices[:select_num]]
+            # sort filter
+            # select_num = 200
+            # if len(final_scores) > select_num:
+            #     sorted, indices = torch.sort(final_scores, descending=True)
+            #     final_bboxes = final_bboxes[indices[:select_num]]
+            #     final_scores = final_scores[indices[:select_num]]
+            #     final_labels = final_labels[indices[:select_num]]
 
             record_dict = {
                 'pred_boxes': final_bboxes,
@@ -506,6 +505,7 @@ class CenterHead(nn.Module):
         self.out_size_factor = cfg.out_size_factor
         self.use_circle_nms = nms_cfg.use_circle_nms
         self.use_rotate_nms = nms_cfg.use_rotate_nms
+        self.nms_iou_threshold = nms_cfg.nms_iou_threshold
         self.use_multi_class_nms = nms_cfg.use_multi_class_nms
         self.use_max_pool_nms = nms_cfg.use_max_pool_nms
         if self.use_max_pool_nms:
@@ -586,8 +586,20 @@ class CenterHead(nn.Module):
                 labels = labels[keep]
 
             # rotate nms
+            if self.use_rotate_nms:
+                keep = nms_gpu(boxes3d,scores,self.nms_iou_threshold)
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             # iou 3d nms
+            if self.use_multi_class_nms:
+                keep = nms_normal_gpu(boxes3d,scores,self.nms_iou_threshold)
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             predictions_dict = {
                 'bboxes': boxes3d,
