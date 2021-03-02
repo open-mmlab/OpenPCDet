@@ -296,7 +296,6 @@ class Detector3DTemplate(nn.Module):
         cur_gt = cur_gt[:k + 1]
 
         if cur_gt.shape[0] > 0:
-            pdb.set_trace()
             if box_preds.shape[0] > 0:
                 iou3d_rcnn = iou3d_nms_utils.boxes_iou3d_gpu(box_preds[:, 0:7], cur_gt[:, 0:7])
             else:

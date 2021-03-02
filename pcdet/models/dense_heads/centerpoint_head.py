@@ -586,6 +586,7 @@ class CenterHead(nn.Module):
             # rotate nms
             if self.use_rotate_nms:
                 keep = nms_gpu(boxes3d,scores,self.nms_iou_threshold)
+                pdb.set_trace()
 
                 boxes3d = boxes3d[keep]
                 scores = scores[keep]
