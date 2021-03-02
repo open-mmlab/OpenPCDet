@@ -455,12 +455,12 @@ class CenterHead(nn.Module):
             final_labels = torch.cat(final_labels)
 
             # sort filter
-            select_num = 200
-            if len(final_scores) > select_num:
-                sorted, indices = torch.sort(final_scores, descending=True)
-                final_bboxes = final_bboxes[indices[:select_num]]
-                final_scores = final_scores[indices[:select_num]]
-                final_labels = final_labels[indices[:select_num]]
+            # select_num = 200
+            # if len(final_scores) > select_num:
+            #     sorted, indices = torch.sort(final_scores, descending=True)
+            #     final_bboxes = final_bboxes[indices[:select_num]]
+            #     final_scores = final_scores[indices[:select_num]]
+            #     final_labels = final_labels[indices[:select_num]]
 
             record_dict = {
                 'pred_boxes': final_bboxes,
