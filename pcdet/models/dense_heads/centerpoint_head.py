@@ -554,7 +554,6 @@ class CenterHead(nn.Module):
 
         final_scores = scores
         final_preds = clses
-        pdb.set_trace()
 
         # restrict center range
         assert self.post_center_range is not None
@@ -566,8 +565,6 @@ class CenterHead(nn.Module):
         assert self.score_threshold is not None
         thresh_mask = final_scores > self.score_threshold
         mask &= thresh_mask  # (B, K)
-        a = torch.ones([2, 2], dtype=torch.bool)
-        a.all()
 
         predictions_dicts = []
         for i in range(batch):
