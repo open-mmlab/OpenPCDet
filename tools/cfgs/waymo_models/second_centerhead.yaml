@@ -74,7 +74,7 @@ MODEL:
             out_size_factor: 8
             voxel_size: [0.1, 0.1]
             nms:
-                use_rotate_nms: True
+                use_rotate_nms: False
                 use_multi_class_nms: False
                 use_circle_nms: False
                 use_max_pool_nms: True
