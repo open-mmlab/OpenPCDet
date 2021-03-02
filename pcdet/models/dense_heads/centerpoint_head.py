@@ -569,6 +569,7 @@ class CenterHead(nn.Module):
         mask &= thresh_mask  # (B, K)
 
         predictions_dicts = []
+        # post_processing
         for i in range(batch):
             cmask = mask[i, :]
             boxes3d = final_box_preds[i, cmask]
@@ -587,7 +588,7 @@ class CenterHead(nn.Module):
 
             # rotate nms
             if self.use_rotate_nms:
-                keep, _ = nms_gpu(boxes3d,scores,self.nms_iou_threshold)
+                keep, _ = nms_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
                 keep = keep[:self.nms_post_max_size]
 
                 boxes3d = boxes3d[keep]
@@ -596,7 +597,7 @@ class CenterHead(nn.Module):
 
             # iou 3d nms
             if self.use_multi_class_nms:
-                keep, _ = nms_normal_gpu(boxes3d,scores,self.nms_iou_threshold)
+                keep, _ = nms_normal_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
                 keep = keep[:self.nms_post_max_size]
 
                 boxes3d = boxes3d[keep]
