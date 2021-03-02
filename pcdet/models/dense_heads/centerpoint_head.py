@@ -554,6 +554,7 @@ class CenterHead(nn.Module):
 
         final_scores = scores
         final_preds = clses
+        pdb.set_trace()
 
         # restrict center range
         assert self.post_center_range is not None
