@@ -510,8 +510,8 @@ class CenterHead(nn.Module):
         self.use_max_pool_nms = nms_cfg.use_max_pool_nms
         self.nms_post_max_size = nms_cfg.nms_post_max_size
         self.nms_pre_max_size = nms_cfg.nms_pre_max_size
-        # if self.use_max_pool_nms:
-        #     heat =self._nms(heat)
+        if self.use_max_pool_nms:
+            heat =self._nms(heat)
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
 
@@ -577,32 +577,32 @@ class CenterHead(nn.Module):
             labels = final_preds[i, cmask]
 
             # circle nms
-            # if self.use_circle_nms:
-            #     centers = boxes3d[:, [0, 1]]    # centers: (K, 2), scores:(K,)
-            #     dets = torch.cat([centers, scores.views(-1, 1)], dim=1)
-            #     keep = self._circle_nms(dets,nms_cfg.min_radius[task_id],post_max_size=self.nms_post_max_size)
-            #
-            #     boxes3d = boxes3d[keep]
-            #     scores = scores[keep]
-            #     labels = labels[keep]
+            if self.use_circle_nms:
+                centers = boxes3d[:, [0, 1]]    # centers: (K, 2), scores:(K,)
+                dets = torch.cat([centers, scores.views(-1, 1)], dim=1)
+                keep = self._circle_nms(dets,nms_cfg.min_radius[task_id],post_max_size=self.nms_post_max_size)
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             # rotate nms
-            # if self.use_rotate_nms:
-            #     keep, _ = nms_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
-            #     keep = keep[:self.nms_post_max_size]
-            #
-            #     boxes3d = boxes3d[keep]
-            #     scores = scores[keep]
-            #     labels = labels[keep]
+            if self.use_rotate_nms:
+                keep, _ = nms_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
+                keep = keep[:self.nms_post_max_size]
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             # iou 3d nms
-            # if self.use_multi_class_nms:
-            #     keep, _ = nms_normal_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
-            #     keep = keep[:self.nms_post_max_size]
-            #
-            #     boxes3d = boxes3d[keep]
-            #     scores = scores[keep]
-            #     labels = labels[keep]
+            if self.use_multi_class_nms:
+                keep, _ = nms_normal_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
+                keep = keep[:self.nms_post_max_size]
+
+                boxes3d = boxes3d[keep]
+                scores = scores[keep]
+                labels = labels[keep]
 
             predictions_dict = {
                 'bboxes': boxes3d,

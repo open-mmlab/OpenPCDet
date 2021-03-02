@@ -2,7 +2,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    USE_DOUBLE_FLIP_TEST: True
+    USE_DOUBLE_FLIP_TEST: &double_flip False
 
 
 MODEL:
@@ -67,17 +67,17 @@ MODEL:
             }
 
         TEST_CONFIG:
-            double_flip: True
+            double_flip: *double_flip
             post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
             out_size_factor: 8
             voxel_size: [0.1, 0.1]
             nms:
-                use_rotate_nms: False
+                use_rotate_nms: True
                 use_multi_class_nms: False
                 use_circle_nms: False
-                use_max_pool_nms: True
+                use_max_pool_nms: False
                 nms_pre_max_size: 4096
                 nms_post_max_size: 200
                 nms_iou_threshold: 0.01
