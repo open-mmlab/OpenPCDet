@@ -80,6 +80,7 @@ def convert_range_image_to_point_cloud(frame, range_images, camera_projections, 
     calibrations = sorted(frame.context.laser_calibrations, key=lambda c: c.name)
     points = []
     cp_points = []
+    # NLZ: no labeled zone
     points_NLZ = []
     points_intensity = []
     points_elongation = []

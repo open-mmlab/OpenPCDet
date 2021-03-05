@@ -394,8 +394,6 @@ class CenterHead(nn.Module):
         """
         self.double_flip = not self.training and self.post_cfg.get('double_flip', False)  # type: bool
         pred_dicts = self.forward_ret_dict['multi_head_features']  # output of forward func.
-        post_center_range = self.post_cfg.post_center_limit_range
-
 
         task_preds = {}
         task_preds['bboxes'] = {}
@@ -440,9 +438,10 @@ class CenterHead(nn.Module):
         num_rois = nms_cfg.nms_pre_max_size * self.num_class
         batch_size = len(task_preds['bboxes'][0])
         for batch_idx in range(batch_size):
+            # Initially, i write this in next loop, this will cause other class won't be detect and accuracy drop
+            offset = 1
             final_bboxes, final_scores, final_labels = [], [], []
             for task_id, class_name in enumerate(self.class_names):
-                offset = 1
                 final_bboxes.append(task_preds['bboxes'][task_id][batch_idx])
                 final_scores.append(task_preds['scores'][task_id][batch_idx])
                 # convert to global labels
@@ -496,7 +495,7 @@ class CenterHead(nn.Module):
                 Returns:
                     list[dict]: Decoded boxes.
                 """
-        batch, cat, _, _ = heat.size()
+
         # nms_cfg = cfg.nms.train if self.training else cfg.nms.test
         nms_cfg = cfg.nms
         self.pc_range = cfg.pc_range
@@ -515,6 +514,7 @@ class CenterHead(nn.Module):
         K = nms_cfg.nms_pre_max_size
         scores, inds, clses, ys, xs = self._topk(heat, K)
 
+        batch, cat, _, _ = heat.size()
         if reg is not None:
             reg = self._transpose_and_gather_feat(reg, inds)
             reg = reg.view(batch, K, 2)
