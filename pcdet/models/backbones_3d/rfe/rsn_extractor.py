@@ -65,7 +65,7 @@ class Up(nn.Module):
         assert type(layer_num) == int
         super().__init__()
 
-        layers = [nn.Conv2d(in_channels=in_channels,out_channels=out_channels,kernel_size=1)]
+        layers = [nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1)]
         layers.append(nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
         for i in range(layer_num):
             layers.append(BasicBlock(in_channels=out_channels, out_channels=out_channels, stride=1))
@@ -76,24 +76,25 @@ class Up(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels=1):
         super().__init__()
-        self.Down1 = Down(1,in_channels=in_channels,out_channels=16)
+        self.Down1 = Down(1, in_channels=in_channels, out_channels=16)
         self.Down2 = Down(2, in_channels=16, out_channels=64)
         self.Down3 = Down(2, in_channels=64, out_channels=128)
         self.Down4 = Down(2, in_channels=128, out_channels=128)
         self.Up3 = Up(2, in_channels=128, out_channels=128)
         self.Up2 = Up(2, in_channels=128, out_channels=64)
         self.Up1 = Up(1, in_channels=64, out_channels=16)
-        self.final = nn.Conv2d(in_channels=16,out_channels=128,kernel_size=1)
+        self.final = nn.Conv2d(in_channels=16, out_channels=out_channels, kernel_size=1)
 
-    def forward(self,x):
+    def forward(self, x):
         conv1 = self.Down1(x)
         conv2 = self.Down2(conv1)
-        conv3 = self.Down2(conv2)
-        conv4 = self.Down2(conv3)
-        up3 = torch.cat((self.Up3(conv4),conv3),dim=1)
-        up2 = torch.cat((self.Up2(up3),conv2),dim=1)
-        up1 = torch.cat((self.Up2(up2), conv1), dim=1)
+        conv3 = self.Down3(conv2)
+        conv4 = self.Down4(conv3)
+        up3 = torch.cat((self.Up3(conv4), conv3), dim=1)
+        up2 = torch.cat((self.Up2(up3), conv2), dim=1)
+        up1 = torch.cat((self.Up1(up2), conv1), dim=1)
         output = self.final(up1)
 
+        return output
