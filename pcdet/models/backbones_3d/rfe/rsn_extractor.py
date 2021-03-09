@@ -1,6 +1,7 @@
 # RSN feature extractor
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class BasicBlock(nn.Module):
@@ -50,7 +51,7 @@ class Down(nn.Module):
 
         layers = [BasicBlock(in_channels=in_channels, out_channels=out_channels, stride=2)]
         for i in range(layer_num - 1):
-            layers.append(BasicBlock(in_channels=in_channels, out_channels=out_channels, stride=1))
+            layers.append(BasicBlock(in_channels=out_channels, out_channels=out_channels, stride=1))
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -74,6 +75,17 @@ class Up(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
+class UpCat(nn.Module):
+    def __init__(self):
+        super(UpCat, self).__init__()
+
+    def forward(self, inputs1, inputs2):
+        outputs1 = inputs1
+        outputs2 = F.interpolate(inputs2, size=[outputs1.size(2), outputs1.size(3)], mode='bilinear',
+                                 align_corners=True)
+
+        return torch.cat([outputs1, outputs2], 1)
+
 
 class UNet(nn.Module):
     def __init__(self, in_channels, out_channels=1):
@@ -83,18 +95,19 @@ class UNet(nn.Module):
         self.Down3 = Down(2, in_channels=64, out_channels=128)
         self.Down4 = Down(2, in_channels=128, out_channels=128)
         self.Up3 = Up(2, in_channels=128, out_channels=128)
-        self.Up2 = Up(2, in_channels=128, out_channels=64)
-        self.Up1 = Up(1, in_channels=64, out_channels=16)
-        self.final = nn.Conv2d(in_channels=16, out_channels=out_channels, kernel_size=1)
+        self.Up2 = Up(2, in_channels=256, out_channels=64)
+        self.Up1 = Up(1, in_channels=128, out_channels=16)
+        self.upcat = UpCat()
 
     def forward(self, x):
         conv1 = self.Down1(x)
         conv2 = self.Down2(conv1)
         conv3 = self.Down3(conv2)
         conv4 = self.Down4(conv3)
-        up3 = torch.cat((self.Up3(conv4), conv3), dim=1)
-        up2 = torch.cat((self.Up2(up3), conv2), dim=1)
-        up1 = torch.cat((self.Up1(up2), conv1), dim=1)
-        output = self.final(up1)
+        up3 = self.Up3(conv4)
+        up2 = self.Up2(self.upcat(conv3,up3))
+        up1 = self.Up1(self.upcat(conv2,up2))
+        output = self.upcat(conv1,up1)
 
         return output
+
