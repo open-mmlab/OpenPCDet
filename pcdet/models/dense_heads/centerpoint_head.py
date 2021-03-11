@@ -63,6 +63,7 @@ class SepHead(nn.Module):
             conv_layers = nn.Sequential(*conv_layers)
 
             self.__setattr__(head, conv_layers)
+        self.init_weights()
 
     def init_weights(self):
         """Initialize weights."""
