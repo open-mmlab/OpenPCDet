@@ -5,7 +5,7 @@ from torch import nn
 from ...utils import loss_utils
 from .target_assigner.center_assigner import CenterAssigner
 import numba
-from ...ops.iou3d_nms.iou3d_nms_utils import nms_gpu,nms_normal_gpu
+from ...ops.iou3d_nms.iou3d_nms_utils import nms_gpu, nms_normal_gpu
 import pdb
 
 
@@ -284,7 +284,6 @@ class CenterHead(nn.Module):
         )
         self.build_loss()
 
-
     def assign_target(self, gt_boxes):
         """
 
@@ -352,7 +351,6 @@ class CenterHead(nn.Module):
 
             self.forward_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
 
-
             hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id],
                                 self.forward_ret_dict['mask'][task_id],
                                 self.forward_ret_dict['ind'][task_id],
@@ -402,7 +400,8 @@ class CenterHead(nn.Module):
         task_preds['labels'] = {}
 
         for task_id, pred_dict in enumerate(pred_dicts):
-            batch_size = pred_dict['hm'].shape[0] # can't use data_dict['batch_size'], because it will change after double flip
+            batch_size = pred_dict['hm'].shape[
+                0]  # can't use data_dict['batch_size'], because it will change after double flip
             # must change dataset.py and waymo.py, batchsize = batchsize * 4
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
@@ -513,7 +512,7 @@ class CenterHead(nn.Module):
         self.nms_post_max_size = nms_cfg.nms_post_max_size
         self.nms_pre_max_size = nms_cfg.nms_pre_max_size
         if self.use_max_pool_nms:
-            heat =self._nms(heat)
+            heat = self._nms(heat)
         # # topk nms
         # K = nms_cfg.nms_pre_max_size
         # scores, inds, clses, ys, xs = self._topk(heat, K)
@@ -566,19 +565,20 @@ class CenterHead(nn.Module):
         rot = torch.atan2(rot_sine, rot_cosine)
         heat = heat.permute(0, 2, 3, 1)
         batch, H, W, cat = heat.size()
+        heat = heat.reshape(batch, H * W, cat)
         rot = rot.permute(0, 2, 3, 1)
-        rot = rot.reshape(batch, H*W,1)
-        hei = hei.permute(0,2,3,1)
-        hei = hei.reshape(batch, H*W,1)
+        rot = rot.reshape(batch, H * W, 1)
+        hei = hei.permute(0, 2, 3, 1)
+        hei = hei.reshape(batch, H * W, 1)
         dim = dim.permute(0, 2, 3, 1)
-        dim =dim.reshape(batch, H*W,3)
+        dim = dim.reshape(batch, H * W, 3)
 
         ys, xs = torch.meshgrid([torch.arange(0, H), torch.arange(0, W)])
         ys = ys.view(1, H, W).repeat(batch, 1, 1).to(heat.device).float()
         xs = xs.view(1, H, W).repeat(batch, 1, 1).to(heat.device).float()
         if reg is not None:
             reg = reg.permute(0, 2, 3, 1)
-            reg = reg.reshape(batch, H*W,2)
+            reg = reg.reshape(batch, H * W, 2)
             xs = xs.view(batch, -1, 1) + reg[:, :, 0:1]
             ys = ys.view(batch, -1, 1) + reg[:, :, 1:2]
 
@@ -586,13 +586,12 @@ class CenterHead(nn.Module):
         ys = ys * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
         if vel is not None:
             vel = vel.permute(0, 2, 3, 1)
-            vel = vel.reshape(batch, H*W,2)
+            vel = vel.reshape(batch, H * W, 2)
             final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
         else:
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
 
-
-        predictions_dicts = self.post_process(final_box_preds,heat)
+        predictions_dicts = self.post_process(final_box_preds, heat)
 
         return predictions_dicts
 
@@ -621,8 +620,8 @@ class CenterHead(nn.Module):
 
             selected = nms_gpu(boxes_for_nms, scores,
                                thresh=self.nms_iou_threshold,
-                                pre_maxsize=self.nms_pre_max_size,
-                                post_max_size=self.nms_post_max_size)
+                               pre_maxsize=self.nms_pre_max_size,
+                               post_max_size=self.nms_post_max_size)
 
             selected_boxes = box_preds[selected]
             selected_scores = scores[selected]
