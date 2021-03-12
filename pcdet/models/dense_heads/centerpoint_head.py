@@ -512,110 +512,128 @@ class CenterHead(nn.Module):
         self.nms_pre_max_size = nms_cfg.nms_pre_max_size
         if self.use_max_pool_nms:
             heat =self._nms(heat)
-        K = nms_cfg.nms_pre_max_size
-        scores, inds, clses, ys, xs = self._topk(heat, K)
+        # # topk nms
+        # K = nms_cfg.nms_pre_max_size
+        # scores, inds, clses, ys, xs = self._topk(heat, K)
+        #
+        # batch, cat, _, _ = heat.size()
+        # if reg is not None:
+        #     reg = self._transpose_and_gather_feat(reg, inds)
+        #     reg = reg.view(batch, K, 2)
+        #     xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
+        #     ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
+        # else:
+        #     xs = xs.view(batch, K, 1) + 0.5
+        #     ys = ys.view(batch, K, 1) + 0.5
+        #
+        # # rotation value and direction label
+        # rot_sine = self._transpose_and_gather_feat(rot_sine, inds)
+        # rot_sine = rot_sine.view(batch, K, 1)
+        #
+        # rot_cosine = self._transpose_and_gather_feat(rot_cosine, inds)
+        # rot_cosine = rot_cosine.view(batch, K, 1)
+        # rot = torch.atan2(rot_sine, rot_cosine)
+        #
+        # # height in the bev
+        # hei = self._transpose_and_gather_feat(hei, inds)
+        # hei = hei.view(batch, K, 1)
+        #
+        # # dim of the box
+        # dim = self._transpose_and_gather_feat(dim, inds)
+        # dim = dim.view(batch, K, 3)
+        #
+        # # class label, must be int, there is something need to be implemented
+        # clses = clses.view(batch, K).float()
+        # scores = scores.view(batch, K)
+        #
+        # xs = xs.view(batch, K, 1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
+        # ys = ys.view(batch, K, 1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
+        #
+        # if vel is None:  # KITTI FORMAT
+        #     final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
+        # else:  # exist velocity, nuscene format
+        #     vel = self._transpose_and_gather_feat(vel, inds)
+        #     vel = vel.view(batch, K, 2)
+        #     final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
+        #
+        # final_scores = scores
+        # final_preds = clses
 
-        batch, cat, _, _ = heat.size()
-        if reg is not None:
-            reg = self._transpose_and_gather_feat(reg, inds)
-            reg = reg.view(batch, K, 2)
-            xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
-            ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
-        else:
-            xs = xs.view(batch, K, 1) + 0.5
-            ys = ys.view(batch, K, 1) + 0.5
+        # (B, C, H, W) to (B, H, W, C)
 
-        # rotation value and direction label
-        rot_sine = self._transpose_and_gather_feat(rot_sine, inds)
-        rot_sine = rot_sine.view(batch, K, 1)
-
-        rot_cosine = self._transpose_and_gather_feat(rot_cosine, inds)
-        rot_cosine = rot_cosine.view(batch, K, 1)
         rot = torch.atan2(rot_sine, rot_cosine)
+        heat = heat.permute(0, 2, 3, 1)
+        batch, H, W, cat = heat.size()
+        rot = rot.permute(0, 2, 3, 1)
+        rot = rot.reshape(batch, H*W,1)
+        hei = hei.permute(0,2,3,1)
+        hei = hei.reshape(batch, H*W,1)
+        dim = dim.permute(0, 2, 3, 1)
+        dim =dim.reshape(batch, H*W,3)
 
-        # height in the bev
-        hei = self._transpose_and_gather_feat(hei, inds)
-        hei = hei.view(batch, K, 1)
+        ys, xs = torch.meshgrid([torch.arange(0, H), torch.arange(0, W)])
+        ys = ys.view(1, H, W).repeat(batch, 1, 1).to(heat.device).float()
+        xs = xs.view(1, H, W).repeat(batch, 1, 1).to(heat.device).float()
+        if reg is not None:
+            reg = reg.permute(0, 2, 3, 1)
+            xs = xs.view(batch, -1, 1) + reg[:, :, 0:1]
+            ys = ys.view(batch, -1, 1) + reg[:, :, 1:2]
 
-        # dim of the box
-        dim = self._transpose_and_gather_feat(dim, inds)
-        dim = dim.view(batch, K, 3)
-
-        # class label, must be int, there is something need to be implemented
-        clses = clses.view(batch, K).float()
-        scores = scores.view(batch, K)
-
-        xs = xs.view(batch, K, 1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
-        ys = ys.view(batch, K, 1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
-
-        if vel is None:  # KITTI FORMAT
-            final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
-        else:  # exist velocity, nuscene format
-            vel = self._transpose_and_gather_feat(vel, inds)
-            vel = vel.view(batch, K, 2)
+        xs = xs * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
+        ys = ys * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
+        if vel is not None:
+            vel = vel.permute(0, 2, 3, 1)
             final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
+        else:
+            final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
 
-        final_scores = scores
-        final_preds = clses
 
-        # restrict center range
-        assert self.post_center_range is not None
-        self.post_center_range = torch.tensor(self.post_center_range, device=heat.device)
-        mask = (final_box_preds[..., :3] >= self.post_center_range[:3]).all(2)
-        mask &= (final_box_preds[..., :3] <= self.post_center_range[3:]).all(2)
-
-        # use score threshold
-        assert self.score_threshold is not None
-        thresh_mask = final_scores > self.score_threshold
-        mask &= thresh_mask  # (B, K)
-
-        predictions_dicts = []
-        # post_processing
-        for i in range(batch):
-            cmask = mask[i, :]
-            boxes3d = final_box_preds[i, cmask]
-            scores = final_scores[i, cmask]
-            labels = final_preds[i, cmask]
-
-            # circle nms
-            if self.use_circle_nms:
-                centers = boxes3d[:, [0, 1]]    # centers: (K, 2), scores:(K,)
-                dets = torch.cat([centers, scores.views(-1, 1)], dim=1)
-                keep = self._circle_nms(dets,nms_cfg.min_radius[task_id],post_max_size=self.nms_post_max_size)
-
-                boxes3d = boxes3d[keep]
-                scores = scores[keep]
-                labels = labels[keep]
-
-            # rotate nms
-            if self.use_rotate_nms:
-                keep, _ = nms_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
-                keep = keep[:self.nms_post_max_size]
-
-                boxes3d = boxes3d[keep]
-                scores = scores[keep]
-                labels = labels[keep]
-
-            # iou 3d nms
-            if self.use_multi_class_nms:
-                keep, _ = nms_normal_gpu(boxes3d[:,0:7],scores,self.nms_iou_threshold)
-                keep = keep[:self.nms_post_max_size]
-
-                boxes3d = boxes3d[keep]
-                scores = scores[keep]
-                labels = labels[keep]
-
-            predictions_dict = {
-                'bboxes': boxes3d,
-                'scores': scores,
-                'labels': labels.long()
-            }
-
-            predictions_dicts.append(predictions_dict)
+        predictions_dicts = self.post_process(final_box_preds,heat)
 
         return predictions_dicts
 
-    def _topk(self, scores, K=80):
+    def post_process(self, batch_box_preds, batch_hm):
+        batch_size = len(batch_hm)
+
+        prediction_dicts = []
+        for i in range(batch_size):
+            box_preds = batch_box_preds[i]
+            hm_preds = batch_hm[i]
+
+            scores, labels = torch.max(hm_preds, dim=-1)
+
+            score_mask = scores > self.score_threshold
+            distance_mask = (box_preds[..., :3] >= self.post_center_range[:3]).all(1) \
+                            & (box_preds[..., :3] <= self.post_center_range[3:]).all(1)
+
+            mask = distance_mask & score_mask
+
+            box_preds = box_preds[mask]
+            scores = scores[mask]
+            labels = labels[mask]
+
+            boxes_for_nms = box_preds[:, 0:7]
+
+            selected = nms_gpu(boxes_for_nms, scores,
+                               thresh=self.nms_iou_threshold,
+                                pre_maxsize=self.nms_pre_max_size,
+                                post_max_size=self.nms_post_max_size)
+
+            selected_boxes = box_preds[selected]
+            selected_scores = scores[selected]
+            selected_labels = labels[selected]
+
+            prediction_dict = {
+                'bboxes': selected_boxes,
+                'scores': selected_scores,
+                'labels': selected_labels
+            }
+
+            prediction_dicts.append(prediction_dict)
+
+        return prediction_dicts
+
+def _topk(self, scores, K=80):
         """Get indexes based on scores.
 
         Args:
