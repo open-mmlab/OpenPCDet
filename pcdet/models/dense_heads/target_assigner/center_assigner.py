@@ -177,7 +177,8 @@ class CenterAssigner(object):
 
                 cur_gts_of_task = []
                 cur_classes_of_task = []
-                class_offset = 1
+                # offset start from 0, means the index of heatmap
+                class_offset = 0
                 for class_name in task.class_names:
                     class_idx = self.class_to_idx[class_name]
                     # some question about mask in this part
