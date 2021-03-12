@@ -237,6 +237,7 @@ class CenterAssigner(object):
                         gt_mask[new_idx] = 1
 
                         # w,l has been modified, so in box encoding, we use original w,l,h
+                        # TODO
                         if not self.no_log:
                             w, l, h = math.log(cur_gts_of_task[i, 3]), math.log(cur_gts_of_task[i, 4]), math.log(
                                 cur_gts_of_task[i, 5])
