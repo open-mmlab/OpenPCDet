@@ -6,7 +6,7 @@ import pdb
 
 class CenterAssigner(object):
     def __init__(self, assigner_cfg, num_class, no_log, grid_size, point_cloud_range, voxel_size, dataset):
-        """Return CenterNet training labels likt heatmap, height, offset"""
+        """Return CenterNet training labels like heatmap, height, offset"""
         self.assigner_cfg = assigner_cfg
         self.dense_reg = assigner_cfg.dense_reg
         self.out_size_factor = assigner_cfg.out_size_factor
@@ -177,10 +177,11 @@ class CenterAssigner(object):
 
                 cur_gts_of_task = []
                 cur_classes_of_task = []
-                class_offset = 0
+                class_offset = 1
                 for class_name in task.class_names:
                     class_idx = self.class_to_idx[class_name]
                     # some question about mask in this part
+                    # in dataset.py, cls_idx start from 1
                     class_mask = (cur_gt_classes == class_idx)
                     cur_gt_of_task = cur_gt[class_mask]
                     # fill will class offset number
@@ -273,7 +274,8 @@ class CenterAssigner(object):
             'heatmap': heatmaps,
             'ind': gt_inds,
             'mask': gt_masks,
-            'cat': gt_cats,
+            # cat seems no use in this task
+            # 'cat': gt_cats,
             'box_encoding': gt_box_encodings
         }
 

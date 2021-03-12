@@ -284,10 +284,6 @@ class CenterHead(nn.Module):
         )
         self.build_loss()
 
-    def init_weights(self):
-        """Initialize weights."""
-        for task_head in self.task_heads:
-            task_head.init_weights()
 
     def assign_target(self, gt_boxes):
         """
