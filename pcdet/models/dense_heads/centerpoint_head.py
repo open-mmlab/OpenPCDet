@@ -633,7 +633,7 @@ class CenterHead(nn.Module):
 
         return prediction_dicts
 
-def _topk(self, scores, K=80):
+    def _topk(self, scores, K=80):
         """Get indexes based on scores.
 
         Args:
