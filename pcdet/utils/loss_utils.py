@@ -245,27 +245,7 @@ class CenterNetFocalLoss(nn.Module):
         if num_pos == 0:
             return - neg_loss
         return - (pos_loss + neg_loss) / num_pos
-        # pos_inds = gt.eq(1).float()
-        # neg_inds = gt.lt(1).float()
-        #
-        # neg_weights = torch.pow(1 - gt, beta)
-        #
-        # pos_loss = torch.log(pred) * torch.pow(1 - pred, alpha) * pos_inds
-        # neg_loss = torch.log(1 - pred) * torch.pow(pred, alpha) * neg_weights * neg_inds
-        #
-        # num_pos = pos_inds.sum()
-        #
-        # pos_loss = pos_loss.sum()
-        # neg_loss = neg_loss.sum()
-        #
-        # loss = -(pos_loss + neg_loss) / max(num_pos, 1)
-        #
-        # # if num_pos == 0:
-        # #     loss = -neg_loss
-        # # else:
-        # #     loss = -(pos_loss + neg_loss)/num_pos
 
-        # return loss
 
     def forward(self, input, target, mask, ind, cat, alpha=2, beta=4):
         return self._neg_loss(input, target, mask, ind, cat, alpha=alpha, beta=beta)
