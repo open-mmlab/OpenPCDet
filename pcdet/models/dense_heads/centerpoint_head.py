@@ -358,7 +358,8 @@ class CenterHead(nn.Module):
 
             hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id],
                                 self.forward_ret_dict['mask'][task_id],
-                                self.forward_ret_dict['ind'][task_id])
+                                self.forward_ret_dict['ind'][task_id],
+                                self.forward_ret_dict['cat'][task_id])
 
             box_loss = self.crit_reg(
                 pred_box_encoding,

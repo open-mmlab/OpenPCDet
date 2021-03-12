@@ -215,7 +215,7 @@ class CenterNetFocalLoss(nn.Module):
     def __init__(self):
         super(CenterNetFocalLoss, self).__init__()
 
-    def _neg_loss(self, pred, gt, mask, ind, alpha=2, beta=4):
+    def _neg_loss(self, input, target, mask, ind, cat, alpha=2, beta=4):
         """
 
         Args:
@@ -225,6 +225,67 @@ class CenterNetFocalLoss(nn.Module):
         Returns:
 
         """
+        '''
+        Arguments:
+          out, target: B x C x H x W
+          ind, mask: B x M
+          cat (category id for peaks): B x M
+        '''
+        mask = mask.float()
+        gt = torch.pow(1 - target, 4)
+        neg_loss = torch.log(1 - input) * torch.pow(input, 2) * gt
+        neg_loss = neg_loss.sum()
+
+        pos_pred_pix = _transpose_and_gather_feat(input, ind)  # B x M x C
+        pos_pred = pos_pred_pix.gather(2, cat.unsqueeze(2))  # B x M
+        num_pos = mask.sum()
+        pos_loss = torch.log(pos_pred) * torch.pow(1 - pos_pred, 2) * \
+                   mask.unsqueeze(2)
+        pos_loss = pos_loss.sum()
+        if num_pos == 0:
+            return - neg_loss
+        return - (pos_loss + neg_loss) / num_pos
+        # pos_inds = gt.eq(1).float()
+        # neg_inds = gt.lt(1).float()
+        #
+        # neg_weights = torch.pow(1 - gt, beta)
+        #
+        # pos_loss = torch.log(pred) * torch.pow(1 - pred, alpha) * pos_inds
+        # neg_loss = torch.log(1 - pred) * torch.pow(pred, alpha) * neg_weights * neg_inds
+        #
+        # num_pos = pos_inds.sum()
+        #
+        # pos_loss = pos_loss.sum()
+        # neg_loss = neg_loss.sum()
+        #
+        # loss = -(pos_loss + neg_loss) / max(num_pos, 1)
+        #
+        # # if num_pos == 0:
+        # #     loss = -neg_loss
+        # # else:
+        # #     loss = -(pos_loss + neg_loss)/num_pos
+
+        # return loss
+
+    def forward(self, input, target, mask, ind, cat, alpha=2, beta=4):
+        return self._neg_loss(input, target, mask, ind, cat, alpha=alpha, beta=beta)
+
+class CenterNetFocalLossV2(nn.Module):
+
+    def __init__(self):
+        super(CenterNetFocalLossV2, self).__init__()
+
+    def _neg_loss(self, pred, gt, mask, ind, cat, alpha=2, beta=4):
+        """
+
+        Args:
+            pred:
+            gt:tensor
+
+        Returns:
+
+        """
+
         pos_inds = gt.eq(1).float()
         neg_inds = gt.lt(1).float()
 
@@ -247,9 +308,8 @@ class CenterNetFocalLoss(nn.Module):
 
         return loss
 
-    def forward(self, input, target, mask, ind, alpha=2, beta=4):
-        pred = _transpose_and_gather_feat(input, ind)
-        return self._neg_loss(pred, target,mask, ind, alpha=alpha, beta=beta)
+    def forward(self, input, target, mask, ind, cat, alpha=2, beta=4):
+        return self._neg_loss(input, target, mask, ind, cat, alpha=alpha, beta=beta)
 
 
 class CenterNetRegLoss(nn.Module):
