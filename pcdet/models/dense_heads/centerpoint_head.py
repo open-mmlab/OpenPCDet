@@ -576,6 +576,7 @@ class CenterHead(nn.Module):
         xs = xs.view(1, H, W).repeat(batch, 1, 1).to(heat.device).float()
         if reg is not None:
             reg = reg.permute(0, 2, 3, 1)
+            reg = reg.reshape(batch, H*W,2)
             xs = xs.view(batch, -1, 1) + reg[:, :, 0:1]
             ys = ys.view(batch, -1, 1) + reg[:, :, 1:2]
 
@@ -583,6 +584,7 @@ class CenterHead(nn.Module):
         ys = ys * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
         if vel is not None:
             vel = vel.permute(0, 2, 3, 1)
+            vel = vel.reshape(batch, H*W,2)
             final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
         else:
             final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
