@@ -512,54 +512,6 @@ class CenterHead(nn.Module):
         self.nms_pre_max_size = nms_cfg.nms_pre_max_size
         if self.use_max_pool_nms:
             heat = self._nms(heat)
-        # # topk nms
-        # K = nms_cfg.nms_pre_max_size
-        # scores, inds, clses, ys, xs = self._topk(heat, K)
-        #
-        # batch, cat, _, _ = heat.size()
-        # if reg is not None:
-        #     reg = self._transpose_and_gather_feat(reg, inds)
-        #     reg = reg.view(batch, K, 2)
-        #     xs = xs.view(batch, K, 1) + reg[:, :, 0:1]
-        #     ys = ys.view(batch, K, 1) + reg[:, :, 1:2]
-        # else:
-        #     xs = xs.view(batch, K, 1) + 0.5
-        #     ys = ys.view(batch, K, 1) + 0.5
-        #
-        # # rotation value and direction label
-        # rot_sine = self._transpose_and_gather_feat(rot_sine, inds)
-        # rot_sine = rot_sine.view(batch, K, 1)
-        #
-        # rot_cosine = self._transpose_and_gather_feat(rot_cosine, inds)
-        # rot_cosine = rot_cosine.view(batch, K, 1)
-        # rot = torch.atan2(rot_sine, rot_cosine)
-        #
-        # # height in the bev
-        # hei = self._transpose_and_gather_feat(hei, inds)
-        # hei = hei.view(batch, K, 1)
-        #
-        # # dim of the box
-        # dim = self._transpose_and_gather_feat(dim, inds)
-        # dim = dim.view(batch, K, 3)
-        #
-        # # class label, must be int, there is something need to be implemented
-        # clses = clses.view(batch, K).float()
-        # scores = scores.view(batch, K)
-        #
-        # xs = xs.view(batch, K, 1) * self.out_size_factor * self.voxel_size[0] + self.pc_range[0]
-        # ys = ys.view(batch, K, 1) * self.out_size_factor * self.voxel_size[1] + self.pc_range[1]
-        #
-        # if vel is None:  # KITTI FORMAT
-        #     final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
-        # else:  # exist velocity, nuscene format
-        #     vel = self._transpose_and_gather_feat(vel, inds)
-        #     vel = vel.view(batch, K, 2)
-        #     final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
-        #
-        # final_scores = scores
-        # final_preds = clses
-
-        # (B, C, H, W) to (B, H, W, C)
 
         rot = torch.atan2(rot_sine, rot_cosine)
         heat = heat.permute(0, 2, 3, 1)
