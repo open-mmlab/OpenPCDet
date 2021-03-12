@@ -277,7 +277,7 @@ class CenterAssigner(object):
             'ind': gt_inds,
             'mask': gt_masks,
             # cat seems no use in this task
-            # 'cat': gt_cats,
+            'cat': gt_cats,
             'box_encoding': gt_box_encodings
         }
 
