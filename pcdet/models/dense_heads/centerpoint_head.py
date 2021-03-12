@@ -460,7 +460,6 @@ class CenterHead(nn.Module):
             #     final_bboxes = final_bboxes[indices[:select_num]]
             #     final_scores = final_scores[indices[:select_num]]
             #     final_labels = final_labels[indices[:select_num]]
-            pdb.set_trace()
             record_dict = {
                 'pred_boxes': final_bboxes,
                 'pred_scores': final_scores,
@@ -617,7 +616,7 @@ class CenterHead(nn.Module):
 
             boxes_for_nms = box_preds[:, 0:7]
 
-            selected = nms_gpu(boxes_for_nms, scores,
+            selected, _ = nms_gpu(boxes_for_nms, scores,
                                thresh=self.nms_iou_threshold,
                                pre_maxsize=self.nms_pre_max_size,
                                post_max_size=self.nms_post_max_size)
