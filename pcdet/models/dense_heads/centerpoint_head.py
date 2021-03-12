@@ -373,7 +373,7 @@ class CenterHead(nn.Module):
     def build_loss(self):
         # criterion
         self.add_module(
-            'crit', loss_utils.CenterNetFocalLoss()
+            'crit', loss_utils.CenterNetFocalLossV2()
         )
         self.add_module(
             'crit_reg', loss_utils.CenterNetRegLoss()
