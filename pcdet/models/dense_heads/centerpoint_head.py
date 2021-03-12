@@ -502,6 +502,8 @@ class CenterHead(nn.Module):
         self.pc_range = cfg.pc_range
         self.score_threshold = cfg.score_threshold
         self.post_center_range = cfg.post_center_limit_range
+        assert self.post_center_range is not None
+        self.post_center_range = torch.tensor(self.post_center_range, device=heat.device)
         self.out_size_factor = cfg.out_size_factor
         self.use_circle_nms = nms_cfg.use_circle_nms
         self.use_rotate_nms = nms_cfg.use_rotate_nms
