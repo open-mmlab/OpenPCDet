@@ -330,8 +330,6 @@ class CenterHead(nn.Module):
         for task_id, pred_dict in enumerate(pred_dicts):
             pred_dict['hm'] = self.clip_sigmoid(pred_dict['hm'])
 
-
-
             target_box_encoding = self.forward_ret_dict['box_encoding'][task_id]
             if self.dataset == 'nuscenes':
                 # nuscenes encoding format [x, y, z, w, l, h, sinr, cosr, vx, vy]
@@ -354,7 +352,6 @@ class CenterHead(nn.Module):
 
             self.forward_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
 
-            pdb.set_trace()
 
             hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id],
                                 self.forward_ret_dict['mask'][task_id],
