@@ -609,6 +609,7 @@ class CenterHead(nn.Module):
             score_mask = scores > self.score_threshold
             distance_mask = (box_preds[..., :3] >= self.post_center_range[:3]).all(1) \
                             & (box_preds[..., :3] <= self.post_center_range[3:]).all(1)
+            pdb.set_trace()
 
             mask = distance_mask & score_mask
 
