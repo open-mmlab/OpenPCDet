@@ -40,6 +40,7 @@ class CenterPoint(Detector3DTemplate):
         recall_dict = {}
         batch_size = batch_dict['batch_size']
         for index in range(batch_size):
+            pdb.set_trace()
             recall_dict = self.generate_recall_record(
                 box_preds=pred_dicts[index]['pred_boxes'],
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
