@@ -40,7 +40,7 @@ class SepHead(nn.Module):
         bias (str): Type of bias. Default: 'auto'.
     """
 
-    def __init__(self, in_channels, heads, head_conv=64, final_kernel=1, init_bias=-2.19, bn=False, **kwargs):
+    def __init__(self, in_channels, heads, head_conv=64, final_kernel=1, init_bias=-2.19, bn=False, init=True, **kwargs):
         super(SepHead, self).__init__()
 
         self.heads = heads  # {cat: [classes, num_conv]}
@@ -63,7 +63,8 @@ class SepHead(nn.Module):
             conv_layers = nn.Sequential(*conv_layers)
 
             self.__setattr__(head, conv_layers)
-        self.init_weights()
+        if init:
+            self.init_weights()
 
     def init_weights(self):
         """Initialize weights."""
@@ -247,6 +248,7 @@ class CenterHead(nn.Module):
         self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights  # weights between different heads
         self.weight = self.model_cfg.LOSS_CONFIG.weight  # weight between local loss and hm loss
         self.no_log = self.model_cfg.NO_LOG
+        self.init = self.model_cfg.get('INIT',True)
 
         # a shared convolution
         share_conv_channel = model_cfg.PARAMETERS.share_conv_channel
@@ -271,7 +273,7 @@ class CenterHead(nn.Module):
             else:
                 heads.update(dict(hm=(num_cls, 2)))
                 self.task_heads.append(
-                    SepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias))
+                    SepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias, init=self.init))
 
         self.target_assigner = CenterAssigner(
             model_cfg.TARGET_ASSIGNER_CONFIG,
