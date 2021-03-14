@@ -419,7 +419,7 @@ class CenterHead(nn.Module):
                 if not self.no_log:
                     batch_dim = torch.exp(pred_dict['dim'])
                     # clamp for good init, otherwise it will goes inf with exp
-                    batch_dim = torch.clamp(batch_dim, min=0.001, max=30)
+                    # batch_dim = torch.clamp(batch_dim, min=0.001, max=30)
                 else:
                     batch_dim = pred_dict['dim']
                 batch_rot_sine = pred_dict['rot'][:, 0].unsqueeze(1)
