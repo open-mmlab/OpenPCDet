@@ -1,0 +1,152 @@
+CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
+              'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
+    USE_DOUBLE_FLIP_TEST: &double_flip False
+    POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
+    DATA_PROCESSOR:
+      - NAME: mask_points_and_boxes_outside_range
+        REMOVE_OUTSIDE_BOXES: True
+
+      - NAME: shuffle_points
+        SHUFFLE_ENABLED: {
+          'train': True,
+          'test': False
+        }
+
+      - NAME: transform_points_to_voxels
+        VOXEL_SIZE: [ 0.1, 0.1, 0.2 ]
+        MAX_POINTS_PER_VOXEL: 10
+        MAX_NUMBER_OF_VOXELS: {
+          'train': 90000,
+          'test': 120000
+        }
+
+
+MODEL:
+    NAME: CenterPoint
+
+    VFE:
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelResBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: CenterHead
+        CLASS_AGNOSTIC: False
+        DATASET: nuscenes
+        MODE: 3d
+        USE_DCN: False
+        NO_LOG: False
+        TASKS: &tasks_head
+          - num_class: 1
+            class_names: [ 'car' ]
+          - num_class: 2
+            class_names: ['truck', 'construction_vehicle']
+          - num_class: 2
+            class_names: ['bus', 'trailer']
+          - num_class: 1
+            class_names: ['barrier']
+          - num_class: 2
+            class_names: ['motorcycle', 'bicycle']
+          - num_class: 2
+            class_names: ['pedestrian', 'traffic_cone']
+
+        PARAMETERS:
+          share_conv_channel: 64 # may not correct
+          init_bias: -2.19
+          common_heads: { 'reg': [ 2,2 ], 'hei': [ 1,2 ], 'dim': [ 3,2 ], 'rot': [ 2,2 ], 'vel': [2, 2] } # {cat: [classes, num_conv]}
+
+        LOSS_CONFIG:
+          code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
+          weight: 0.25
+
+        TARGET_ASSIGNER_CONFIG:
+          NAME: CenterAssigner
+          BOX_CODER: ResidualCoder
+          tasks: *tasks_head
+          out_size_factor: 8
+          dense_reg: 1
+          gaussian_overlap: 0.1
+          max_objs: 500
+          min_radius: 2
+          mapping: {
+            'car': 1,
+            'truck': 2,
+            'construction_vehicle': 3,
+            'bus': 4,
+            'trailer': 5,
+            'barrier': 6,
+            'motorcycle': 7,
+            'bicycle': 8,
+            'pedestrian': 9,
+            'traffic_cone': 10
+          }
+
+        TEST_CONFIG:
+          double_flip: *double_flip
+          post_center_limit_range: [ -61.2, -61.2, -10.0, 61.2, 61.2, 10.0 ]
+          score_threshold: 0.1
+          pc_range: [ -51.2, -51.2 ]
+          out_size_factor: 8
+          voxel_size: [ 0.1, 0.1 ]
+          nms:
+            use_rotate_nms: True
+            use_multi_class_nms: False
+            use_circle_nms: False
+            use_max_pool_nms: False
+            nms_pre_max_size: 1000
+            nms_post_max_size: 83
+            nms_iou_threshold: 0.2
+
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+
+        EVAL_METRIC: kitti
+
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: True
+            NMS_TYPE: nms_gpu
+            NMS_THRESH: 0.2
+            NMS_PRE_MAXSIZE: 1000
+            NMS_POST_MAXSIZE: 83
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 4
+    NUM_EPOCHS: 20
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.001
+    WEIGHT_DECAY: 0.01
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 35
