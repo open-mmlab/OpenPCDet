@@ -74,6 +74,4 @@ if __name__ == '__main__':
         anchor_range=[-75.2, -75.2, -2, 75.2, 75.2, 4],
         anchor_generator_config=config
     )
-    import pdb
-    pdb.set_trace()
     A.generate_anchors([[188, 188]])

@@ -74,7 +74,6 @@ class OneCycle(LRSchedulerStep):
         mom_phases = ((0, partial(annealing_cos, *self.moms)),
                       (self.pct_start, partial(annealing_cos,
                                                *self.moms[::-1])))
-        pdb.set_trace()
         fai_optimizer.lr, fai_optimizer.mom = low_lr, self.moms[0]
         super().__init__(fai_optimizer, total_step, lr_phases, mom_phases)
 
