@@ -6,7 +6,6 @@ import torch.nn as nn
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,
                    conv_type='subm', norm_fn=None):
-
     if conv_type == 'subm':
         conv = spconv.SubMConv3d(in_channels, out_channels, kernel_size, bias=False, indice_key=indice_key)
     elif conv_type == 'spconv':
@@ -214,7 +213,6 @@ class SpMiddleResNetFHD(nn.Module):
             SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key="res3"),
         )
 
-
         self.extra_conv = spconv.SparseSequential(
             spconv.SparseConv3d(
                 128, 128, (3, 1, 1), (2, 1, 1), bias=False
@@ -222,6 +220,7 @@ class SpMiddleResNetFHD(nn.Module):
             norm_fn(128),
             nn.ReLU(),
         )
+        self.num_point_features = 128
 
     def forward(self, batch_dict):
         voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
@@ -253,7 +252,6 @@ class SpMiddleResNetFHD(nn.Module):
                 'x_conv4': x_conv4,
             }
         })
-
 
         return batch_dict
 
@@ -339,7 +337,6 @@ class VoxelBackBone8x_4layer(nn.Module):
         # for detection head
         # [200, 176, 5] -> [200, 176, 2]
         out = x_conv4
-
 
         batch_dict.update({
             'encoded_spconv_tensor': out,
