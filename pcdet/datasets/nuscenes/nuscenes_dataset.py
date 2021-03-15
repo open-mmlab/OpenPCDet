@@ -353,22 +353,29 @@ if __name__ == '__main__':
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_nuscenes_infos', help='')
     parser.add_argument('--version', type=str, default='v1.0-trainval', help='')
+    parser.add_argument('--runs_on', type=str,default='server',help='')
     args = parser.parse_args()
 
     if args.func == 'create_nuscenes_infos':
         dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.VERSION = args.version
+
+        if args.runs_on == 'server':
+            data_path = ROOT_DIR / 'data' / 'nuscenes'
+        elif args.runs_on == 'cloud':
+            data_path = dataset_cfg.CLOUD_DATA_PATH
+            dataset_cfg.DATA_PATH = dataset_cfg.CLOUD_DATA_PATH
         create_nuscenes_info(
             version=dataset_cfg.VERSION,
-            data_path=ROOT_DIR / 'data' / 'nuscenes',
-            save_path=ROOT_DIR / 'data' / 'nuscenes',
+            data_path=data_path,
+            save_path=data_path,
             max_sweeps=dataset_cfg.MAX_SWEEPS,
         )
 
         nuscenes_dataset = NuScenesDataset(
             dataset_cfg=dataset_cfg, class_names=None,
-            root_path=ROOT_DIR / 'data' / 'nuscenes',
+            root_path=data_path,
             logger=common_utils.create_logger(), training=True
         )
         nuscenes_dataset.create_groundtruth_database(max_sweeps=dataset_cfg.MAX_SWEEPS)
