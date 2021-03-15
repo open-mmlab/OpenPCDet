@@ -163,6 +163,101 @@ class VoxelBackBone8x(nn.Module):
         return batch_dict
 
 
+class SpMiddleResNetFHD(nn.Module):
+    def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
+        super(SpMiddleResNetFHD, self).__init__()
+
+        self.model_cfg = model_cfg
+        self.sparse_shape = grid_size[::-1] + [1, 0, 0]
+
+        norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
+
+        # input: # [1600, 1200, 41]
+        self.conv_input = spconv.SparseSequential(
+            spconv.SubMConv3d(input_channels, 16, 3, bias=False, indice_key="res0"),
+            norm_fn(16),
+            nn.ReLU(inplace=True)
+        )
+
+        self.conv1 = spconv.SparseSequential(
+            SparseBasicBlock(16, 16, norm_fn=norm_fn, indice_key="res0"),
+            SparseBasicBlock(16, 16, norm_fn=norm_fn, indice_key="res0"),
+        )
+
+        self.conv2 = spconv.SparseSequential(
+            spconv.SparseConv3d(
+                16, 32, 3, 2, padding=1, bias=False
+            ),  # [1600, 1200, 41] -> [800, 600, 21]
+            norm_fn(32),
+            nn.ReLU(inplace=True),
+            SparseBasicBlock(32, 32, norm_fn=norm_fn, indice_key="res1"),
+            SparseBasicBlock(32, 32, norm_fn=norm_fn, indice_key="res1"),
+        )
+
+        self.conv3 = spconv.SparseSequential(
+            spconv.SparseConv3d(
+                32, 64, 3, 2, padding=1, bias=False
+            ),  # [800, 600, 21] -> [400, 300, 11]
+            norm_fn(64),
+            nn.ReLU(inplace=True),
+            SparseBasicBlock(64, 64, norm_fn=norm_fn, indice_key="res2"),
+            SparseBasicBlock(64, 64, norm_fn=norm_fn, indice_key="res2"),
+        )
+
+        self.conv4 = spconv.SparseSequential(
+            spconv.SparseConv3d(
+                64, 128, 3, 2, padding=[0, 1, 1], bias=False
+            ),  # [400, 300, 11] -> [200, 150, 5]
+            norm_fn(128),
+            nn.ReLU(inplace=True),
+            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key="res3"),
+            SparseBasicBlock(128, 128, norm_fn=norm_fn, indice_key="res3"),
+        )
+
+
+        self.extra_conv = spconv.SparseSequential(
+            spconv.SparseConv3d(
+                128, 128, (3, 1, 1), (2, 1, 1), bias=False
+            ),  # [200, 150, 5] -> [200, 150, 2]
+            norm_fn(128),
+            nn.ReLU(),
+        )
+
+    def forward(self, batch_dict):
+        voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
+        batch_size = batch_dict['batch_size']
+        input_sp_tensor = spconv.SparseConvTensor(
+            features=voxel_features,
+            indices=voxel_coords.int(),
+            spatial_shape=self.sparse_shape,
+            batch_size=batch_size
+        )
+
+        x = self.conv_input(input_sp_tensor)
+        x_conv1 = self.conv1(x)
+        x_conv2 = self.conv2(x_conv1)
+        x_conv3 = self.conv3(x_conv2)
+        x_conv4 = self.conv4(x_conv3)
+
+        out = self.extra_conv(x_conv4)
+
+        batch_dict.update({
+            'encoded_spconv_tensor': out,
+            'encoded_spconv_tensor_stride': 8
+        })
+        batch_dict.update({
+            'multi_scale_3d_features': {
+                'x_conv1': x_conv1,
+                'x_conv2': x_conv2,
+                'x_conv3': x_conv3,
+                'x_conv4': x_conv4,
+            }
+        })
+
+
+        return batch_dict
+
+
 class VoxelBackBone8x_4layer(nn.Module):
     def __init__(self, model_cfg, input_channels, grid_size, **kwargs):
         super().__init__()
