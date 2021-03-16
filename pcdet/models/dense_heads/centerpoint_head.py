@@ -248,7 +248,7 @@ class CenterHead(nn.Module):
         self.forward_ret_dict = {}  # return dict filtered by assigner
         self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights  # weights between different heads
         self.weight = self.model_cfg.LOSS_CONFIG.weight  # weight between local loss and hm loss
-        self.no_log = self.model_cfg.get('NO_LOG',False)
+        self.no_log = self.model_cfg.get('NO_LOG', False)
         self.init = self.model_cfg.get('INIT', True)
 
         # a shared convolution
@@ -507,11 +507,11 @@ class CenterHead(nn.Module):
         assert self.post_center_range is not None
         self.post_center_range = torch.tensor(self.post_center_range, device=heat.device)
         self.out_size_factor = cfg.out_size_factor
-        self.use_circle_nms = nms_cfg.use_circle_nms
-        self.use_rotate_nms = nms_cfg.use_rotate_nms
+        self.use_circle_nms = nms_cfg.get("use_circle_nms", False)
+        self.use_rotate_nms = nms_cfg.get("use_rotate_nms", False)
         self.nms_iou_threshold = nms_cfg.nms_iou_threshold
-        self.use_multi_class_nms = nms_cfg.use_multi_class_nms
-        self.use_max_pool_nms = nms_cfg.use_max_pool_nms
+        self.use_multi_class_nms = nms_cfg.get("use_multi_class_nms", False)
+        self.use_max_pool_nms = nms_cfg.get("use_max_pool_nms", False)
         self.nms_post_max_size = nms_cfg.nms_post_max_size
         self.nms_pre_max_size = nms_cfg.nms_pre_max_size
         if self.use_max_pool_nms:
