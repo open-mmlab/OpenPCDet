@@ -40,7 +40,8 @@ class SepHead(nn.Module):
         bias (str): Type of bias. Default: 'auto'.
     """
 
-    def __init__(self, in_channels, heads, head_conv=64, final_kernel=1, init_bias=-2.19, bn=False, init=True, **kwargs):
+    def __init__(self, in_channels, heads, head_conv=64, final_kernel=1, init_bias=-2.19, bn=False, init=True,
+                 **kwargs):
         super(SepHead, self).__init__()
 
         self.heads = heads  # {cat: [classes, num_conv]}
@@ -248,7 +249,7 @@ class CenterHead(nn.Module):
         self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights  # weights between different heads
         self.weight = self.model_cfg.LOSS_CONFIG.weight  # weight between local loss and hm loss
         self.no_log = self.model_cfg.NO_LOG
-        self.init = self.model_cfg.get('INIT',True)
+        self.init = self.model_cfg.get('INIT', True)
 
         # a shared convolution
         share_conv_channel = model_cfg.PARAMETERS.share_conv_channel
@@ -273,7 +274,8 @@ class CenterHead(nn.Module):
             else:
                 heads.update(dict(hm=(num_cls, 2)))
                 self.task_heads.append(
-                    SepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias, init=self.init))
+                    SepHead(share_conv_channel, heads, final_kernel=3, bn=True, init_bias=self.init_bias,
+                            init=self.init))
 
         self.target_assigner = CenterAssigner(
             model_cfg.TARGET_ASSIGNER_CONFIG,
@@ -569,11 +571,12 @@ class CenterHead(nn.Module):
             labels = labels[mask]
 
             boxes_for_nms = box_preds[:, 0:7]
+            boxes_for_nms[:, -1] = -boxes_for_nms[:, -1] - np.pi / 2
 
             selected, _ = nms_gpu(boxes_for_nms, scores,
-                               thresh=self.nms_iou_threshold,
-                               pre_maxsize=self.nms_pre_max_size,
-                               post_max_size=self.nms_post_max_size)
+                                  thresh=self.nms_iou_threshold,
+                                  pre_maxsize=self.nms_pre_max_size,
+                                  post_max_size=self.nms_post_max_size)
 
             selected_boxes = box_preds[selected]
             selected_scores = scores[selected]
