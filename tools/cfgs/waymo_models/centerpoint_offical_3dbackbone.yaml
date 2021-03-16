@@ -31,7 +31,7 @@ MODEL:
         NAME: MeanVFE
 
     BACKBONE_3D:
-        NAME: SpMiddleResNetFHD
+        NAME: VoxelResBackBone8x
 
     MAP_TO_BEV:
         NAME: HeightCompression
