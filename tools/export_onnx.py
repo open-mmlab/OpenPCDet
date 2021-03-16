@@ -65,7 +65,7 @@ def parse_config():
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
-
+    [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
     return args, cfg
 
 def export_onnx(model):
@@ -76,12 +76,12 @@ def export_onnx(model):
                       output_names=['pillar_features'])
     print('vfe.onnx transfer success ...')
 
-    spatial_features = torch.ones([1, 64, 288, 288], dtype=torch.float32, device='cuda')
+    spatial_features = torch.ones([1, 64, 896, 256], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[2], spatial_features, "backbone.onnx", verbose=False,input_names=['spatial_features'],
                       output_names=['spatial_features_2d'])
     print('backbone.onnx transfer success ...')
 
-    spatial_features_2d = torch.ones([1, 384, 144, 144], dtype=torch.float32, device='cuda')
+    spatial_features_2d = torch.ones([1, 384, 224, 64], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[3], spatial_features_2d, "head.onnx", verbose=False,
                       input_names=["spatial_features_2d"], output_names=['cls', 'bbox', 'dir'])
     print('head.onnx transfer success ...')

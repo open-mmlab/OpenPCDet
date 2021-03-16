@@ -4,6 +4,7 @@ import numpy as np
 
 def calculate_anchors(data_dir):
     class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
+    # class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
     res = {}
     
     train_list = os.path.join(data_dir, 'ImageSets', 'train.txt')

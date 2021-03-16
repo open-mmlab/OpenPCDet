@@ -71,7 +71,7 @@ class NeolixDataset(DatasetTemplate):
             assert lidar_file.exists()
             return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
         else:
-            root_path = "/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/hard_example_bins/"
+            root_path = "/home/songhongli/55_bins/"
             fl_ls = sorted(os.listdir(root_path))
             global data_id
             data_id += 1
@@ -88,6 +88,7 @@ class NeolixDataset(DatasetTemplate):
 
     def get_label(self, idx):
         label_file = self.root_split_path / 'label_2' / ('%s.txt' % idx)
+        # print(label_file)
         assert label_file.exists()
         return object3d_neolix.get_objects_from_label(label_file)
 
@@ -205,6 +206,7 @@ class NeolixDataset(DatasetTemplate):
             return info
 
         sample_id_list = sample_id_list if sample_id_list is not None else self.sample_id_list
+        print(sample_id_list)
         with futures.ThreadPoolExecutor(num_workers) as executor:
             infos = executor.map(process_single_scene, sample_id_list)
         return list(infos)
@@ -265,7 +267,7 @@ class NeolixDataset(DatasetTemplate):
             pickle.dump(all_db_infos, f)
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, inference=False):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, inference=False, inference_results=None):
         """
         Args:
             batch_dict:
@@ -315,7 +317,6 @@ class NeolixDataset(DatasetTemplate):
             pred_dict['rotation_y'] = pred_boxes_camera[:, 6]
             pred_dict['score'] = pred_scores
             pred_dict['boxes_lidar'] = pred_boxes
-
             return pred_dict
 
         annos = []
@@ -330,7 +331,8 @@ class NeolixDataset(DatasetTemplate):
                 if inference:
                     global write_data_id
                     write_data_id += 1
-                    label_path = './pre_test/'
+                    # label_path = inference_results
+                    label_path = './large_vehicle_32_5cls/'
                     with open(label_path + "%06d.txt" % write_data_id, 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
@@ -435,6 +437,42 @@ class NeolixDataset(DatasetTemplate):
         return data_dict
 
 
+    def inference_getitem(self, pc):
+        info = copy.deepcopy(self.neolix_infos[0])
+        sample_idx = info['point_cloud']['lidar_idx']
+        points = np.fromfile(pc, dtype=np.float32).reshape(-1, 4)
+        points[:, 3] = 0
+        # points = self.get_lidar(sample_idx)
+        input_dict = {
+            'points': points,
+            'frame_id': sample_idx,
+            # 'calib': calib,
+        }
+
+        if 'annos' in info:
+            annos = info['annos']
+            annos = common_utils.drop_info_with_name(annos, name='DontCare')
+            loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
+            gt_names = annos['name']
+            # gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
+            # gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
+            gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
+            gt_boxes_lidar = box_utils.boxes3d_neolix_camera_to_lidar(gt_boxes_camera)
+
+            input_dict.update({
+                'gt_names': gt_names,
+                'gt_boxes': gt_boxes_lidar
+            })
+            road_plane = self.get_road_plane(sample_idx)
+            if road_plane is not None:
+                input_dict['road_plane'] = road_plane
+
+        data_dict = self.prepare_data(data_dict=input_dict)
+
+        # data_dict['image_shape'] = img_shape
+        return data_dict
+
+
 def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
     dataset = NeolixDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
     train_split, val_split = 'train', 'val'
@@ -446,11 +484,11 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
 
     print('---------------Start to generate data infos---------------')
 
-    dataset.set_split(train_split)
-    neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
-    with open(train_filename, 'wb') as f:
-        pickle.dump(neolix_infos_train, f)
-    print('Neolix info train file is saved to %s' % train_filename)
+    # dataset.set_split(train_split)
+    # neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    # with open(train_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_train, f)
+    # print('Neolix info train file is saved to %s' % train_filename)
 
     dataset.set_split(val_split)
     neolix_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
@@ -458,21 +496,21 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
         pickle.dump(neolix_infos_val, f)
     print('Neolix info val file is saved to %s' % val_filename)
 
-    with open(trainval_filename, 'wb') as f:
-        pickle.dump(neolix_infos_train + neolix_infos_val, f)
-    print('Neolix info trainval file is saved to %s' % trainval_filename)
+    # with open(trainval_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_train + neolix_infos_val, f)
+    # print('Neolix info trainval file is saved to %s' % trainval_filename)
 
-    dataset.set_split('test')
-    neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
-    with open(test_filename, 'wb') as f:
-        pickle.dump(neolix_infos_test, f)
-    print('Neolix info test file is saved to %s' % test_filename)
-
-    print('---------------Start create groundtruth database for data augmentation---------------')
-    dataset.set_split(train_split)
-    dataset.create_groundtruth_database(train_filename, split=train_split)
-
-    print('---------------Data preparation Done---------------')
+    # dataset.set_split('test')
+    # neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
+    # with open(test_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_test, f)
+    # print('Neolix info test file is saved to %s' % test_filename)
+    #
+    # print('---------------Start create groundtruth database for data augmentation---------------')
+    # dataset.set_split(train_split)
+    # dataset.create_groundtruth_database(train_filename, split=train_split)
+    #
+    # print('---------------Data preparation Done---------------')
 
 
 if __name__ == '__main__':
@@ -483,7 +521,8 @@ if __name__ == '__main__':
         from easydict import EasyDict
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
         # ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
-        ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/shanghai32_lidars')
+        # ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/shanghai32_lidars')
+        ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000/')
         create_neolix_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown'],
@@ -491,4 +530,4 @@ if __name__ == '__main__':
             save_path=ROOT_DIR
             # data_path=ROOT_DIR / 'data' / 'neolix',
             # save_path=ROOT_DIR / 'data' / 'neolix'
-        )
+        )#class_names=['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
