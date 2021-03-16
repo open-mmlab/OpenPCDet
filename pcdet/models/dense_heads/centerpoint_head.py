@@ -338,7 +338,7 @@ class CenterHead(nn.Module):
                 # nuscenes encoding format [x, y, z, w, l, h, sinr, cosr, vx, vy]
                 pred_box_encoding = torch.cat([
                     pred_dict['reg'],
-                    pred_dict['hei'],
+                    pred_dict['height'],
                     pred_dict['dim'],
                     pred_dict['rot'],
                     pred_dict['vel']
@@ -346,7 +346,7 @@ class CenterHead(nn.Module):
             elif self.dataset == 'waymo':
                 pred_box_encoding = torch.cat([
                     pred_dict['reg'],
-                    pred_dict['hei'],
+                    pred_dict['height'],
                     pred_dict['dim'],
                     pred_dict['rot']
                 ], dim=1).contiguous()  # (B, 8, H, W)
@@ -417,7 +417,7 @@ class CenterHead(nn.Module):
             else:
                 batch_hm = pred_dict['hm'].sigmoid()
                 batch_reg = pred_dict['reg']
-                batch_hei = pred_dict['hei']
+                batch_hei = pred_dict['height']
                 if not self.no_log:
                     batch_dim = torch.exp(pred_dict['dim'])
                     # clamp for good init, otherwise it will goes inf with exp
@@ -709,7 +709,7 @@ class CenterHead(nn.Module):
         batch_hm = pred_dict['hm'].sigmoid()
 
         batch_reg = pred_dict['reg']
-        batch_hei = pred_dict['hei']
+        batch_hei = pred_dict['height']
         # pdb.set_trace()
         if not self.no_log:
             batch_dim = torch.exp(pred_dict['dim'])
