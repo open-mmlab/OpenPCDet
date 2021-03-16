@@ -1,7 +1,7 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/shanghai32_lidars/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000/'
 
-POINT_CLOUD_RANGE: [-20, -70, -1.5, 20, 70, 2.5]
+POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5] #[-20, -70, -1.5, 20, 70, 2.5]
 
 DATA_SPLIT: {
     'train': train,

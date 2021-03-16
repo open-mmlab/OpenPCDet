@@ -173,5 +173,7 @@ There will be four onnx models generated: vfe.onnx, backbone.onnx, head.onnx and
 * Set the path of saving results in neolix_dataset.py/generate_single_sample_dict/line 333;
 * run inference.py;
 ```shell script
-python inference.py --cfg_file cfgs/neolix_models/pointpillar.yaml --ckpt ../output/neolix_models/pointpillar/default/ckpt/checkpoint_epoch_160.pth --batch_size 1 --workers 1 --save_to_file  --inference
+#python inference.py --batch_size 1 --workers 1 --save_to_file  --inference  --cfg_file cfgs/neolix_models/pointpillar.yaml --ckpt ../output/neolix_models/pointpillar/default/ckpt/checkpoint_epoch_160.pth
+python inference.py --batch_size 1 --workers 1 --save_to_file  --inference  --cfg_file {.yaml} --ckpt {.pth} --inference_data_path {pc_path} --inference_results {results path} 
+
 ```
