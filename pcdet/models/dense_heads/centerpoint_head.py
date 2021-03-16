@@ -248,7 +248,7 @@ class CenterHead(nn.Module):
         self.forward_ret_dict = {}  # return dict filtered by assigner
         self.code_weights = self.model_cfg.LOSS_CONFIG.code_weights  # weights between different heads
         self.weight = self.model_cfg.LOSS_CONFIG.weight  # weight between local loss and hm loss
-        self.no_log = self.model_cfg.NO_LOG
+        self.no_log = self.model_cfg.get('NO_LOG',False)
         self.init = self.model_cfg.get('INIT', True)
 
         # a shared convolution
