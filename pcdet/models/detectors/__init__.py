@@ -13,7 +13,8 @@ __all__ = {
     'PVRCNN': PVRCNN,
     'PointPillar': PointPillar,
     'PointRCNN': PointRCNN,
-    'CenterPoint': CenterPoint
+    'CenterPoint': CenterPoint,
+    'CenterPoints': CenterPoint
 }
 
 
