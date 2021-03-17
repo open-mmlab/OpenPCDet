@@ -384,6 +384,12 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('---------------Data preparation Done---------------')
 
 
+def create_range_image(dataset_cfg, class_names, data_path, save_path,
+                       raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
+                       workers=multiprocessing.cpu_count()):
+    pass
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -406,3 +412,10 @@ if __name__ == '__main__':
             raw_data_tag='raw_data',
             processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG
         )
+    if args.func == 'create_range_image':
+        import yaml
+        from easydict import EasyDict
+
+        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
+        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+
