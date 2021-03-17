@@ -138,6 +138,13 @@ sh scripts/dist_test.sh ${NUM_GPUS} \
 sh scripts/slurm_test_mgpu.sh ${PARTITION} ${NUM_GPUS} \ 
     --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE}
 ```
+* Test in different range:
+1. Set the range list "det_range_ls" in OpenPCDet/tools/eval_utils/eval_utils.py line 111.
+Every element of the list is an evaluation range. [min_x, max_x, min_y, max_y]
+2. If the det_range_ls is annotated, the evaluation range is the detection range.
+```shell script
+python test.py --cfg_file ${CONFIG_FILE} --batch_size ${BATCH_SIZE} --ckpt ${CKPT}
+```
 
 
 ### Train a model
