@@ -370,7 +370,7 @@ class NeolixDataset(DatasetTemplate):
 
         return annos
 
-    def evaluation(self, det_annos, class_names, **kwargs):
+    def evaluation(self, det_annos, class_names, det_range=None, **kwargs):
         if 'annos' not in self.neolix_infos[0].keys():
             return None, {}
 
@@ -378,7 +378,7 @@ class NeolixDataset(DatasetTemplate):
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.neolix_infos]
-        ap_result_str, ap_dict = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names)
+        ap_result_str, ap_dict = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range)
 
         return ap_result_str, ap_dict
 
