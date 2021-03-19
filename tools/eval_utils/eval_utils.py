@@ -108,8 +108,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
     det_range_ls = None
-    # det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 20], [-10, 10, 20, 30], [-10, 10, 30, 40], [-10, 10, 40, 50],
-    #                 [-10, 10, 50, 60], [-10, 10, 60, 70]]
+    det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 20], [-10, 10, 20, 30], [-10, 10, 30, 40], [-10, 10, 40, 50],
+                    [-10, 10, 50, 60], [-10, 10, 60, 70]]
     if not det_range_ls is None:
         for detect_range in det_range_ls:
             print("*" * 60)
