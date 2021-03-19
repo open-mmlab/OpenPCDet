@@ -410,14 +410,14 @@ class CenterHead(nn.Module):
             if self.double_flip:
                 assert batch_size % 4 == 0, print(batch_size)
                 batch_size = int(batch_size / 4)
-                batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel, batch_reg = self._double_flip(
+                batch_hm, batch_rot_sine, batch_rot_cosine, batch_height, batch_dim, batch_vel, batch_reg = self._double_flip(
                     pred_dict, batch_size)
                 # convert data_dict format
                 data_dict['batch_size'] = batch_size
             else:
                 batch_hm = pred_dict['hm'].sigmoid()
                 batch_reg = pred_dict['reg']
-                batch_hei = pred_dict['height']
+                batch_height = pred_dict['height']
                 if not self.no_log:
                     batch_dim = torch.exp(pred_dict['dim'])
                     # clamp for good init, otherwise it will goes inf with exp
@@ -430,7 +430,7 @@ class CenterHead(nn.Module):
                 batch_vel = pred_dict['vel'] if self.dataset == 'nuscenes' else None
 
             # decode
-            boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_hei, batch_dim, batch_vel,
+            boxes = self.proposal_layer(batch_hm, batch_rot_sine, batch_rot_cosine, batch_height, batch_dim, batch_vel,
                                         reg=batch_reg, cfg=self.post_cfg, task_id=task_id)
 
             task_preds['bboxes'][task_id] = [box['bboxes'] for box in boxes]
@@ -476,7 +476,7 @@ class CenterHead(nn.Module):
         return data_dict
 
     @torch.no_grad()
-    def proposal_layer(self, heat, rot_sine, rot_cosine, hei, dim, vel=None, reg=None,
+    def proposal_layer(self, heat, rot_sine, rot_cosine, height, dim, vel=None, reg=None,
                        cfg=None, raw_rot=False, task_id=-1):
         """Decode bboxes.
 
@@ -486,7 +486,7 @@ class CenterHead(nn.Module):
                         [B, 1, W, H].
                     rot_cosine (torch.Tensor): Cosine of rotation with the shape of
                         [B, 1, W, H].
-                    hei (torch.Tensor): Height of the boxes with the shape
+                    height (torch.Tensor): Height of the boxes with the shape
                         of [B, 1, W, H].
                     dim (torch.Tensor): Dim of the boxes with the shape of
                         [B, 1, W, H].
@@ -523,8 +523,8 @@ class CenterHead(nn.Module):
         heat = heat.reshape(batch, H * W, cat)
         rot = rot.permute(0, 2, 3, 1)
         rot = rot.reshape(batch, H * W, 1)
-        hei = hei.permute(0, 2, 3, 1)
-        hei = hei.reshape(batch, H * W, 1)
+        height = height.permute(0, 2, 3, 1)
+        height = height.reshape(batch, H * W, 1)
         dim = dim.permute(0, 2, 3, 1)
         dim = dim.reshape(batch, H * W, 3)
 
@@ -542,9 +542,9 @@ class CenterHead(nn.Module):
         if vel is not None:
             vel = vel.permute(0, 2, 3, 1)
             vel = vel.reshape(batch, H * W, 2)
-            final_box_preds = torch.cat([xs, ys, hei, dim, rot, vel], dim=2)
+            final_box_preds = torch.cat([xs, ys, height, dim, rot, vel], dim=2)
         else:
-            final_box_preds = torch.cat([xs, ys, hei, dim, rot], dim=2)
+            final_box_preds = torch.cat([xs, ys, height, dim, rot], dim=2)
 
         predictions_dicts = self.post_process(final_box_preds, heat)
 
@@ -709,7 +709,7 @@ class CenterHead(nn.Module):
         batch_hm = pred_dict['hm'].sigmoid()
 
         batch_reg = pred_dict['reg']
-        batch_hei = pred_dict['height']
+        batch_height = pred_dict['height']
         # pdb.set_trace()
         if not self.no_log:
             batch_dim = torch.exp(pred_dict['dim'])
@@ -717,7 +717,7 @@ class CenterHead(nn.Module):
             batch_dim = pred_dict['dim']
 
         batch_hm = batch_hm.mean(dim=1)
-        batch_hei = batch_hei.mean(dim=1)
+        batch_height = batch_height.mean(dim=1)
         batch_dim = batch_dim.mean(dim=1)
 
         # y = -y reg_y = 1-reg_y
@@ -764,7 +764,7 @@ class CenterHead(nn.Module):
 
             batch_vel = batch_vel.mean(dim=1)
 
-        return batch_hm, batch_rots, batch_rotc, batch_hei, batch_dim, batch_vel, batch_reg
+        return batch_hm, batch_rots, batch_rotc, batch_height, batch_dim, batch_vel, batch_reg
 
     @numba.jit(nopython=True)
     def _circle_nms(self, dets, thresh, post_max_size=83):
