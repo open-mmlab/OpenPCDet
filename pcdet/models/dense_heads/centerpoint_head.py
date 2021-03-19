@@ -571,7 +571,6 @@ class CenterHead(nn.Module):
             labels = labels[mask]
 
             boxes_for_nms = box_preds[:, 0:7]
-            boxes_for_nms[:, -1] = -boxes_for_nms[:, -1] - np.pi / 2
 
             selected, _ = nms_gpu(boxes_for_nms, scores,
                                   thresh=self.nms_iou_threshold,
