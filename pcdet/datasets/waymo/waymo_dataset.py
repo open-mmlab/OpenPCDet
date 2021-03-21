@@ -355,14 +355,14 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
 
     print('---------------Start to generate data infos---------------')
 
-    dataset.set_split(train_split)
-    waymo_infos_train = dataset.get_infos(
-        raw_data_path=data_path / raw_data_tag,
-        save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
-        sampled_interval=1
-    )
-    with open(train_filename, 'wb') as f:
-        pickle.dump(waymo_infos_train, f)
+    # dataset.set_split(train_split)
+    # waymo_infos_train = dataset.get_infos(
+    #     raw_data_path=data_path / raw_data_tag,
+    #     save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
+    #     sampled_interval=1
+    # )
+    # with open(train_filename, 'wb') as f:
+    #     pickle.dump(waymo_infos_train, f)
     print('----------------Waymo info train file is saved to %s----------------' % train_filename)
 
     dataset.set_split(val_split)
@@ -376,11 +376,11 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
-    dataset.set_split(train_split)
-    dataset.create_groundtruth_database(
-        info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
-        used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
-    )
+    # dataset.set_split(train_split)
+    # dataset.create_groundtruth_database(
+    #     info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
+    #     used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
+    # )
     print('---------------Data preparation Done---------------')
 
 
