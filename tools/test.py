@@ -191,6 +191,13 @@ def main():
         if args.eval_all:
             repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=dist_test)
         else:
+            # det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 20], [-10, 10, 20, 30], [-10, 10, 30, 40], [-10, 10, 40, 50],
+            #                 [-10, 10, 50, 60], [-10, 10, 60, 70]]
+            # for det_range in det_range_ls:
+            #     eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=dist_test,
+            #                      det_range=det_range)
+
+            # det_range = [-10, 10, 0, 10]
             eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=dist_test)
 
 

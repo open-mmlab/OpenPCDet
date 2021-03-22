@@ -1,5 +1,5 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000_5cls_deleted_bicycles/'
 
 POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5] #[-20, -70, -1.5, 20, 70, 2.5]
 

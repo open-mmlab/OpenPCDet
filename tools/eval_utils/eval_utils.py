@@ -107,19 +107,40 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
+    det_range_ls = None
+    det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 20], [-10, 10, 20, 30], [-10, 10, 30, 40], [-10, 10, 40, 50],
+                    [-10, 10, 50, 60], [-10, 10, 60, 70]]
+    if not det_range_ls is None:
+        for detect_range in det_range_ls:
+            print("*" * 60)
+            print("Eval range is abs(x) <10, %d < abs(y) < %d" % (detect_range[2], detect_range[3]))
+            result_str, result_dict = dataset.evaluation(
+                det_annos, class_names, det_range=detect_range,
+                eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
+                output_path=final_output_dir
+            )
 
-    result_str, result_dict = dataset.evaluation(
-        det_annos, class_names,
-        eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
-        output_path=final_output_dir
-    )
+            logger.info(result_str)
+            ret_dict.update(result_dict)
 
-    logger.info(result_str)
-    ret_dict.update(result_dict)
+            logger.info('Result is save to %s' % result_dir)
+            logger.info('****************Evaluation done.*****************')
+        return ret_dict
+    else:
+        detect_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
+        detect_range = [0, detect_range[3], 0, detect_range[4]]
+        result_str, result_dict = dataset.evaluation(
+            det_annos, class_names, det_range=detect_range,
+            eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
+            output_path=final_output_dir
+        )
 
-    logger.info('Result is save to %s' % result_dir)
-    logger.info('****************Evaluation done.*****************')
-    return ret_dict
+        logger.info(result_str)
+        ret_dict.update(result_dict)
+
+        logger.info('Result is save to %s' % result_dir)
+        logger.info('****************Evaluation done.*****************')
+        return ret_dict
 
 
 if __name__ == '__main__':

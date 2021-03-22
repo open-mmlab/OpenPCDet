@@ -9,8 +9,8 @@ def get_objects_from_label(label_file):
 
 
 def cls_type_to_id(cls_type):
-    # type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
-    type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4}
+    type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
+    # type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4}
     if cls_type not in type_to_id.keys():
         return -1
     return type_to_id[cls_type]

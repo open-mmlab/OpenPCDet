@@ -71,7 +71,7 @@ class NeolixDataset(DatasetTemplate):
             assert lidar_file.exists()
             return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
         else:
-            root_path = "/home/songhongli/55_bins/"
+            root_path = "/home/songhongli/changzhou_bins/"
             fl_ls = sorted(os.listdir(root_path))
             global data_id
             data_id += 1
@@ -332,7 +332,7 @@ class NeolixDataset(DatasetTemplate):
                     global write_data_id
                     write_data_id += 1
                     # label_path = inference_results
-                    label_path = './large_vehicle_32_5cls/'
+                    label_path = './changzhou/'
                     with open(label_path + "%06d.txt" % write_data_id, 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
@@ -370,7 +370,7 @@ class NeolixDataset(DatasetTemplate):
 
         return annos
 
-    def evaluation(self, det_annos, class_names, **kwargs):
+    def evaluation(self, det_annos, class_names, det_range=None, **kwargs):
         if 'annos' not in self.neolix_infos[0].keys():
             return None, {}
 
@@ -378,7 +378,7 @@ class NeolixDataset(DatasetTemplate):
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.neolix_infos]
-        ap_result_str, ap_dict = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names)
+        ap_result_str, ap_dict = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range)
 
         return ap_result_str, ap_dict
 
@@ -522,10 +522,10 @@ if __name__ == '__main__':
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
         # ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         # ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/obstacle_detect/songhongli/shanghai32_lidars')
-        ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000/')
+        ROOT_DIR = Path('/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000_5cls_deleted_bicycles/')
         create_neolix_infos(
             dataset_cfg=dataset_cfg,
-            class_names=['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown'],
+            class_names=['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle'],
             data_path=ROOT_DIR,
             save_path=ROOT_DIR
             # data_path=ROOT_DIR / 'data' / 'neolix',
