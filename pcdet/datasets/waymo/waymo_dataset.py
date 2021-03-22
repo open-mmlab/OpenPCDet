@@ -46,21 +46,21 @@ class WaymoDataset(DatasetTemplate):
         waymo_infos = []
 
         num_skipped_infos = 0
-        skipped_infos = []
+        # skipped_infos = []
         for k in range(len(self.sample_sequence_list)):
             sequence_name = os.path.splitext(self.sample_sequence_list[k])[0]
             info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
             info_path = self.check_sequence_name_with_all_version(info_path)
             if not info_path.exists():
                 num_skipped_infos += 1
-                skipped_infos.append(sequence_name)
+                # skipped_infos.append(sequence_name)
                 continue
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
                 waymo_infos.extend(infos)
 
         self.infos.extend(waymo_infos[:])
-        pdb.set_trace()
+        # pdb.set_trace()
         self.logger.info('Total skipped info %s' % num_skipped_infos)
         self.logger.info('Total samples for Waymo dataset: %d' % (len(waymo_infos)))
 
