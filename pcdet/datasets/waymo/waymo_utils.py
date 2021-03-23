@@ -281,7 +281,7 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
         info['pose'] = pose
         # keep top lidar's beam inclination range and extrinsic
         laser_calibrations = sorted(frame.context.laser_calibrations, key=lambda c:c.name)
-        top_calibration = laser_calibrations[0].beam_inclination_min
+        top_calibration = laser_calibrations[0]
         info['beam_inclination_range'] = [top_calibration.beam_inclination_min, top_calibration.beam_inclination_max]
         info['extrinsic'] = np.array(top_calibration.extrinsic.transform).reshape(4, 4)
 
