@@ -249,7 +249,6 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
     cur_save_dir = save_path / sequence_name
     cur_save_dir.mkdir(parents=True, exist_ok=True)
     pkl_file = cur_save_dir / ('%s.pkl' % sequence_name)
-    pdb.set_trace()
 
     sequence_infos = []
     if pkl_file.exists():
@@ -285,7 +284,6 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
         top_calibration = laser_calibrations[0].beam_inclination_min
         info['beam_inclination_range'] = [top_calibration.beam_inclination_min, top_calibration.beam_inclination_max]
         info['extrinsic'] = np.array(top_calibration.extrinsic.transform).reshape(4, 4)
-        pdb.set_trace()
 
         if has_label:
             annotations = generate_labels(frame)
