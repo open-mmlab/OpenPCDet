@@ -468,7 +468,7 @@ if __name__ == '__main__':
             raw_data_tag='raw_data',
             processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG
         )
-    if args.func == 'create_range_image':
+    elif args.func == 'create_waymo_infos_range':
         import yaml
         from easydict import EasyDict
 
