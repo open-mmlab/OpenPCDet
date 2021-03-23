@@ -249,6 +249,7 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
     cur_save_dir = save_path / sequence_name
     cur_save_dir.mkdir(parents=True, exist_ok=True)
     pkl_file = cur_save_dir / ('%s.pkl' % sequence_name)
+    pdb.set_trace()
 
     sequence_infos = []
     if pkl_file.exists():

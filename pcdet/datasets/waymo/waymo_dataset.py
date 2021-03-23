@@ -122,6 +122,7 @@ class WaymoDataset(DatasetTemplate):
         ]
 
         # process_single_sequence(sample_sequence_file_list[0])
+        pdb.set_trace()
         with futures.ThreadPoolExecutor(num_workers) as executor:
             sequence_infos = list(tqdm(executor.map(process_single_sequence_range, sample_sequence_file_list),
                                        total=len(sample_sequence_file_list)))
