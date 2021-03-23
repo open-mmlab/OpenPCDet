@@ -11,6 +11,7 @@ from ...utils import common_utils
 import tensorflow as tf
 from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
 from waymo_open_dataset import dataset_pb2
+import pdb
 
 try:
     tf.enable_eager_execution()
@@ -278,6 +279,12 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
 
         pose = np.array(frame.pose.transform, dtype=np.float32).reshape(4, 4)
         info['pose'] = pose
+        # keep top lidar's beam inclination range and extrinsic
+        laser_calibrations = sorted(frame.context.laser_calibrations, key=lambda c:c.name)
+        top_calibration = laser_calibrations[0].beam_inclination_min
+        info['beam_inclination_range'] = [top_calibration.beam_inclination_min, top_calibration.beam_inclination_max]
+        info['extrinsic'] = np.array(top_calibration.extrinsic.transform).reshape(4, 4)
+        pdb.set_trace()
 
         if has_label:
             annotations = generate_labels(frame)
