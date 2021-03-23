@@ -411,7 +411,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('---------------Data preparation Done---------------')
 
 
-def create_range_image(dataset_cfg, class_names, data_path, save_path,
+def create_waymo_infos_range(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data_range',
                        workers=multiprocessing.cpu_count()):
     dataset = WaymoDataset(
@@ -474,4 +474,11 @@ if __name__ == '__main__':
 
         dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        create_waymo_infos(
+            dataset_cfg=dataset_cfg,
+            class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
+            data_path=ROOT_DIR / 'data' / 'waymo',
+            save_path=ROOT_DIR / 'data' / 'waymo',
+            raw_data_tag='raw_data'
+        )
 
