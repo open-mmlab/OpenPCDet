@@ -75,7 +75,8 @@ def convert_range_image_to_point_cloud(frame, range_images, camera_projections, 
 
     Returns:
         points: {[N, 3]} list of 3d lidar points of length 5 (number of lidars).
-        cp_points: {[N, 6]} list of camera projections of length 5 (number of lidars).
+        cp_points: {[N, 6]} list of camera projections of length 5 (number of lidars). 6 channels of cp points means
+            camera index of first projection, x axis of first, y axis of first, camera index of second, x, y of second
     """
     calibrations = sorted(frame.context.laser_calibrations, key=lambda c: c.name)
     points = []
@@ -170,6 +171,14 @@ def save_lidar_points(frame, cur_save_path):
     return num_points_of_each_lidar
 
 
+def save_range_images(frame, cur_save_path):
+    range_images, camera_projections, range_image_top_pose = \
+        frame_utils.parse_range_image_and_camera_projection(frame)
+
+    range_image_top = np.array(range_images[1][0].data).reshape(range_images[1][0].shape.dims)
+    np.save(cur_save_path, range_image_top)
+
+
 def process_single_sequence(sequence_file, save_path, sampled_interval, has_label=True):
     sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
 
@@ -227,3 +236,81 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
     return sequence_infos
 
 
+def process_single_sequence_range(sequence_file, save_path, sampled_interval, has_label=True):
+    sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
+
+    # print('Load record (sampled_interval=%d): %s' % (sampled_interval, sequence_name))
+    if not sequence_file.exists():
+        print('NotFoundError: %s' % sequence_file)
+        return []
+
+    dataset = tf.data.TFRecordDataset(str(sequence_file), compression_type='')
+    cur_save_dir = save_path / sequence_name
+    cur_save_dir.mkdir(parents=True, exist_ok=True)
+    pkl_file = cur_save_dir / ('%s.pkl' % sequence_name)
+
+    sequence_infos = []
+    if pkl_file.exists():
+        sequence_infos = pickle.load(open(pkl_file, 'rb'))
+        print('Skip sequence since it has been processed before: %s' % pkl_file)
+        return sequence_infos
+
+    for cnt, data in enumerate(dataset):
+        if cnt % sampled_interval != 0:
+            continue
+        # print(sequence_name, cnt)
+        frame = dataset_pb2.Frame()
+        frame.ParseFromString(bytearray(data.numpy()))
+
+        info = {}
+        pc_info = {'num_features': 5, 'lidar_sequence': sequence_name, 'sample_idx': cnt}
+        info['point_cloud'] = pc_info
+        ri_info = {'num_features': 4, 'lidar_sequence': sequence_name, 'sample_idx': cnt}
+        info['range_image'] = ri_info
+
+        info['frame_id'] = sequence_name + ('_%03d' % cnt)
+        image_info = {}
+        for j in range(5):
+            width = frame.context.camera_calibrations[j].width
+            height = frame.context.camera_calibrations[j].height
+            image_info.update({'image_shape_%d' % j: (height, width)})
+        info['image'] = image_info
+
+        pose = np.array(frame.pose.transform, dtype=np.float32).reshape(4, 4)
+        info['pose'] = pose
+
+        if has_label:
+            annotations = generate_labels(frame)
+            info['annos'] = annotations
+
+        # info[]
+
+        save_range_images(frame, cur_save_dir / ('%04d.npy' % cnt))
+
+        sequence_infos.append(info)
+
+    with open(pkl_file, 'wb') as f:
+        pickle.dump(sequence_infos, f)
+
+    print('Infos are saved to (sampled_interval=%d): %s' % (sampled_interval, pkl_file))
+    return sequence_infos
+
+
+def read_one_frame(sequence_file):
+    dataset = tf.data.TFRecordDataset(str(sequence_file), compression_type='')
+    data = next(iter(dataset))
+    frame = dataset_pb2.Frame()
+    frame.ParseFromString(bytearray(data.numpy()))
+
+    return frame
+
+def compute_beam_inclinations(calibration, height):
+    """ Compute the inclination angle for each beam in a range image. """
+
+    if len(calibration.beam_inclinations) > 0:
+        return np.array(calibration.beam_inclinations)
+    else:
+        inclination_min = calibration.beam_inclination_min
+        inclination_max = calibration.beam_inclination_max
+
+        return np.linspace(inclination_min, inclination_max, height)

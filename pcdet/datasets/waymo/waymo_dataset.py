@@ -104,6 +104,30 @@ class WaymoDataset(DatasetTemplate):
         all_sequences_infos = [item for infos in sequence_infos for item in infos]
         return all_sequences_infos
 
+    def get_infos_range(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True,
+                  sampled_interval=1):
+        import concurrent.futures as futures
+        from functools import partial
+        from . import waymo_utils
+        print('---------------The waymo sample interval is %d, total sequecnes is %d-----------------'
+              % (sampled_interval, len(self.sample_sequence_list)))
+
+        process_single_sequence_range = partial(
+            waymo_utils.process_single_sequence_range,
+            save_path=save_path, sampled_interval=sampled_interval, has_label=has_label
+        )
+        sample_sequence_file_list = [
+            self.check_sequence_name_with_all_version(raw_data_path / sequence_file)
+            for sequence_file in self.sample_sequence_list
+        ]
+
+        # process_single_sequence(sample_sequence_file_list[0])
+        with futures.ThreadPoolExecutor(num_workers) as executor:
+            sequence_infos = list(tqdm(executor.map(process_single_sequence_range, sample_sequence_file_list),
+                                       total=len(sample_sequence_file_list)))
+        all_sequences_infos = [item for infos in sequence_infos for item in infos]
+        return all_sequences_infos
+
     def get_lidar(self, sequence_name, sample_idx):
         lidar_file = self.data_path / sequence_name / ('%04d.npy' % sample_idx)
         point_features = np.load(lidar_file)  # (N, 7): [x, y, z, intensity, elongation, NLZ_flag]
@@ -388,9 +412,38 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
 
 
 def create_range_image(dataset_cfg, class_names, data_path, save_path,
-                       raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
+                       raw_data_tag='raw_data', processed_data_tag='waymo_processed_data_range',
                        workers=multiprocessing.cpu_count()):
-    pass
+    dataset = WaymoDataset(
+        dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
+        training=False, logger=common_utils.create_logger()
+    )
+    train_split, val_split = 'train', 'val'
+
+    train_filename = save_path / ('waymo_infos_range_%s.pkl' % train_split)
+    val_filename = save_path / ('waymo_infos_range_%s.pkl' % val_split)
+
+    print('---------------Start to generate data infos---------------')
+
+    dataset.set_split(train_split)
+    waymo_infos_train = dataset.get_infos_range(
+        raw_data_path=data_path / raw_data_tag,
+        save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
+        sampled_interval=1
+    )
+    with open(train_filename, 'wb') as f:
+        pickle.dump(waymo_infos_train, f)
+    print('----------------Waymo info train file is saved to %s----------------' % train_filename)
+
+    dataset.set_split(val_split)
+    waymo_infos_val = dataset.get_infos_range(
+        raw_data_path=data_path / raw_data_tag,
+        save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
+        sampled_interval=1
+    )
+    with open(val_filename, 'wb') as f:
+        pickle.dump(waymo_infos_val, f)
+    print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
 
 if __name__ == '__main__':
