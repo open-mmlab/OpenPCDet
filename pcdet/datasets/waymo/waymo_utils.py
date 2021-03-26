@@ -172,14 +172,6 @@ def save_lidar_points(frame, cur_save_path):
     return num_points_of_each_lidar
 
 
-def save_range_images(frame, cur_save_path):
-    range_images, camera_projections, range_image_top_pose = \
-        frame_utils.parse_range_image_and_camera_projection(frame)
-
-    range_image_top = np.array(range_images[1][0].data).reshape(range_images[1][0].shape.dims)
-    np.save(cur_save_path, range_image_top)
-
-
 def process_single_sequence(sequence_file, save_path, sampled_interval, has_label=True):
     sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
 
@@ -220,65 +212,6 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
 
         pose = np.array(frame.pose.transform, dtype=np.float32).reshape(4, 4)
         info['pose'] = pose
-
-        if has_label:
-            annotations = generate_labels(frame)
-            info['annos'] = annotations
-
-        num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
-        info['num_points_of_each_lidar'] = num_points_of_each_lidar
-
-        sequence_infos.append(info)
-
-    with open(pkl_file, 'wb') as f:
-        pickle.dump(sequence_infos, f)
-
-    print('Infos are saved to (sampled_interval=%d): %s' % (sampled_interval, pkl_file))
-    return sequence_infos
-
-
-def process_single_sequence_range(sequence_file, save_path, sampled_interval, has_label=True):
-    sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
-
-    # print('Load record (sampled_interval=%d): %s' % (sampled_interval, sequence_name))
-    if not sequence_file.exists():
-        print('NotFoundError: %s' % sequence_file)
-        return []
-
-    dataset = tf.data.TFRecordDataset(str(sequence_file), compression_type='')
-    cur_save_dir = save_path / sequence_name
-    cur_save_dir.mkdir(parents=True, exist_ok=True)
-    pkl_file = cur_save_dir / ('%s.pkl' % sequence_name)
-
-    sequence_infos = []
-    if pkl_file.exists():
-        sequence_infos = pickle.load(open(pkl_file, 'rb'))
-        print('Skip sequence since it has been processed before: %s' % pkl_file)
-        return sequence_infos
-
-    for cnt, data in enumerate(dataset):
-        if cnt % sampled_interval != 0:
-            continue
-        # print(sequence_name, cnt)
-        frame = dataset_pb2.Frame()
-        frame.ParseFromString(bytearray(data.numpy()))
-
-        info = {}
-        pc_info = {'num_features': 5, 'lidar_sequence': sequence_name, 'sample_idx': cnt}
-        info['point_cloud'] = pc_info
-        ri_info = {'num_features': 4, 'lidar_sequence': sequence_name, 'sample_idx': cnt}
-        info['range_image'] = ri_info
-
-        info['frame_id'] = sequence_name + ('_%03d' % cnt)
-        image_info = {}
-        for j in range(5):
-            width = frame.context.camera_calibrations[j].width
-            height = frame.context.camera_calibrations[j].height
-            image_info.update({'image_shape_%d' % j: (height, width)})
-        info['image'] = image_info
-
-        pose = np.array(frame.pose.transform, dtype=np.float32).reshape(4, 4)
-        info['pose'] = pose
         # keep top lidar's beam inclination range and extrinsic
         laser_calibrations = sorted(frame.context.laser_calibrations, key=lambda c:c.name)
         top_calibration = laser_calibrations[0]
@@ -289,9 +222,8 @@ def process_single_sequence_range(sequence_file, save_path, sampled_interval, ha
             annotations = generate_labels(frame)
             info['annos'] = annotations
 
-        # info[]
-
-        save_range_images(frame, cur_save_dir / ('%04d.npy' % cnt))
+        num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
+        info['num_points_of_each_lidar'] = num_points_of_each_lidar
 
         sequence_infos.append(info)
 
