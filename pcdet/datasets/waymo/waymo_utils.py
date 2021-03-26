@@ -252,3 +252,23 @@ def compute_beam_inclinations(calibration, height):
         inclination_max = calibration.beam_inclination_max
 
         return np.linspace(inclination_min, inclination_max, height)
+
+def convert_point_to_cloud_range_image(data_dict):
+    """
+
+    Args:
+        data_dict:
+            points: (N, 3 + C_in)
+            gt_boxes: optional, (N, 7) [x, y, z, dx, dy, dz, heading]
+            beam_inclination_range: [min, max]
+            extrinsic: (4, 4)
+            range_image_shape: (H, W)
+
+    Returns:
+            range_image: (H, W, 1 + C_in)
+            range_mask: (H, W, 1): 1 for gt pixels, 0 for others
+
+    """
+
+    H, W = data_dict['range_image_shape']
+

@@ -6,7 +6,7 @@ import torch.nn as nn
 from ...ops.iou3d_nms import iou3d_nms_utils
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
 from ..backbones_2d import map_to_bev
-from ..backbones_3d import pfe, vfe
+from ..backbones_3d import pfe, vfe, rfe
 from ..model_utils import model_nms_utils
 import pdb
 
@@ -21,7 +21,7 @@ class Detector3DTemplate(nn.Module):
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
         self.module_topology = [
-            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
+            'rfe', 'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
             'backbone_2d', 'dense_head',  'point_head', 'roi_head'
         ]
 
@@ -47,6 +47,20 @@ class Detector3DTemplate(nn.Module):
             )
             self.add_module(module_name, module)
         return model_info_dict['module_list']
+
+    def build_rfe(self, model_info_dict):
+        if self.model_cfg.get('RFE', None) is None:
+            return None, model_info_dict
+
+        rfe_module = rfe.__all__[self.model_cfg.RFE.NAME](
+            model_cfg=self.model_cfg.RFE,
+            num_point_features=model_info_dict['num_rawpoint_features'],
+            point_cloud_range=model_info_dict['point_cloud_range'],
+            voxel_size=model_info_dict['voxel_size']
+        )
+        model_info_dict['num_point_features'] = rfe_module.get_output_feature_dim()
+        model_info_dict['module_list'].append(rfe_module)
+        return rfe_module, model_info_dict
 
     def build_vfe(self, model_info_dict):
         if self.model_cfg.get('VFE', None) is None:
