@@ -213,7 +213,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
         pose = np.array(frame.pose.transform, dtype=np.float32).reshape(4, 4)
         info['pose'] = pose
         # keep top lidar's beam inclination range and extrinsic
-        laser_calibrations = sorted(frame.context.laser_calibrations, key=lambda c:c.name)
+        laser_calibrations = sorted(frame.context.laser_calibrations, key=lambda c: c.name)
         top_calibration = laser_calibrations[0]
         info['beam_inclination_range'] = [top_calibration.beam_inclination_min, top_calibration.beam_inclination_max]
         info['extrinsic'] = np.array(top_calibration.extrinsic.transform).reshape(4, 4)
@@ -242,6 +242,7 @@ def read_one_frame(sequence_file):
 
     return frame
 
+
 def compute_beam_inclinations(calibration, height):
     """ Compute the inclination angle for each beam in a range image. """
 
@@ -253,16 +254,17 @@ def compute_beam_inclinations(calibration, height):
 
         return np.linspace(inclination_min, inclination_max, height)
 
+
 def convert_point_to_cloud_range_image(data_dict):
     """
 
     Args:
         data_dict:
-            points: (N, 3 + C_in)
+            points: (N, 3 + C_in) vehicle frame
             gt_boxes: optional, (N, 7) [x, y, z, dx, dy, dz, heading]
             beam_inclination_range: [min, max]
-            extrinsic: (4, 4)
-            range_image_shape: (H, W)
+            extrinsic: (4, 4) map data from sensor to vehicle
+            range_image_shape: (height, width)
 
     Returns:
             range_image: (H, W, 1 + C_in)
@@ -270,5 +272,43 @@ def convert_point_to_cloud_range_image(data_dict):
 
     """
 
-    H, W = data_dict['range_image_shape']
+    points = data_dict['points']
+    height, width = data_dict['range_image_shape']
+    extrinsic = data_dict['extrinsic']
+    vehicle_to_laser = np.linalg.inv(extrinsic)
+    inclination_min, inclination_max = data_dict['beam_inclination_range']
+    # [H, ]
+    inclination = np.linspace(inclination_min, inclination_max, height)
+    # [3, 3]
+    rotation = vehicle_to_laser[0:3, 0:3]
+    # [1, 3]
+    translation = tf.expand_dims(vehicle_to_laser[0:3, 3], 0)
+    # Points in sensor frame
+    # [N, 3]
+    points[:, 0:3] = np.einsum('ij,jk->ik', points[:, 0:3], rotation) + translation
+    # [N,]
+    xy_norm = np.linalg.norm(points[..., 0:2], axis=-1)
+    # [N,]
+    point_inclination = np.arctan2(points[..., 2], xy_norm)
+    # [N, H]
+    point_inclination_diff = np.abs(np.expand_dims(point_inclination, axis=-1) - np.expand_dims(inclination, axis=0))
+    # [B, N]
+    point_ri_row_indices = np.argmin(point_inclination_diff, axis=-1).astype(np.int32)
+    # [1,], within [-pi, pi], extrinsic[:3, :3] is inv(rotation)
+    az_correction = np.arctan2(extrinsic[1, 0], extrinsic[0, 0])
+    # [N,], within [-2pi, 2pi], let data begin from rotated x axis
+    point_azimuth = np.arctan2(points[..., 1], points[..., 0]) + az_correction
 
+    point_azimuth_gt_pi_mask = point_azimuth > np.pi
+    point_azimuth_lt_minus_pi_mask = point_azimuth < -np.pi
+    point_azimuth = point_azimuth - point_azimuth_gt_pi_mask * 2 * np.pi
+    point_azimuth = point_azimuth + point_azimuth_lt_minus_pi_mask * 2 * np.pi
+
+    # [N,].
+    point_ri_col_indices = width - 1.0 + 0.5 - (point_azimuth + np.pi) / (2.0 * np.pi) * width
+    point_ri_col_indices = np.round(point_ri_col_indices).astype(np.int32)
+    # [N, 2]
+    ri_indices = np.stack([point_ri_row_indices, point_ri_col_indices], axis=-1)
+    # [N,]
+    ri_ranges = np.linalg.norm(points[:, 0:3])
+    ri_values = np.concatenate([np.expand_dims(ri_ranges, axis=-1), points[:, 3:]], axis=-1)
