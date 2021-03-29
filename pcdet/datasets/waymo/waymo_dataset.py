@@ -29,6 +29,7 @@ class WaymoDataset(DatasetTemplate):
 
         self.infos = []
         self.include_waymo_data(self.mode)
+        self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
 
     def set_split(self, split):
         super().__init__(
@@ -180,7 +181,7 @@ class WaymoDataset(DatasetTemplate):
             dflip_dict = self.prepare_data(data_dict=dflip_dict)
 
         # whether use range image
-        self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
+
         if self.range_config:
             from . import waymo_utils
             input_dict.update({
