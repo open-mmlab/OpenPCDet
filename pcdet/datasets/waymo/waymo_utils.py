@@ -188,10 +188,10 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
     pkl_file = cur_save_dir / ('%s.pkl' % sequence_name)
 
     sequence_infos = []
-    if pkl_file.exists():
-        sequence_infos = pickle.load(open(pkl_file, 'rb'))
-        print('Skip sequence since it has been processed before: %s' % pkl_file)
-        return sequence_infos
+    # if pkl_file.exists():
+    #     sequence_infos = pickle.load(open(pkl_file, 'rb'))
+    #     print('Skip sequence since it has been processed before: %s' % pkl_file)
+    #     return sequence_infos
 
     for cnt, data in enumerate(dataset):
         if cnt % sampled_interval != 0:
@@ -224,8 +224,8 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
             annotations = generate_labels(frame)
             info['annos'] = annotations
 
-        num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
-        info['num_points_of_each_lidar'] = num_points_of_each_lidar
+        # num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
+        # info['num_points_of_each_lidar'] = num_points_of_each_lidar
 
         sequence_infos.append(info)
 
