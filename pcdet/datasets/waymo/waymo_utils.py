@@ -224,8 +224,8 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
             annotations = generate_labels(frame)
             info['annos'] = annotations
 
-        # num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
-        # info['num_points_of_each_lidar'] = num_points_of_each_lidar
+        num_points_of_each_lidar = save_lidar_points(frame, cur_save_dir / ('%04d.npy' % cnt))
+        info['num_points_of_each_lidar'] = num_points_of_each_lidar
 
         sequence_infos.append(info)
 
