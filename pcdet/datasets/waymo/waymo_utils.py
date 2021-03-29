@@ -11,6 +11,8 @@ from ...utils import common_utils
 import tensorflow as tf
 from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
 from waymo_open_dataset import dataset_pb2
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
+import torch
 import pdb
 
 try:
@@ -272,43 +274,34 @@ def convert_point_to_cloud_range_image(data_dict):
 
     """
 
-    points = data_dict['points']
+    points = np.expand_dims(data_dict['points'], axis=0)
+    points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
+    point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
+    num_points = tf.convert_to_tensor(points.shape[1], dtype=tf.int32)
     height, width = data_dict['range_image_shape']
-    extrinsic = data_dict['extrinsic']
-    vehicle_to_laser = np.linalg.inv(extrinsic)
+    extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
+
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
-    inclination = np.linspace(inclination_min, inclination_max, height)
-    # [3, 3]
-    rotation = vehicle_to_laser[0:3, 0:3]
-    # [1, 3]
-    translation = tf.expand_dims(vehicle_to_laser[0:3, 3], 0)
-    # Points in sensor frame
-    # [N, 3]
-    points[:, 0:3] = np.einsum('ij,jk->ik', points[:, 0:3], rotation) + translation
-    # [N,]
-    xy_norm = np.linalg.norm(points[..., 0:2], axis=-1)
-    # [N,]
-    point_inclination = np.arctan2(points[..., 2], xy_norm)
-    # [N, H]
-    point_inclination_diff = np.abs(np.expand_dims(point_inclination, axis=-1) - np.expand_dims(inclination, axis=0))
-    # [B, N]
-    point_ri_row_indices = np.argmin(point_inclination_diff, axis=-1).astype(np.int32)
-    # [1,], within [-pi, pi], extrinsic[:3, :3] is inv(rotation)
-    az_correction = np.arctan2(extrinsic[1, 0], extrinsic[0, 0])
-    # [N,], within [-2pi, 2pi], let data begin from rotated x axis
-    point_azimuth = np.arctan2(points[..., 1], points[..., 0]) + az_correction
+    inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
+    range_image_size = data_dict['range_image_shape']
+    range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
+                                                                                               num_points, extrinsic,
+                                                                                               inclination,
+                                                                                               range_image_size,
+                                                                                               point_features)
+    range_images = np.squeeze(range_images.numpy(), axis=0)
+    data_dict['range_image'] = range_images
+    gt_boxes = data_dict['gt_boxes']
+    box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+        torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
+        torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
+    ).long().squeeze(dim=0).cpu().numpy()
+    gt_points = points[box_idxs_of_pts > 0][:, :3]
+    gt_points = tf.convert_to_tensor(np.expand_dims(gt_points, axis=0))
+    range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
+        points_vehicle_frame, num_points, extrinsic, inclination, range_image_size, point_features)
+    range_mask[range_mask > 0] = 1
+    data_dict['range_mask'] = range_mask
 
-    point_azimuth_gt_pi_mask = point_azimuth > np.pi
-    point_azimuth_lt_minus_pi_mask = point_azimuth < -np.pi
-    point_azimuth = point_azimuth - point_azimuth_gt_pi_mask * 2 * np.pi
-    point_azimuth = point_azimuth + point_azimuth_lt_minus_pi_mask * 2 * np.pi
-
-    # [N,].
-    point_ri_col_indices = width - 1.0 + 0.5 - (point_azimuth + np.pi) / (2.0 * np.pi) * width
-    point_ri_col_indices = np.round(point_ri_col_indices).astype(np.int32)
-    # [N, 2]
-    ri_indices = np.stack([point_ri_row_indices, point_ri_col_indices], axis=-1)
-    # [N,]
-    ri_ranges = np.linalg.norm(points[:, 0:3])
-    ri_values = np.concatenate([np.expand_dims(ri_ranges, axis=-1), points[:, 3:]], axis=-1)
+    return data_dict

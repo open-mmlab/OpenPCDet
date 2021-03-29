@@ -188,10 +188,8 @@ class WaymoDataset(DatasetTemplate):
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', (64, 2560))
             })
-            data_dict = self.prepare_data_range(data_dict=input_dict)
-            data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
-        else:
-            data_dict = self.prepare_data(data_dict=input_dict)
+
+        data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
         data_dict.pop('num_points_in_gt', None)
 
