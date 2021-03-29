@@ -390,11 +390,11 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
-    dataset.set_split(train_split)
-    dataset.create_groundtruth_database(
-        info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
-        used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
-    )
+    # dataset.set_split(train_split)
+    # dataset.create_groundtruth_database(
+    #     info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
+    #     used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
+    # )
     print('---------------Data preparation Done---------------')
 
 
