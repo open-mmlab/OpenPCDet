@@ -31,6 +31,7 @@ class WaymoDataset(DatasetTemplate):
         self.include_waymo_data(self.mode)
         self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
 
+
     def set_split(self, split):
         super().__init__(
             dataset_cfg=self.dataset_cfg, class_names=self.class_names, training=self.training,
@@ -195,7 +196,8 @@ class WaymoDataset(DatasetTemplate):
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
             })
-            data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
+            self.decorate_convert_point_cloud_to_range_image = waymo_utils.decorate_convert_point_cloud_to_range_image()
+            data_dict = self.decorate_convert_point_cloud_to_range_image(data_dict)
         return data_dict
 
     @staticmethod

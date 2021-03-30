@@ -13,6 +13,7 @@ from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_u
 from waymo_open_dataset import dataset_pb2
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
+import torch.nn as nn
 import pdb
 
 try:
@@ -257,7 +258,7 @@ def compute_beam_inclinations(calibration, height):
         return np.linspace(inclination_min, inclination_max, height)
 
 
-def convert_point_to_cloud_range_image(data_dict):
+def convert_point_cloud_to_range_image(data_dict):
     """
 
     Args:
@@ -317,3 +318,11 @@ def convert_point_to_cloud_range_image(data_dict):
     data_dict['range_mask'] = range_mask
 
     return data_dict
+
+class decorate_convert_point_cloud_to_range_image(nn.Module):
+    def __init__(self):
+        super(decorate_convert_point_cloud_to_range_image, self).__init__()
+
+    def forward(self,data_dict):
+        data_dict = convert_point_cloud_to_range_image(data_dict)
+        return data_dict
