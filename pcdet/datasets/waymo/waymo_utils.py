@@ -297,7 +297,7 @@ def convert_point_to_cloud_range_image(data_dict):
         torch.from_numpy(points[..., :3]).float().cuda(),
         torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
     ).long().squeeze(dim=0).cpu().numpy()
-
+    pdb.set_trace()
     gt_points_vehicle_frame = points_vehicle_frame[:, box_idxs_of_pts > 0]
     gt_point_features = point_features[:, box_idxs_of_pts > 0]
     pdb.set_trace()
