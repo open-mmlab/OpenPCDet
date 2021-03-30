@@ -301,8 +301,8 @@ def convert_point_to_cloud_range_image(data_dict):
     range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     pdb.set_trace()
-    range_mask[range_mask > 0] = 1
     range_mask = np.squeeze(range_mask.numpy(), axis=0)
+    range_mask[range_mask > 0] = 1
     data_dict['range_mask'] = range_mask
 
     return data_dict
