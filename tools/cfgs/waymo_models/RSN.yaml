@@ -16,6 +16,9 @@ DATA_CONFIG:
 MODEL:
     NAME: RSN
 
+    RFE:
+        NAME: UNet
+
 #    VFE:
 #        NAME: MeanVFE
 #
