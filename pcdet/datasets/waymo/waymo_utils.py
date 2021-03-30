@@ -280,6 +280,7 @@ def convert_point_to_cloud_range_image(data_dict):
     print(points.shape)
     print(num_points)
     print(data_dict['range_image_shape'])
+    print(type(data_dict['range_image_shape']))
     height, width = data_dict['range_image_shape']
     extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
 
