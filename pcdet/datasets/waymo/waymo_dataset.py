@@ -14,6 +14,7 @@ from pathlib import Path
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
+import tensorflow as tf
 import pdb
 
 
@@ -196,7 +197,9 @@ class WaymoDataset(DatasetTemplate):
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
             })
-            data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
+            tf.convert_to_tensor(np.array([1,2,3]))
+            # data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
+
             data_dict.pop('points', None)
         return data_dict
 
