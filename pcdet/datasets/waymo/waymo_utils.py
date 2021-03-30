@@ -297,11 +297,12 @@ def convert_point_to_cloud_range_image(data_dict):
         torch.from_numpy(points[..., :3]).float().cuda(),
         torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
     ).long().squeeze(dim=0).cpu().numpy()
+
+    gt_points_vehicle_frame = points_vehicle_frame[:, box_idxs_of_pts > 0]
+    gt_point_features = point_features[:, box_idxs_of_pts > 0]
     pdb.set_trace()
-    gt_points = points[box_idxs_of_pts > 0][..., :3]
-    gt_points = tf.convert_to_tensor(np.expand_dims(gt_points, axis=0))
     range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
-        gt_points, num_points, extrinsic, inclination, range_image_size, point_features)
+        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size, gt_point_features)
     range_mask[range_mask > 0] = 1
     range_mask = np.squeeze(range_mask.numpy(), axis=0)
     data_dict['range_mask'] = range_mask
