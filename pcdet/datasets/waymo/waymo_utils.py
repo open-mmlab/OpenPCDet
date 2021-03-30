@@ -310,7 +310,6 @@ def convert_point_to_cloud_range_image(data_dict):
     select = flag_of_pts > 0
 
     gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
-    pdb.set_trace()
     range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     range_mask = np.squeeze(range_mask.numpy(), axis=0)
