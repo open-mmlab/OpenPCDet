@@ -2,6 +2,10 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    DATA_SPLIT: {
+        'train': val,
+        'test': val
+    }
     USE_DOUBLE_FLIP_TEST: &double_flip False
 
     DATA_PROCESSOR:
