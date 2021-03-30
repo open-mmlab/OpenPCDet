@@ -277,13 +277,14 @@ def convert_point_to_cloud_range_image(data_dict):
     points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
     point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
     num_points = tf.convert_to_tensor(points.shape[1], dtype=tf.int32)
-    height, width = data_dict['range_image_shape']
+    range_image_size = data_dict['range_image_shape']
+    height, width = range_image_size
     extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
     inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
-    range_image_size = data_dict['range_image_shape']
+    pdb.set_trace()
     range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
                                                                                                num_points, extrinsic,
                                                                                                inclination,
