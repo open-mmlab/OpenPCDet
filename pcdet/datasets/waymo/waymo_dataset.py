@@ -198,6 +198,7 @@ class WaymoDataset(DatasetTemplate):
             })
             self.decorate_convert_point_cloud_to_range_image = waymo_utils.decorate_convert_point_cloud_to_range_image()
             data_dict = self.decorate_convert_point_cloud_to_range_image(data_dict)
+            data_dict.pop('points', None)
         return data_dict
 
     @staticmethod
