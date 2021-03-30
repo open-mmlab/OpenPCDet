@@ -293,11 +293,12 @@ def convert_point_to_cloud_range_image(data_dict):
     range_images = np.squeeze(range_images.numpy(), axis=0)
     data_dict['range_image'] = range_images
     gt_boxes = data_dict['gt_boxes']
+    pdb.set_trace()
     box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
-        torch.from_numpy(points[:, 0:3]).float().cuda(),
+        torch.from_numpy(points[..., :3]).float().cuda(),
         torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
     ).long().squeeze(dim=0).cpu().numpy()
-    pdb.set_trace()
+
     gt_points = points[box_idxs_of_pts > 0][..., :3]
     gt_points = tf.convert_to_tensor(np.expand_dims(gt_points, axis=0))
     range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
