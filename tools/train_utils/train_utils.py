@@ -8,6 +8,10 @@ from torch.nn.utils import clip_grad_norm_
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
                     rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False):
+    print('debug 2')
+    import torch
+    import numpy as np
+    torch.from_numpy(np.array([1, 2, 3])).cuda()
     if total_it_each_epoch == len(train_loader):
         dataloader_iter = iter(train_loader)
 
@@ -21,10 +25,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             dataloader_iter = iter(train_loader)
             batch = next(dataloader_iter)
             print('new iters')
-        print('debug 2')
-        import torch
-        import numpy as np
-        torch.from_numpy(np.array([1, 2, 3])).cuda()
+
         lr_scheduler.step(accumulated_iter)
 
         try:
@@ -37,10 +38,6 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         model.train()
         optimizer.zero_grad()
-        print('debug 3')
-        import torch
-        import numpy as np
-        torch.from_numpy(np.array([1, 2, 3])).cuda()
 
         loss, tb_dict, disp_dict = model_func(model, batch)
 
