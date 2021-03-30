@@ -196,6 +196,7 @@ class WaymoDataset(DatasetTemplate):
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', (64, 2560))
             })
             data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
+            self.range_channels = data_dict['range_image'].shape[2]
         return data_dict
 
     @staticmethod

@@ -39,7 +39,7 @@ class Detector3DTemplate(nn.Module):
             'num_point_features': self.dataset.point_feature_encoder.num_point_features,
             'grid_size': self.dataset.grid_size,
             'point_cloud_range': self.dataset.point_cloud_range,
-            'voxel_size': self.dataset.voxel_size
+            'voxel_size': self.dataset.voxel_size,
         }
         for module_name in self.module_topology:
             module, model_info_dict = getattr(self, 'build_%s' % module_name)(
@@ -53,6 +53,7 @@ class Detector3DTemplate(nn.Module):
             return None, model_info_dict
 
         rfe_module = rfe.__all__[self.model_cfg.RFE.NAME](
+            in_channels=self.dataset.range_channels,
             model_cfg=self.model_cfg.RFE,
             num_point_features=model_info_dict['num_rawpoint_features'],
             point_cloud_range=model_info_dict['point_cloud_range'],
