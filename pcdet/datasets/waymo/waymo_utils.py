@@ -275,7 +275,7 @@ def convert_point_cloud_to_range_image(data_dict):
 
     """
     points = np.expand_dims(data_dict['points'], axis=0)
-    points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
+    # points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
     # point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
     # num_points = tf.convert_to_tensor([points.shape[1]], dtype=tf.int32)
     # range_image_size = data_dict['range_image_shape']
@@ -292,16 +292,14 @@ def convert_point_cloud_to_range_image(data_dict):
     #                                                                                            range_image_size,
     #                                                                                            point_features)
     # range_images = np.squeeze(range_images.numpy(), axis=0)
-    range_images = np.array([1,2,3,4])
     # data_dict['range_image'] = range_images
-    # gt_boxes = data_dict['gt_boxes']
-
+    gt_boxes = data_dict['gt_boxes']
     # GPU method, but will meet CUDA subprocess error
-    # box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
-    #     torch.from_numpy(points[..., :3]).float().cuda(),
-    #     torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
-    # ).long().squeeze(dim=0).cpu().numpy()
-    # select = box_idxs_of_pts > -1
+    box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
+        torch.from_numpy(points[..., :3]).float().cuda(),
+        torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
+    ).long().squeeze(dim=0).cpu().numpy()
+    select = box_idxs_of_pts > -1
 
     # CPU method, 0 or 1
     # point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
@@ -317,7 +315,7 @@ def convert_point_cloud_to_range_image(data_dict):
     # range_mask = np.squeeze(range_mask.numpy(), axis=0)
     # range_mask[range_mask > 0] = 1
     # data_dict['range_mask'] = range_mask
-    data_dict['range_mask'] = np.array([1,2,3,4])
+    data_dict['range_mask'] = select[:10]
 
     return data_dict
 
