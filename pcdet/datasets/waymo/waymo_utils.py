@@ -275,7 +275,8 @@ def convert_point_cloud_to_range_image(data_dict):
 
     """
     points = np.expand_dims(data_dict['points'], axis=0)
-    # points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
+    points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
+    del points_vehicle_frame
     # point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
     # num_points = tf.convert_to_tensor([points.shape[1]], dtype=tf.int32)
     # range_image_size = data_dict['range_image_shape']
