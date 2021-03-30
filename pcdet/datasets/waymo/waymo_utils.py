@@ -318,11 +318,3 @@ def convert_point_cloud_to_range_image(data_dict):
     data_dict['range_mask'] = range_mask
 
     return data_dict
-
-class decorate_convert_point_cloud_to_range_image(nn.Module):
-    def __init__(self):
-        super(decorate_convert_point_cloud_to_range_image, self).__init__()
-
-    def forward(self,data_dict):
-        data_dict = convert_point_cloud_to_range_image(data_dict)
-        return data_dict
