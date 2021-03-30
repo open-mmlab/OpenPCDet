@@ -293,7 +293,7 @@ def convert_point_cloud_to_range_image(data_dict):
                                                                                                point_features)
     range_images = np.squeeze(range_images.numpy(), axis=0)
     data_dict['range_image'] = range_images
-    gt_boxes = data_dict['gt_boxes']
+    # gt_boxes = data_dict['gt_boxes']
 
     # GPU method, but will meet CUDA subprocess error
     # box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
@@ -307,15 +307,15 @@ def convert_point_cloud_to_range_image(data_dict):
     #     torch.from_numpy(points[..., :3].squeeze(axis=0)).float(),
     #     torch.from_numpy(gt_boxes[:, 0:7]).float()
     # ).long().numpy()
-    point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes)
-    flag_of_pts = point_indices.max(axis=0)
-    select = flag_of_pts > 0
-    gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
-    range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
-        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
-    range_mask = np.squeeze(range_mask.numpy(), axis=0)
-    range_mask[range_mask > 0] = 1
-    data_dict['range_mask'] = range_mask
+    # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes)
+    # flag_of_pts = point_indices.max(axis=0)
+    # select = flag_of_pts > 0
+    # gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
+    # range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
+    #     gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+    # range_mask = np.squeeze(range_mask.numpy(), axis=0)
+    # range_mask[range_mask > 0] = 1
+    # data_dict['range_mask'] = range_mask
 
     return data_dict
 

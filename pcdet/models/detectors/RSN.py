@@ -12,6 +12,7 @@ class RSN(Detector3DTemplate):
         ]
 
     def forward(self, batch_dict):
+        pdb.set_trace()
 
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
