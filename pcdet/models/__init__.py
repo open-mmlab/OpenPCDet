@@ -15,6 +15,7 @@ def build_network(model_cfg, num_class, dataset):
 
 
 def load_data_to_gpu(batch_dict):
+    pdb.set_trace()
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue
@@ -25,7 +26,7 @@ def load_data_to_gpu(batch_dict):
 
 def model_fn_decorator():
     ModelReturn = namedtuple('ModelReturn', ['loss', 'tb_dict', 'disp_dict'])
-    pdb.set_trace()
+
     def model_func(model, batch_dict):
         load_data_to_gpu(batch_dict)
         ret_dict, tb_dict, disp_dict = model(batch_dict)
