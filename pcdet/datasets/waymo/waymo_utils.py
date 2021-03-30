@@ -295,7 +295,7 @@ def convert_point_cloud_to_range_image(data_dict):
     range_images = np.array([1,2,3,4])
     data_dict['range_image'] = range_images
     gt_boxes = data_dict['gt_boxes']
-    import pudb;pudb.set_trace()
+
     # GPU method, but will meet CUDA subprocess error
     # box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
     #     torch.from_numpy(points[..., :3]).float().cuda(),
