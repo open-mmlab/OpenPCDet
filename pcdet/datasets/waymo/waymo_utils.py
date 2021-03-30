@@ -284,12 +284,12 @@ def convert_point_to_cloud_range_image(data_dict):
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
     inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
+    pdb.set_trace()
     range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
                                                                                                num_points, extrinsic,
                                                                                                inclination,
                                                                                                range_image_size,
                                                                                                point_features)
-    pdb.set_trace()
     range_images = np.squeeze(range_images.numpy(), axis=0)
     data_dict['range_image'] = range_images
     gt_boxes = data_dict['gt_boxes']
