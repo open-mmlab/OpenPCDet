@@ -190,12 +190,12 @@ class WaymoDataset(DatasetTemplate):
         # whether use range image
         if self.range_config:
             from . import waymo_utils
-            input_dict.update({
+            data_dict.update({
                 'beam_inclination_range': info['beam_inclination_range'],
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', (64, 2560))
             })
-            waymo_utils.convert_point_to_cloud_range_image(input_dict)
+            data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
         return data_dict
 
     @staticmethod
