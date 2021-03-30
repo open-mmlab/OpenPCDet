@@ -110,7 +110,10 @@ def main():
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
-
+    print('debug 1')
+    import torch
+    import numpy as np
+    torch.from_numpy(np.array([1,2,3])).cuda()
     # -----------------------create dataloader & network & optimizer---------------------------
     train_set, train_loader, train_sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
@@ -122,7 +125,10 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
-
+    print('debug 2')
+    import torch
+    import numpy as np
+    torch.from_numpy(np.array([1,2,3])).cuda()
     # if args.runs_on =='cloud':
     #     cfg.MODEL.PRE_PATH = ''
     # else:
@@ -166,6 +172,10 @@ def main():
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+    print('debug 23')
+    import torch
+    import numpy as np
+    torch.from_numpy(np.array([1,2,3])).cuda()
     train_model(
         model,
         optimizer,
