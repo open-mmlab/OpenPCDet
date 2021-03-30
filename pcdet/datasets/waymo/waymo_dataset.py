@@ -188,14 +188,14 @@ class WaymoDataset(DatasetTemplate):
         if not self.training and self.dataset_cfg.get('USE_DOUBLE_FLIP_TEST', False):
             return (data_dict, yflip_dict, xflip_dict, dflip_dict)
         # whether use range image
-        # if self.range_config:
-        #     from . import waymo_utils
-        #     data_dict.update({
-        #         'beam_inclination_range': info['beam_inclination_range'],
-        #         'extrinsic': info['extrinsic'],
-        #         'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', (64, 2560))
-        #     })
-        #     data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
+        if self.range_config:
+            from . import waymo_utils
+            data_dict.update({
+                'beam_inclination_range': info['beam_inclination_range'],
+                'extrinsic': info['extrinsic'],
+                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
+            })
+            data_dict = waymo_utils.convert_point_to_cloud_range_image(data_dict)
         return data_dict
 
     @staticmethod
