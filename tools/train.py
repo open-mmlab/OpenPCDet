@@ -172,7 +172,7 @@ def main():
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
-    print('debug 23')
+    print('debug 3')
     import torch
     import numpy as np
     torch.from_numpy(np.array([1,2,3])).cuda()
