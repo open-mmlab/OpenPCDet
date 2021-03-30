@@ -8,7 +8,8 @@ import os
 import pickle
 import numpy as np
 from ...utils import common_utils
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
+tf.enable_v2_bechavior()
 from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
 from waymo_open_dataset import dataset_pb2
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils

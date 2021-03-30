@@ -6,10 +6,6 @@ class RSN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
-        self.module_topology = [
-            'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
-            'backbone_2d', 'dense_head', 'point_head', 'roi_head'
-        ]
 
     def forward(self, batch_dict):
         pdb.set_trace()
