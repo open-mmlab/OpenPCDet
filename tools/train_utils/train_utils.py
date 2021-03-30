@@ -24,10 +24,6 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             print('new iters')
 
         lr_scheduler.step(accumulated_iter)
-        print('debug 1')
-        import torch
-        import numpy as np
-        torch.from_numpy(np.array([1, 2, 3])).cuda()
         try:
             cur_lr = float(optimizer.lr)
         except:
