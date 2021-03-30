@@ -53,7 +53,7 @@ class Detector3DTemplate(nn.Module):
             return None, model_info_dict
 
         rfe_module = rfe.__all__[self.model_cfg.RFE.NAME](
-            in_channels=self.dataset.range_channels,
+            in_channels=3,
             model_cfg=self.model_cfg.RFE,
             num_point_features=model_info_dict['num_rawpoint_features'],
             point_cloud_range=model_info_dict['point_cloud_range'],
