@@ -300,10 +300,11 @@ def convert_point_to_cloud_range_image(data_dict):
     # ).long().squeeze(dim=0).cpu().numpy()
 
     # CPU method
-    box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_cpu(
-        torch.from_numpy(points[..., :3]).float(),
-        torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float()
-    ).long().squeeze(dim=0)
+    point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
+        torch.from_numpy(points[..., :3].squeeze(dim=0)).float(),
+        torch.from_numpy(gt_boxes[:, 0:7]).float()
+    ).long()
+    pdb.set_trace()
     gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, box_idxs_of_pts > 0, axis=1)
     range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
