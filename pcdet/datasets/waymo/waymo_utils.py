@@ -273,7 +273,7 @@ def convert_point_to_cloud_range_image(data_dict):
             range_mask: (H, W, 1): 1 for gt pixels, 0 for others
 
     """
-
+    pdb.set_trace()
     points = np.expand_dims(data_dict['points'], axis=0)
     points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
     point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
