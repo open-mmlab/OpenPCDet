@@ -12,24 +12,10 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
     if total_it_each_epoch == len(train_loader):
         dataloader_iter = iter(train_loader)
 
-    print('debug 1')
-    import torch
-    import numpy as np
-    torch.from_numpy(np.array([1, 2, 3])).cuda()
-
     if rank == 0:
         pbar = tqdm.tqdm(total=total_it_each_epoch, leave=leave_pbar, desc='train', dynamic_ncols=True)
 
-    print('debug 2')
-    import torch
-    import numpy as np
-    torch.from_numpy(np.array([1, 2, 3])).cuda()
-
     for cur_it in range(total_it_each_epoch):
-        print('debug 3')
-        import torch
-        import numpy as np
-        torch.from_numpy(np.array([1, 2, 3])).cuda()
         try:
             batch = next(dataloader_iter)
         except StopIteration:
@@ -38,7 +24,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             print('new iters')
 
         lr_scheduler.step(accumulated_iter)
-        print('debug 4')
+        print('debug 1')
         import torch
         import numpy as np
         torch.from_numpy(np.array([1, 2, 3])).cuda()
