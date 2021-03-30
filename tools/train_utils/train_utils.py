@@ -21,7 +21,10 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             dataloader_iter = iter(train_loader)
             batch = next(dataloader_iter)
             print('new iters')
-
+        print('debug 2')
+        import torch
+        import numpy as np
+        torch.from_numpy(np.array([1, 2, 3])).cuda()
         lr_scheduler.step(accumulated_iter)
 
         try:
@@ -34,6 +37,10 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         model.train()
         optimizer.zero_grad()
+        print('debug 3')
+        import torch
+        import numpy as np
+        torch.from_numpy(np.array([1, 2, 3])).cuda()
 
         loss, tb_dict, disp_dict = model_func(model, batch)
 
@@ -83,6 +90,10 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 cur_scheduler = lr_warmup_scheduler
             else:
                 cur_scheduler = lr_scheduler
+            print('debug 1')
+            import torch
+            import numpy as np
+            torch.from_numpy(np.array([1, 2, 3])).cuda()
             accumulated_iter = train_one_epoch(
                 model, optimizer, train_loader, model_func,
                 lr_scheduler=cur_scheduler,
