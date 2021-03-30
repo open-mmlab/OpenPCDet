@@ -147,53 +147,6 @@ class DatasetTemplate(torch_data.Dataset):
 
         return data_dict
 
-    def prepare_data_range(self, data_dict):
-        """
-        Args:
-            data_dict:
-                points: (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                ...
-
-        Returns:
-            data_dict:
-                frame_id: string
-                points: (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                use_lead_xyz: bool
-                voxels: optional (num_voxels, max_points_per_voxel, 3 + C)
-                voxel_coords: optional (num_voxels, 3)
-                voxel_num_points: optional (num_voxels)
-                ...
-        """
-        if self.training:
-            assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
-            gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
-
-            data_dict = self.data_augmentor.forward(
-                data_dict={
-                    **data_dict,
-                    'gt_boxes_mask': gt_boxes_mask
-                }
-            )
-
-        if data_dict.get('gt_boxes', None) is not None:
-            # filter gt which its class will not be used
-            selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
-            data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
-            data_dict['gt_names'] = data_dict['gt_names'][selected]
-            gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
-            gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
-            data_dict['gt_boxes'] = gt_boxes
-
-        data_dict = self.point_feature_encoder.forward(data_dict)
-
-        data_dict.pop('gt_names', None)
-
-        return data_dict
-
     @staticmethod
     def collate_batch(batch_list, _unused=False):
         data_dict = defaultdict(list)
