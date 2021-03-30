@@ -292,8 +292,8 @@ def convert_point_cloud_to_range_image(data_dict):
     #                                                                                            range_image_size,
     #                                                                                            point_features)
     # range_images = np.squeeze(range_images.numpy(), axis=0)
-    # range_images = np.array([1,2,3,4])
-    # data_dict['range_image'] = range_images
+    range_images = np.array([1,2,3,4])
+    data_dict['range_image'] = range_images
     # gt_boxes = data_dict['gt_boxes']
 
     # GPU method, but will meet CUDA subprocess error
@@ -316,7 +316,7 @@ def convert_point_cloud_to_range_image(data_dict):
     #     gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     # range_mask = np.squeeze(range_mask.numpy(), axis=0)
     # range_mask[range_mask > 0] = 1
-
-    # data_dict['range_mask'] = range_mask
+    range_mask = np.array([1, 2, 3, 4])
+    data_dict['range_mask'] = range_mask
 
     return data_dict
