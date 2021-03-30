@@ -277,10 +277,6 @@ def convert_point_to_cloud_range_image(data_dict):
     points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
     point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
     num_points = tf.convert_to_tensor(points.shape[1], dtype=tf.int32)
-    print(points.shape)
-    print(num_points)
-    print(data_dict['range_image_shape'])
-    print(type(data_dict['range_image_shape']))
     height, width = data_dict['range_image_shape']
     extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
 
