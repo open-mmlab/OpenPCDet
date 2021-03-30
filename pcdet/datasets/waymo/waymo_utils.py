@@ -301,7 +301,7 @@ def convert_point_to_cloud_range_image(data_dict):
 
     # CPU method
     point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
-        torch.from_numpy(points[..., :3].squeeze(dim=0)).float(),
+        torch.from_numpy(points[..., :3].squeeze(axis=0)).float(),
         torch.from_numpy(gt_boxes[:, 0:7]).float()
     ).long()
     pdb.set_trace()
