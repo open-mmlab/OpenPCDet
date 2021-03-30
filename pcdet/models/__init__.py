@@ -15,7 +15,6 @@ def build_network(model_cfg, num_class, dataset):
 
 
 def load_data_to_gpu(batch_dict):
-    pdb.set_trace()
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue
