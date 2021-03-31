@@ -15,7 +15,6 @@ from waymo_open_dataset import dataset_pb2
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 import numba
-import pudb
 
 try:
     tf.enable_eager_execution()
