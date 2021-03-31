@@ -277,30 +277,24 @@ def convert_point_cloud_to_range_image(data_dict):
     """
     points = np.expand_dims(data_dict['points'], axis=0)
     points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
-    # point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
-    # num_points = tf.convert_to_tensor([points.shape[1]], dtype=tf.int32)
-    # range_image_size = data_dict['range_image_shape']
-    # height, width = range_image_size
-    # extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
-    #
-    # inclination_min, inclination_max = data_dict['beam_inclination_range']
-    # # [H, ]
-    # inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
+    point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
+    num_points = tf.convert_to_tensor([points.shape[1]], dtype=tf.int32)
+    range_image_size = data_dict['range_image_shape']
+    height, width = range_image_size
+    extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
 
-    # range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
-    #                                                                                            num_points, extrinsic,
-    #                                                                                            inclination,
-    #                                                                                            range_image_size,
-    #                                                                                            point_features)
-    # range_images = np.squeeze(range_images.numpy(), axis=0)
-    # data_dict['range_image'] = range_images
+    inclination_min, inclination_max = data_dict['beam_inclination_range']
+    # [H, ]
+    inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
+
+    range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
+                                                                                               num_points, extrinsic,
+                                                                                               inclination,
+                                                                                               range_image_size,
+                                                                                               point_features)
+    range_images = np.squeeze(range_images.numpy(), axis=0)
+    data_dict['range_image'] = range_images
     gt_boxes = data_dict['gt_boxes']
-    # GPU method, but will meet CUDA subprocess error
-    # box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
-    #     torch.from_numpy(points[..., :3]).float().cuda(),
-    #     torch.from_numpy(gt_boxes[:, 0:7]).unsqueeze(dim=0).float().cuda()
-    # ).long().squeeze(dim=0).cpu().numpy()
-    # select = box_idxs_of_pts > -1
 
     # CPU method, 0 or 1
     point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
@@ -310,16 +304,16 @@ def convert_point_cloud_to_range_image(data_dict):
     flag_of_pts = point_indices.max(axis=0)
     select = flag_of_pts > 0
 
-    # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes)
+    # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
     # flag_of_pts = point_indices.max(axis=0)
 
 
-    # gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
-    # range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
-    #     gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
-    # range_mask = np.squeeze(range_mask.numpy(), axis=0)
-    # range_mask[range_mask > 0] = 1
-    # data_dict['range_mask'] = range_mask
+    gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
+    range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
+        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+    range_mask = np.squeeze(range_mask.numpy(), axis=0)
+    range_mask[range_mask > 0] = 1
+    data_dict['range_mask'] = range_mask
     data_dict['range_mask'] = select[:10]
 
     return data_dict
