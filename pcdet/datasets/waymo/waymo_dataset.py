@@ -197,8 +197,9 @@ class WaymoDataset(DatasetTemplate):
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
             })
-            tf_tensor = tf.convert_to_tensor(np.array([1,2,3])).numpy()
-            tf_tensor = torch.tensor(tf_tensor)
+            # tf_tensor = tf.convert_to_tensor(np.array([1,2,3])).numpy()
+            # tf_tensor = torch.tensor(tf_tensor)
+            z = tf.ones([2, 3])
             # data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
 
             data_dict.pop('points', None)
