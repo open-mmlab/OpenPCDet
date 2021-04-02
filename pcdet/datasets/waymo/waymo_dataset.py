@@ -194,14 +194,14 @@ class WaymoDataset(DatasetTemplate):
         if self.range_config:
             from . import waymo_utils
             import os
-            os.environ['CUDA_VISIBLE_DEVICES'] = -1
+            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
             data_dict.update({
                 'beam_inclination_range': info['beam_inclination_range'],
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
             })
             a = tf.convert_to_tensor(np.array([1,2,3]))
-            os.environ['CUDA_VISIBLE_DEVICES'] = 0
+            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
             # print(a.device)
             # time.sleep(100)
 
