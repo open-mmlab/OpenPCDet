@@ -198,8 +198,8 @@ class WaymoDataset(DatasetTemplate):
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
             })
-            a = tf.convert_to_tensor(np.array([1,2,3]))
-            print(a.device)
+            # a = tf.convert_to_tensor(np.array([1,2,3]))
+            # print(a.device)
             time.sleep(100)
 
             # tf_tensor = tf.convert_to_tensor(np.array([1,2,3])).numpy()
