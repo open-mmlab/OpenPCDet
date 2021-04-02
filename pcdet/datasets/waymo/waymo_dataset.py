@@ -16,6 +16,7 @@ from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
 import tensorflow as tf
 import pdb
+import time
 
 
 class WaymoDataset(DatasetTemplate):
@@ -199,6 +200,8 @@ class WaymoDataset(DatasetTemplate):
             })
             a = tf.convert_to_tensor(np.array([1,2,3]))
             print(a.device)
+            time.sleep(100)
+
             # tf_tensor = tf.convert_to_tensor(np.array([1,2,3])).numpy()
             # tf_tensor = torch.tensor(tf_tensor)
             # data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
