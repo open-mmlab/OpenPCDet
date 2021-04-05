@@ -78,6 +78,60 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
+    def random_world_translation(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_world_translation, config=config)
+        offset_range = config['WORLD_TRANSLATION_ANGLE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for cur_axis in config['ALONG_AXIS_LIST']:
+            assert cur_axis in ['x', 'y', 'z']
+            gt_boxes, points = getattr(augmentor_utils, 'random_translation_along_%s' % cur_axis)(
+                gt_boxes, points, offset_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_translation(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_local_translation, config=config)
+        offset_range = config['LOCAL_TRANSLATION_ANGLE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for cur_axis in config['ALONG_AXIS_LIST']:
+            assert cur_axis in ['x', 'y', 'z']
+            gt_boxes, points = getattr(augmentor_utils, 'random_local_translation_along_%s' % cur_axis)(
+                gt_boxes, points, offset_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_rotation(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_local_rotation, config=config)
+        rot_range = config['LOCAL_ROT_ANGLE']
+        if not isinstance(rot_range, list):
+            rot_range = [-rot_range, rot_range]
+        gt_boxes, points = augmentor_utils.local_rotation(
+            data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
+        )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_scaling(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_local_scaling, config=config)
+        gt_boxes, points = augmentor_utils.local_scaling(
+            data_dict['gt_boxes'], data_dict['points'], config['LOCAL_SCALE_RANGE']
+        )
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
     def forward(self, data_dict):
         """
         Args:
