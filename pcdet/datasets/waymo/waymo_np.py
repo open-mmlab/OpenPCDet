@@ -6,6 +6,7 @@ All Rights Reserved 2020-2021.
 
 import numpy as np
 
+
 def group_max(groups, data):
     # this is only needed if groups is unsorted
     order = np.lexsort((data, groups))
@@ -49,6 +50,7 @@ def scatter_nd_with_pool_np(index, value, shape, pool_method=group_max):
 
 def build_range_image_from_point_cloud_np(points_frame,
                                           num_points,
+                                          extrinsic,
                                           inclination,
                                           range_image_size,
                                           dtype=np.float32):
@@ -56,6 +58,7 @@ def build_range_image_from_point_cloud_np(points_frame,
     Args:
     points_frame: np array with shape [N, 3] in the vehicle frame.
     num_points: int32 saclar indicating the number of points for each frame.
+    extrinsic: np array with shape [4, 4].
     inclination: np array of shape [H] that is the inclination angle per
         row. sorted from highest value to lowest.
     range_image_size: a size 2 [height, width] list that configures the size of
@@ -74,12 +77,21 @@ def build_range_image_from_point_cloud_np(points_frame,
 
     points_frame = points_frame.astype(dtype)
     inclination = inclination.astype(dtype)
+    extrinsic = extrinsic.astype(dtype)
 
     height, width = range_image_size
 
+    # [4, 4]
+    vehicle_to_laser = np.linalg.inv(extrinsic)
+    # [3, 3]
+    rotation = vehicle_to_laser[0:3, 0:3]
+    # [1, 3]
+    translation = np.expand_dims(vehicle_to_laser[0:3, 3], 1)
+
     # Points in sensor frame
     # [N, 3]
-    points = points_frame
+    # trans(R^-1)
+    points = np.einsum('ij,kj->ik', points_frame, rotation) + translation
     # [N]
     xy_norm = np.linalg.norm(points[..., 0:2], axis=-1)
     # [N]
@@ -91,8 +103,11 @@ def build_range_image_from_point_cloud_np(points_frame,
     # [N]
     point_ri_row_indices = np.argmin(point_inclination_diff, axis=-1)
 
+    # [1,], within [-pi, pi]
+    az_correction = np.arctan2(extrinsic[1, 0], extrinsic[0, 0]).astype(np.float64)
     # [N], within [-pi, pi]
-    point_azimuth = np.arctan2(points[..., 1].astype(np.float64), points[..., 0].astype(np.float64)).astype(np.float64) - 1e-9
+    point_azimuth = np.arctan2(points[..., 1].astype(np.float64), points[..., 0].astype(np.float64)).astype(
+        np.float64) + az_correction - 1e-9
 
     # solve the problem of np.float32 accuracy problem
     point_azimuth_gt_pi_mask = point_azimuth > np.pi
@@ -137,6 +152,7 @@ def build_range_image_from_point_cloud_np(points_frame,
     range_images = fn(elems)
 
     return range_images, ri_indices, ri_ranges
+
 
 def build_points_from_range_image_np(kitti_range_image,
                                      kitti_inclinations,
