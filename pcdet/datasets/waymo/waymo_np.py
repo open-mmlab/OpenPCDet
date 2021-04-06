@@ -4,6 +4,8 @@ Written by Jihan Yang
 All Rights Reserved 2020-2021.
 """
 
+import numpy as np
+
 def group_max(groups, data):
     # this is only needed if groups is unsorted
     order = np.lexsort((data, groups))
@@ -52,19 +54,18 @@ def build_range_image_from_point_cloud_np(points_frame,
                                           dtype=np.float32):
     """Build virtual range image from point cloud assuming uniform azimuth.
     Args:
-    points_frame: tf tensor with shape [N, 3] in the vehicle frame.
+    points_frame: np array with shape [N, 3] in the vehicle frame.
     num_points: int32 saclar indicating the number of points for each frame.
-    inclination: tf tensor of shape [H] that is the inclination angle per
+    inclination: np array of shape [H] that is the inclination angle per
         row. sorted from highest value to lowest.
     range_image_size: a size 2 [height, width] list that configures the size of
         the range image.
     dtype: the data type to use.
-    scope: tf name scope.
     Returns:
     range_images : [H, W, 3] or [B, H, W] tensor. Range images built from the
         given points. Data type is the same as that of points_frame. 0.0
         is populated when a pixel is missing.
-    ri_indices: tf int32 tensor [N, 2]. It represents the range image index
+    ri_indices: np int32 array [N, 2]. It represents the range image index
         for each point.
     ri_ranges: [N] tensor. It represents the distance between a point and
         sensor frame origin of each point.
