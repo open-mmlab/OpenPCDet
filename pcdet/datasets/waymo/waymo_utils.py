@@ -10,8 +10,9 @@ import numpy as np
 from ...utils import common_utils
 import tensorflow.compat.v2 as tf
 tf.enable_v2_behavior()
-from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
+from waymo_open_dataset.utils import frame_utils, transform_utils
 from waymo_open_dataset import dataset_pb2
+import waymo_np
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 import numba
@@ -286,7 +287,7 @@ def convert_point_cloud_to_range_image(data_dict):
     # [H, ]
     inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
 
-    range_images, ri_indices, ri_ranges = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame,
+    range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
                                                                                                num_points, extrinsic,
                                                                                                inclination,
                                                                                                range_image_size,
@@ -308,7 +309,7 @@ def convert_point_cloud_to_range_image(data_dict):
 
 
     gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
-    range_mask, ri_mask_indices, ri_mask_ranges = range_image_utils.build_range_image_from_point_cloud(
+    range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     range_mask = np.squeeze(range_mask.numpy(), axis=0)
     range_mask[range_mask > 0] = 1
