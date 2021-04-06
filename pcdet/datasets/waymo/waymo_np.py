@@ -162,7 +162,7 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
-    order = np.lexsort((data, groups))
+    order = np.lexsort(np.concatenate([data, groups[:, np.newaxis]], axis=1))
     groups = groups[order]
     data = data[order]
     index = np.empty(len(groups), 'bool')
