@@ -9,6 +9,7 @@ import pickle
 import numpy as np
 from ...utils import common_utils
 import tensorflow.compat.v2 as tf
+
 tf.enable_v2_behavior()
 from waymo_open_dataset.utils import frame_utils, transform_utils
 from waymo_open_dataset import dataset_pb2
@@ -275,30 +276,29 @@ def convert_point_cloud_to_range_image(data_dict):
             range_mask: (H, W, 1): 1 for gt pixels, 0 for others
 
     """
-    points = np.expand_dims(data_dict['points'], axis=0)
-    points_vehicle_frame = tf.convert_to_tensor(points[..., :3])
-    point_features = tf.convert_to_tensor(points[..., 3:]) if points.shape[-1] > 3 else None
-    num_points = tf.convert_to_tensor([points.shape[1]], dtype=tf.int32)
+    points = data_dict['points']
+    points_vehicle_frame = points[..., :3]
+    point_features = points[..., 3:] if points.shape[-1] > 3 else None
+    num_points = points.shape[0]
     range_image_size = data_dict['range_image_shape']
     height, width = range_image_size
-    extrinsic = tf.convert_to_tensor(np.expand_dims(data_dict['extrinsic'], axis=0))
+    extrinsic = data_dict['extrinsic']
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
-    inclination = tf.convert_to_tensor(np.expand_dims(np.linspace(inclination_min, inclination_max, height), axis=0))
+    inclination = np.linspace(inclination_min, inclination_max, height)
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
-                                                                                               num_points, extrinsic,
-                                                                                               inclination,
-                                                                                               range_image_size,
-                                                                                               point_features)
-    range_images = np.squeeze(range_images.numpy(), axis=0)
+                                                                                         num_points, extrinsic,
+                                                                                         inclination,
+                                                                                         range_image_size,
+                                                                                         point_features)
     data_dict['range_image'] = range_images
     gt_boxes = data_dict['gt_boxes']
 
     # CPU method, 0 or 1
     point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
-        torch.from_numpy(points[..., :3].squeeze(axis=0)).float(),
+        torch.from_numpy(points_vehicle_frame).float(),
         torch.from_numpy(gt_boxes[:, 0:7]).float()
     ).long().numpy()
     flag_of_pts = point_indices.max(axis=0)
@@ -307,14 +307,11 @@ def convert_point_cloud_to_range_image(data_dict):
     # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
     # flag_of_pts = point_indices.max(axis=0)
 
-
-    gt_points_vehicle_frame = tf.boolean_mask(points_vehicle_frame, select, axis=1)
+    gt_points_vehicle_frame = points_vehicle_frame[select, :]
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
-    range_mask = np.squeeze(range_mask.numpy(), axis=0)
     range_mask[range_mask > 0] = 1
     data_dict['range_mask'] = range_mask
-    data_dict['range_mask'] = select[:10]
 
     return data_dict
 
