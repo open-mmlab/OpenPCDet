@@ -285,6 +285,7 @@ def build_range_image_from_point_cloud_np(points_frame,
     ri_indices = np.stack([point_ri_row_indices, point_ri_col_indices], -1)
     # [N]
     ri_ranges = np.linalg.norm(points, axis=-1).astype(points_frame_dtype)
+    pudb.set_trace()
 
     def fn(args):
         """Builds a range image for each frame.
