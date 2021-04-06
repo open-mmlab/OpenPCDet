@@ -12,7 +12,7 @@ import tensorflow.compat.v2 as tf
 tf.enable_v2_behavior()
 from waymo_open_dataset.utils import frame_utils, transform_utils
 from waymo_open_dataset import dataset_pb2
-import waymo_np
+from . import waymo_np
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 import numba
