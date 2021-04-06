@@ -5,7 +5,163 @@ All Rights Reserved 2020-2021.
 """
 
 import numpy as np
+import math
 
+# A magic number that provides a good resolution we need for lidar range after
+# quantization from float to uint16.
+_RANGE_TO_METERS = 0.00585532144
+
+
+def _encode_range(r):
+    """Encodes lidar range from float to uint16.
+
+    Args:
+    r: np.array A float tensor represents lidar range.
+
+    Returns:
+    Encoded range with type as uint16.
+    """
+    encoded_r = r / _RANGE_TO_METERS
+    assert (encoded_r >= 0).all()
+    assert (encoded_r <= math.pow(2, 16) - 1.).all()
+    return encoded_r.astype(np.uint16)
+
+
+def _decode_range(r):
+    """Decodes lidar range from integers to float32.
+
+    Args:
+    r: A integer tensor.
+
+    Returns:
+    Decoded range.
+    """
+    return r.astype(np.float32) * _RANGE_TO_METERS
+
+
+def _encode_intensity(intensity):
+    """Encodes lidar intensity from float to uint16.
+
+    The integer value stored here is the upper 16 bits of a float. This
+    preserves the exponent and truncates the mantissa to 7bits, which gives
+    plenty of dynamic range and preserves about 3 decimal places of
+    precision.
+
+    Args:
+    intensity: A float tensor represents lidar intensity.
+
+    Returns:
+    Encoded intensity with type as uint32.
+    """
+    if intensity.dtype != np.float32:
+        raise TypeError('intensity must be of type float32')
+
+    intensity.dtype = np.uint32
+    intensity_uint32_shifted = np.right_shift(intensity, 16)
+    return intensity_uint32_shifted.astype(np.uint16)
+
+
+def _decode_intensity(intensity):
+    """Decodes lidar intensity from uint16 to float32.
+
+    The given intensity is encoded with _encode_intensity.
+
+    Args:
+    intensity: A uint16 tensor represents lidar intensity.
+
+    Returns:
+    Decoded intensity with type as float32.
+    """
+    if intensity.dtype != np.uint16:
+        raise TypeError('intensity must be of type uint16')
+
+    intensity_uint32 = intensity.astype(np.uint32)
+    intensity_uint32_shifted = np.left_shift(intensity_uint32, 16)
+    intensity_uint32_shifted.dtype = np.float32
+    return intensity_uint32_shifted
+
+
+def _encode_elongation(elongation):
+    """Encodes lidar elongation from float to uint8.
+
+    Args:
+    elongation: A float tensor represents lidar elongation.
+
+    Returns:
+    Encoded lidar elongation.
+    """
+    encoded_elongation = elongation / _RANGE_TO_METERS
+    assert (encoded_elongation >= 0).all()
+    assert (encoded_elongation <= math.pow(2, 8) - 1.).all()
+    return encoded_elongation.astype(np.uint8)
+
+
+def _decode_elongation(elongation):
+    """Decodes lidar elongation from uint8 to float.
+
+    Args:
+    elongation: A uint8 tensor represents lidar elongation.
+
+    Returns:
+    Decoded lidar elongation.
+    """
+    return elongation.astype(np.float32) * _RANGE_TO_METERS
+
+
+def encode_lidar_features(lidar_point_feature):
+    """Encodes lidar features (range, intensity, enlongation).
+
+    This function encodes lidar point features such that all features have the
+    same ordering as lidar range.
+
+    Args:
+    lidar_point_feature: [N, 3] float32 tensor.
+
+    Returns:
+    [N, 3] int64 tensors that encodes lidar_point_feature.
+    """
+    if lidar_point_feature.dtype != np.float32:
+        raise TypeError('lidar_point_feature must be of type float32.')
+    # TODO:here
+    r, intensity, elongation = tf.unstack(lidar_point_feature, axis=-1)
+    encoded_r = tf.cast(_encode_range(r), dtype=tf.uint32)
+    encoded_intensity = tf.cast(_encode_intensity(intensity), dtype=tf.uint32)
+    encoded_elongation = tf.cast(_encode_elongation(elongation), dtype=tf.uint32)
+
+    encoded_r_shifted = tf.bitwise.left_shift(encoded_r, 16)
+
+    encoded_intensity = tf.cast(
+      tf.bitwise.bitwise_or(encoded_r_shifted, encoded_intensity),
+      dtype=tf.int64)
+    encoded_elongation = tf.cast(
+      tf.bitwise.bitwise_or(encoded_r_shifted, encoded_elongation),
+      dtype=tf.int64)
+    encoded_r = tf.cast(encoded_r, dtype=tf.int64)
+
+    return tf.stack([encoded_r, encoded_intensity, encoded_elongation], axis=-1)
+
+
+def decode_lidar_features(lidar_point_feature):
+  """Decodes lidar features (range, intensity, enlongation).
+
+  This function decodes lidar point features encoded by 'encode_lidar_features'.
+
+  Args:
+    lidar_point_feature: [N, 3] int64 tensor.
+
+  Returns:
+    [N, 3] float tensors that encodes lidar_point_feature.
+  """
+
+  r, intensity, elongation = tf.unstack(lidar_point_feature, axis=-1)
+
+  decoded_r = _decode_range(r)
+  intensity = tf.bitwise.bitwise_and(intensity, int(0xFFFF))
+  decoded_intensity = _decode_intensity(tf.cast(intensity, dtype=tf.uint16))
+  elongation = tf.bitwise.bitwise_and(elongation, int(0xFF))
+  decoded_elongation = _decode_elongation(tf.cast(elongation, dtype=tf.uint8))
+
+  return tf.stack([decoded_r, decoded_intensity, decoded_elongation], axis=-1)
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
