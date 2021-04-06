@@ -6,6 +6,7 @@ All Rights Reserved 2020-2021.
 
 import numpy as np
 import math
+import pudb
 
 # A magic number that provides a good resolution we need for lidar range after
 # quantization from float to uint16.
@@ -162,6 +163,7 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
+    pudb.set_trace()
     order = np.lexsort(np.concatenate([data, groups[:, np.newaxis]], axis=1))
     groups = groups[order]
     data = data[order]
