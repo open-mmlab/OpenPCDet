@@ -122,46 +122,43 @@ def encode_lidar_features(lidar_point_feature):
     """
     if lidar_point_feature.dtype != np.float32:
         raise TypeError('lidar_point_feature must be of type float32.')
-    # TODO:here
-    r, intensity, elongation = tf.unstack(lidar_point_feature, axis=-1)
-    encoded_r = tf.cast(_encode_range(r), dtype=tf.uint32)
-    encoded_intensity = tf.cast(_encode_intensity(intensity), dtype=tf.uint32)
-    encoded_elongation = tf.cast(_encode_elongation(elongation), dtype=tf.uint32)
 
-    encoded_r_shifted = tf.bitwise.left_shift(encoded_r, 16)
+    r, intensity, elongation = np.split(lidar_point_feature, 3, axis=-1)
+    encoded_r = _encode_range(r).astype(np.uint32)
+    encoded_intensity = _encode_intensity(intensity).astype(np.uint32)
+    encoded_elongation = _encode_elongation(elongation).astype(np.uint32)
 
-    encoded_intensity = tf.cast(
-      tf.bitwise.bitwise_or(encoded_r_shifted, encoded_intensity),
-      dtype=tf.int64)
-    encoded_elongation = tf.cast(
-      tf.bitwise.bitwise_or(encoded_r_shifted, encoded_elongation),
-      dtype=tf.int64)
-    encoded_r = tf.cast(encoded_r, dtype=tf.int64)
+    encoded_r_shifted = np.left_shift(encoded_r, 16)
 
-    return tf.stack([encoded_r, encoded_intensity, encoded_elongation], axis=-1)
+    encoded_intensity = np.bitwise_or(encoded_r_shifted, encoded_intensity).astype(np.int64)
+    encoded_elongation = np.bitwise_or(encoded_r_shifted, encoded_elongation).astype(np.int64)
+    encoded_r = encoded_r.astype(np.int64)
+
+    return np.stack([encoded_r, encoded_intensity, encoded_elongation], axis=-1)
 
 
 def decode_lidar_features(lidar_point_feature):
-  """Decodes lidar features (range, intensity, enlongation).
+    """Decodes lidar features (range, intensity, enlongation).
 
-  This function decodes lidar point features encoded by 'encode_lidar_features'.
+    This function decodes lidar point features encoded by 'encode_lidar_features'.
 
-  Args:
-    lidar_point_feature: [N, 3] int64 tensor.
+    Args:
+      lidar_point_feature: [N, 3] int64 tensor.
 
-  Returns:
-    [N, 3] float tensors that encodes lidar_point_feature.
-  """
+    Returns:
+      [N, 3] float tensors that encodes lidar_point_feature.
+    """
 
-  r, intensity, elongation = tf.unstack(lidar_point_feature, axis=-1)
+    r, intensity, elongation = np.split(lidar_point_feature, 3, axis=-1)
 
-  decoded_r = _decode_range(r)
-  intensity = tf.bitwise.bitwise_and(intensity, int(0xFFFF))
-  decoded_intensity = _decode_intensity(tf.cast(intensity, dtype=tf.uint16))
-  elongation = tf.bitwise.bitwise_and(elongation, int(0xFF))
-  decoded_elongation = _decode_elongation(tf.cast(elongation, dtype=tf.uint8))
+    decoded_r = _decode_range(r)
+    intensity = np.bitwise_and(intensity, int(0xFFFF))
+    decoded_intensity = _decode_intensity(intensity.astype(np.uint16))
+    elongation = np.bitwise_and(elongation, int(0xFF))
+    decoded_elongation = _decode_elongation(elongation.astype(np.uint8))
 
-  return tf.stack([decoded_r, decoded_intensity, decoded_elongation], axis=-1)
+    return np.stack([decoded_r, decoded_intensity, decoded_elongation], axis=-1)
+
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
@@ -209,6 +206,7 @@ def build_range_image_from_point_cloud_np(points_frame,
                                           extrinsic,
                                           inclination,
                                           range_image_size,
+                                          point_features=None,
                                           dtype=np.float32):
     """Build virtual range image from point cloud assuming uniform azimuth.
     Args:
@@ -217,11 +215,13 @@ def build_range_image_from_point_cloud_np(points_frame,
     extrinsic: np array with shape [4, 4].
     inclination: np array of shape [H] that is the inclination angle per
         row. sorted from highest value to lowest.
+    point_features: If not None, it is a np array with shape [N, 2] that
+        represents lidar 'intensity' and 'elongation'.
     range_image_size: a size 2 [height, width] list that configures the size of
         the range image.
     dtype: the data type to use.
     Returns:
-    range_images : [H, W, 3] or [B, H, W] tensor. Range images built from the
+    range_images : [H, W, 3] or [H, W] tensor. Range images built from the
         given points. Data type is the same as that of points_frame. 0.0
         is populated when a pixel is missing.
     ri_indices: np int32 array [N, 2]. It represents the range image index
@@ -294,17 +294,26 @@ def build_range_image_from_point_cloud_np(points_frame,
         Returns:
             range_image: [H, W]
         """
-        ri_index, ri_value, num_point = args
+        if len(args) == 3:
+            ri_index, ri_value, num_point = args
+        else:
+            ri_index, ri_value, num_point, point_feature = args
+            ri_value = np.concatenate([ri_value[..., np.newaxis], point_feature], axis=-1)
+            ri_value = encode_lidar_features(ri_value)
 
         ri_index = ri_index[0:num_point, :]
         ri_value = ri_value[0:num_point, ...]
         range_image = scatter_nd_with_pool_np(
             ri_index, ri_value, [height, width], group_max
         )
+        if len(args) != 3:
+            range_image = decode_lidar_features(range_image)
         return range_image
 
     elems = [ri_indices, ri_ranges, num_points]
 
+    if point_features is not None:
+        elems.append(point_features)
     range_images = fn(elems)
 
     return range_images, ri_indices, ri_ranges
