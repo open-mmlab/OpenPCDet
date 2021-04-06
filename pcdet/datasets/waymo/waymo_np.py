@@ -242,7 +242,7 @@ def build_range_image_from_point_cloud_np(points_frame,
     # [3, 3]
     rotation = vehicle_to_laser[0:3, 0:3]
     # [1, 3]
-    translation = np.expand_dims(vehicle_to_laser[0:3, 3], 1)
+    translation = np.expand_dims(vehicle_to_laser[0:3, 3], 0)
 
     # Points in sensor frame
     # [N, 3]
