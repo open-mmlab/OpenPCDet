@@ -193,23 +193,13 @@ class WaymoDataset(DatasetTemplate):
         # whether use range image
         if self.range_config:
             from . import waymo_utils
-            import os
-            os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
             data_dict.update({
                 'beam_inclination_range': info['beam_inclination_range'],
                 'extrinsic': info['extrinsic'],
-                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2560])
+                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650])
             })
-            # tf.config.set_visible_devices([], 'GPU')
-            # a = tf.convert_to_tensor(np.array([1,2,3]))
-            # print(a.device)
-            # time.sleep(100)
-
-            # tf_tensor = tf.convert_to_tensor(np.array([1,2,3])).numpy()
-            # tf_tensor = torch.tensor(tf_tensor)
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
 
-            # data_dict.pop('points', None)
         return data_dict
 
     @staticmethod

@@ -110,7 +110,7 @@ def _decode_elongation(elongation):
 
 
 def encode_lidar_features(lidar_point_feature):
-    """Encodes lidar features (range, intensity, enlongation).
+    """Encodes lidar features (range, intensity, elongation).
 
     This function encodes lidar point features such that all features have the
     same ordering as lidar range.
@@ -139,7 +139,7 @@ def encode_lidar_features(lidar_point_feature):
 
 
 def decode_lidar_features(lidar_point_feature):
-    """Decodes lidar features (range, intensity, enlongation).
+    """Decodes lidar features (range, intensity, elongation).
 
     This function decodes lidar point features encoded by 'encode_lidar_features'.
 
@@ -163,7 +163,10 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
-    order = np.lexsort((data[:, 0], groups))
+    if len(data.shape)>1:
+        order = np.lexsort((data[:, 0], groups))
+    else:
+        order = np.lexsort((data, groups))
     groups = groups[order]
     data = data[order]
     index = np.empty(len(groups), 'bool')
@@ -195,7 +198,6 @@ def scatter_nd_with_pool_np(index, value, shape, pool_method=group_max):
     index_unique = np.stack(
         [index_encoded // width, np.mod(index_encoded, width)], axis=-1
     )
-    pudb.set_trace()
     if len(value_pooled.shape) == 1:
         image = np.zeros(shape, dtype=np.int64)
     else:

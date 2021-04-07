@@ -294,6 +294,7 @@ def convert_point_cloud_to_range_image(data_dict):
                                                                                          range_image_size,
                                                                                          point_features)
     data_dict['range_image'] = range_images
+    data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
 
     # CPU method, 0 or 1
