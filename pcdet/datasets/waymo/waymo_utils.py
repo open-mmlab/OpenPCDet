@@ -17,6 +17,7 @@ from . import waymo_np
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 import numba
+import pudb
 
 try:
     tf.enable_eager_execution()
@@ -296,7 +297,7 @@ def convert_point_cloud_to_range_image(data_dict):
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
-
+    pudb.set_trace()
     # CPU method, 0 or 1
     point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
         torch.from_numpy(points_vehicle_frame).float(),
