@@ -171,7 +171,6 @@ class DatasetTemplate(torch_data.Dataset):
 
         batch_size = len(batch_list)
         ret = {}
-        pudb.set_trace()
 
         for key, val in data_dict.items():
             try:
