@@ -1,12 +1,13 @@
 """
-Transaltion between range image and point cloud with Numpy 
-Written by Jihan Yang
-All Rights Reserved 2020-2021.
+Translation between range image and point cloud with Numpy
+Modified from the original version written by Jihan Yang that only support KITTI dataset
+This version realize almost all function of official waymo version.
+Written by Boyu Meng
+All Rights Reserved.
 """
 
 import numpy as np
 import math
-import pudb
 
 # A magic number that provides a good resolution we need for lidar range after
 # quantization from float to uint16.
