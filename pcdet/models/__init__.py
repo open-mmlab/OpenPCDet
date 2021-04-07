@@ -4,7 +4,6 @@ import numpy as np
 import torch
 
 from .detectors import build_detector
-import pdb
 
 
 def build_network(model_cfg, num_class, dataset):

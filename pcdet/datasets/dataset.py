@@ -8,7 +8,6 @@ from ..utils import common_utils
 from .augmentor.data_augmentor import DataAugmentor
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
-import pudb
 
 
 class DatasetTemplate(torch_data.Dataset):

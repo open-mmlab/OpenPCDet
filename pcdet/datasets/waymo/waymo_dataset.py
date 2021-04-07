@@ -14,9 +14,6 @@ from pathlib import Path
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
-import tensorflow as tf
-import pdb
-import time
 
 
 class WaymoDataset(DatasetTemplate):
