@@ -163,7 +163,8 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
-    order = np.lexsort(np.concatenate([data, groups[:, np.newaxis]], axis=1))
+    order = np.lexsort(data[:, 0], groups)
+    pudb.set_trace()
     groups = groups[order]
     data = data[order]
     index = np.empty(len(groups), 'bool')
@@ -284,7 +285,6 @@ def build_range_image_from_point_cloud_np(points_frame,
     ri_indices = np.stack([point_ri_row_indices, point_ri_col_indices], -1)
     # [N]
     ri_ranges = np.linalg.norm(points, axis=-1).astype(points_frame_dtype)
-    pudb.set_trace()
 
     def fn(args):
         """Builds a range image for each frame.
