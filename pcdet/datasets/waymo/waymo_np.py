@@ -124,7 +124,7 @@ def encode_lidar_features(lidar_point_feature):
     if lidar_point_feature.dtype != np.float32:
         raise TypeError('lidar_point_feature must be of type float32.')
 
-    r, intensity, elongation = np.split(lidar_point_feature, 3, axis=-1)
+    r, intensity, elongation = list(map(np.squeeze, np.split(lidar_point_feature, 3, axis=-1)))
     encoded_r = _encode_range(r).astype(np.uint32)
     encoded_intensity = _encode_intensity(intensity).astype(np.uint32)
     encoded_elongation = _encode_elongation(elongation).astype(np.uint32)
@@ -150,7 +150,7 @@ def decode_lidar_features(lidar_point_feature):
       [N, 3] float tensors that encodes lidar_point_feature.
     """
 
-    r, intensity, elongation = np.split(lidar_point_feature, 3, axis=-1)
+    r, intensity, elongation = list(map(np.squeeze, np.split(lidar_point_feature, 3, axis=-1)))
 
     decoded_r = _decode_range(r)
     intensity = np.bitwise_and(intensity, int(0xFFFF))
@@ -163,7 +163,6 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
-    pudb.set_trace()
     order = np.lexsort(np.concatenate([data, groups[:, np.newaxis]], axis=1))
     groups = groups[order]
     data = data[order]
