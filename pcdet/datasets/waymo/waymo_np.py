@@ -196,7 +196,10 @@ def scatter_nd_with_pool_np(index, value, shape, pool_method=group_max):
         [index_encoded // width, np.mod(index_encoded, width)], axis=-1
     )
     pudb.set_trace()
-    image = np.zeros(shape, dtype=np.float32)
+    if len(value_pooled.shape) == 1:
+        image = np.zeros(shape, dtype=np.float32)
+    else:
+        image = np.zeros([*shape, *value_pooled.shape[1:]], dtype=np.float32)
     image[index_unique[:, 0], index_unique[:, 1]] = value_pooled
 
     return image
