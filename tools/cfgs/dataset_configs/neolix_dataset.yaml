@@ -1,7 +1,7 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/32lidar_33000_5cls_deleted_bicycles/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/'
 
-POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5] #[-20, -70, -1.5, 20, 70, 2.5]
+POINT_CLOUD_RANGE: [-20.48, -40.08, -1.5, 20.48, 70, 2.5] #[-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
 
 DATA_SPLIT: {
     'train': train,
@@ -24,11 +24,11 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - neolix_dbinfos_train.pkl
           PREPARE: {
-             filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5'],
+             filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5'], #['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5', 'Large_vehicle:10'],
              filter_by_difficulty: [-1],
           }
 
-          SAMPLE_GROUPS: ['Vehicle:20','Pedestrian:15','Cyclist:15','Unknown:10']
+          SAMPLE_GROUPS: ['Vehicle:10','Pedestrian:10', 'Cyclist:15', 'Unknown:5'] #['Vehicle:20','Pedestrian:15','Cyclist:15','Unknown:10', 'Large_vehicle:20']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]

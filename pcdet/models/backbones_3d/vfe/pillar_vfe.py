@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from .vfe_template import VFETemplate
 
@@ -48,7 +49,7 @@ class PFNLayer(nn.Module):
             x_concatenated = torch.cat([x, x_repeat], dim=2)
             return x_concatenated
 
-
+# vfe_id = -1
 class PillarVFE(VFETemplate):
     def __init__(self, model_cfg, num_point_features, voxel_size, point_cloud_range):
         super().__init__(model_cfg=model_cfg)
@@ -92,7 +93,8 @@ class PillarVFE(VFETemplate):
         return paddings_indicator
 
     def forward(self, batch_dict, **kwargs):
-  
+        # global vfe_id
+        # vfe_id += 1
         voxel_features, voxel_num_points, coords = batch_dict['voxels'], batch_dict['voxel_num_points'], batch_dict['voxel_coords']
         points_mean = voxel_features[:, :, :3].sum(dim=1, keepdim=True) / voxel_num_points.type_as(voxel_features).view(-1, 1, 1)
         f_cluster = voxel_features[:, :, :3] - points_mean
@@ -116,6 +118,8 @@ class PillarVFE(VFETemplate):
         mask = self.get_paddings_indicator(voxel_num_points, voxel_count, axis=0)
         mask = torch.unsqueeze(mask, -1).type_as(voxel_features)
         features *= mask
+        # print("features.shape", features.shape)
+        # np.save('/nfs/neolix_data1/temp_shl/vfe_npys/vfe_input_%04d' % vfe_id, features.detach().cpu().numpy())
         for pfn in self.pfn_layers:
             features = pfn(features)
         features = features.squeeze()
