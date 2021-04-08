@@ -48,13 +48,13 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
             - NAME: random_local_translation
-              WORLD_TRANSLATION_RANGE: [0 20]
+              LOCAL_TRANSLATION_RANGE: [0, 20]
 
             - NAME: random_local_rotation
-              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+              LOCAL_ROT_ANGLE: [-0.78539816, 0.78539816]
 
             - NAME: random_local_scaling
-              LOCAL_SCALE_RANGE: [ 0.95, 1.05 ]
+              LOCAL_SCALE_RANGE: [0.95, 1.05]
 
 MODEL:
     NAME: PointPillar
