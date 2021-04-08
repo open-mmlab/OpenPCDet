@@ -3,7 +3,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
     # POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
-    POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
+    POINT_CLOUD_RANGE: [-20.48, -40.08, -1.5, 20.48, 70, 2.5]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -67,7 +67,7 @@ MODEL:
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4]
+        UPSAMPLE_STRIDES: [0.5, 1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
@@ -82,11 +82,11 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.86, 4.48, 1.65]],
+                'anchor_sizes': [[1.85, 4.47, 1.65]],  # w, l, h
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             },
@@ -96,17 +96,17 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.77, 1.90, 1.73]],
+                'anchor_sizes': [[0.76, 1.86, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -116,17 +116,17 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
             {
                 'class_name': 'Large_vehicle',
-                'anchor_sizes': [[2.55, 8.50, 2.79]],
+                'anchor_sizes': [[2.61, 8.68, 2.83]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             }

@@ -52,7 +52,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
     for i, batch_dict in enumerate(dataloader):
-        # print("batch_dict", batch_dict)
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
@@ -107,9 +106,10 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
+    # info_f = open('/home/songhongli/OpenPCDet/output/neolix_models/pointpillar_sample_4_5cls_deleted_bicycles/default/eval/epoch_160/val/default/result.pkl', 'rb')
+    # det_annos = pickle.load(info_f)
     det_range_ls = None
-    det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 20], [-10, 10, 20, 30], [-10, 10, 30, 40], [-10, 10, 40, 50],
-                    [-10, 10, 50, 60], [-10, 10, 60, 70]]
+    det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 30], [-10, 10, 30, 50], [-10, 10, 50, 70]]
     if not det_range_ls is None:
         for detect_range in det_range_ls:
             print("*" * 60)

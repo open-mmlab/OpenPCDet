@@ -49,6 +49,11 @@ def clean_data(gt_anno, dt_anno, current_class, difficulty, det_range=None):
             valid_class = -1
         elif (gt_name == current_cls_name):
             valid_class = 1
+        elif (current_cls_name == "Vehicle".lower()
+              and "Large_vehicle".lower() == gt_name):
+            valid_class = 0
+        elif (current_cls_name == "Large_vehicle".lower() and "Vehicle".lower() == gt_name):
+            valid_class = 0
         # elif (current_cls_name == "Pedestrian".lower()
         #       and "Person_sitting".lower() == gt_name):
         #     valid_class = 0
@@ -65,8 +70,8 @@ def clean_data(gt_anno, dt_anno, current_class, difficulty, det_range=None):
         if valid_class == 1 and not ignore:
             ignored_gt.append(0)
             num_valid_gt += 1
-        # elif (valid_class == 0 or (ignore and (valid_class == 1))):
-        #     ignored_gt.append(1)
+        elif (valid_class == 0 or (ignore and (valid_class == 1))):
+            ignored_gt.append(1)
         else:
             ignored_gt.append(-1)
     # for i in range(num_gt):
@@ -559,8 +564,8 @@ def eval_class(gt_annos,
                 dt_trues = np.array(dt_trues)
                 dt_scoress = np.array(dt_scoress)
                 if l == 0:
-                    np.save("metric_%d.%d.%d.%d_true" % (metric, m, l, k), dt_trues)
-                    np.save("metric_%d.%d.%d.%d_score" % (metric, m, l, k), dt_scoress)
+                    # np.save("metric_%d.%d.%d.%d_true" % (metric, m, l, k), dt_trues)
+                    # np.save("metric_%d.%d.%d.%d_score" % (metric, m, l, k), dt_scores)
                     if k == 1:
                         print("m:", m, " l:", l, " k:", k)
                         print("recall", tps.sum() / (tps.sum() + fns.sum()))
