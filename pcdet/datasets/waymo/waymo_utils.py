@@ -350,12 +350,13 @@ def test(data_dict):
                                                                                          inclination,
                                                                                          range_image_size,
                                                                                          point_features)
-
-    points_vehicle_frame_tf = tf.convert_to_tensor(np.squeeze(points_vehicle_frame,axis=0))
-    extrinsic_tf = tf.convert_to_tensor(np.squeeze(extrinsic,axis=0))
-    inclination_tf = tf.convert_to_tensor(np.squeeze(inclination,axis=0))
+    n = np.array([1])
+    np.expand_dims
+    points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(points_vehicle_frame, axis=0))
+    extrinsic_tf = tf.convert_to_tensor(np.expand_dims(extrinsic,axis=0))
+    inclination_tf = tf.convert_to_tensor(np.expand_dims(inclination,axis=0))
     num_points_tf = tf.convert_to_tensor([num_points])
-    point_features_tf = tf.convert_to_tensor(np.squeeze(point_features,axis=0))
+    point_features_tf = tf.convert_to_tensor(np.expand_dims(point_features,axis=0))
     range_images_tf, ri_indices_tf, ri_ranges_tf = range_image_utils.build_range_image_from_point_cloud_np(points_vehicle_frame_tf,
                                                                                          num_points_tf, extrinsic_tf,
                                                                                          inclination_tf,
