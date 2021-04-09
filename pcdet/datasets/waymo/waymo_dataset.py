@@ -196,6 +196,7 @@ class WaymoDataset(DatasetTemplate):
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650])
             })
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict)
+            data_dict = waymo_utils.test(data_dict)
             data_dict.pop('beam_inclination_range', None)
             data_dict.pop('extrinsic', None)
             data_dict.pop('range_image_shape', None)

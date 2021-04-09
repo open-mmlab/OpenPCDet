@@ -11,7 +11,7 @@ from ...utils import common_utils
 import tensorflow.compat.v2 as tf
 
 tf.enable_v2_behavior()
-from waymo_open_dataset.utils import frame_utils, transform_utils
+from waymo_open_dataset.utils import frame_utils, transform_utils, range_image_utils
 from waymo_open_dataset import dataset_pb2
 from . import waymo_np
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -294,6 +294,76 @@ def convert_point_cloud_to_range_image(data_dict):
                                                                                          inclination,
                                                                                          range_image_size,
                                                                                          point_features)
+    data_dict['range_image'] = range_images
+    data_dict['ri_indices'] = ri_indices
+    gt_boxes = data_dict['gt_boxes']
+    # CPU method, 0 or 1
+    point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
+        torch.from_numpy(points_vehicle_frame).float(),
+        torch.from_numpy(gt_boxes[:, 0:7]).float()
+    ).long().numpy()
+    flag_of_pts = point_indices.max(axis=0)
+    select = flag_of_pts > 0
+
+    # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
+    # flag_of_pts = point_indices.max(axis=0)
+
+    gt_points_vehicle_frame = points_vehicle_frame[select, :]
+    range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
+        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+    range_mask[range_mask > 0] = 1
+    data_dict['range_mask'] = range_mask
+
+    return data_dict
+
+
+def test(data_dict):
+    """
+
+    Args:
+        data_dict:
+            points: (N, 3 + C_in) vehicle frame
+            gt_boxes: optional, (N, 7) [x, y, z, dx, dy, dz, heading]
+            beam_inclination_range: [min, max]
+            extrinsic: (4, 4) map data from sensor to vehicle
+            range_image_shape: (height, width)
+
+    Returns:
+            range_image: (H, W, 1 + C_in)
+            range_mask: (H, W, 1): 1 for gt pixels, 0 for others
+
+    """
+    points = data_dict['points']
+    points_vehicle_frame = points[..., :3]
+    point_features = points[..., 3:] if points.shape[-1] > 3 else None
+    num_points = points.shape[0]
+    range_image_size = data_dict['range_image_shape']
+    height, width = range_image_size
+    extrinsic = data_dict['extrinsic']
+
+    inclination_min, inclination_max = data_dict['beam_inclination_range']
+    # [H, ]
+    inclination = np.linspace(inclination_min, inclination_max, height)
+
+    range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
+                                                                                         num_points, extrinsic,
+                                                                                         inclination,
+                                                                                         range_image_size,
+                                                                                         point_features)
+
+    points_vehicle_frame_tf = tf.convert_to_tensor(np.squeeze(points_vehicle_frame,axis=0))
+    extrinsic_tf = tf.convert_to_tensor(np.squeeze(extrinsic,axis=0))
+    inclination_tf = tf.convert_to_tensor(np.squeeze(inclination,axis=0))
+    num_points_tf = tf.convert_to_tensor([num_points])
+    point_features_tf = tf.convert_to_tensor(np.squeeze(point_features,axis=0))
+    range_images_tf, ri_indices_tf, ri_ranges_tf = range_image_utils.build_range_image_from_point_cloud_np(points_vehicle_frame_tf,
+                                                                                         num_points_tf, extrinsic_tf,
+                                                                                         inclination_tf,
+                                                                                         range_image_size,
+                                                                                         point_features_tf)
+    pudb.set_trace()
+
+
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
