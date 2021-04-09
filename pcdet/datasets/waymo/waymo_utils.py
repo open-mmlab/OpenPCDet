@@ -362,6 +362,10 @@ def test(data_dict):
                                                                                          inclination_tf,
                                                                                          range_image_size,
                                                                                          point_features_tf)
+    range_images_tf = np.squeeze(range_images_tf.numpy(),axis=0)
+    ri_indices_tf = np.squeeze(ri_indices_tf.numpy(),axis=0)
+    ri_ranges_tf = np.squeeze(ri_ranges_tf.numpy(), axis=0)
+
     pudb.set_trace()
 
 
