@@ -77,12 +77,14 @@ def export_onnx(model):
                       output_names=['pillar_features'])
     print('vfe.onnx transfer success ...')
 
-    spatial_features = torch.ones([1, 64, 384, 256], dtype=torch.float32, device='cuda')
+    #spatial_features = torch.ones([1, 64, 384, 256], dtype=torch.float32, device='cuda')
+    spatial_features = torch.ones([1, 64, 688, 256], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[2], spatial_features, "backbone.onnx", verbose=False,input_names=['spatial_features'],
                       output_names=['spatial_features_2d'])
     print('backbone.onnx transfer success ...')
 
-    spatial_features_2d = torch.ones([1, 384, 96, 64], dtype=torch.float32, device='cuda')
+    # spatial_features_2d = torch.ones([1, 384, 96, 64], dtype=torch.float32, device='cuda')
+    spatial_features_2d = torch.ones([1, 384, 172, 64], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[3], spatial_features_2d, "head.onnx", verbose=False,
                       input_names=["spatial_features_2d"], output_names=['cls', 'bbox', 'dir'])
     print('head.onnx transfer success ...')
