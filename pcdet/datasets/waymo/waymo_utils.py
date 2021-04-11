@@ -501,7 +501,7 @@ def boxes_to_corners_3d(boxes3d):
         [1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1],
     )) / 2
 
-    corners3d = boxes3d[:, None, 3:6].repeat(1, 8, 1) * template[None, :, :]
+    corners3d = boxes3d[:, None, 3:6].repeat(8, 1) * template[None, :, :]
     corners3d += boxes3d[:, None, 0:3]
 
     return corners3d
