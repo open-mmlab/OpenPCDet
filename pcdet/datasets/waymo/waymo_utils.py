@@ -249,18 +249,6 @@ def read_one_frame(sequence_file):
     return frame
 
 
-def compute_beam_inclinations(calibration, height):
-    """ Compute the inclination angle for each beam in a range image. """
-
-    if len(calibration.beam_inclinations) > 0:
-        return np.array(calibration.beam_inclinations)
-    else:
-        inclination_min = calibration.beam_inclination_min
-        inclination_max = calibration.beam_inclination_max
-
-        return np.linspace(inclination_min, inclination_max, height)
-
-
 def convert_point_cloud_to_range_image(data_dict):
     """
 
@@ -343,7 +331,7 @@ def test(data_dict):
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
-    inclination = np.linspace(inclination_min, inclination_max, height)
+    inclination = np.linspace(inclination_max, inclination_min, height)
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
                                                                                          num_points, extrinsic,
@@ -396,7 +384,7 @@ def test(data_dict):
     return data_dict
 
 
-def plot_pointcloud(pointcloud):
+def plot_pointcloud(pointcloud, vals='height'):
     import mayavi.mlab as mlab
     print(pointcloud.shape)
     print(type(pointcloud))
@@ -411,7 +399,7 @@ def plot_pointcloud(pointcloud):
     zmax = np.amax(z, axis=0)
     print(xmin, xmax, ymin, ymax, zmin, zmax)
     d = np.sqrt(x ** 2 + y ** 2)  # Map Distance from sensor
-    vals = 'height'
+
     if vals == "height":
         col = z
     else:
