@@ -282,6 +282,11 @@ def convert_point_cloud_to_range_image(data_dict):
                                                                                          inclination,
                                                                                          range_image_size,
                                                                                          point_features)
+    # clipping and rescaling
+    mean, std = range_images.mean(axis=(0, 1)), range_images.std(axis=(0, 1))
+    range_images = (range_images - mean) / std
+    range_images = np.clip(range_images, -1.0, 1.0)
+    range_images = (range_images + 1.0) / 2.0
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
@@ -338,7 +343,7 @@ def test(data_dict):
                                                                                          inclination,
                                                                                          range_image_size,
                                                                                          point_features)
-    n = np.array([1])
+
     points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(points_vehicle_frame, axis=0))
     extrinsic_tf = tf.convert_to_tensor(np.expand_dims(extrinsic, axis=0))
     inclination_tf = tf.convert_to_tensor(np.expand_dims(inclination, axis=0))
