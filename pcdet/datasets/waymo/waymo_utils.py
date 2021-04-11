@@ -463,7 +463,14 @@ def plot_pointcloud(pointcloud):
         figure=fig,
     )
     mlab.show()
+    return fig
 
+
+def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
+    corners3d = boxes_to_corners_3d(gt_boxes)
+    fig = plot_pointcloud(pointcloud)
+    fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
+    fig.show()
 
 def plot_rangeimage(rangeimage):
     import PIL.Image as image
@@ -472,6 +479,76 @@ def plot_rangeimage(rangeimage):
     rangeimage = image.fromarray(rangeimage / rangeimage.max() *255)
     rangeimage.show()
 
+
+def boxes_to_corners_3d(boxes3d):
+    """
+        7 -------- 4
+       /|         /|
+      6 -------- 5 .
+      | |        | |
+      . 3 -------- 0
+      |/         |/
+      2 -------- 1
+    Args:
+        boxes3d:  (N, 7) [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center
+
+    Returns:
+    """
+
+    template = boxes3d.new_tensor((
+        [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1],
+        [1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1],
+    )) / 2
+
+    corners3d = boxes3d[:, None, 3:6].repeat(1, 8, 1) * template[None, :, :]
+    corners3d += boxes3d[:, None, 0:3]
+
+    return corners3d
+
+
+def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag='', max_num=500, tube_radius=None):
+    """
+    :param corners3d: (N, 8, 3)
+    :param fig:
+    :param color:
+    :param line_width:
+    :param cls:
+    :param tag:
+    :param max_num:
+    :return:
+    """
+    import mayavi.mlab as mlab
+    num = min(max_num, len(corners3d))
+    for n in range(num):
+        b = corners3d[n]  # (8, 3)
+
+        if cls is not None:
+            if isinstance(cls, np.ndarray):
+                mlab.text3d(b[6, 0], b[6, 1], b[6, 2], '%.2f' % cls[n], scale=(0.3, 0.3, 0.3), color=color, figure=fig)
+            else:
+                mlab.text3d(b[6, 0], b[6, 1], b[6, 2], '%s' % cls[n], scale=(0.3, 0.3, 0.3), color=color, figure=fig)
+
+        for k in range(0, 4):
+            i, j = k, (k + 1) % 4
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+                        line_width=line_width, figure=fig)
+
+            i, j = k + 4, (k + 1) % 4 + 4
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+                        line_width=line_width, figure=fig)
+
+            i, j = k, k + 4
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+                        line_width=line_width, figure=fig)
+
+        i, j = 0, 5
+        mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+                    line_width=line_width, figure=fig)
+        i, j = 1, 4
+        mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+                    line_width=line_width, figure=fig)
+
+    return fig
 
 
 def points_in_rbbox(points, rbbox, z_axis=2, origin=(0.5, 0.5, 0.5)):
