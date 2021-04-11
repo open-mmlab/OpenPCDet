@@ -465,6 +465,15 @@ def plot_pointcloud(pointcloud):
     mlab.show()
 
 
+def plot_rangeimage(rangeimage):
+    import PIL.Image as image
+    if len(rangeimage.shape) > 2:
+        rangeimage = rangeimage[..., 0]
+    rangeimage = image.fromarray(rangeimage / rangeimage.max() *255)
+    rangeimage.show()
+
+
+
 def points_in_rbbox(points, rbbox, z_axis=2, origin=(0.5, 0.5, 0.5)):
     rbbox_corners = center_to_corner_box3d(
         rbbox[:, :3], rbbox[:, 3:6], rbbox[:, -1], origin=origin, axis=z_axis
