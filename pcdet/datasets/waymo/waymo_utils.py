@@ -19,7 +19,6 @@ import torch
 import numba
 import pudb
 
-
 try:
     tf.enable_eager_execution()
 except:
@@ -353,21 +352,19 @@ def test(data_dict):
                                                                                          point_features)
     n = np.array([1])
     points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(points_vehicle_frame, axis=0))
-    extrinsic_tf = tf.convert_to_tensor(np.expand_dims(extrinsic,axis=0))
-    inclination_tf = tf.convert_to_tensor(np.expand_dims(inclination,axis=0))
+    extrinsic_tf = tf.convert_to_tensor(np.expand_dims(extrinsic, axis=0))
+    inclination_tf = tf.convert_to_tensor(np.expand_dims(inclination, axis=0))
     num_points_tf = tf.convert_to_tensor([num_points])
-    point_features_tf = tf.convert_to_tensor(np.expand_dims(point_features,axis=0))
-    range_images_tf, ri_indices_tf, ri_ranges_tf = range_image_utils.build_range_image_from_point_cloud(points_vehicle_frame_tf,
-                                                                                         num_points_tf, extrinsic_tf,
-                                                                                         inclination_tf,
-                                                                                         range_image_size,
-                                                                                         point_features_tf)
-    range_images_tf = np.squeeze(range_images_tf.numpy(),axis=0)
-    ri_indices_tf = np.squeeze(ri_indices_tf.numpy(),axis=0)
+    point_features_tf = tf.convert_to_tensor(np.expand_dims(point_features, axis=0))
+    range_images_tf, ri_indices_tf, ri_ranges_tf = range_image_utils.build_range_image_from_point_cloud(
+        points_vehicle_frame_tf,
+        num_points_tf, extrinsic_tf,
+        inclination_tf,
+        range_image_size,
+        point_features_tf)
+    range_images_tf = np.squeeze(range_images_tf.numpy(), axis=0)
+    ri_indices_tf = np.squeeze(ri_indices_tf.numpy(), axis=0)
     ri_ranges_tf = np.squeeze(ri_ranges_tf.numpy(), axis=0)
-
-
-
 
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
@@ -412,7 +409,7 @@ def plot_pointcloud(pointcloud):
     z = pointcloud[:, 2]  # z position of point
     zmin = np.amin(z, axis=0)
     zmax = np.amax(z, axis=0)
-    print(xmin,xmax,ymin,ymax,zmin,zmax)
+    print(xmin, xmax, ymin, ymax, zmin, zmax)
     d = np.sqrt(x ** 2 + y ** 2)  # Map Distance from sensor
     vals = 'height'
     if vals == "height":
@@ -421,21 +418,21 @@ def plot_pointcloud(pointcloud):
         col = d
     fig = mlab.figure(bgcolor=(0, 0, 0), size=(640, 500))
     mlab.points3d(x, y, z,
-                         col,  # Values used for Color
-                         mode="point",
-                         # 灰度图的伪彩映射
-                         colormap='spectral',  # 'bone', 'copper', 'gnuplot'
-                         # color=(0, 1, 0),   # Used a fixed (r,g,b) instead
-                         figure=fig,
-                         )
+                  col,  # Values used for Color
+                  mode="point",
+                  # 灰度图的伪彩映射
+                  colormap='spectral',  # 'bone', 'copper', 'gnuplot'
+                  # color=(0, 1, 0),   # Used a fixed (r,g,b) instead
+                  figure=fig,
+                  )
     # 绘制原点
-    mlab.points3d(0, 0, 0, color=(1, 1, 1), mode="sphere",scale_factor=1)
+    mlab.points3d(0, 0, 0, color=(1, 1, 1), mode="sphere", scale_factor=1)
     # 绘制坐标
     axes = np.array(
         [[20.0, 0.0, 0.0, 0.0], [0.0, 20.0, 0.0, 0.0], [0.0, 0.0, 20.0, 0.0]],
         dtype=np.float64,
     )
-    #x轴
+    # x轴
     mlab.plot3d(
         [0, axes[0, 0]],
         [0, axes[0, 1]],
@@ -444,7 +441,7 @@ def plot_pointcloud(pointcloud):
         tube_radius=None,
         figure=fig,
     )
-    #y轴
+    # y轴
     mlab.plot3d(
         [0, axes[1, 0]],
         [0, axes[1, 1]],
@@ -453,7 +450,7 @@ def plot_pointcloud(pointcloud):
         tube_radius=None,
         figure=fig,
     )
-    #z轴
+    # z轴
     mlab.plot3d(
         [0, axes[2, 0]],
         [0, axes[2, 1]],
@@ -477,7 +474,7 @@ def plot_rangeimage(rangeimage):
     import PIL.Image as image
     if len(rangeimage.shape) > 2:
         rangeimage = rangeimage[..., 0]
-    rangeimage = image.fromarray(rangeimage / rangeimage.max() *255)
+    rangeimage = image.fromarray(rangeimage / rangeimage.max() * 255)
     rangeimage.show()
 
 
@@ -502,7 +499,7 @@ def boxes_to_corners_3d(boxes3d):
     )) / 2
 
     corners3d = boxes3d[:, None, 3:6].repeat(8, 1) * template[None, :, :]
-    corners3d = rotate_points_along_z(corners3d.reshape(-1, 8, 3), boxes3d[:, 6]).view(-1, 8, 3)
+    corners3d = rotate_points_along_z(corners3d.reshape(-1, 8, 3), boxes3d[:, 6]).reshape(-1, 8, 3)
     corners3d += boxes3d[:, None, 0:3]
 
     return corners3d
@@ -522,14 +519,13 @@ def rotate_points_along_z(points, angle):
     zeros = np.zeros(points.shape[0])
     ones = np.ones(points.shape[0])
     rot_matrix = np.stack((
-        cosa,  sina, zeros,
+        cosa, sina, zeros,
         -sina, cosa, zeros,
         zeros, zeros, ones
-    ), dim=1).view(-1, 3, 3).float()
+    ), dim=1).reshape(-1, 3, 3).float()
     points_rot = np.matmul(points[:, :, 0:3], rot_matrix)
     points_rot = np.concatenate((points_rot, points[:, :, 3:]), dim=-1)
     return points_rot
-
 
 
 def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag='', max_num=500, tube_radius=None):
@@ -556,15 +552,18 @@ def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag=
 
         for k in range(0, 4):
             i, j = k, (k + 1) % 4
-            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color,
+                        tube_radius=tube_radius,
                         line_width=line_width, figure=fig)
 
             i, j = k + 4, (k + 1) % 4 + 4
-            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color,
+                        tube_radius=tube_radius,
                         line_width=line_width, figure=fig)
 
             i, j = k, k + 4
-            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color, tube_radius=tube_radius,
+            mlab.plot3d([b[i, 0], b[j, 0]], [b[i, 1], b[j, 1]], [b[i, 2], b[j, 2]], color=color,
+                        tube_radius=tube_radius,
                         line_width=line_width, figure=fig)
 
         i, j = 0, 5
