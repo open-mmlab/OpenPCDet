@@ -522,9 +522,9 @@ def rotate_points_along_z(points, angle):
         cosa, sina, zeros,
         -sina, cosa, zeros,
         zeros, zeros, ones
-    ), dim=1).reshape(-1, 3, 3).float()
+    ), axis=1).reshape(-1, 3, 3).float()
     points_rot = np.matmul(points[:, :, 0:3], rot_matrix)
-    points_rot = np.concatenate((points_rot, points[:, :, 3:]), dim=-1)
+    points_rot = np.concatenate((points_rot, points[:, :, 3:]), axis=-1)
     return points_rot
 
 
