@@ -462,7 +462,6 @@ def plot_pointcloud(pointcloud):
         tube_radius=None,
         figure=fig,
     )
-    mlab.show()
     return fig
 
 
