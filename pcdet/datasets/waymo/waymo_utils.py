@@ -466,10 +466,11 @@ def plot_pointcloud(pointcloud):
 
 
 def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
+    import mayavi.mlab as mlab
     corners3d = boxes_to_corners_3d(gt_boxes)
     fig = plot_pointcloud(pointcloud)
     fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
-    fig.show()
+    mlab.show()
 
 
 def plot_rangeimage(rangeimage):
