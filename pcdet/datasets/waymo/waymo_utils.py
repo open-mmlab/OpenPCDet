@@ -472,6 +472,7 @@ def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
     fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
     fig.show()
 
+
 def plot_rangeimage(rangeimage):
     import PIL.Image as image
     if len(rangeimage.shape) > 2:
@@ -495,7 +496,7 @@ def boxes_to_corners_3d(boxes3d):
     Returns:
     """
 
-    template = boxes3d.new_tensor((
+    template = np.array((
         [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1],
         [1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1],
     )) / 2
