@@ -16,7 +16,7 @@ DATA_CONFIG:
 MODEL:
     NAME: RSN
 
-    RFE:
+    BACKBONE_RANGE:
         NAME: UNet
 
 #    VFE:

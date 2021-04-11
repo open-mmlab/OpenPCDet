@@ -88,7 +88,7 @@ class UpCat(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels=1, **kwargs):
+    def __init__(self, in_channels, out_channels=16, **kwargs):
         super().__init__()
         self.out_channels = out_channels
         self.Down1 = Down(1, in_channels=in_channels, out_channels=16)
