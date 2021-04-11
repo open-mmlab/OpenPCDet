@@ -62,6 +62,14 @@ class Detector3DTemplate(nn.Module):
         model_info_dict['module_list'].append(backbone_range_module)
         return backbone_range_module, model_info_dict
 
+    def build_seg_head(self, model_info_dict):
+        if self.model_cfg.get('SEG_HEAD', None) is None:
+            return None, model_info_dict
+
+    def build_map_to_point_cloud(self, model_info_dict):
+        if self.model_cfg.get('MAP_TO_POINT_CLOUD', None) is None:
+            return None, model_info_dict
+
     def build_vfe(self, model_info_dict):
         if self.model_cfg.get('VFE', None) is None:
             return None, model_info_dict
