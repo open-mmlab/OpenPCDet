@@ -7,6 +7,7 @@ from ...ops.iou3d_nms import iou3d_nms_utils
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads, backbones_range
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
+from ..seg_heads import map_to_point_cloud
 from ..model_utils import model_nms_utils
 
 
@@ -69,6 +70,11 @@ class Detector3DTemplate(nn.Module):
     def build_map_to_point_cloud(self, model_info_dict):
         if self.model_cfg.get('MAP_TO_POINT_CLOUD', None) is None:
             return None, model_info_dict
+
+        map_to_point_cloud_module = map_to_point_cloud.__all__[self.model_cfg.MAP_TO_BEV.NAME](
+            model_cfg=self.model_cfg.MAP_TO_BEV
+        )
+        return map_to_point_cloud_module, model_info_dict
 
     def build_vfe(self, model_info_dict):
         if self.model_cfg.get('VFE', None) is None:

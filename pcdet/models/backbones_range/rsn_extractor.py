@@ -49,6 +49,9 @@ class Down(nn.Module):
         assert type(layer_num) == int
         super().__init__()
 
+        self.layer_num = layer_num
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         layers = [BasicBlock(in_channels=in_channels, out_channels=out_channels, stride=2)]
         for i in range(layer_num - 1):
             layers.append(BasicBlock(in_channels=out_channels, out_channels=out_channels, stride=1))
@@ -66,6 +69,9 @@ class Up(nn.Module):
         assert type(layer_num) == int
         super().__init__()
 
+        self.layer_num = layer_num
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         layers = [nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1)]
         layers.append(nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True))
         for i in range(layer_num):
@@ -88,9 +94,9 @@ class UpCat(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels=16, **kwargs):
+    def __init__(self, in_channels, **kwargs):
         super().__init__()
-        self.out_channels = out_channels
+
         self.Down1 = Down(1, in_channels=in_channels, out_channels=16)
         self.Down2 = Down(2, in_channels=16, out_channels=64)
         self.Down3 = Down(2, in_channels=64, out_channels=128)
@@ -99,8 +105,10 @@ class UNet(nn.Module):
         self.Up2 = Up(2, in_channels=256, out_channels=64)
         self.Up1 = Up(1, in_channels=128, out_channels=16)
         self.upcat = UpCat()
+        self.out_channels = self.Up1.out_channels * 2
 
-    def forward(self, x):
+    def forward(self, batch_dict):
+        x = batch_dict['range_image']
         conv1 = self.Down1(x)
         conv2 = self.Down2(conv1)
         conv3 = self.Down3(conv2)
@@ -109,8 +117,8 @@ class UNet(nn.Module):
         up2 = self.Up2(self.upcat(conv3,up3))
         up1 = self.Up1(self.upcat(conv2,up2))
         output = self.upcat(conv1,up1)
-
-        return output
+        batch_dict['range_features'] = output
+        return batch_dict
 
     def get_output_feature_dim(self):
         return self.out_channels
