@@ -502,7 +502,7 @@ def boxes_to_corners_3d(boxes3d):
     )) / 2
 
     corners3d = boxes3d[:, None, 3:6].repeat(8, 1) * template[None, :, :]
-    corners3d = rotate_points_along_z(corners3d.view(-1, 8, 3), boxes3d[:, 6]).view(-1, 8, 3)
+    corners3d = rotate_points_along_z(corners3d.reshape(-1, 8, 3), boxes3d[:, 6]).view(-1, 8, 3)
     corners3d += boxes3d[:, None, 0:3]
 
     return corners3d
