@@ -284,7 +284,6 @@ def convert_point_cloud_to_range_image(data_dict):
                                                                                          point_features)
     # clipping and rescaling
     mean, std = range_images.mean(axis=(0, 1)), range_images.std(axis=(0, 1))
-    pudb.set_trace()
     range_images = (range_images - mean) / std
     range_images = np.clip(range_images, -1.0, 1.0)
     range_images = (range_images + 1.0) / 2.0
