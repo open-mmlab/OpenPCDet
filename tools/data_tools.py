@@ -3,7 +3,8 @@ import os
 import numpy as np
 
 def calculate_anchors(data_dir):
-    class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
+    class_names = ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
+    # class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
     # class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
     res = {}
     
