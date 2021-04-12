@@ -288,7 +288,7 @@ class CenterNetFocalLossV2(nn.Module):
 
         return loss
 
-    def forward(self, input, target, mask, ind, cat, alpha=2, beta=4):
+    def forward(self, input, target, mask=None, ind=None, cat=None, alpha=2, beta=4):
         return self._neg_loss(input, target, mask, ind, cat, alpha=alpha, beta=beta)
 
 

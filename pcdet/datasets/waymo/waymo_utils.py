@@ -287,6 +287,8 @@ def convert_point_cloud_to_range_image(data_dict):
     range_images = (range_images - mean) / std
     range_images = np.clip(range_images, -1.0, 1.0)
     range_images = (range_images + 1.0) / 2.0
+    # (H, W, C) -> (C, H, W)
+    range_images = np.transpose(range_images, (2, 0, 1))
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
