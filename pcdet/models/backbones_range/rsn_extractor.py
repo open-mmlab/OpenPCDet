@@ -81,6 +81,7 @@ class Up(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
+
 class UpCat(nn.Module):
     def __init__(self):
         super(UpCat, self).__init__()
@@ -114,9 +115,11 @@ class UNet(nn.Module):
         conv3 = self.Down3(conv2)
         conv4 = self.Down4(conv3)
         up3 = self.Up3(conv4)
-        up2 = self.Up2(self.upcat(conv3,up3))
-        up1 = self.Up1(self.upcat(conv2,up2))
-        output = self.upcat(conv1,up1)
+        up2 = self.Up2(self.upcat(conv3, up3))
+        up1 = self.Up1(self.upcat(conv2, up2))
+        output = self.upcat(conv1, up1)
+        output = F.interpolate(output, size=[x.size(2), x.size(3)], mode='bilinear',
+                                 align_corners=True)
         batch_dict['range_features'] = output
         return batch_dict
 
