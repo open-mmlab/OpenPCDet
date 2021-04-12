@@ -20,7 +20,7 @@ DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
-          USE_ROAD_PLANE: True
+          USE_ROAD_PLANE: False
           DB_INFO_PATH:
               - kitti_dbinfos_train.pkl
           PREPARE: {
@@ -34,6 +34,12 @@ DATA_AUGMENTOR:
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
           LIMIT_WHOLE_SCENE: True
 
+        - NAME: random_local_rotation
+          LOCAL_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
+
+        - NAME: random_local_scaling
+          LOCAL_SCALE_RANGE: [ 0.95, 1.05 ]
+
         - NAME: random_world_flip
           ALONG_AXIS_LIST: ['x']
 
@@ -42,6 +48,14 @@ DATA_AUGMENTOR:
 
         - NAME: random_world_scaling
           WORLD_SCALE_RANGE: [0.95, 1.05]
+
+        - NAME: random_world_translation
+          WORLD_TRANSLATION_RANGE: [ 0, 20 ]
+          ALONG_AXIS_LIST: ['x']
+
+        - NAME: random_local_translation
+          LOCAL_TRANSLATION_RANGE: [ 0, 20 ]
+          ALONG_AXIS_LIST: ['x']
 
 
 POINT_FEATURE_ENCODING: {

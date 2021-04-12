@@ -132,7 +132,7 @@ def random_translation_along_z(gt_boxes, points, offset_range):
     return gt_boxes, points
 
 
-def local_translation_along_x(gt_boxes, points, offset_range):
+def random_local_translation_along_x(gt_boxes, points, offset_range):
     """
     Args:
         gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
@@ -157,7 +157,7 @@ def local_translation_along_x(gt_boxes, points, offset_range):
     return gt_boxes, points
 
 
-def local_translation_along_y(gt_boxes, points, offset_range):
+def random_local_translation_along_y(gt_boxes, points, offset_range):
     """
     Args:
         gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
@@ -182,7 +182,7 @@ def local_translation_along_y(gt_boxes, points, offset_range):
     return gt_boxes, points
 
 
-def local_translation_along_z(gt_boxes, points, offset_range):
+def random_local_translation_along_z(gt_boxes, points, offset_range):
     """
     Args:
         gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
