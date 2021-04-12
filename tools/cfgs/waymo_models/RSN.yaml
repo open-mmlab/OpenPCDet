@@ -19,8 +19,8 @@ MODEL:
     BACKBONE_RANGE:
         NAME: UNet
 
-#    SEG_HEAD:
-#        NAME:
+    SEG_HEAD:
+        NAME: FCNHead
 
     MAP_TO_POINT_CLOUD:
         NAME: PointGather
