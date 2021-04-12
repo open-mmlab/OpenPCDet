@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from ...ops.iou3d_nms import iou3d_nms_utils
-from .. import backbones_2d, backbones_3d, dense_heads, roi_heads, backbones_range
+from .. import backbones_2d, backbones_3d, dense_heads, roi_heads, backbones_range, seg_heads
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
 from ..seg_heads import map_to_point_cloud
@@ -22,7 +22,7 @@ class Detector3DTemplate(nn.Module):
 
         self.module_topology = [
             'backbone_range', 'seg_head', 'map_to_point_cloud', 'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
-            'backbone_2d', 'dense_head',  'point_head', 'roi_head'
+            'backbone_2d', 'dense_head', 'point_head', 'roi_head'
         ]
 
     @property
@@ -66,6 +66,12 @@ class Detector3DTemplate(nn.Module):
     def build_seg_head(self, model_info_dict):
         if self.model_cfg.get('SEG_HEAD', None) is None:
             return None, model_info_dict
+
+        seg_head_module = seg_heads.__all__[self.model_cfg.SEG_HEAD](
+            model_cfg=self.model_cfg.BACKBONE_RANGE,
+            in_channels=model_info_dict['num_point_features'],
+        )
+        return seg_head_module, model_info_dict
 
     def build_map_to_point_cloud(self, model_info_dict):
         if self.model_cfg.get('MAP_TO_POINT_CLOUD', None) is None:

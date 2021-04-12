@@ -7,30 +7,28 @@ class PointGather(nn.Module):
         super().__init__()
 
         self.model_cfg = model_cfg
-        self.num_bev_features = self.model_cfg.NUM_BEV_FEATURES
-
+        self.foreground_threshold = model_cfg.FOREGROUND_THRESHOLD
 
     def forward(self, batch_dict, **kwargs):
-        pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords']
-        batch_spatial_features = []
-        batch_size = coords[:, 0].max().int().item() + 1
+        # TODO: point features
+        range_features = batch_dict['range_features']
+        seg_mask = batch_dict['seg_pred']
+        batch_size, height, width = batch_dict['seg_pred'].shape
+        points = batch_dict['points']
+        ri_indices = batch_dict['ri_indices']
+        foreground_points = []
         for batch_idx in range(batch_size):
-            spatial_feature = torch.zeros(
-                self.num_bev_features,
-                self.nz * self.nx * self.ny,
-                dtype=pillar_features.dtype,
-                device=pillar_features.device)
+            cur_seg_mask = seg_mask[batch_idx] >= self.foreground_threshold
+            cur_seg_mask = torch.flatten(cur_seg_mask)
+            batch_mask = points[:, 0] == batch_idx
+            this_points = points[batch_mask, :]
+            this_ri_indices = ri_indices[batch_mask, :]
+            this_ri_indexes = this_ri_indices[:, 0] * width + this_ri_indices[:, 1]
+            this_points_mask = torch.gather(cur_seg_mask,dim=0,index=this_ri_indexes).bool()
+            this_points = this_points[this_points_mask]
+            foreground_points.append(this_points)
 
-            batch_mask = coords[:, 0] == batch_idx
-            this_coords = coords[batch_mask, :]
-            indices = this_coords[:, 1] + this_coords[:, 2] * self.nx + this_coords[:, 3]
-            indices = indices.type(torch.long)
-            pillars = pillar_features[batch_mask, :]
-            pillars = pillars.t()
-            spatial_feature[:, indices] = pillars
-            batch_spatial_features.append(spatial_feature)
 
-        batch_spatial_features = torch.stack(batch_spatial_features, 0)
-        batch_spatial_features = batch_spatial_features.view(batch_size, self.num_bev_features * self.nz, self.ny, self.nx)
-        batch_dict['spatial_features'] = batch_spatial_features
+        foreground_points = torch.cat(foreground_points,dim=0)
+        batch_dict['points'] = foreground_points
         return batch_dict

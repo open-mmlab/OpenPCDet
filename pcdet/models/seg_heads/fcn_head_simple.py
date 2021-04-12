@@ -4,8 +4,9 @@ from ...utils import loss_utils
 
 
 class FCNHead(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, model_cfg, in_channels, **kwargs):
         super(FCNHead, self).__init__()
+        self.model_cfg = model_cfg
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=1, kernel_size=1)
         self.build_loss()
         self.forward_ret_dict = {}

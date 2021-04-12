@@ -24,6 +24,7 @@ MODEL:
 
     MAP_TO_POINT_CLOUD:
         NAME: PointGather
+        FOREGROUND_THRESHOLD: 0.1
 
 #    VFE:
 #        NAME: MeanVFE
