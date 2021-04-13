@@ -77,7 +77,7 @@ class Detector3DTemplate(nn.Module):
         if self.model_cfg.get('MAP_TO_POINT_CLOUD', None) is None:
             return None, model_info_dict
 
-        map_to_point_cloud_module = map_to_point_cloud.__all__[self.model_cfg.MAP_TO_BEV.NAME](
+        map_to_point_cloud_module = map_to_point_cloud.__all__[self.model_cfg.MAP_TO_POINT_CLOUD.NAME](
             model_cfg=self.model_cfg.MAP_TO_POINT_CLOUD
         )
         return map_to_point_cloud_module, model_info_dict
