@@ -47,6 +47,8 @@ class PointGather(nn.Module):
 
     def transform_points_to_voxels(self, data_dict=None, config=None):
         pudb.set_trace()
+        device = data_dict['points'].device
+        self.point_cloud_range = torch.tensor(self.point_cloud_range,device=device)
         try:
             from spconv.utils import VoxelGeneratorV2 as VoxelGenerator
         except:
@@ -58,7 +60,7 @@ class PointGather(nn.Module):
             max_num_points=config.MAX_POINTS_PER_VOXEL,
             max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
         )
-        grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / torch.tensor(config.VOXEL_SIZE)
+        grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / torch.tensor(config.VOXEL_SIZE,device=device)
         self.grid_size = torch.round(grid_size).int()
         self.voxel_size = config.VOXEL_SIZE
 
