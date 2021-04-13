@@ -57,6 +57,14 @@ DATA_AUGMENTOR:
           LOCAL_TRANSLATION_RANGE: [ 0, 20 ]
           ALONG_AXIS_LIST: ['x']
 
+        - NAME: random_world_frustum_dropout
+          INTENSITY_RANGE: [ 0, 0.2 ]
+          DIRECTION: ['top']
+
+        - NAME: random_local_frustum_dropout
+          INTENSITY_RANGE: [ 0, 0.2 ]
+          DIRECTION: ['top']
+
 
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,

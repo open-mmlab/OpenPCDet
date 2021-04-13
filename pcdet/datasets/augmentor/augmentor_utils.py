@@ -143,8 +143,8 @@ def random_local_translation_along_x(gt_boxes, points, offset_range):
     offset = np.random.uniform(offset_range[0], offset_range[1])
 
     for box in gt_boxes:
-        filter_arr = filter_points_in_box(points, box)
-        points_in_box = points[filter_arr]
+        points_in_box = get_points_in_box(points, box)
+
         for point in points:
             if np.isin(point, points_in_box).all():
                 point[0] += offset
@@ -168,8 +168,8 @@ def random_local_translation_along_y(gt_boxes, points, offset_range):
     offset = np.random.uniform(offset_range[0], offset_range[1])
 
     for box in gt_boxes:
-        filter_arr = filter_points_in_box(points, box)
-        points_in_box = points[filter_arr]
+        points_in_box = get_points_in_box(points, box)
+
         for point in points:
             if np.isin(point, points_in_box).all():
                 point[1] += offset
@@ -193,8 +193,8 @@ def random_local_translation_along_z(gt_boxes, points, offset_range):
     offset = np.random.uniform(offset_range[0], offset_range[1])
 
     for box in gt_boxes:
-        filter_arr = filter_points_in_box(points, box)
-        points_in_box = points[filter_arr]
+        points_in_box = get_points_in_box(points, box)
+
         for point in points:
             if np.isin(point, points_in_box).all():
                 point[2] += offset
@@ -203,6 +203,69 @@ def random_local_translation_along_z(gt_boxes, points, offset_range):
 
     return gt_boxes, points
 
+def global_frustum_dropout_top(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+
+    threshold = np.max(points[:, 2]) - intensity * (np.max(points[:, 2]) - np.min(points[:, 2]))
+    points = points[points[:,2] < threshold]
+    gt_boxes = gt_boxes[gt_boxes[:,2] < threshold]
+
+    return gt_boxes, points
+
+def global_frustum_dropout_bottom(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+
+    threshold = np.min(points[:, 2]) + intensity * (np.max(points[:, 2]) - np.min(points[:, 2]))
+    points = points[points[:,2] > threshold]
+    gt_boxes = gt_boxes[gt_boxes[:,2] > threshold]
+
+    return gt_boxes, points
+
+def global_frustum_dropout_left(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+
+    threshold = np.max(points[:, 1]) - intensity * (np.max(points[:, 1]) - np.min(points[:, 1]))
+    points = points[points[:,1] < threshold]
+    gt_boxes = gt_boxes[gt_boxes[:,1] < threshold]
+
+    return gt_boxes, points
+
+def global_frustum_dropout_right(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+
+    threshold = np.min(points[:, 1]) + intensity * (np.max(points[:, 1]) - np.min(points[:, 1]))
+    points = points[points[:,1] > threshold]
+    gt_boxes = gt_boxes[gt_boxes[:,1] > threshold]
+
+    return gt_boxes, points
 
 def local_scaling(gt_boxes, points, scale_range):
     """
@@ -217,8 +280,7 @@ def local_scaling(gt_boxes, points, scale_range):
 
     noise_scale = np.random.uniform(scale_range[0], scale_range[1])
     for box in gt_boxes:
-        filter_arr = filter_points_in_box(points, box)
-        points_in_box = points[filter_arr]
+        points_in_box = get_points_in_box(points, box)
 
         for point in points:
             if np.isin(point, points_in_box).all():
@@ -250,8 +312,8 @@ def local_rotation(gt_boxes, points, rot_range):
     noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
 
     for box in gt_boxes:
-        filter_arr = filter_points_in_box(points, box)
-        points_in_box = points[filter_arr]
+        points_in_box = get_points_in_box(points, box)
+
         for point in points:
             if np.isin(point, points_in_box).all():
                 centroid_x = box[0]
@@ -289,17 +351,106 @@ def local_rotation(gt_boxes, points, rot_range):
 
     return gt_boxes, points
 
+def local_frustum_dropout_top(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    for idx, box in enumerate(gt_boxes):
+        x, y, z, dx, dy, dz = box[0], box[1], box[2], box[3], box[4], box[5]
 
-def filter_points_in_box(points, gt_box):
-    filter_arr = []
-    for point in points:
-        x, y, z, dx, dy, dz = gt_box[0], gt_box[1], gt_box[2], gt_box[3], gt_box[4], gt_box[5]
-        if point[0] <= x + dx/2 and point[0] >= x - dx/2 \
-            and point[1] <= y + dy/2 and point[1] >= y - dy/2 \
-                and point[2] <= z + dz/2 and point[2] >= z - dz/2:
-                    filter_arr.append(True)
-        else:
-            filter_arr.append(False)
+        intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+        points_in_box = get_points_in_box(points, box)
+        threshold = (z + dz/2) - intensity * dz
 
-    # points_in_box = points[filter_arr]
-    return filter_arr
+        points = points[np.logical_not( \
+        np.logical_and(points[:,1] <= y + dy/2, \
+        np.logical_and(points[:,1] >= y - dy/2, \
+            np.logical_and(points[:,0] <= x + dx/2, \
+                np.logical_and(points[:,0] >= x - dx/2, \
+                    np.logical_and(points[:,2] <= z + dz/2, points[:,2] >= threshold))))))]
+
+    return gt_boxes, points
+
+def local_frustum_dropout_bottom(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    for idx, box in enumerate(gt_boxes):
+        x, y, z, dx, dy, dz = box[0], box[1], box[2], box[3], box[4], box[5]
+
+        intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+        points_in_box = get_points_in_box(points, box)
+        threshold = (z - dz/2) + intensity * dz
+        points = points[np.logical_not( \
+            np.logical_and(points[:,1] <= y + dy/2, \
+            np.logical_and(points[:,1] >= y - dy/2, \
+                np.logical_and(points[:,0] <= x + dx/2, \
+                    np.logical_and(points[:,0] >= x - dx/2, \
+                        np.logical_and(points[:,2] <= threshold, points[:,2] >= z - dz/2))))))]
+
+    return gt_boxes, points
+
+def local_frustum_dropout_left(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    for idx, box in enumerate(gt_boxes):
+        x, y, z, dx, dy, dz = box[0], box[1], box[2], box[3], box[4], box[5]
+
+        intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+        points_in_box = get_points_in_box(points, box)
+        threshold = (y + dy/2) - intensity * dy
+
+        points = points[np.logical_not( \
+            np.logical_and(points[:,1] <= y + dy/2, \
+            np.logical_and(points[:,1] >= threshold, \
+                np.logical_and(points[:,0] <= x + dx/2, \
+                    np.logical_and(points[:,0] >= x - dx/2, \
+                        np.logical_and(points[:,2] <= z + dz/2, points[:,2] >= z - dz/2))))))]
+
+    return gt_boxes, points
+
+def local_frustum_dropout_right(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    for idx, box in enumerate(gt_boxes):
+        x, y, z, dx, dy, dz = box[0], box[1], box[2], box[3], box[4], box[5]
+
+        intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+        points_in_box = get_points_in_box(points, box)
+        threshold = (y - dy/2) + intensity * dy
+
+        points = points[np.logical_not( \
+            np.logical_and(points[:,1] <= threshold, \
+            np.logical_and(points[:,1] >= y - dy/2, \
+                np.logical_and(points[:,0] <= x + dx/2, \
+                    np.logical_and(points[:,0] >= x - dx/2, \
+                        np.logical_and(points[:,2] <= z + dz/2, points[:,2] >= z - dz/2))))))]
+
+    return gt_boxes, points
+
+def get_points_in_box(points, gt_box):
+    x, y, z, dx, dy, dz = gt_box[0], gt_box[1], gt_box[2], gt_box[3], gt_box[4], gt_box[5]
+
+    points = points[np.logical_and(points[:,0] <= x + dx/2, points[:,0] >= x - dx/2)] 
+    points = points[np.logical_and(points[:,1] <= y + dy/2, points[:,1] >= y - dy/2)] 
+    points = points[np.logical_and(points[:,2] <= z + dz/2, points[:,2] >= z - dz/2)]
+
+    return points

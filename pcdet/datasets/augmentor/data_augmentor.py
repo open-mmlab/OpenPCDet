@@ -132,6 +132,38 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
+    def random_world_frustum_dropout(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_world_frustum_dropout, config=config)
+
+        intensity_range = config['INTENSITY_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for direction in config['DIRECTION']:
+            assert direction in ['top', 'bottom', 'left', 'right']
+            gt_boxes, points = getattr(augmentor_utils, 'global_frustum_dropout_%s' % direction)(
+                gt_boxes, points, intensity_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_frustum_dropout(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_local_frustum_dropout, config=config)
+
+        intensity_range = config['INTENSITY_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for direction in config['DIRECTION']:
+            assert direction in ['top', 'bottom', 'left', 'right']
+            gt_boxes, points = getattr(augmentor_utils, 'local_frustum_dropout_%s' % direction)(
+                gt_boxes, points, intensity_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
     def forward(self, data_dict):
         """
         Args:
