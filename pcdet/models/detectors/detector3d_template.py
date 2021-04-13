@@ -67,8 +67,8 @@ class Detector3DTemplate(nn.Module):
         if self.model_cfg.get('SEG_HEAD', None) is None:
             return None, model_info_dict
 
-        seg_head_module = seg_heads.__all__[self.model_cfg.SEG_HEAD](
-            model_cfg=self.model_cfg.BACKBONE_RANGE,
+        seg_head_module = seg_heads.__all__[self.model_cfg.SEG_HEAD.NAME](
+            model_cfg=self.model_cfg.SEG_HEAD,
             in_channels=model_info_dict['num_point_features'],
         )
         return seg_head_module, model_info_dict
