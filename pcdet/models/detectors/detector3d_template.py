@@ -71,6 +71,7 @@ class Detector3DTemplate(nn.Module):
             model_cfg=self.model_cfg.SEG_HEAD,
             in_channels=model_info_dict['num_point_features'],
         )
+        model_info_dict['module_list'].append(seg_head_module)
         return seg_head_module, model_info_dict
 
     def build_map_to_point_cloud(self, model_info_dict):
@@ -80,6 +81,7 @@ class Detector3DTemplate(nn.Module):
         map_to_point_cloud_module = map_to_point_cloud.__all__[self.model_cfg.MAP_TO_POINT_CLOUD.NAME](
             model_cfg=self.model_cfg.MAP_TO_POINT_CLOUD
         )
+        model_info_dict['module_list'].append(map_to_point_cloud_module)
         return map_to_point_cloud_module, model_info_dict
 
     def build_vfe(self, model_info_dict):
