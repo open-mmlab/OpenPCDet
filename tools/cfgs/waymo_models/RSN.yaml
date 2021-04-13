@@ -25,6 +25,12 @@ MODEL:
     MAP_TO_POINT_CLOUD:
         NAME: PointGather
         FOREGROUND_THRESHOLD: 0.1
+        VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
+        MAX_POINTS_PER_VOXEL: 5
+        MAX_NUMBER_OF_VOXELS: {
+            'train': 80000,
+            'test': 90000
+        }
 
 #    VFE:
 #        NAME: MeanVFE
