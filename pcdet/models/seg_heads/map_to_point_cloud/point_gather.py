@@ -11,10 +11,10 @@ class PointGather(nn.Module):
         self.model_cfg = model_cfg
         self.point_cloud_range = point_cloud_range
         self.foreground_threshold = model_cfg.FOREGROUND_THRESHOLD
+        self.mode = 'training' if self.training else 'test'
 
     def forward(self, batch_dict, **kwargs):
         # TODO: point features
-        pudb.set_trace()
         batch_dict = self.foreground_points_filter_and_feature_gather(batch_dict)
         batch_dict = self.transform_points_to_voxels(batch_dict, self.model_cfg)
         return batch_dict
@@ -45,7 +45,8 @@ class PointGather(nn.Module):
         batch_dict['points'] = foreground_points
         return batch_dict
 
-    def transform_points_to_voxels(self, data_dict=None, config=None, voxel_generator=None):
+    def transform_points_to_voxels(self, data_dict=None, config=None):
+        pudb.set_trace()
         try:
             from spconv.utils import VoxelGeneratorV2 as VoxelGenerator
         except:
