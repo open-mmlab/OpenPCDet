@@ -78,7 +78,7 @@ class Detector3DTemplate(nn.Module):
             return None, model_info_dict
 
         map_to_point_cloud_module = map_to_point_cloud.__all__[self.model_cfg.MAP_TO_BEV.NAME](
-            model_cfg=self.model_cfg.MAP_TO_BEV
+            model_cfg=self.model_cfg.MAP_TO_POINT_CLOUD
         )
         return map_to_point_cloud_module, model_info_dict
 
