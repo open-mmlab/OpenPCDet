@@ -11,7 +11,7 @@ class PointGather(nn.Module):
         self.model_cfg = model_cfg
         self.point_cloud_range = point_cloud_range
         self.foreground_threshold = model_cfg.FOREGROUND_THRESHOLD
-        self.mode = 'training' if self.training else 'test'
+        self.mode = 'train' if self.training else 'test'
 
     def forward(self, batch_dict, **kwargs):
         # TODO: point features
