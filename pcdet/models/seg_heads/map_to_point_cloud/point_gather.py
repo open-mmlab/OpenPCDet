@@ -27,7 +27,7 @@ class PointGather(nn.Module):
             this_points = points[batch_mask, :]
             this_ri_indices = ri_indices[batch_mask, :]
             this_ri_indexes = this_ri_indices[:, 0] * width + this_ri_indices[:, 1]
-            this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
+            this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).long()
             this_points = this_points[this_points_mask]
             this_points_features = torch.gather(this_range_features, dim=0, index=this_ri_indexes)
             this_points_features = this_points_features[this_points_mask]
