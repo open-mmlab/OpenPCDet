@@ -360,7 +360,7 @@ def test(data_dict):
     range_images_tf = np.squeeze(range_images_tf.numpy(), axis=0)
     ri_indices_tf = np.squeeze(ri_indices_tf.numpy(), axis=0)
     ri_ranges_tf = np.squeeze(ri_ranges_tf.numpy(), axis=0)
-
+    pudb.set_trace()
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
