@@ -363,7 +363,7 @@ class WaymoDataset(DatasetTemplate):
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
-                       workers=multiprocessing.cpu_count()):
+                       workers=multiprocessing.cpu_count(),data_split='all'):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
         training=False, logger=common_utils.create_logger()
@@ -374,26 +374,27 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     val_filename = save_path / ('waymo_infos_%s.pkl' % val_split)
 
     print('---------------Start to generate data infos---------------')
+    if data_split =='all' or data_split == 'train':
+        dataset.set_split(train_split)
+        waymo_infos_train = dataset.get_infos(
+            raw_data_path=data_path / raw_data_tag,
+            save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
+            sampled_interval=1
+        )
+        with open(train_filename, 'wb') as f:
+            pickle.dump(waymo_infos_train, f)
+        print('----------------Waymo info train file is saved to %s----------------' % train_filename)
 
-    dataset.set_split(train_split)
-    waymo_infos_train = dataset.get_infos(
-        raw_data_path=data_path / raw_data_tag,
-        save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
-        sampled_interval=1
-    )
-    with open(train_filename, 'wb') as f:
-        pickle.dump(waymo_infos_train, f)
-    print('----------------Waymo info train file is saved to %s----------------' % train_filename)
-
-    dataset.set_split(val_split)
-    waymo_infos_val = dataset.get_infos(
-        raw_data_path=data_path / raw_data_tag,
-        save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
-        sampled_interval=1
-    )
-    with open(val_filename, 'wb') as f:
-        pickle.dump(waymo_infos_val, f)
-    print('----------------Waymo info val file is saved to %s----------------' % val_filename)
+    if data_split == 'all' or data_split == 'val':
+        dataset.set_split(val_split)
+        waymo_infos_val = dataset.get_infos(
+            raw_data_path=data_path / raw_data_tag,
+            save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
+            sampled_interval=1
+        )
+        with open(val_filename, 'wb') as f:
+            pickle.dump(waymo_infos_val, f)
+        print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     # print('---------------Start create groundtruth database for data augmentation---------------')
     # dataset.set_split(train_split)
@@ -410,8 +411,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    parser.add_argument('--split', type=str, default='all', help='')
     args = parser.parse_args()
-
     if args.func == 'create_waymo_infos':
         import yaml
         from easydict import EasyDict
@@ -424,6 +425,7 @@ if __name__ == '__main__':
             data_path=ROOT_DIR / 'data' / 'waymo',
             save_path=ROOT_DIR / 'data' / 'waymo',
             raw_data_tag='raw_data',
-            processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG
+            processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG,
+            data_split=args.split
         )
 
