@@ -420,7 +420,7 @@ if __name__ == '__main__':
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         data_path = ROOT_DIR / 'data' / 'waymo'
         if args.runs_on == 'cloud':
-            data_path = dataset_cfg.CLOUD_DATA_PATH
+            data_path = Path(dataset_cfg.CLOUD_DATA_PATH)
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
