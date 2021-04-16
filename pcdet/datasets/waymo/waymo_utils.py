@@ -461,7 +461,7 @@ def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
     import mayavi.mlab as mlab
     corners3d = boxes_to_corners_3d(gt_boxes)
     fig = plot_pointcloud(pointcloud)
-    fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1), max_num=100)
+    fig = draw_corners3d(corners3d, fig=fig, color=(0, 0, 1))
     mlab.show()
 
 
@@ -523,7 +523,7 @@ def rotate_points_along_z(points, angle):
     return points_rot
 
 
-def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag='', max_num=500, tube_radius=None):
+def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag='', tube_radius=None):
     """
     :param corners3d: (N, 8, 3)
     :param fig:
@@ -535,7 +535,7 @@ def draw_corners3d(corners3d, fig, color=(1, 1, 1), line_width=2, cls=None, tag=
     :return:
     """
     import mayavi.mlab as mlab
-    num = min(max_num, len(corners3d))
+    num = len(corners3d)
     for n in range(num):
         b = corners3d[n]  # (8, 3)
 
