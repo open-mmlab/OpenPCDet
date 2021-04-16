@@ -30,7 +30,6 @@ class WaymoDataset(DatasetTemplate):
         self.include_waymo_data(self.mode)
         self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
 
-
     def set_split(self, split):
         super().__init__(
             dataset_cfg=self.dataset_cfg, class_names=self.class_names, training=self.training,
@@ -179,7 +178,6 @@ class WaymoDataset(DatasetTemplate):
             xflip_dict = self.prepare_data(data_dict=xflip_dict)
             yflip_dict = self.prepare_data(data_dict=yflip_dict)
             dflip_dict = self.prepare_data(data_dict=dflip_dict)
-
 
         data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
@@ -363,7 +361,7 @@ class WaymoDataset(DatasetTemplate):
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
-                       workers=multiprocessing.cpu_count(),data_split='all'):
+                       workers=multiprocessing.cpu_count(), data_split='all'):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
         training=False, logger=common_utils.create_logger()
@@ -374,7 +372,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     val_filename = save_path / ('waymo_infos_%s.pkl' % val_split)
 
     print('---------------Start to generate data infos---------------')
-    if data_split =='all' or data_split == 'train':
+    if data_split == 'all' or data_split == 'train':
         dataset.set_split(train_split)
         waymo_infos_train = dataset.get_infos(
             raw_data_path=data_path / raw_data_tag,
@@ -412,6 +410,7 @@ if __name__ == '__main__':
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
     parser.add_argument('--split', type=str, default='all', help='')
+    parser.add_argument('runs_on', type=str, default='server')
     args = parser.parse_args()
     if args.func == 'create_waymo_infos':
         import yaml
@@ -419,13 +418,15 @@ if __name__ == '__main__':
 
         dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        data_path = ROOT_DIR / 'data' / 'waymo'
+        if args.runs_on == 'cloud':
+            data_path = dataset_cfg.CLOUD_DATA_PATH
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
-            data_path=ROOT_DIR / 'data' / 'waymo',
-            save_path=ROOT_DIR / 'data' / 'waymo',
+            data_path=data_path,
+            save_path=data_path,
             raw_data_tag='raw_data',
             processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG,
             data_split=args.split
         )
-
