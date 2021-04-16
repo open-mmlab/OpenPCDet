@@ -410,7 +410,7 @@ if __name__ == '__main__':
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
     parser.add_argument('--split', type=str, default='all', help='')
-    parser.add_argument('runs_on', type=str, default='server')
+    parser.add_argument('--runs_on', type=str, default='server')
     args = parser.parse_args()
     if args.func == 'create_waymo_infos':
         import yaml
