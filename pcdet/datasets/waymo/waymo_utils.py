@@ -360,7 +360,7 @@ def test(data_dict):
     range_images_tf = np.squeeze(range_images_tf.numpy(), axis=0)
     ri_indices_tf = np.squeeze(ri_indices_tf.numpy(), axis=0)
     ri_ranges_tf = np.squeeze(ri_ranges_tf.numpy(), axis=0)
-    pudb.set_trace()
+
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
     gt_boxes = data_dict['gt_boxes']
@@ -376,6 +376,7 @@ def test(data_dict):
     # flag_of_pts = point_indices.max(axis=0)
 
     gt_points_vehicle_frame = points_vehicle_frame[select, :]
+    pudb.set_trace()
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     # range_mask[range_mask > 0] = 1
