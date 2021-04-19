@@ -60,7 +60,7 @@ class PointGather(nn.Module):
             this_voxels_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_voxels_points_indexes).reshape(
                 (num_voxels, max_num_points)).long()
             this_voxels_points_features = this_range_features[this_voxels_points_indexes].reshape(
-                (num_voxels, max_num_points, -1)).long()
+                (num_voxels, max_num_points, -1)).float()
             this_voxels = torch.cat((this_voxels, this_voxels_points_features), dim=-1)
             this_voxels = this_voxels * this_voxels_points_mask.unsqueeze(dim=2)
             # (num_voxels,)
