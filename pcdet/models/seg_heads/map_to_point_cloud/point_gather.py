@@ -36,6 +36,7 @@ class PointGather(nn.Module):
             cur_seg_mask = seg_mask[batch_idx] >= self.foreground_threshold
             cur_seg_mask = torch.flatten(cur_seg_mask)
 
+            # points
             batch_points_mask = points[:, 0] == batch_idx
             this_points = points[batch_points_mask, :]
             this_ri_indices = ri_indices[batch_points_mask, :]
@@ -46,8 +47,8 @@ class PointGather(nn.Module):
             this_points_features = this_points_features[this_points_mask]
             this_points = torch.cat((this_points, this_points_features), dim=1)
             foreground_points.append(this_points)
-            import pudb
-            pudb.set_trace()
+
+            # voxels
             batch_voxels_mask = voxel_coords[:, 0] == batch_idx
             this_voxels = voxels[batch_voxels_mask]
             this_voxel_coords = voxel_coords[batch_voxels_mask]
