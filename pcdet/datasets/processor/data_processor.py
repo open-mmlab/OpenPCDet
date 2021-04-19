@@ -68,7 +68,7 @@ class DataProcessor(object):
 
         if not data_dict['use_lead_xyz']:
             voxels = voxels[..., 3:]  # remove xyz in voxels(N, 3)
-
+        import pudb; pudb.set_trace()
         data_dict['voxels'] = voxels
         data_dict['voxel_coords'] = coordinates
         data_dict['voxel_num_points'] = num_points
@@ -93,7 +93,7 @@ class DataProcessor(object):
                 near_idxs_choice = np.random.choice(near_idxs, num_points - len(far_idxs_choice), replace=False)
                 choice = np.concatenate((near_idxs_choice, far_idxs_choice), axis=0) \
                     if len(far_idxs_choice) > 0 else near_idxs_choice
-            else: 
+            else:
                 choice = np.arange(0, len(points), dtype=np.int32)
                 choice = np.random.choice(choice, num_points, replace=False)
             np.random.shuffle(choice)
