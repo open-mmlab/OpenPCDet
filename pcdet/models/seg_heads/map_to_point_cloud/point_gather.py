@@ -26,13 +26,16 @@ class PointGather(nn.Module):
         ri_indices = batch_dict['ri_indices']
         voxels = batch_dict['voxels']
         voxel_coords = batch_dict['voxel_coords']
-        voxel_num_points = batch_dict['voxel_num_points']
         foreground_points = []
+        foreground_voxels = []
+        foreground_voxel_coords = []
+        foreground_voxel_num_points = []
 
         for batch_idx in range(batch_size):
             this_range_features = range_features[batch_idx].reshape((height * width, -1))
             cur_seg_mask = seg_mask[batch_idx] >= self.foreground_threshold
             cur_seg_mask = torch.flatten(cur_seg_mask)
+
             batch_points_mask = points[:, 0] == batch_idx
             this_points = points[batch_points_mask, :]
             this_ri_indices = ri_indices[batch_points_mask, :]
@@ -48,15 +51,17 @@ class PointGather(nn.Module):
             batch_voxels_mask = voxel_coords[:, 0] == batch_idx
             this_voxels = voxels[batch_voxels_mask]
             this_voxel_coords = voxel_coords[batch_voxels_mask]
-            this_voxel_num_points = voxel_num_points[batch_voxels_mask]
             this_voxels_indices = this_voxels[..., -2:]
             this_voxels = this_voxels[..., :-2]
             num_voxels, max_num_points, num_points_features = this_voxels.shape
             # (num_voxels, max_num_points)
             this_voxels_points_indexes = (
-                        this_voxels_indices[..., 0] * width + this_voxels_indices[..., 1]).long().flatten()
+                    this_voxels_indices[..., 0] * width + this_voxels_indices[..., 1]).long().flatten()
             this_voxels_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_voxels_points_indexes).reshape(
                 (num_voxels, max_num_points)).long()
+            this_voxels_points_features = this_range_features[this_voxels_points_indexes].reshape(
+                (num_voxels, max_num_points, -1)).long()
+            this_voxels = torch.cat((this_voxels, this_voxels_points_features), dim=-1)
             this_voxels = this_voxels * this_voxels_points_mask.unsqueeze(dim=2)
             # (num_voxels,)
             this_voxel_num_points = this_voxels_points_mask.sum(dim=1)
@@ -64,10 +69,20 @@ class PointGather(nn.Module):
             this_voxels = this_voxels[this_voxels_mask]
             this_voxel_coords = this_voxel_coords[this_voxels_mask]
             this_voxel_num_points = this_voxel_num_points[this_voxels_mask]
-
+            foreground_voxels.append(this_voxels)
+            foreground_voxel_coords.append(this_voxel_coords)
+            foreground_voxel_num_points.append(this_voxel_num_points)
 
         foreground_points = torch.cat(foreground_points, dim=0)
         batch_dict['points'] = foreground_points
+
+        foreground_voxels = torch.cat(foreground_voxels, dim=0)
+        foreground_voxel_coords = torch.cat(foreground_voxel_coords, dim=0)
+        foreground_voxel_num_points = torch.cat(foreground_voxel_num_points, dim=0)
+        batch_dict['voxels'] = foreground_voxels
+        batch_dict['voxel_coords'] = foreground_voxel_coords
+        batch_dict['voxel_num_points'] = foreground_voxel_num_points
+
         return batch_dict
 
     # def foreground_voxels_filter_and_feature_gather(self, batch_dict):
