@@ -110,6 +110,8 @@ class WaymoDataset(DatasetTemplate):
 
         points_all, NLZ_flag = point_features[:, 0:5], point_features[:, 5]
         points_all = points_all[NLZ_flag == -1]
+        import pudb
+        pudb.set_trace()
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
