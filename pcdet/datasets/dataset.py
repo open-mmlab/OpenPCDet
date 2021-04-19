@@ -192,6 +192,8 @@ class DatasetTemplate(torch_data.Dataset):
             except:
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError
+        import pudb
+        pudb.set_trace()
 
         ret['batch_size'] = batch_size * 4 if use_double_flip_test else batch_size
         return ret
