@@ -49,8 +49,9 @@ class PointGather(nn.Module):
             this_voxels = voxels[batch_voxels_mask]
             this_voxel_coords = voxel_coords[batch_voxels_mask]
             this_voxel_num_points = voxel_num_points[batch_voxels_mask]
-            # (voxels, max_num_points)
-            this_voxels_indexes = (this_voxels[..., -2] * width + this_voxels[..., -1]).long()
+            # (num_voxels, max_num_points)
+            num_voxels, max_num_points, num_points_features = this_voxels.shape
+            this_voxels_indexes = (this_voxels[..., -2] * width + this_voxels[..., -1]).long().flatten()
             this_voxels_mask = torch.gather(cur_seg_mask, dim=0, index=this_voxels_indexes)
 
 
