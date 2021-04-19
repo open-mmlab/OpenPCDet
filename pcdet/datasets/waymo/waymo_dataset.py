@@ -200,6 +200,8 @@ class WaymoDataset(DatasetTemplate):
             data_dict['points'] = np.concatenate((data_dict['points'], data_dict['ri_indices']), axis=1)
             data_dict = self.prepare_data(data_dict=data_dict, augment=False)
             data_dict['points'] = data_dict['points'][:, :points_feature_num]
+            import pudb
+            pudb.set_trace()
             # data_dict = waymo_utils.test(data_dict)
             data_dict.pop('beam_inclination_range', None)
             data_dict.pop('extrinsic', None)
