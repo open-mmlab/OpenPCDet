@@ -33,89 +33,83 @@ MODEL:
     MAP_TO_POINT_CLOUD:
         NAME: PointGather
         FOREGROUND_THRESHOLD: 0.1
-        VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
-        MAX_POINTS_PER_VOXEL: 5
-        MAX_NUMBER_OF_VOXELS: {
-            'train': 80000,
-            'test': 90000
-        }
 
-#    VFE:
-#        NAME: MeanVFE
-#
-#    BACKBONE_3D:
-#        NAME: VoxelBackBone8x
-#
-#    MAP_TO_BEV:
-#        NAME: HeightCompression
-#        NUM_BEV_FEATURES: 256
-#
-#    BACKBONE_2D:
-#        NAME: BaseBEVBackbone
-#
-#        LAYER_NUMS: [5, 5]
-#        LAYER_STRIDES: [1, 2]
-#        NUM_FILTERS: [128, 256]
-#        UPSAMPLE_STRIDES: [1, 2]
-#        NUM_UPSAMPLE_FILTERS: [256, 256]
-#
-#    DENSE_HEAD:
-#        NAME: AnchorHeadSingle
-#        CLASS_AGNOSTIC: False
-#
-#        USE_DIRECTION_CLASSIFIER: True
-#        DIR_OFFSET: 0.78539
-#        DIR_LIMIT_OFFSET: 0.0
-#        NUM_DIR_BINS: 2
-#
-#        ANCHOR_GENERATOR_CONFIG: [
-#            {
-#                'class_name': 'Vehicle',
-#                'anchor_sizes': [[4.7, 2.1, 1.7]],
-#                'anchor_rotations': [0, 1.57],
-#                'anchor_bottom_heights': [0],
-#                'align_center': False,
-#                'feature_map_stride': 8,
-#                'matched_threshold': 0.55,
-#                'unmatched_threshold': 0.4
-#            },
-#            {
-#                'class_name': 'Pedestrian',
-#                'anchor_sizes': [[0.91, 0.86, 1.73]],
-#                'anchor_rotations': [0, 1.57],
-#                'anchor_bottom_heights': [0],
-#                'align_center': False,
-#                'feature_map_stride': 8,
-#                'matched_threshold': 0.5,
-#                'unmatched_threshold': 0.35
-#            },
-#            {
-#                'class_name': 'Cyclist',
-#                'anchor_sizes': [[1.78, 0.84, 1.78]],
-#                'anchor_rotations': [0, 1.57],
-#                'anchor_bottom_heights': [0],
-#                'align_center': False,
-#                'feature_map_stride': 8,
-#                'matched_threshold': 0.5,
-#                'unmatched_threshold': 0.35
-#            }
-#        ]
-#
-#        TARGET_ASSIGNER_CONFIG:
-#            NAME: AxisAlignedTargetAssigner
-#            POS_FRACTION: -1.0
-#            SAMPLE_SIZE: 512
-#            NORM_BY_NUM_EXAMPLES: False
-#            MATCH_HEIGHT: False
-#            BOX_CODER: ResidualCoder
-#
-#        LOSS_CONFIG:
-#            LOSS_WEIGHTS: {
-#                'cls_weight': 1.0,
-#                'loc_weight': 2.0,
-#                'dir_weight': 0.2,
-#                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-#            }
+    VFE:
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: AnchorHeadSingle
+        CLASS_AGNOSTIC: False
+
+        USE_DIRECTION_CLASSIFIER: True
+        DIR_OFFSET: 0.78539
+        DIR_LIMIT_OFFSET: 0.0
+        NUM_DIR_BINS: 2
+
+        ANCHOR_GENERATOR_CONFIG: [
+            {
+                'class_name': 'Vehicle',
+                'anchor_sizes': [[4.7, 2.1, 1.7]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [0],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.55,
+                'unmatched_threshold': 0.4
+            },
+            {
+                'class_name': 'Pedestrian',
+                'anchor_sizes': [[0.91, 0.86, 1.73]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [0],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': 'Cyclist',
+                'anchor_sizes': [[1.78, 0.84, 1.78]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [0],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            }
+        ]
+
+        TARGET_ASSIGNER_CONFIG:
+            NAME: AxisAlignedTargetAssigner
+            POS_FRACTION: -1.0
+            SAMPLE_SIZE: 512
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False
+            BOX_CODER: ResidualCoder
+
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 2.0,
+                'dir_weight': 0.2,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]

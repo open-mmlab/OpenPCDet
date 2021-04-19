@@ -25,13 +25,14 @@ class RSN(Detector3DTemplate):
     def get_training_loss(self):
         disp_dict = {}
 
+        loss_seg = self.seg_head.get_loss()
         loss_rpn, tb_dict = self.dense_head.get_loss()
         tb_dict = {
             'loss_rpn': loss_rpn.item(),
             **tb_dict
         }
 
-        loss = loss_rpn
+        loss = loss_seg + loss_rpn
         return loss, tb_dict, disp_dict
 
     def post_processing(self, batch_dict):
