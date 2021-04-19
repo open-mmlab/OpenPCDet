@@ -83,7 +83,7 @@ class Detector3DTemplate(nn.Module):
             point_cloud_range=model_info_dict['point_cloud_range']
         )
         model_info_dict['module_list'].append(map_to_point_cloud_module)
-        model_info_dict['num_rawpoint_features'] = map_to_point_cloud_module.num_point_features
+        model_info_dict['num_rawpoint_features'] = model_info_dict['num_rawpoint_features'] + model_info_dict['num_point_features']
         return map_to_point_cloud_module, model_info_dict
 
     def build_vfe(self, model_info_dict):

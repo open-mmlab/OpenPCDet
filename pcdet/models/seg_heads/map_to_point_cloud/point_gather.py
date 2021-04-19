@@ -15,7 +15,6 @@ class PointGather(nn.Module):
 
     def forward(self, batch_dict, **kwargs):
         batch_dict = self.foreground_points_voxels_filter_and_feature_gather(batch_dict)
-        self.num_point_features = self.get_num_point_features(batch_dict)
         return batch_dict
 
     def foreground_points_voxels_filter_and_feature_gather(self, batch_dict):
