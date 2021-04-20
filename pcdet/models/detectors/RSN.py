@@ -1,5 +1,4 @@
 from .detector3d_template import Detector3DTemplate
-import pudb
 
 
 class RSN(Detector3DTemplate):

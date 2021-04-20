@@ -17,7 +17,6 @@ from . import waymo_np
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 import torch
 import numba
-import pudb
 
 try:
     tf.enable_eager_execution()
@@ -376,6 +375,7 @@ def test(data_dict):
     # flag_of_pts = point_indices.max(axis=0)
 
     gt_points_vehicle_frame = points_vehicle_frame[select, :]
+    import pudb
     pudb.set_trace()
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
@@ -386,7 +386,6 @@ def test(data_dict):
     range_mask_tf = np.squeeze(range_mask_tf.numpy(), axis=0)
     ri_mask_indices_tf = np.squeeze(ri_mask_indices_tf.numpy(), axis=0)
     ri_mask_ranges_tf = np.squeeze(ri_mask_ranges_tf.numpy(), axis=0)
-    pudb.set_trace()
     data_dict['range_mask'] = range_mask
 
     return data_dict
