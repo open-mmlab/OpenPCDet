@@ -17,8 +17,6 @@ class PointGather(nn.Module):
         return batch_dict
 
     def foreground_points_voxels_filter_and_feature_gather(self, batch_dict):
-        import pudb
-        pudb.set_trace()
         range_features = batch_dict['range_features'].permute((0, 2, 3, 1))
         seg_mask = batch_dict['seg_pred']
         batch_size, height, width = batch_dict['seg_pred'].shape
