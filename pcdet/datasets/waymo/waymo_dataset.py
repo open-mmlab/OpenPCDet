@@ -70,7 +70,7 @@ class WaymoDataset(DatasetTemplate):
     @staticmethod
     def check_sequence_name_with_all_version(sequence_file):
         if '_with_camera_labels' not in str(sequence_file) and not sequence_file.exists():
-            sequence_file = Path(str(sequence_file[:-9]) + '_with_camera_labels.tfrecord')
+            sequence_file = Path(str(sequence_file)[:-9] + '_with_camera_labels.tfrecord')
         if '_with_camera_labels' in str(sequence_file) and not sequence_file.exists():
             sequence_file = Path(str(sequence_file).replace('_with_camera_labels', ''))
 
