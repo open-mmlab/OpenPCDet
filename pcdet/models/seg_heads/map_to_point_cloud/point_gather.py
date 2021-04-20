@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-
 class PointGather(nn.Module):
     def __init__(self, model_cfg, point_cloud_range, **kwargs):
         super().__init__()
@@ -59,8 +58,10 @@ class PointGather(nn.Module):
             # (num_voxels, max_num_points)
             this_voxels_points_indexes = (
                     this_voxels_indices[..., 0] * width + this_voxels_indices[..., 1]).long().flatten()
-            this_voxels_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_voxels_points_indexes).reshape(
-                (num_voxels, max_num_points)).long()
+            # index 0 means empty, but get some value
+            this_voxels_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_voxels_points_indexes) * (
+                    this_voxels_points_indexes > 0).float()
+            this_voxels_points_mask = this_voxels_points_mask.reshape((num_voxels, max_num_points)).long()
             this_voxels_points_features = this_range_features[this_voxels_points_indexes].reshape(
                 (num_voxels, max_num_points, -1)).float()
             this_voxels = torch.cat((this_voxels, this_voxels_points_features), dim=-1)
@@ -87,6 +88,5 @@ class PointGather(nn.Module):
 
         return batch_dict
 
-    def get_num_point_features(self,batch_dict):
+    def get_num_point_features(self, batch_dict):
         return batch_dict['points'].shape[-1] - 1
-
