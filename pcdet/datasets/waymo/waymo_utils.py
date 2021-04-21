@@ -248,7 +248,7 @@ def read_one_frame(sequence_file):
     return frame
 
 
-def convert_point_cloud_to_range_image(data_dict):
+def convert_point_cloud_to_range_image(data_dict, training=True):
     """
 
     Args:
@@ -290,27 +290,25 @@ def convert_point_cloud_to_range_image(data_dict):
     range_images = np.transpose(range_images, (2, 0, 1))
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
-    gt_boxes = data_dict['gt_boxes']
-    # CPU method, 0 or 1
-    point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
-        torch.from_numpy(points_vehicle_frame).float(),
-        torch.from_numpy(gt_boxes[:, 0:7]).float()
-    ).long().numpy()
-    try:
+
+    if training:
+        gt_boxes = data_dict['gt_boxes']
+        # CPU method, 0 or 1
+        point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
+            torch.from_numpy(points_vehicle_frame).float(),
+            torch.from_numpy(gt_boxes[:, 0:7]).float()
+        ).long().numpy()
         flag_of_pts = point_indices.max(axis=0)
-    except ValueError:
-        import pudb
-        pudb.set_trace()
-    select = flag_of_pts > 0
+        select = flag_of_pts > 0
 
-    # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
-    # flag_of_pts = point_indices.max(axis=0)
+        # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
+        # flag_of_pts = point_indices.max(axis=0)
 
-    gt_points_vehicle_frame = points_vehicle_frame[select, :]
-    range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
-        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
-    range_mask[range_mask > 0] = 1
-    data_dict['range_mask'] = range_mask
+        gt_points_vehicle_frame = points_vehicle_frame[select, :]
+        range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
+            gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+        range_mask[range_mask > 0] = 1
+        data_dict['range_mask'] = range_mask
 
     return data_dict
 
