@@ -26,7 +26,7 @@ class FCNHead(nn.Module):
     def build_loss(self):
         # criterion
         self.add_module(
-            'crit', loss_utils.CenterNetFocalLossV2()
+            'crit', loss_utils.SegFocalLoss()
         )
 
     def get_loss(self):

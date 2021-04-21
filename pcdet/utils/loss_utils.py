@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pdb
 
-
 from . import box_utils
 
 
@@ -246,9 +245,52 @@ class CenterNetFocalLoss(nn.Module):
             return - neg_loss
         return - (pos_loss + neg_loss) / num_pos
 
-
     def forward(self, input, target, mask, ind, cat, alpha=2, beta=4):
         return self._neg_loss(input, target, mask, ind, cat, alpha=alpha, beta=beta)
+
+
+class SegFocalLoss(nn.Module):
+
+    def __init__(self):
+        super(SegFocalLoss, self).__init__()
+
+    def _neg_loss(self, pred, gt, alpha=2, beta=4):
+        """
+
+        Args:
+            pred:
+            gt:tensor
+
+        Returns:
+
+        """
+
+        width, height = gt.shape
+        pos_inds = gt.eq(1).float()
+        neg_inds = gt.lt(1).float()
+
+        neg_weights = torch.pow(1 - gt, beta)
+
+        pos_loss = torch.log(pred) * torch.pow(1 - pred, alpha) * pos_inds
+        neg_loss = torch.log(1 - pred) * torch.pow(pred, alpha) * neg_weights * neg_inds
+
+        num_pos = pos_inds.sum()
+
+        pos_loss = pos_loss.sum()
+        neg_loss = neg_loss.sum()
+
+        loss = -(pos_loss + neg_loss) / (width * height)
+
+        # if num_pos == 0:
+        #     loss = -neg_loss
+        # else:
+        #     loss = -(pos_loss + neg_loss)/num_pos
+
+        return loss
+
+    def forward(self, input, target, alpha=2, beta=4):
+        return self._neg_loss(input, target, alpha=alpha, beta=beta)
+
 
 class CenterNetFocalLossV2(nn.Module):
 
@@ -332,6 +374,7 @@ class CenterNetRegLoss(nn.Module):
         loss = self._reg_loss(pred, target, mask)
         return loss
 
+
 def _transpose_and_gather_feat(feat, ind):
     """Given feats and indexes, returns the transposed and gathered feats.
 
@@ -347,6 +390,7 @@ def _transpose_and_gather_feat(feat, ind):
     feat = feat.view(feat.size(0), -1, feat.size(3))
     feat = _gather_feat(feat, ind)
     return feat
+
 
 def _gather_feat(feat, ind, mask=None):
     """Gather feature map.
