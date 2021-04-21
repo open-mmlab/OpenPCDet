@@ -30,8 +30,8 @@ class PointGather(nn.Module):
         foreground_voxel_coords = []
         foreground_voxel_num_points = []
         import pudb
-        pudb.set_trace()
         import mayavi.mlab as mlab
+        pudb.set_trace()
 
         for batch_idx in range(batch_size):
             this_range_features = range_features[batch_idx].reshape((height * width, -1))
