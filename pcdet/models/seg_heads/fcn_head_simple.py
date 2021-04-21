@@ -19,7 +19,8 @@ class FCNHead(nn.Module):
         seg_pred = self.clip_sigmoid(output)
         batch_dict['seg_pred'] = seg_pred
         self.forward_ret_dict['seg_pred'] = seg_pred
-        self.forward_ret_dict['range_mask'] = batch_dict['range_mask']
+        if self.training:
+            self.forward_ret_dict['range_mask'] = batch_dict['range_mask']
         return batch_dict
 
     def build_loss(self):
