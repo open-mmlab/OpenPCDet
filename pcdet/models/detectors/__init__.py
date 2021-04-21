@@ -5,7 +5,7 @@ from .pointpillar import PointPillar
 from .pv_rcnn import PVRCNN
 from .second_net import SECONDNet
 from .center_point import CenterPoint
-from .RSN import RSN
+from .RSN import RSECOND,RSN
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -16,6 +16,7 @@ __all__ = {
     'PointRCNN': PointRCNN,
     'CenterPoint': CenterPoint,
     'CenterPoints': CenterPoint,
+    'RSECOND': RSECOND,
     'RSN': RSN
 }
 

@@ -1,7 +1,7 @@
 from .detector3d_template import Detector3DTemplate
 
 
-class RSN(Detector3DTemplate):
+class RSECOND(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
@@ -33,3 +33,21 @@ class RSN(Detector3DTemplate):
 
         loss = loss_seg + loss_rpn
         return loss, tb_dict, disp_dict
+
+
+class RSN(RSECOND):
+    def __init__(self, model_cfg, num_class, dataset):
+        super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
+
+    def post_processing(self, batch_dict):
+        pred_dicts = batch_dict['pred_dicts']
+        recall_dict = {}
+        batch_size = batch_dict['batch_size']
+        for index in range(batch_size):
+            recall_dict = self.generate_recall_record(
+                box_preds=pred_dicts[index]['pred_boxes'],
+                recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
+                thresh_list=self.model_cfg.POST_PROCESSING.RECALL_THRESH_LIST
+            )
+
+        return pred_dicts, recall_dict
