@@ -22,6 +22,9 @@ class RSECOND(Detector3DTemplate):
             return pred_dicts, recall_dicts
 
     def get_training_loss(self):
+        weight_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
+        seg_weight = weight_dict['seg_weight']
+        rpn_weight = weight_dict['rpn_weight']
         disp_dict = {}
 
         loss_seg = self.seg_head.get_loss()
@@ -31,7 +34,7 @@ class RSECOND(Detector3DTemplate):
             **tb_dict
         }
 
-        loss = loss_seg + loss_rpn
+        loss = loss_seg * seg_weight + loss_rpn * rpn_weight
         return loss, tb_dict, disp_dict
 
 
