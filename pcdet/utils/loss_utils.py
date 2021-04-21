@@ -265,7 +265,7 @@ class SegFocalLoss(nn.Module):
 
         """
 
-        width, height = gt.shape
+        batch_size, width, height = gt.shape
         pos_inds = gt.eq(1).float()
         neg_inds = gt.lt(1).float()
 
