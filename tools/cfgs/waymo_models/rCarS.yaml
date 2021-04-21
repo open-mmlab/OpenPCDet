@@ -17,7 +17,7 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
+        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
         MAX_POINTS_PER_VOXEL: 5
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
@@ -48,7 +48,7 @@ MODEL:
 
     MAP_TO_BEV:
         NAME: HeightCompression
-        NUM_BEV_FEATURES: 1056
+        NUM_BEV_FEATURES: 576
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
