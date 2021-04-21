@@ -296,7 +296,11 @@ def convert_point_cloud_to_range_image(data_dict):
         torch.from_numpy(points_vehicle_frame).float(),
         torch.from_numpy(gt_boxes[:, 0:7]).float()
     ).long().numpy()
-    flag_of_pts = point_indices.max(axis=0)
+    try:
+        flag_of_pts = point_indices.max(axis=0)
+    except ValueError:
+        import pudb
+        pudb.set_trace()
     select = flag_of_pts > 0
 
     # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
