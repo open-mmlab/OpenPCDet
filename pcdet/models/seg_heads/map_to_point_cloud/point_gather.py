@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ....datasets.waymo.waymo_utils import plot_pointcloud
 
 
 class PointGather(nn.Module):
@@ -28,6 +29,9 @@ class PointGather(nn.Module):
         foreground_voxels = []
         foreground_voxel_coords = []
         foreground_voxel_num_points = []
+        import pudb
+        pudb.set_trace()
+        import mayavi.mlab as mlab
 
         for batch_idx in range(batch_size):
             this_range_features = range_features[batch_idx].reshape((height * width, -1))
