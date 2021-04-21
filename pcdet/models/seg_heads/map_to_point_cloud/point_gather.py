@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ....datasets.waymo.waymo_utils import plot_pointcloud
+from ....datasets.waymo.waymo_utils import plot_pointcloud,plot_pointcloud_with_gt_boxes
 
 
 class PointGather(nn.Module):
