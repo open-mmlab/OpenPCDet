@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from ....datasets.waymo.waymo_utils import plot_pointcloud,plot_pointcloud_with_gt_boxes
+
+
+# from ....datasets.waymo.waymo_utils import plot_pointcloud, plot_pointcloud_with_gt_boxes
 
 
 class PointGather(nn.Module):
@@ -29,9 +30,9 @@ class PointGather(nn.Module):
         foreground_voxels = []
         foreground_voxel_coords = []
         foreground_voxel_num_points = []
-        import mayavi.mlab as mlab
-        import pudb
-        pudb.set_trace()
+        # import mayavi.mlab as mlab
+        # import pudb
+        # pudb.set_trace()
 
         for batch_idx in range(batch_size):
             this_range_features = range_features[batch_idx].reshape((height * width, -1))
@@ -41,13 +42,13 @@ class PointGather(nn.Module):
             # points
             batch_points_mask = points[:, 0] == batch_idx
             this_points = points[batch_points_mask, :]
-            gt_np = batch_dict['gt_boxes'][batch_idx].cpu().numpy()
-            this_points_np = this_points[:, 1:].cpu().numpy()
+            # gt_np = batch_dict['gt_boxes'][batch_idx].cpu().numpy()
+            # this_points_np = this_points[:, 1:].cpu().numpy()
             this_ri_indices = ri_indices[batch_points_mask, :]
             this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
             this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
             this_points = this_points[this_points_mask]
-            this_points_np = this_points[:, 1:].cpu().numpy()
+            # this_points_np = this_points[:, 1:].cpu().numpy()
             this_points_features = this_range_features[this_ri_indexes]
             this_points_features = this_points_features[this_points_mask]
             this_points = torch.cat((this_points, this_points_features), dim=1)
