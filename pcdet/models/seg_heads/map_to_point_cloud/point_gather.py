@@ -44,7 +44,7 @@ class PointGather(nn.Module):
             gt_np = batch_dict['gt_boxes'][batch_idx].cpu().numpy()
             this_points_np = this_points[:, 1:].cpu().numpy()
             this_ri_indices = ri_indices[batch_points_mask, :]
-            this_ri_indexes = (this_ri_indices[:, 0] * width + this_ri_indices[:, 1]).long()
+            this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
             this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
             this_points = this_points[this_points_mask]
             this_points_np = this_points[:, 1:].cpu().numpy()
