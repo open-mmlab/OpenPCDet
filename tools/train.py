@@ -24,7 +24,7 @@ def parse_config():
 
     parser.add_argument('--batch_size', type=int, default=None, required=False, help='batch size for training')
     parser.add_argument('--epochs', type=int, default=None, required=False, help='number of epochs to train for')
-    parser.add_argument('--workers', type=int, default=8, help='number of workers for dataloader')
+    parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint to start from')
     parser.add_argument('--pretrained_model', type=str, default=None, help='pretrained_model')
@@ -57,6 +57,7 @@ def parse_config():
 
 def main():
     args, cfg = parse_config()
+    # print('args', args)
     if args.launcher == 'none':
         dist_train = False
         total_gpus = 1
@@ -65,7 +66,9 @@ def main():
             args.tcp_port, args.local_rank, backend='nccl'
         )
         dist_train = True
-
+        print("*" * 60)
+        print(args.tcp_port, args.local_rank)
+        print(total_gpus, cfg.LOCAL_RANK)
     if args.batch_size is None:
         args.batch_size = cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU
     else:
@@ -99,6 +102,8 @@ def main():
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    # -----------------------create process data---------------------------
+
 
     # -----------------------create dataloader & network & optimizer---------------------------
     train_set, train_loader, train_sampler = build_dataloader(
@@ -111,7 +116,6 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         total_epochs=args.epochs
     )
-
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -147,9 +151,11 @@ def main():
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
 
-    # -----------------------start training---------------------------
-    logger.info('**********************Start training %s/%s(%s)**********************'
-                % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+    # # -----------------------start training---------------------------
+    # logger.info('**********************Start training %s/%s(%s)**********************'
+    #             % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+    # train_loader.dataset.__generateitem__()
+    # return 0
     train_model(
         model,
         optimizer,

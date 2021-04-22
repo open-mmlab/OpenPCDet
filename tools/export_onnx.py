@@ -102,16 +102,16 @@ def export_onnx_dynamic_batch(model):
     dynamic_axes_backbone = {'spatial_features': {0: 'batch_size'},
                     'spatial_features_2d': {0: 'batch_size'}}
     # spatial_features = torch.ones([1, 64, 896, 256], dtype=torch.float32, device='cuda')
-    spatial_features = torch.ones([1, 64, 384, 256], dtype=torch.float32, device='cuda')
-    # spatial_features = torch.ones([1, 64, 688, 256], dtype=torch.float32, device='cuda')
+    # spatial_features = torch.ones([1, 64, 384, 256], dtype=torch.float32, device='cuda')
+    spatial_features = torch.ones([1, 64, 688, 256], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[2], spatial_features, "backbone.onnx", verbose=False,input_names=['spatial_features'],
                       output_names=['spatial_features_2d'], dynamic_axes=dynamic_axes_backbone)
     print('backbone.onnx transfer success ...')
 
     dynamic_axes_head = {'spatial_features_2d': {0: 'batch_size'}, 'cls': {0: 'batch_size'}, 'bbox': {0: 'batch_size'}, 'dir': {0: 'batch_size'}}
     # spatial_features_2d = torch.ones([1, 384, 224, 64], dtype=torch.float32, device='cuda')
-    spatial_features_2d = torch.ones([1, 384, 96, 64], dtype=torch.float32, device='cuda')
-    # spatial_features_2d = torch.ones([1, 384, 172, 64], dtype=torch.float32, device='cuda')
+    # spatial_features_2d = torch.ones([1, 384, 96, 64], dtype=torch.float32, device='cuda')
+    spatial_features_2d = torch.ones([1, 384, 172, 64], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[3], spatial_features_2d, "head.onnx", verbose=False,
                       input_names=["spatial_features_2d"], output_names=['cls', 'bbox', 'dir'], dynamic_axes=dynamic_axes_head)
     # torch.onnx.export(model.module_list[3], spatial_features_2d, "head.onnx", verbose=False,

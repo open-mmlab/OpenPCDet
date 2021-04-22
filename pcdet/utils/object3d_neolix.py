@@ -1,28 +1,27 @@
 import numpy as np
 
 
-def get_objects_from_label(label_file):
+def get_objects_from_label(label_file, type_to_id):
     with open(label_file, 'r') as f:
         lines = f.readlines()
-    objects = [Object3d(line) for line in lines]
+    objects = [Object3d(line, type_to_id) for line in lines]
     return objects
 
 
-def cls_type_to_id(cls_type):
-    type_to_id = {'Vehicle': 1, 'Large_vehicle': 2, 'Pedestrian': 3, 'Cyclist': 4, 'Bicycle': 5, 'Unknown_movable': 6, 'Unknown_unmovable': 7}
-    # type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
-    # type_to_id = {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4}
+def cls_type_to_id(cls_type, type_to_id=None):
+    if type_to_id == None:
+        type_to_id = {'Vehicle': 1, 'Large_vehicle': 2, 'Pedestrian': 3, 'Cyclist': 4, 'Bicycle': 5, 'Unknown_movable': 6, 'Unknown_unmovable': 7}
     if cls_type not in type_to_id.keys():
         return -1
     return type_to_id[cls_type]
 
 
 class Object3d(object):
-    def __init__(self, line):
+    def __init__(self, line, type_to_id):
         label = line.strip().split(' ')
         self.src = line
         self.cls_type = label[0]
-        self.cls_id = cls_type_to_id(self.cls_type)
+        self.cls_id = cls_type_to_id(self.cls_type, type_to_id)
         self.truncation = float(label[1])
         self.occlusion = float(label[2])  # 0:fully visible 1:partly occluded 2:largely occluded 3:unknown
         self.alpha = float(label[3])

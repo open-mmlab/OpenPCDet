@@ -4,6 +4,8 @@ import os
 import torch
 import tqdm
 from torch.nn.utils import clip_grad_norm_
+from torch.cuda.amp import autocast, GradScaler
+import time
 
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
@@ -20,7 +22,6 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         except StopIteration:
             dataloader_iter = iter(train_loader)
             batch = next(dataloader_iter)
-            print('new iters')
 
         lr_scheduler.step(accumulated_iter)
 
@@ -28,18 +29,34 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             cur_lr = float(optimizer.lr)
         except:
             cur_lr = optimizer.param_groups[0]['lr']
-
         if tb_log is not None:
             tb_log.add_scalar('meta_data/learning_rate', cur_lr, accumulated_iter)
-
         model.train()
         optimizer.zero_grad()
 
-        loss, tb_dict, disp_dict = model_func(model, batch)
+        ## add by shl
+        # scaler = GradScaler()  # 创建一个尺度管理器
+        #
+        # # Train Step 1: Forward pass, get loss
+        # with autocast():
+        #     # """开启混合精度模式，只进行前向传播"""
+        #     loss, tb_dict, disp_dict = model_func(model, batch)
+        #
+        # # Train Step 2: Backward pass, get gradient
+        # scaler.scale(loss).backward()
+        # # """使用尺度管理器进行调整"""
+        # clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
+        #
+        # # Train Step 3: Optimize params
+        # scaler.step(optimizer)
+        # scaler.update()
 
+
+        loss, tb_dict, disp_dict = model_func(model, batch)
         loss.backward()
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
         optimizer.step()
+        ## add end
 
         accumulated_iter += 1
         disp_dict.update({'loss': loss.item(), 'lr': cur_lr})
@@ -72,13 +89,11 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             assert hasattr(train_loader.dataset, 'merge_all_iters_to_one_epoch')
             train_loader.dataset.merge_all_iters_to_one_epoch(merge=True, epochs=total_epochs)
             total_it_each_epoch = len(train_loader) // max(total_epochs, 1)
-
         dataloader_iter = iter(train_loader)
         for cur_epoch in tbar:
             if train_sampler is not None:
                 train_sampler.set_epoch(cur_epoch)
 
-            # train one epoch
             if lr_warmup_scheduler is not None and cur_epoch < optim_cfg.WARMUP_EPOCH:
                 cur_scheduler = lr_warmup_scheduler
             else:
