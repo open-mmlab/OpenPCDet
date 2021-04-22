@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-# from ....datasets.waymo.waymo_utils import plot_pointcloud, plot_pointcloud_with_gt_boxes
+from ....datasets.waymo.waymo_utils import plot_pointcloud, plot_pointcloud_with_gt_boxes
 
 
 class PointGather(nn.Module):
