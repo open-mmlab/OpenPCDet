@@ -13,6 +13,22 @@ class PointGather(nn.Module):
         self.mode = 'train' if self.training else 'test'
 
     def forward(self, batch_dict, **kwargs):
+        """
+
+        Args:
+            batch_dict:
+                range_features: (B, C, H, W)
+                seg_mask:(B, H, W)
+                points:(N, batch_idx+xyz+channels)
+                ri_indices:(N, batch_idx+indices)
+                voxels:(voxel_num, max_point_num, features+indices)
+                voxel_coords:(voxel_num, xyz)
+            **kwargs:
+
+        Returns:
+            filtered points and voxels
+
+        """
         batch_dict = self.foreground_points_voxels_filter_and_feature_gather(batch_dict)
         return batch_dict
 
@@ -91,6 +107,3 @@ class PointGather(nn.Module):
         batch_dict['voxel_num_points'] = foreground_voxel_num_points
 
         return batch_dict
-
-    def get_num_point_features(self, batch_dict):
-        return batch_dict['points'].shape[-1] - 1
