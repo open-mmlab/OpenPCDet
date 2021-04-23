@@ -149,6 +149,9 @@ class DemoDataset(DatasetTemplate):
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
 
+            if len(single_pred_dict['name']) == 0:
+                continue
+
             if output_path is not None:
                 if inference:
                     # label_path = inference_results
@@ -172,7 +175,8 @@ class DemoDataset(DatasetTemplate):
                     np.array(content).astype(np.float32).tofile(output_bin)
                         # f.write("\n".join(content))
                 else:
-                    cur_det_file = output_path / frame_id / '.txt'
+                    output_path.mkdir(parents=True,exist_ok=True)
+                    cur_det_file = output_path / (frame_id + '.txt')
                     with open(cur_det_file, 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
@@ -182,7 +186,7 @@ class DemoDataset(DatasetTemplate):
                                   % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
                                      bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
                                      dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
-                                     loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
+                                     loc[idx][1], loc[idx][2]-dims[idx][1]/2, single_pred_dict['rotation_y'][idx],
                                      single_pred_dict['score'][idx]), file=f)
 
         return annos
@@ -199,6 +203,8 @@ def parse_config():
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
     parser.add_argument('--label_path', type=str, default=None,
                         help='specify the point cloud data label or directory')
+    parser.add_argument('--save_path', type=str, default=None,
+                        help='specify path to save pseudo labels')
 
     args = parser.parse_args()
 
@@ -211,9 +217,10 @@ def main():
     args, cfg = parse_config()
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
+    # import pdb; pdb.set_trace()
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path)
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path) if args.label_path else None
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
@@ -233,8 +240,8 @@ def main():
             with torch.no_grad():
                 pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
-                data_dict, pred_dicts, ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable'],
-                output_path='./val_label' if True else None, inference=True
+                data_dict, pred_dicts, cfg.CLASS_NAMES,
+                output_path=Path(args.save_path), inference=False
             )
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],
