@@ -38,7 +38,7 @@ MODEL:
 
     MAP_TO_BEV:
         NAME: HeightCompression
-        NUM_BEV_FEATURES: 576
+        NUM_BEV_FEATURES: 384
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
