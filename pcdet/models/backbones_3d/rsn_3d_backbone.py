@@ -214,23 +214,25 @@ class CarXL(nn.Module):
         self.sparse_shape = grid_size[::-1] + [1, 0, 0]
 
         out_channels = 64
-        self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(in_channels=input_channels, out_channels=out_channels,
-                              kernel_size=3, padding=1, bias=False, indice_key='subm_input'),
-            norm_fn(out_channels),
-            nn.ReLU()
-        )
+        self.conv = spconv.SparseSequential(
+            conv_input=spconv.SparseSequential(
+                spconv.SubMConv3d(in_channels=input_channels, out_channels=out_channels,
+                                  kernel_size=3, padding=1, bias=False, indice_key='subm_input'),
+                norm_fn(out_channels),
+                nn.ReLU()
+            ),
 
-        self.conv1 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_1")
-        self.conv2 = B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
-                             indice_key="subm_2")
-        self.conv3 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3")
-        self.conv4 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_4")
-        self.conv5 = B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
-                             indice_key="subm_5")
-        self.conv6 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
-        self.conv7 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_7")
-        self.conv8 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_8")
+            conv1=B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_1"),
+            conv2=B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
+                          indice_key="subm_2"),
+            conv3=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3"),
+            conv4=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_4"),
+            conv5=B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
+                          indice_key="subm_5"),
+            conv6=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6"),
+            conv7=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_7"),
+            conv8=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_8")
+        )
 
         self.num_point_features = 64
 
@@ -254,27 +256,21 @@ class CarXL(nn.Module):
             spatial_shape=self.sparse_shape,
             batch_size=batch_size
         )
-        x_conv_input = self.conv_input(input_sp_tensor)
-        x_conv1 = self.conv1(x_conv_input)
-        x_conv2 = self.conv2(x_conv1)
-        x_conv3 = self.conv3(x_conv2)
-        x_conv4 = self.conv4(x_conv3)
-        x_conv5 = self.conv5(x_conv4)
-        x_conv6 = self.conv6(x_conv5)
+        x = self.conv(input_sp_tensor)
 
         # out = self.block(input_sp_tensor)
         batch_dict.update({
-            'encoded_spconv_tensor': x_conv6,
+            'encoded_spconv_tensor': x,
             'encoded_spconv_tensor_stride': 4
         })
-        batch_dict.update({
-            'multi_scale_3d_features': {
-                'x_conv1': x_conv1,
-                'x_conv2': x_conv2,
-                'x_conv3': x_conv3,
-                'x_conv4': x_conv4,
-                'x_conv5': x_conv5,
-                'x_conv6': x_conv6,
-            }
-        })
+        # batch_dict.update({
+        #     'multi_scale_3d_features': {
+        #         'x_conv1': x_conv1,
+        #         'x_conv2': x_conv2,
+        #         'x_conv3': x_conv3,
+        #         'x_conv4': x_conv4,
+        #         'x_conv5': x_conv5,
+        #         'x_conv6': x_conv6,
+        #     }
+        # })
         return batch_dict
