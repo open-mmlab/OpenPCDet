@@ -83,26 +83,22 @@ class CarS(nn.Module):
         self.conv4 = B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
                              indice_key="subm_4")
         self.conv5 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
-        self.conv6 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
+        self.conv6 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
 
         self.num_point_features = 96
 
     def forward(self, batch_dict):
         """
-        Args:
-            batch_dict:
-                batch_size: int
-                vfe_features: (num_voxels, C)
-                voxel_coords: (num_voxels, 4), [batch_idx, z_idx, y_idx, x_idx]
-        Returns:
-            batch_dict:
-                encoded_spconv_tensor: sparse tensor
-        """
-        voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
+                Args:
+                    data_dict:
+                        spatial_features
+                Returns:
+                """
+        spatial_features = batch_dict['spatial_features']
         batch_size = batch_dict['batch_size']
         input_sp_tensor = spconv.SparseConvTensor(
             features=voxel_features,
-            indices=voxel_coords.int(),
+            indices=voxel_coords[:, :3].int(),
             spatial_shape=self.sparse_shape,
             batch_size=batch_size
         )
