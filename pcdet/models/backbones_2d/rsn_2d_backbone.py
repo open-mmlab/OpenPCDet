@@ -85,7 +85,8 @@ class CarS(nn.Module):
         self.conv5 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
         self.conv6 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
 
-        self.num_point_features = 96
+        self.num_point_features = out_channels
+        self.num_bev_features = out_channels
 
     def forward(self, batch_dict):
         """
