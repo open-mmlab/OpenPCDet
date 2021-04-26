@@ -43,12 +43,12 @@ class B0Block(spconv.SparseModule):
         # norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         assert norm_fn is not None
         bias = norm_fn is not None  # bool type
-
+        indice_key_sc = indice_key if stride == 1 else None
         self.conv0 = spconv.SparseConv2d(in_channels=in_channels, out_channels=out_channels,
-                                         kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key)
+                                         kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key_sc)
         self.bn0 = norm_fn(out_channels)
         self.relu0 = nn.ReLU()
-        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn)
+        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn, indice_key=indice_key)
 
     def forward(self, x):
         out = self.conv0(x)  # type: spconv.SparseConvTensor

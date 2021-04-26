@@ -43,12 +43,12 @@ class B0Block(spconv.SparseModule):
         # norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
         assert norm_fn is not None
         bias = norm_fn is not None  # bool type
-
+        indice_key_sc = indice_key if stride == 1 else None
         self.conv0 = spconv.SparseConv3d(in_channels=in_channels, out_channels=out_channels,
-                                         kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key)
+                                         kernel_size=3, stride=stride, padding=1, bias=bias, indice_key=indice_key_sc)
         self.bn0 = norm_fn(out_channels)
         self.relu0 = nn.ReLU()
-        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn)
+        self.B1Block = B1Block(in_channels, out_channels, stride=1, norm_fn=norm_fn, indice_key=indice_key)
 
     def forward(self, x):
         out = self.conv0(x)  # type: spconv.SparseConvTensor
@@ -155,7 +155,7 @@ class CarL(nn.Module):
         self.conv4 = B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
                              indice_key="subm_4")
         self.conv5 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
-        self.conv6 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
+        self.conv6 = B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
 
         self.num_point_features = 64
 
@@ -228,7 +228,7 @@ class CarXL(nn.Module):
             conv3=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3"),
             conv4=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3"),
             conv5=B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
-                          indice_key="subm_3"),
+                          indice_key="subm_5"),
             conv6=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6"),
             conv7=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6"),
             conv8=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
