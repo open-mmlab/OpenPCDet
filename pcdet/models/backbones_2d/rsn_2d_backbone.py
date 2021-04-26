@@ -103,8 +103,6 @@ class CarS(nn.Module):
             spatial_shape=self.sparse_shape[1:],
             batch_size=batch_size
         )
-        import pudb
-        pudb.set_trace()
         x_conv_input = self.conv_input(input_sp_tensor)
         x_conv1 = self.conv1(x_conv_input)
         x_conv2 = self.conv2(x_conv1)
