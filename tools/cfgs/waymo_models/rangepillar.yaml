@@ -28,7 +28,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: RSECOND
+    NAME: RangeTemplate
 
     BACKBONE_RANGE:
         NAME: UNet
@@ -41,23 +41,23 @@ MODEL:
         FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-        NAME: MeanVFE
-
-    BACKBONE_3D:
-        NAME: VoxelBackBone8x
+      NAME: PillarVFE
+      WITH_DISTANCE: False
+      USE_ABSLOTE_XYZ: True
+      USE_NORM: True
+      NUM_FILTERS: [ 64 ]
 
     MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+      NAME: PointPillarScatter
+      NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
+      NAME: BaseBEVBackbone
+      LAYER_NUMS: [ 3, 5, 5 ]
+      LAYER_STRIDES: [ 2, 2, 2 ]
+      NUM_FILTERS: [ 64, 128, 256 ]
+      UPSAMPLE_STRIDES: [ 1, 2, 4 ]
+      NUM_UPSAMPLE_FILTERS: [ 128, 128, 128 ]
 
     DENSE_HEAD:
         NAME: AnchorHeadSingle

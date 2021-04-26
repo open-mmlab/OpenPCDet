@@ -28,7 +28,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: RSECOND
+    NAME: RangeTemplate
 
     BACKBONE_RANGE:
         NAME: UNet
