@@ -88,7 +88,7 @@ class DemoDataset(DatasetTemplate):
 
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, inference=False, inference_results=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
@@ -131,7 +131,6 @@ class DemoDataset(DatasetTemplate):
 
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['alpha'] = -np.arctan2(-pred_boxes[:, 1], pred_boxes[:, 0]) + pred_boxes_camera[:, 6]
-            # pred_dict['bbox'] = pred_boxes_img
             pred_dict['bbox'] = np.zeros([pred_boxes.shape[0], 4])
             pred_dict['dimensions'] = pred_boxes_camera[:, 3:6]
             pred_dict['location'] = pred_boxes_camera[:, 0:3]
@@ -150,10 +149,9 @@ class DemoDataset(DatasetTemplate):
             annos.append(single_pred_dict)
 
             if output_path is not None:
-                if inference:
-                    # label_path = inference_results
-                    label_path = './val_label/'
-                    # with open(label_path + batch_dict['frame_id'][0] + '.txt', 'w') as f:
+                label_path = output_path
+                track_format = False
+                if track_format:
                     bbox = single_pred_dict['bbox']
                     loc = single_pred_dict['location']
                     dims = single_pred_dict['dimensions']  # lhw -> hwl
@@ -164,26 +162,24 @@ class DemoDataset(DatasetTemplate):
                         prob_ls[type_name] = single_pred_dict['score'][idx]
 
                         content.append([loc[idx][0], loc[idx][1], loc[idx][2], dims[idx][2],
-                                        dims[idx][0], dims[idx][1],
-                                        -np.pi / 2 - single_pred_dict['rotation_y'][idx],
+                                        dims[idx][0], dims[idx][1], -np.pi / 2 - single_pred_dict['rotation_y'][idx],
                                         type_name] + prob_ls)
-                    timestamp = batch_dict['frame_id'][index].strip('.pcd').split('_')[-1].split('.')
-                    output_bin = label_path + timestamp[0] + '_' + timestamp[1] + "_%d.bin" % len(bbox)
-                    np.array(content).astype(np.float32).tofile(output_bin)
-                        # f.write("\n".join(content))
+                    np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index] + '.bin')
                 else:
-                    cur_det_file = output_path / frame_id / '.txt'
-                    with open(cur_det_file, 'w') as f:
+                    with open(label_path + batch_dict['frame_id'][index] + '.txt', 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
                         dims = single_pred_dict['dimensions']  # lhw -> hwl
+                        content = []
                         for idx in range(len(bbox)):
-                            print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
-                                  % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
-                                     bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
-                                     dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
-                                     loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
-                                     single_pred_dict['score'][idx]), file=f)
+                            content.append('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                           % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                                              bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                              dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                              loc[idx][1], loc[idx][2] - dims[idx][1] / 2,
+                                              -np.pi / 2 - single_pred_dict['rotation_y'][idx],
+                                              single_pred_dict['score'][idx]))
+                        f.write("\n".join(content))
 
         return annos
 
@@ -199,7 +195,8 @@ def parse_config():
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
     parser.add_argument('--label_path', type=str, default=None,
                         help='specify the point cloud data label or directory')
-
+    parser.add_argument('--output_path', type=str, default=None,
+                        help='the output path of inference')
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -233,8 +230,8 @@ def main():
             with torch.no_grad():
                 pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
-                data_dict, pred_dicts, ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable'],
-                output_path='./val_label' if True else None, inference=True
+                data_dict, pred_dicts, cfg.CLASS_NAMES,
+                output_path=args.output_path
             )
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],

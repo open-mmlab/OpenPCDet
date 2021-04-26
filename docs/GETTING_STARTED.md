@@ -114,8 +114,37 @@ python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
 
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
 
-## Training & Testing
 
+## Set parameters
+### neolix_dataset.yaml
+Mainly parameters:
+```shell
+DATASET: 'NeolixDataset'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/test_cls_compat/'
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
+TYPE_TO_ID: {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
+
+EVAL:
+    OVERLAP_0_7: [[0.7, 0.5, 0.5, 0.5, 0.7, 0.7],
+                  [0.7, 0.5, 0.5, 0.5, 0.7, 0.7],
+                  [0.7, 0.5, 0.5, 0.5, 0.7, 0.7]]
+    OVERLAP_0_5: [[0.7, 0.5,  0.5,  0.5,  0.7, 0.5],
+                  [0.5, 0.25, 0.25, 0.25, 0.5, 0.5],
+                  [0.5, 0.25, 0.25, 0.25, 0.5, 0.5]]
+    CLASS_TO_NAME: {
+      '0': 'Vehicle',
+      '1': 'Pedestrian',
+      '2': 'Cyclist',
+      '3': 'Unknown',
+      '4': 'Large_vehicle'
+    }
+```
+
+### {module_config}.yaml
+The length of 'CLASS_NAMES', 'filter_by_min_points', 'SAMPLE_GROUPS','ANCHOR_GENERATOR_CONFIG' should be the class number.
+
+
+## Training & Testing
 
 ### Test and evaluate the pretrained models
 * Test with a pretrained model: 
@@ -176,11 +205,6 @@ There will be four onnx models generated: vfe.onnx, backbone.onnx, head.onnx and
 
 
 ### Inference and save the results.
-* Set the inference folder in neolix_dataset.py/get_lidar()/line 74;
-* Set the path of saving results in neolix_dataset.py/generate_single_sample_dict/line 333;
-* run inference.py;
 ```shell script
-#python inference.py --batch_size 1 --workers 1 --save_to_file  --inference  --cfg_file cfgs/neolix_models/pointpillar.yaml --ckpt ../output/neolix_models/pointpillar/default/ckpt/checkpoint_epoch_160.pth
-python inference.py --batch_size 1 --workers 1 --save_to_file  --inference  --cfg_file {.yaml} --ckpt {.pth} --inference_data_path {pc_path} --inference_results {results path} 
-
+python demo.py --cfg_file ${CONFIG_FILE} --ckpt ${ckpt_FILE} --data_path ${DATA_PATH} --output_path ${OUTPUT_PATH}
 ```

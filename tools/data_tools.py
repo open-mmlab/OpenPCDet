@@ -2,10 +2,10 @@ import sys
 import os
 import numpy as np
 
-def calculate_anchors(data_dir):
-    class_names = ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
+def calculate_anchors_1(data_dir):
+    # class_names = ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
     # class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
-    # class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
+    class_names = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
     res = {}
     
     train_list = os.path.join(data_dir, 'ImageSets', 'train.txt')
@@ -40,4 +40,4 @@ def calculate_anchors(data_dir):
 
 if __name__ == '__main__':
     data_dir = sys.argv[1]
-    calculate_anchors(data_dir)
+    calculate_anchors_1(data_dir)

@@ -1,10 +1,10 @@
-CLASS_NAMES: ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
+#CLASS_NAMES: ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
 
-DATA_CONFIG: 
+DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
     # POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
-    POINT_CLOUD_RANGE: [-69.12, -69.12, -1.5, 69.12, 69.12, 2.5]
-#    POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
+    POINT_CLOUD_RANGE: [-20.48, -40.08, -1.5, 20.48, 70, 2.5]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -19,7 +19,7 @@ DATA_CONFIG:
           VOXEL_SIZE: [0.16, 0.16, 4]
           MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
-            'train': 30000,
+            'train': 16000,
             'test': 40000
           }
     DATA_AUGMENTOR:
@@ -30,11 +30,11 @@ DATA_CONFIG:
               DB_INFO_PATH:
                   - neolix_dbinfos_train.pkl
               PREPARE: {
-                 filter_by_min_points: ['Vehicle:5', 'Large_vehicle:10', 'Pedestrian:5', 'Cyclist:5', 'Bicycle:5', 'Unknown_movable:5', 'Unknown_unmovable:5'],
+                 filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5', 'Large_vehicle:10'],
                  filter_by_difficulty: [-1],
               }
 
-              SAMPLE_GROUPS: ['Vehicle:1', 'Large_vehicle:13', 'Pedestrian:10', 'Cyclist:11', 'Bicycle:6', 'Unknown_movable:13', 'Unknown_unmovable:10']
+              SAMPLE_GROUPS: ['Vehicle:10','Pedestrian:10', 'Cyclist:15', 'Unknown:5', 'Large_vehicle:20']
               NUM_POINT_FEATURES: 4
               DATABASE_WITH_FAKELIDAR: False
               REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
@@ -83,7 +83,7 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.86, 4.48, 1.65]],  # w, l, h
+                'anchor_sizes': [[1.85, 4.47, 1.65]],  # w, l, h
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -92,18 +92,8 @@ MODEL:
                 'unmatched_threshold': 0.45
             },
             {
-              'class_name': 'Large_vehicle',
-              'anchor_sizes': [[2.61, 8.68, 2.84]],  # w, l, h
-              'anchor_rotations': [0, 1.57],
-              'anchor_bottom_heights': [-0.3],
-              'align_center': False,
-              'feature_map_stride': 4,
-              'matched_threshold': 0.6,
-              'unmatched_threshold': 0.45
-            },
-            {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.65, 0.64, 1.74]],
+                'anchor_sizes': [[0.65, 0.64, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -113,7 +103,7 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.76, 1.87, 1.73]],
+                'anchor_sizes': [[0.76, 1.86, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -122,18 +112,8 @@ MODEL:
                 'unmatched_threshold': 0.35
             },
             {
-              'class_name': 'Bicycle',
-              'anchor_sizes': [[0.65, 1.71, 1.18]],
-              'anchor_rotations': [0, 1.57],
-              'anchor_bottom_heights': [-0.3],
-              'align_center': False,
-              'feature_map_stride': 4,
-              'matched_threshold': 0.5,
-              'unmatched_threshold': 0.35
-            },
-            {
-                'class_name': 'Unknown_movable',
-                'anchor_sizes': [[1.25, 2.74, 1.36]],
+                'class_name': 'Unknown',
+                'anchor_sizes': [[0.56, 1.36, 1.01]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -142,14 +122,14 @@ MODEL:
                 'unmatched_threshold': 0.35
             },
             {
-                'class_name': 'Unknown_unmovable',
-                'anchor_sizes': [[0.31, 0.38, 0.53]],
+                'class_name': 'Large_vehicle',
+                'anchor_sizes': [[2.61, 8.68, 2.83]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
                 'feature_map_stride': 4,
-                'matched_threshold': 0.5,
-                'unmatched_threshold': 0.35
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             }
         ]
 
@@ -185,7 +165,7 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 1
+    BATCH_SIZE_PER_GPU: 4
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
@@ -204,3 +184,6 @@ OPTIMIZATION:
     WARMUP_EPOCH: 1
 
     GRAD_NORM_CLIP: 10
+
+
+
