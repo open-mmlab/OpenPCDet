@@ -22,7 +22,7 @@ class PFNLayer(nn.Module):
 
         if self.use_norm:
             self.linear = nn.Linear(in_channels, out_channels, bias=False)
-            if not layer_norm:
+            if not self.layer_norm:
                 self.norm = nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01)
             else:
                 self.norm = nn.LayerNorm(out_channels, eps=1e-3)
@@ -41,7 +41,8 @@ class PFNLayer(nn.Module):
         else:
             x = self.linear(inputs)
         torch.backends.cudnn.enabled = False
-        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1) if self.use_norm else x
+        if self.use_norm:
+            x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1) if not self.layer_norm else self.norm(x)
         torch.backends.cudnn.enabled = True
         x = F.relu(x)
         x_max = torch.max(x, dim=1, keepdim=True)[0]
@@ -61,12 +62,12 @@ class PillarVFE(VFETemplate):
         self.use_norm = self.model_cfg.USE_NORM
         self.with_distance = self.model_cfg.WITH_DISTANCE
         self.use_absolute_xyz = self.model_cfg.USE_ABSLOTE_XYZ
-        self.layer_norm = self.model_cfg.get('LAYER_NORM', False)
         num_point_features += 6 if self.use_absolute_xyz else 3
         if self.with_distance:
             num_point_features += 1
 
         self.num_filters = self.model_cfg.NUM_FILTERS
+        self.layer_norm = self.model_cfg.get('LAYER_NORM', False)
         assert len(self.num_filters) > 0
         num_filters = [num_point_features] + list(self.num_filters)
 
