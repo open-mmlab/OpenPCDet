@@ -70,7 +70,7 @@ class CarS(nn.Module):
 
         out_channels = 96
         self.conv_input = spconv.SparseSequential(
-            spconv.SubMConv3d(in_channels=input_channels, out_channels=out_channels,
+            spconv.SubMConv2d(in_channels=input_channels, out_channels=out_channels,
                               kernel_size=3, padding=1, bias=False, indice_key='subm_input'),
             norm_fn(out_channels),
             nn.ReLU()
@@ -96,8 +96,6 @@ class CarS(nn.Module):
                 Returns:
                 """
         pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords']
-        import pudb
-        pudb.set_trace()
         batch_size = batch_dict['batch_size']
         input_sp_tensor = spconv.SparseConvTensor(
             features=pillar_features,
