@@ -66,7 +66,7 @@ class CarS(nn.Module):
         self.model_cfg = model_cfg
         norm_fn = partial(nn.BatchNorm1d, eps=1e-3, momentum=0.01)
 
-        self.sparse_shape = grid_size[::-1] + [1, 0, 0]
+        self.sparse_shape = grid_size[::-1]
 
         out_channels = 96
         self.conv_input = spconv.SparseSequential(
