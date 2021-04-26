@@ -30,7 +30,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: RSN
+    NAME: RangeTemplate
 
     BACKBONE_RANGE:
         NAME: UNet
@@ -43,23 +43,15 @@ MODEL:
         FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-        NAME: MeanVFE
-
-    BACKBONE_3D:
-        NAME: CarS
-
-    MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 576
+      NAME: PillarVFE
+      WITH_DISTANCE: False
+      USE_ABSLOTE_XYZ: True
+      USE_NORM: True
+      NUM_FILTERS: [ 64 ]
+      LAYER_NORM: True
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
+      NAME: CarS
 
     DENSE_HEAD:
         NAME: CenterHead
@@ -83,7 +75,7 @@ MODEL:
 
         LOSS_CONFIG:
           code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-          weight: 2
+          weight: 0.2
 
         TARGET_ASSIGNER_CONFIG:
             NAME: CenterAssigner
@@ -105,7 +97,7 @@ MODEL:
             post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
-            out_size_factor: 8
+            out_size_factor: 4
             voxel_size: [0.1, 0.1]
             nms:
                 use_rotate_nms: True
@@ -132,7 +124,7 @@ MODEL:
 
     LOSS_CONFIG:
         LOSS_WEIGHTS: {
-            'seg_weight': 1.0,
+            'seg_weight': 80.0,
             'rpn_weight': 1.0
         }
 
