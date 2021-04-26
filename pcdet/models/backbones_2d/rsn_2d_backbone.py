@@ -96,6 +96,8 @@ class CarS(nn.Module):
                 Returns:
                 """
         pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords']
+        import pudb
+        pudb.set_trace()
         batch_size = batch_dict['batch_size']
         input_sp_tensor = spconv.SparseConvTensor(
             features=pillar_features,
