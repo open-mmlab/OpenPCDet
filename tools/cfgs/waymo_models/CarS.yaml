@@ -36,9 +36,9 @@ MODEL:
     BACKBONE_3D:
         NAME: CarS
 
-    MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 576
+#    MAP_TO_BEV:
+#        NAME: HeightCompression
+#        NUM_BEV_FEATURES: 576
 
 #    BACKBONE_2D:
 #        NAME: BaseBEVBackbone

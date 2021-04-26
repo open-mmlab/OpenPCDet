@@ -4,10 +4,6 @@ from .detector3d_template import Detector3DTemplate
 class RangeTemplate(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
-        self.module_topology = [
-            'backbone_range', 'seg_head', 'map_to_point_cloud', 'vfe', 'backbone_2d', 'backbone_3d',
-            'map_to_bev_module', 'pfe', 'dense_head', 'point_head', 'roi_head'
-        ]
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict):

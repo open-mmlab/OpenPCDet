@@ -1,63 +1,47 @@
-CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
-DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    DATA_SPLIT: {
-        'train': val,
-        'test': val
-    }
-
-    SAMPLED_INTERVAL: {
-      'train': 10,
-      'test': 10
-    }
-
+DATA_CONFIG: 
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+    POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     DATA_PROCESSOR:
-      - NAME: mask_points_and_boxes_outside_range
-        REMOVE_OUTSIDE_BOXES: True
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
 
-      - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
-        MAX_POINTS_PER_VOXEL: 5
-        MAX_NUMBER_OF_VOXELS: {
-            'train': 80000,
-            'test': 90000
-        }
-    RANGE_CONFIG:
-      RANGE_IMAGE_SHAPE: [64, 2650]
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': False
+          }
 
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.16, 0.16, 6]
+          MAX_POINTS_PER_VOXEL: 32
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 16000,
+            'test': 40000
+          }
 
 MODEL:
-    NAME: RangeTemplate
-
-    BACKBONE_RANGE:
-        NAME: UNet
-
-    SEG_HEAD:
-        NAME: FCNHead
-
-    MAP_TO_POINT_CLOUD:
-        NAME: PointGather
-        FOREGROUND_THRESHOLD: 0.1
+    NAME: PointPillar
 
     VFE:
-      NAME: PillarVFE
-      WITH_DISTANCE: False
-      USE_ABSLOTE_XYZ: True
-      USE_NORM: True
-      NUM_FILTERS: [ 64 ]
+        NAME: PillarVFE
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_NORM: True
+        NUM_FILTERS: [64]
 
     MAP_TO_BEV:
-      NAME: PointPillarScatter
-      NUM_BEV_FEATURES: 64
+        NAME: PointPillarScatter
+        NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
-      NAME: BaseBEVBackbone
-      LAYER_NUMS: [ 3, 5, 5 ]
-      LAYER_STRIDES: [ 2, 2, 2 ]
-      NUM_FILTERS: [ 64, 128, 256 ]
-      UPSAMPLE_STRIDES: [ 1, 2, 4 ]
-      NUM_UPSAMPLE_FILTERS: [ 128, 128, 128 ]
+        NAME: BaseBEVBackbone
+        LAYER_NUMS: [3, 5, 5]
+        LAYER_STRIDES: [2, 2, 2]
+        NUM_FILTERS: [64, 128, 256]
+        UPSAMPLE_STRIDES: [1, 2, 4]
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
         NAME: AnchorHeadSingle
@@ -70,32 +54,32 @@ MODEL:
 
         ANCHOR_GENERATOR_CONFIG: [
             {
-                'class_name': 'Vehicle',
-                'anchor_sizes': [[4.7, 2.1, 1.7]],
+                'class_name': 'Car',
+                'anchor_sizes': [[3.9, 1.6, 1.56]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-1.78],
                 'align_center': False,
-                'feature_map_stride': 4,
-                'matched_threshold': 0.55,
-                'unmatched_threshold': 0.4
+                'feature_map_stride': 2,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.91, 0.86, 1.73]],
+                'anchor_sizes': [[0.8, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[1.78, 0.84, 1.78]],
+                'anchor_sizes': [[1.76, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [0],
+                'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 2,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             }
@@ -122,7 +106,7 @@ MODEL:
         SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
-        EVAL_METRIC: waymo
+        EVAL_METRIC: kitti
 
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
@@ -131,16 +115,10 @@ MODEL:
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
-    LOSS_CONFIG:
-      LOSS_WEIGHTS: {
-        'seg_weight': 400.0,
-        'rpn_weight': 1.0
-      }
-
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 30
+    NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
