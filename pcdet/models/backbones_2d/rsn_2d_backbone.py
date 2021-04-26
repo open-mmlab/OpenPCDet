@@ -114,18 +114,6 @@ class CarS(nn.Module):
         x_conv6 = self.conv6(x_conv5)
 
         # out = self.block(input_sp_tensor)
-        batch_dict.update({
-            'encoded_spconv_tensor': x_conv6,
-            'encoded_spconv_tensor_stride': 4
-        })
-        batch_dict.update({
-            'multi_scale_3d_features': {
-                'x_conv1': x_conv1,
-                'x_conv2': x_conv2,
-                'x_conv3': x_conv3,
-                'x_conv4': x_conv4,
-                'x_conv5': x_conv5,
-                'x_conv6': x_conv6,
-            }
-        })
+        batch_dict['spatial_features_2d'] = x_conv6.dense()
+
         return batch_dict
