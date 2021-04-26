@@ -97,6 +97,7 @@ class Detector3DTemplate(nn.Module):
             voxel_size=model_info_dict['voxel_size']
         )
         model_info_dict['num_point_features'] = vfe_module.get_output_feature_dim()
+        model_info_dict['num_bev_features'] = vfe_module.get_output_feature_dim()
         model_info_dict['module_list'].append(vfe_module)
         return vfe_module, model_info_dict
 
