@@ -226,12 +226,12 @@ class CarXL(nn.Module):
             conv2=B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
                           indice_key="subm_2"),
             conv3=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3"),
-            conv4=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_4"),
+            conv4=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_3"),
             conv5=B0Block(in_channels=out_channels, out_channels=out_channels, stride=2, norm_fn=norm_fn,
                           indice_key="subm_5"),
             conv6=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6"),
-            conv7=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_7"),
-            conv8=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_8")
+            conv7=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6"),
+            conv8=B0Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_6")
         )
 
         self.num_point_features = 64
