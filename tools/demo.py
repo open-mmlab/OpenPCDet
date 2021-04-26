@@ -147,7 +147,6 @@ class DemoDataset(DatasetTemplate):
             single_pred_dict = generate_single_sample_dict(index, box_dict)
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
-
             if output_path is not None:
                 label_path = output_path
                 track_format = False
@@ -166,7 +165,7 @@ class DemoDataset(DatasetTemplate):
                                         type_name] + prob_ls)
                     np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index] + '.bin')
                 else:
-                    with open(label_path + batch_dict['frame_id'][index] + '.txt', 'w') as f:
+                    with open(label_path + '/' + batch_dict['frame_id'][index] + '.txt', 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
                         dims = single_pred_dict['dimensions']  # lhw -> hwl

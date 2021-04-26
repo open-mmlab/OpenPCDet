@@ -317,7 +317,7 @@ class NeolixDataset(DatasetTemplate):
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
             if output_path is not None:
-                inference = False
+                inference = True
                 label_path = './val_label/'
                 if inference:
                     track_format = False

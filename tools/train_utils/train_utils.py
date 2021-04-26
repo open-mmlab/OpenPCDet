@@ -45,6 +45,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         # # Train Step 2: Backward pass, get gradient
         # scaler.scale(loss).backward()
         # # """使用尺度管理器进行调整"""
+        # scaler.unscale_(optimizer)
         # clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
         #
         # # Train Step 3: Optimize params

@@ -179,8 +179,8 @@ def d3_box_overlap_kernel(boxes, qboxes, rinc, criterion=-1):
 
 
 def d3_box_overlap(boxes, qboxes, criterion=-1):
-    rinc = rotate_iou_gpu_eval(boxes[:, [0, 2, 3, 5, 6]],
-                               qboxes[:, [0, 2, 3, 5, 6]], 2)
+    rinc = rotate_iou_gpu_eval(boxes[:, [0, 1, 3, 5, 6]],
+                               qboxes[:, [0, 1, 3, 5, 6]], 2)
     d3_box_overlap_kernel(boxes, qboxes, rinc, criterion)
     return rinc
 
@@ -411,20 +411,24 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
             dt_boxes = np.concatenate([a["bbox"] for a in dt_annos_part], 0)
             overlap_part = image_box_overlap(gt_boxes, dt_boxes)
         elif metric == 1:
+            # print(gt_annos_part[0])
+            # print('[dt_annos[0]]', dt_annos_part[0])
             loc = np.concatenate(
-                [a["location"][:, [0, 2]] for a in gt_annos_part], 0)
+                [a["location"][:, [0, 1]] for a in gt_annos_part], 0)
             dims = np.concatenate(
                 [a["dimensions"][:, [0, 2]] for a in gt_annos_part], 0)
             rots = np.concatenate([a["rotation_y"] for a in gt_annos_part], 0)
             gt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
             loc = np.concatenate(
-                [a["location"][:, [0, 2]] for a in dt_annos_part], 0)
+                [a["location"][:, [0, 1]] for a in dt_annos_part], 0)
             dims = np.concatenate(
                 [a["dimensions"][:, [0, 2]] for a in dt_annos_part], 0)
             rots = np.concatenate([a["rotation_y"] for a in dt_annos_part], 0)
             dt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
+            # print('gt_boxes', gt_boxes)
+            # print('dt_boxes', dt_boxes)
             overlap_part = bev_box_overlap(gt_boxes, dt_boxes).astype(
                 np.float64)
         elif metric == 2:
