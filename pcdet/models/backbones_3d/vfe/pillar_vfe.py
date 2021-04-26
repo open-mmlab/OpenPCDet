@@ -120,4 +120,5 @@ class PillarVFE(VFETemplate):
             features = pfn(features)
         features = features.squeeze()
         batch_dict['pillar_features'] = features
+        batch_dict['num_bev_features'] = features.shape[-1]
         return batch_dict

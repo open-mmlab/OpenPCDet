@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class BaseBEVBackbone(nn.Module):
-    def __init__(self, model_cfg, input_channels):
+    def __init__(self, model_cfg, input_channels,**kwargs):
         super().__init__()
         self.model_cfg = model_cfg
 

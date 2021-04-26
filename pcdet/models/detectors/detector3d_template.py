@@ -133,6 +133,7 @@ class Detector3DTemplate(nn.Module):
 
         backbone_2d_module = backbones_2d.__all__[self.model_cfg.BACKBONE_2D.NAME](
             model_cfg=self.model_cfg.BACKBONE_2D,
+            grid_size=model_info_dict['grid_size'],
             input_channels=model_info_dict['num_bev_features']
         )
         model_info_dict['module_list'].append(backbone_2d_module)

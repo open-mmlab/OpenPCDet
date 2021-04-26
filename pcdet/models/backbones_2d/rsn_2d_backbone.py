@@ -94,12 +94,12 @@ class CarS(nn.Module):
                         spatial_features
                 Returns:
                 """
-        spatial_features = batch_dict['spatial_features']
+        pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords'].permute((0,2,3,1))
         batch_size = batch_dict['batch_size']
         input_sp_tensor = spconv.SparseConvTensor(
-            features=voxel_features,
-            indices=voxel_coords[:, :3].int(),
-            spatial_shape=self.sparse_shape,
+            features=pillar_features,
+            indices=coords[:, :3].int(),
+            spatial_shape=self.sparse_shape[1:],
             batch_size=batch_size
         )
         x_conv_input = self.conv_input(input_sp_tensor)
