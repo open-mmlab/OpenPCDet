@@ -85,6 +85,8 @@ class BaseBEVBackbone(nn.Module):
                 spatial_features
         Returns:
         """
+        import pudb
+        pudb.set_trace()
         spatial_features = data_dict['spatial_features']
         ups = []
         ret_dict = {}
