@@ -16,7 +16,7 @@ __all__ = {
     'PointRCNN': PointRCNN,
     'CenterPoint': CenterPoint,
     'CenterPoints': CenterPoint,
-    'RangePillar': RangeTemplate,
+    'RangeTemplate': RangeTemplate,
     'RSN': RSN
 }
 
