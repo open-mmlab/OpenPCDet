@@ -31,7 +31,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: RangeTemplate
+    NAME: RSN
 
     BACKBONE_RANGE:
         NAME: UNet
