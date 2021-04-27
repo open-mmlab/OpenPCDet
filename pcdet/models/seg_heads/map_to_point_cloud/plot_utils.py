@@ -61,10 +61,11 @@ def analyze(batch_dict, batch_idx=0):
         if tp != 0 :
             recall = tp / (tp + fn)
             precision = tp / (tp + fp)
+            f1 = 2 * (recall * precision) / (recall + precision)
         else:
             recall = 0
             precision = 0
-        f1 = 2 * (recall * precision) / (recall + precision)
+            f1 = 0
         return points_num, recall, precision, f1
 
     batch_size, height, width = batch_dict['seg_pred'].shape
