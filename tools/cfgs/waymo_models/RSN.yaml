@@ -4,7 +4,7 @@ DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     DATA_SPLIT: {
-        'train': val,
+        'train': train,
         'test': val
     }
 
@@ -12,7 +12,7 @@ DATA_CONFIG:
 
     SAMPLED_INTERVAL: {
       'train': 10,
-      'test': 10
+      'test': 1
     }
 
     DATA_PROCESSOR:
