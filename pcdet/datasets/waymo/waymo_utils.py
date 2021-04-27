@@ -319,7 +319,7 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
             gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
         range_mask[range_mask > 0] = 1
         data_dict['range_mask'] = range_mask
-        data_dict['flag_of_pts'] = select.astype(np.float)
+        data_dict['flag_of_pts'] = np.expand_dims(select, axis=1).astype(np.float)
 
     return data_dict
 
