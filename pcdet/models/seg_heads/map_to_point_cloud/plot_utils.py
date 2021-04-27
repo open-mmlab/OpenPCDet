@@ -95,4 +95,4 @@ def analyze(batch_dict, batch_idx=0):
     result.append((1, points_num, recall, precision, f1))
     print("threshold    points_num    recall    precision    f1")
     for res in result:
-        print("9.2f    %8.2f    6.2f    9.2f    5.2f" % res)
+        print("%9.2f    %8.2f    %6.2f    %9.2f    %5.2f" % res)
