@@ -23,6 +23,8 @@ class DataProcessor(object):
         data_dict['points'] = data_dict['points'][mask]
         if 'ri_indices' in data_dict.keys():
             data_dict['ri_indices'] = data_dict['ri_indices'][mask]
+        if 'flag_of_pts' in data_dict.keys():
+            data_dict['flag_of_pts'] = data_dict['flag_of_pts'][mask]
         if data_dict.get('gt_boxes', None) is not None and config.REMOVE_OUTSIDE_BOXES and self.training:
             mask = box_utils.mask_boxes_outside_range_numpy(
                 data_dict['gt_boxes'], self.point_cloud_range, min_num_corners=config.get('min_num_corners', 1)
