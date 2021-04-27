@@ -300,6 +300,12 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
         ).long().numpy()
         flag_of_pts = point_indices.max(axis=0)
         select = flag_of_pts > 0
+        # filter empty gt boxes
+        flag_of_gts = point_indices.sum(axis=1)
+        min_points_in_gt = 0
+        flag_of_gts = flag_of_gts > min_points_in_gt
+        gt_boxes = gt_boxes[flag_of_gts]
+        data_dict['gt_boxes'] = gt_boxes
 
         # point_indices = points_in_rbbox(points[..., :3].squeeze(axis=0), gt_boxes).numpy()
         # flag_of_pts = point_indices.max(axis=0)
