@@ -58,9 +58,13 @@ def analyze(batch_dict, batch_idx=0):
         fp = (this_points_mask & ~this_flag_of_pts).sum().item()
         fn = (~this_points_mask & this_flag_of_pts).sum().item()
         tn = (~this_points_mask & ~this_flag_of_pts).sum().item()
-        recall = tp / (tp + fn)
-        precision = tp / (tp + fp)
-        f1 = 2 * (recall + precision) / (recall * precision)
+        if tp != 0 :
+            recall = tp / (tp + fn)
+            precision = tp / (tp + fp)
+        else:
+            recall = 0
+            precision = 0
+        f1 = 2 * (recall * precision) / (recall + precision)
         return points_num, recall, precision, f1
 
     batch_size, height, width = batch_dict['seg_pred'].shape
