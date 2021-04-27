@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .plot_utils import plot_pc, plot_pc_with_gt, map_plot_with_gt, plot_pc_with_gt_threshold
+from .plot_utils import plot_pc, plot_pc_with_gt, map_plot_with_gt, plot_pc_with_gt_threshold, analyze
 
 
 class PointGather(nn.Module):

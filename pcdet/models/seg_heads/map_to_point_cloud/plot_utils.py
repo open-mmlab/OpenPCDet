@@ -9,13 +9,13 @@ def plot_pc(this_points):
     mlab.show()
 
 
-def plot_pc_with_gt(this_points, batch_idx, batch_dict):
+def plot_pc_with_gt(this_points, batch_dict, batch_idx=0):
     gt_np = batch_dict['gt_boxes'][batch_idx].cpu().numpy()
     this_points_np = this_points[:, 1:].cpu().numpy()
     plot_pointcloud_with_gt_boxes(this_points_np, gt_np)
 
 
-def map_plot_with_gt(batch_idx, batch_dict):
+def map_plot_with_gt(batch_dict, batch_idx=0):
     seg_mask = batch_dict['range_mask']
     batch_size, height, width = seg_mask.shape
     points = batch_dict['points']
@@ -30,10 +30,10 @@ def map_plot_with_gt(batch_idx, batch_dict):
     this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
     this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
     this_points = this_points[this_points_mask]
-    plot_pc_with_gt(this_points, batch_idx, batch_dict)
+    plot_pc_with_gt(this_points, batch_dict, batch_idx)
 
 
-def plot_pc_with_gt_threshold(batch_idx, batch_dict, threshold=0.1):
+def plot_pc_with_gt_threshold(batch_dict, batch_idx=0, threshold=0.1):
     seg_mask = batch_dict['seg_pred'] >= threshold
     batch_size, height, width = seg_mask.shape
     points = batch_dict['points']
@@ -48,4 +48,46 @@ def plot_pc_with_gt_threshold(batch_idx, batch_dict, threshold=0.1):
     this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
     this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
     this_points = this_points[this_points_mask]
-    plot_pc_with_gt(this_points, batch_idx, batch_dict)
+    plot_pc_with_gt(this_points, batch_dict, batch_idx)
+
+
+def analyze(batch_dict, batch_idx=0):
+    def eval(this_points_mask, this_flag_of_pts):
+        points_num = this_points_mask.sum().item()
+        tp = (this_points_mask & this_flag_of_pts).sum().item()
+        fp = (this_points_mask & ~this_flag_of_pts).sum().item()
+        fn = (~this_points_mask & this_flag_of_pts).sum().item()
+        tn = (~this_points_mask & ~this_flag_of_pts).sum().item()
+        recall = tp / (tp + fn)
+        precision = tp / (tp + fp)
+        f1 = 2 * (recall + precision) / (recall * precision)
+        return points_num, recall, precision, f1
+
+    batch_size, height, width = batch_dict['seg_pred'].shape
+    flag_of_pts = batch_dict['flag_of_pts']
+    points = batch_dict['points']
+    ri_indices = batch_dict['ri_indices']
+    batch_points_mask = points[:, 0] == batch_idx
+    this_ri_indices = ri_indices[batch_points_mask, :]
+    this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
+    # target
+    this_flag_of_pts = flag_of_pts[batch_points_mask, :].bool()
+    this_seg_mask = batch_dict['seg_pred'][batch_idx]
+    result = []
+    for i in range(10):
+        threshold = i / 10
+        cur_seg_mask = this_seg_mask >= threshold
+        cur_seg_mask = cur_seg_mask.flatten()
+        # predict
+        this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
+        points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
+        result.append((points_num, recall, precision, f1))
+
+    this_range_mask = batch_dict['range_mask'][batch_idx]
+    this_range_mask = this_range_mask.flatten()
+    this_points_mask = torch.gather(this_range_mask, dim=0, index=this_ri_indexes).bool()
+    points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
+    result.append((points_num, recall, precision, f1))
+    print("points_num    recall    precision    f1")
+    for res in result:
+        print("%8.2f    6.2f    9.2f    5.2f"%res)
