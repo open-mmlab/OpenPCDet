@@ -34,7 +34,7 @@ def map_plot_with_gt(batch_idx, batch_dict):
 
 
 def plot_pc_with_gt_threshold(batch_idx, batch_dict, threshold=0.1):
-    seg_mask = batch_dict['seg_mask'] >= threshold
+    seg_mask = batch_dict['seg_pred'] >= threshold
     batch_size, height, width = seg_mask.shape
     points = batch_dict['points']
     ri_indices = batch_dict['ri_indices']
