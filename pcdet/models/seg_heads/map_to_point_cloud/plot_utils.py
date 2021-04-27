@@ -68,7 +68,7 @@ def analyze(batch_dict, batch_idx=0):
     points = batch_dict['points']
     ri_indices = batch_dict['ri_indices']
     batch_points_mask = points[:, 0] == batch_idx
-    this_ri_indices = ri_indices[batch_points_mask, :]
+    this_ri_indices = ri_indices[batch_points_mask, 1]
     this_ri_indexes = (this_ri_indices[:, 1] * width + this_ri_indices[:, 2]).long()
     # target
     this_flag_of_pts = flag_of_pts[batch_points_mask, :].bool()
