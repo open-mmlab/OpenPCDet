@@ -46,6 +46,7 @@ class PointGather(nn.Module):
         foreground_voxel_num_points = []
         import pudb
         pudb.set_trace()
+        analyze(batch_dict)
 
         for batch_idx in range(batch_size):
             this_range_features = range_features[batch_idx].reshape((height * width, -1))
