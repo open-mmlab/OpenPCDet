@@ -1,4 +1,5 @@
-CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+#CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+CLASS_NAMES: ['Vehicle']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
@@ -56,10 +57,10 @@ MODEL:
         TASKS: &tasks_head
           - num_class: 1
             class_names: ['Vehicle']
-          - num_class: 1
-            class_names: ['Pedestrian']
-          - num_class: 1
-            class_names: ['Cyclist']
+#          - num_class: 1
+#            class_names: ['Pedestrian']
+#          - num_class: 1
+#            class_names: ['Cyclist']
 
         PARAMETERS:
           share_conv_channel: 64 # may not correct
@@ -81,8 +82,8 @@ MODEL:
             min_radius: 2
             mapping: {
                 'Vehicle' :1,
-                'Pedestrian': 2,
-                'Cyclist': 3
+#                'Pedestrian': 2,
+#                'Cyclist': 3
             }
 
         TEST_CONFIG:
@@ -119,7 +120,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 30
+    NUM_EPOCHS: 9
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
