@@ -82,7 +82,6 @@ def analyze(batch_dict):
         # target
         this_flag_of_pts = flag_of_pts[batch_points_mask, 1].bool()
         this_seg_mask = batch_dict['seg_pred'][batch_idx]
-        # result = []
         for i in range(10):
             threshold = i / 10
             cur_seg_mask = this_seg_mask >= threshold
@@ -91,17 +90,13 @@ def analyze(batch_dict):
             this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
             points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
             batch_result[batch_idx,i] = threshold, points_num, recall, precision, f1
-            # result.append((threshold, points_num, recall, precision, f1))
 
         this_range_mask = batch_dict['range_mask'][batch_idx]
         this_range_mask = this_range_mask.flatten()
         this_points_mask = torch.gather(this_range_mask, dim=0, index=this_ri_indexes).bool()
         points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
         batch_result[batch_idx,10] = 1, points_num, recall, precision, f1
-        # result.append((1, points_num, recall, precision, f1))
-        # batch_result.append(result)
-    import pudb
-    pudb.set_trace()
+
     print("threshold    points_num    recall    precision    f1")
     for i in range(11):
         print("%9.2f    %8.0f    %6.2f    %9.2f    %5.2f" % tuple(batch_result.mean(axis=0)[i].tolist()))
