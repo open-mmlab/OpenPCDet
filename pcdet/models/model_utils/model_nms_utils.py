@@ -44,6 +44,7 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
             cur_box_preds = box_preds[scores_mask]
         else:
             box_scores = cls_scores[:, k]
+            cur_box_preds = box_preds
 
         selected = []
         if box_scores.shape[0] > 0:
