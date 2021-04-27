@@ -104,4 +104,4 @@ def analyze(batch_dict):
     pudb.set_trace()
     print("threshold    points_num    recall    precision    f1")
     for i in range(11):
-        print("%9.2f    %8.2f    %6.2f    %9.2f    %5.2f" % tuple(batch_result.mean(axis=0)[i].tolist()))
+        print("%9.2f    %8.0f    %6.2f    %9.2f    %5.2f" % tuple(batch_result.mean(axis=0)[i].tolist()))
