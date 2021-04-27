@@ -44,8 +44,7 @@ class PointGather(nn.Module):
         foreground_voxels = []
         foreground_voxel_coords = []
         foreground_voxel_num_points = []
-        import pudb
-        pudb.set_trace()
+
         analyze(batch_dict)
 
         for batch_idx in range(batch_size):
