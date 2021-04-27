@@ -58,7 +58,7 @@ def analyze(batch_dict, batch_idx=0):
         fp = (this_points_mask & ~this_flag_of_pts).sum().item()
         fn = (~this_points_mask & this_flag_of_pts).sum().item()
         tn = (~this_points_mask & ~this_flag_of_pts).sum().item()
-        if tp != 0 :
+        if tp != 0:
             recall = tp / (tp + fn)
             precision = tp / (tp + fp)
             f1 = 2 * (recall * precision) / (recall + precision)
@@ -86,13 +86,13 @@ def analyze(batch_dict, batch_idx=0):
         # predict
         this_points_mask = torch.gather(cur_seg_mask, dim=0, index=this_ri_indexes).bool()
         points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
-        result.append((points_num, recall, precision, f1))
+        result.append((threshold, points_num, recall, precision, f1))
 
     this_range_mask = batch_dict['range_mask'][batch_idx]
     this_range_mask = this_range_mask.flatten()
     this_points_mask = torch.gather(this_range_mask, dim=0, index=this_ri_indexes).bool()
     points_num, recall, precision, f1 = eval(this_points_mask, this_flag_of_pts)
-    result.append((points_num, recall, precision, f1))
-    print("points_num    recall    precision    f1")
+    result.append((1, points_num, recall, precision, f1))
+    print("threshold    points_num    recall    precision    f1")
     for res in result:
-        print("%8.2f    6.2f    9.2f    5.2f"%res)
+        print("9.2f    %8.2f    6.2f    9.2f    5.2f" % res)
