@@ -2,10 +2,6 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    DATA_SPLIT: {
-      'train': val,
-      'test': val
-    }
 
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
     DATA_PROCESSOR:
@@ -19,11 +15,11 @@ DATA_CONFIG:
           }
 
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.16, 0.16, 6]
+          VOXEL_SIZE: [0.2, 0.2, 6]
           MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
-            'train': 16000,
-            'test': 40000
+            'train': 80000,
+            'test': 90000
           }
 
 MODEL:
