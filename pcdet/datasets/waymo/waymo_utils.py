@@ -392,7 +392,7 @@ def test(data_dict):
     pudb.set_trace()
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
-    # range_mask[range_mask > 0] = 1
+    range_mask[range_mask > 0] = 1
     gt_points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(gt_points_vehicle_frame, axis=0))
     range_mask_tf, ri_mask_indices_tf, ri_mask_ranges_tf = range_image_utils.build_range_image_from_point_cloud(
         gt_points_vehicle_frame_tf, num_points_tf, extrinsic_tf, inclination_tf, range_image_size)
