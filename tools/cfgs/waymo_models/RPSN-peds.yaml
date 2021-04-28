@@ -1,5 +1,5 @@
-#CLASS_NAMES: ['Vehicle']
-CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+CLASS_NAMES: ['Pedestrian']
+#CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
@@ -17,8 +17,8 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
-        MAX_POINTS_PER_VOXEL: 5
+        VOXEL_SIZE: [ 0.1, 0.1, 10 ]
+        MAX_POINTS_PER_VOXEL: 32
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
             'test': 90000
@@ -41,23 +41,15 @@ MODEL:
         FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-      NAME: MeanVFE
-
-    BACKBONE_3D:
-      NAME: CarS
-
-    MAP_TO_BEV:
-      NAME: HeightCompression
-      NUM_BEV_FEATURES: 576
+      NAME: PillarVFE
+      WITH_DISTANCE: False
+      USE_ABSLOTE_XYZ: True
+      USE_NORM: True
+      NUM_FILTERS: [ 64 ]
+      LAYER_NORM: True
 
     BACKBONE_2D:
-      NAME: BaseBEVBackbone
-
-      LAYER_NUMS: [ 5, 5 ]
-      LAYER_STRIDES: [ 1, 2 ]
-      NUM_FILTERS: [ 128, 256 ]
-      UPSAMPLE_STRIDES: [ 1, 2 ]
-      NUM_UPSAMPLE_FILTERS: [ 256, 256 ]
+      NAME: PedS
 
     DENSE_HEAD:
         NAME: CenterHead
@@ -67,12 +59,12 @@ MODEL:
         USE_DCN: False
         NO_LOG: False
         TASKS: &tasks_head
-          - num_class: 1
-            class_names: ['Vehicle']
+#          - num_class: 1
+#            class_names: ['Vehicle']
           - num_class: 1
             class_names: ['Pedestrian']
-          - num_class: 1
-            class_names: ['Cyclist']
+#          - num_class: 1
+#            class_names: ['Cyclist']
 
         PARAMETERS:
           share_conv_channel: 64 # may not correct
@@ -87,24 +79,24 @@ MODEL:
             NAME: CenterAssigner
             BOX_CODER: ResidualCoder
             tasks: *tasks_head
-            out_size_factor: 4
+            out_size_factor: 2
             dense_reg: 1
             gaussian_overlap: 0.1
             max_objs: 500
             min_radius: 2
-            mapping: {
-                'Vehicle' :1,
-                'Pedestrian': 2,
-                'Cyclist': 3
-            }
+#            mapping: {
+#                'Vehicle' :1,
+#                'Pedestrian': 2,
+#                'Cyclist': 3
+#            }
 
         TEST_CONFIG:
             double_flip: *double_flip
             post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
-            out_size_factor: 4
-            voxel_size: [0.2, 0.2]
+            out_size_factor: 2
+            voxel_size: [0.1, 0.1]
             nms:
                 use_rotate_nms: True
                 use_multi_class_nms: False

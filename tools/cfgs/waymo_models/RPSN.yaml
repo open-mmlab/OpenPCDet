@@ -3,7 +3,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+    POINT_CLOUD_RANGE: [-79.5, -79.5, -5, 79.5, 79.5, 5]
 
     USE_DOUBLE_FLIP_TEST: &double_flip False
 
@@ -17,7 +17,7 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 6 ]
+        VOXEL_SIZE: [ 0.2, 0.2, 10 ]
         MAX_POINTS_PER_VOXEL: 32
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
