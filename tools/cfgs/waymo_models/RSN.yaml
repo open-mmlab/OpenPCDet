@@ -1,4 +1,5 @@
-CLASS_NAMES: ['Vehicle']
+#CLASS_NAMES: ['Vehicle']
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
@@ -64,10 +65,10 @@ MODEL:
         TASKS: &tasks_head
           - num_class: 1
             class_names: ['Vehicle']
-#          - num_class: 1
-#            class_names: ['Pedestrian']
-#          - num_class: 1
-#            class_names: ['Cyclist']
+          - num_class: 1
+            class_names: ['Pedestrian']
+          - num_class: 1
+            class_names: ['Cyclist']
 
         PARAMETERS:
           share_conv_channel: 64 # may not correct
@@ -99,7 +100,7 @@ MODEL:
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
             out_size_factor: 4
-            voxel_size: [0.1, 0.1]
+            voxel_size: [0.2, 0.2]
             nms:
                 use_rotate_nms: True
                 use_multi_class_nms: False
