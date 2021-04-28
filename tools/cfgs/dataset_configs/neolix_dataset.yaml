@@ -1,5 +1,5 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/test_cls_compat/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/'
 CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
 TYPE_TO_ID: {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
 
@@ -18,18 +18,18 @@ EVAL:
       '4': 'Large_vehicle'
     }
 
-################  The mentioned info need to be modified
+################  The above parameters need to be modified
 
 POINT_CLOUD_RANGE: [-69.12, -69.12, -1.5, 69.12, 69.12, 2.5] #[-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
 
 DATA_SPLIT: {
     'train': train,
-    'test': test
+    'test': val
 }
 
 INFO_PATH: {
     'train': [neolix_infos_train.pkl],
-    'test': [neolix_infos_test.pkl],
+    'test': [neolix_infos_val.pkl],
 }
 
 FOV_POINTS_ONLY: False
