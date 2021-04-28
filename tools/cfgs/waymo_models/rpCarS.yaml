@@ -3,10 +3,6 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
     POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
-    DATA_SPLIT: {
-        'train': train,
-        'test': val
-    }
 
     SAMPLED_INTERVAL: {
       'train': 10,
@@ -18,8 +14,8 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
-        MAX_POINTS_PER_VOXEL: 5
+        VOXEL_SIZE: [ 0.2, 0.2, 6 ]
+        MAX_POINTS_PER_VOXEL: 32
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
             'test': 90000
@@ -42,23 +38,15 @@ MODEL:
         FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-      NAME: MeanVFE
-
-    BACKBONE_3D:
-      NAME: CarS
-
-    MAP_TO_BEV:
-      NAME: HeightCompression
-      NUM_BEV_FEATURES: 576
+      NAME: PillarVFE
+      WITH_DISTANCE: False
+      USE_ABSLOTE_XYZ: True
+      USE_NORM: True
+      NUM_FILTERS: [ 64 ]
+      LAYER_NORM: True
 
     BACKBONE_2D:
-      NAME: BaseBEVBackbone
-
-      LAYER_NUMS: [ 5, 5 ]
-      LAYER_STRIDES: [ 1, 2 ]
-      NUM_FILTERS: [ 128, 256 ]
-      UPSAMPLE_STRIDES: [ 1, 2 ]
-      NUM_UPSAMPLE_FILTERS: [ 256, 256 ]
+      NAME: CarS
 
     DENSE_HEAD:
         NAME: AnchorHeadSingle

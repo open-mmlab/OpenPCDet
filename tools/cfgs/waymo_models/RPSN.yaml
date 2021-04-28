@@ -1,38 +1,61 @@
+#CLASS_NAMES: ['Vehicle']
 CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+
     USE_DOUBLE_FLIP_TEST: &double_flip False
+
+    SAMPLED_INTERVAL: {
+      'train': 10,
+      'test': 10
+    }
+
+    DATA_PROCESSOR:
+      - NAME: mask_points_and_boxes_outside_range
+        REMOVE_OUTSIDE_BOXES: True
+
+      - NAME: transform_points_to_voxels
+        VOXEL_SIZE: [ 0.2, 0.2, 6 ]
+        MAX_POINTS_PER_VOXEL: 32
+        MAX_NUMBER_OF_VOXELS: {
+            'train': 80000,
+            'test': 90000
+        }
+    RANGE_CONFIG:
+      RANGE_IMAGE_SHAPE: [64, 2650]
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: RSN
+
+    BACKBONE_RANGE:
+        NAME: UNet
+
+    SEG_HEAD:
+        NAME: FCNHead
+
+    MAP_TO_POINT_CLOUD:
+        NAME: PointGather
+        FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-        NAME: MeanVFE
-
-    BACKBONE_3D:
-        NAME: VoxelBackBone8x
-
-    MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+      NAME: PillarVFE
+      WITH_DISTANCE: False
+      USE_ABSLOTE_XYZ: True
+      USE_NORM: True
+      NUM_FILTERS: [ 64 ]
+      LAYER_NORM: True
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
+      NAME: CarS
 
     DENSE_HEAD:
         NAME: CenterHead
         CLASS_AGNOSTIC: False
         DATASET: waymo
         MODE: 3d
-        INIT: False
         USE_DCN: False
         NO_LOG: False
         TASKS: &tasks_head
@@ -50,13 +73,13 @@ MODEL:
 
         LOSS_CONFIG:
           code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-          weight: 2
+          weight: 0.2
 
         TARGET_ASSIGNER_CONFIG:
             NAME: CenterAssigner
             BOX_CODER: ResidualCoder
             tasks: *tasks_head
-            out_size_factor: 8
+            out_size_factor: 4
             dense_reg: 1
             gaussian_overlap: 0.1
             max_objs: 500
@@ -72,8 +95,8 @@ MODEL:
             post_center_limit_range: [-80, -80, -10.0, 80, 80, 10.0]
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
-            out_size_factor: 8
-            voxel_size: [0.1, 0.1]
+            out_size_factor: 4
+            voxel_size: [0.2, 0.2]
             nms:
                 use_rotate_nms: True
                 use_multi_class_nms: False
@@ -82,7 +105,6 @@ MODEL:
                 nms_pre_max_size: 4096
                 nms_post_max_size: 500
                 nms_iou_threshold: 0.7
-
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
@@ -97,6 +119,12 @@ MODEL:
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
+
+    LOSS_CONFIG:
+        LOSS_WEIGHTS: {
+            'seg_weight': 80.0,
+            'rpn_weight': 1.0
+        }
 
 
 OPTIMIZATION:

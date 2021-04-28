@@ -2,11 +2,42 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+
     USE_DOUBLE_FLIP_TEST: &double_flip False
+
+    SAMPLED_INTERVAL: {
+      'train': 10,
+      'test': 10
+    }
+
+    DATA_PROCESSOR:
+      - NAME: mask_points_and_boxes_outside_range
+        REMOVE_OUTSIDE_BOXES: True
+
+      - NAME: transform_points_to_voxels
+        VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
+        MAX_POINTS_PER_VOXEL: 5
+        MAX_NUMBER_OF_VOXELS: {
+            'train': 80000,
+            'test': 90000
+        }
+    RANGE_CONFIG:
+      RANGE_IMAGE_SHAPE: [64, 2650]
+
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: RSN
+
+    BACKBONE_RANGE:
+        NAME: UNet
+
+    SEG_HEAD:
+        NAME: FCNHead
+
+    MAP_TO_POINT_CLOUD:
+        NAME: PointGather
+        FOREGROUND_THRESHOLD: 0.1
 
     VFE:
         NAME: MeanVFE
@@ -33,7 +64,7 @@ MODEL:
         DATASET: waymo
         MODE: 3d
         USE_DCN: False
-        NO_LOG: True
+        NO_LOG: False
         TASKS: &tasks_head
           - num_class: 1
             class_names: ['Vehicle']
@@ -96,6 +127,11 @@ MODEL:
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
+    LOSS_CONFIG:
+        LOSS_WEIGHTS: {
+            'seg_weight': 1.0,
+            'rpn_weight': 1.0
+        }
 
 
 OPTIMIZATION:
@@ -117,4 +153,4 @@ OPTIMIZATION:
     LR_WARMUP: False
     WARMUP_EPOCH: 1
 
-    GRAD_NORM_CLIP: 10
+    GRAD_NORM_CLIP: 35

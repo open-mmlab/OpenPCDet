@@ -87,7 +87,7 @@ MODEL:
             score_threshold: 0.1
             pc_range: [-75.2, -75.2]
             out_size_factor: 4
-            voxel_size: [0.1, 0.1]
+            voxel_size: [0.2, 0.2]
             nms:
                 use_rotate_nms: True
                 use_multi_class_nms: False

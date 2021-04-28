@@ -21,8 +21,8 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 6 ]
-        MAX_POINTS_PER_VOXEL: 32
+        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
+        MAX_POINTS_PER_VOXEL: 5
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
             'test': 90000
@@ -45,15 +45,23 @@ MODEL:
         FOREGROUND_THRESHOLD: 0.1
 
     VFE:
-      NAME: PillarVFE
-      WITH_DISTANCE: False
-      USE_ABSLOTE_XYZ: True
-      USE_NORM: True
-      NUM_FILTERS: [ 64 ]
-      LAYER_NORM: True
+      NAME: MeanVFE
+
+    BACKBONE_3D:
+      NAME: CarS
+
+    MAP_TO_BEV:
+      NAME: HeightCompression
+      NUM_BEV_FEATURES: 576
 
     BACKBONE_2D:
-      NAME: CarS
+      NAME: BaseBEVBackbone
+
+      LAYER_NUMS: [ 5, 5 ]
+      LAYER_STRIDES: [ 1, 2 ]
+      NUM_FILTERS: [ 128, 256 ]
+      UPSAMPLE_STRIDES: [ 1, 2 ]
+      NUM_UPSAMPLE_FILTERS: [ 256, 256 ]
 
     DENSE_HEAD:
         NAME: CenterHead
