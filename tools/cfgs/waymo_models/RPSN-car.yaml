@@ -38,7 +38,7 @@ MODEL:
 
     MAP_TO_POINT_CLOUD:
         NAME: PointGather
-        FOREGROUND_THRESHOLD: 0.1
+        FOREGROUND_THRESHOLD: 0.15
 
     VFE:
       NAME: PillarVFE
@@ -84,11 +84,11 @@ MODEL:
             gaussian_overlap: 0.1
             max_objs: 500
             min_radius: 2
-#            mapping: {
-#                'Vehicle' :1,
-#                'Pedestrian': 2,
-#                'Cyclist': 3
-#            }
+            mapping: {
+                'Vehicle' :1,
+                'Pedestrian': 2,
+                'Cyclist': 3
+            }
 
         TEST_CONFIG:
             double_flip: *double_flip
