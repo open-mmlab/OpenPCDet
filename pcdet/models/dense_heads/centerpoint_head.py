@@ -354,7 +354,8 @@ class CenterHead(nn.Module):
                 raise NotImplementedError("Only Support KITTI and nuScene for Now!")
 
             self.forward_ret_dict['pred_box_encoding'][task_id] = pred_box_encoding
-
+            import pudb
+            pudb.set_trace()
             hm_loss = self.crit(pred_dict['hm'], self.forward_ret_dict['heatmap'][task_id],
                                 self.forward_ret_dict['mask'][task_id],
                                 self.forward_ret_dict['ind'][task_id],
