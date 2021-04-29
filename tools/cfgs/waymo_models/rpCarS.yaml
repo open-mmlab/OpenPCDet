@@ -4,11 +4,6 @@ DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
     POINT_CLOUD_RANGE: [-79.5, -79.5, -5, 79.5, 79.5, 5]
 
-    SAMPLED_INTERVAL: {
-      'train': 10,
-      'test': 10
-    }
-
     DATA_PROCESSOR:
       - NAME: mask_points_and_boxes_outside_range
         REMOVE_OUTSIDE_BOXES: True
