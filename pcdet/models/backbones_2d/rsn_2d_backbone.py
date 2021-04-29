@@ -84,6 +84,8 @@ class CarS(nn.Module):
                              indice_key="subm_4")
         self.conv5 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
         self.conv6 = B1Block(in_channels=out_channels, out_channels=out_channels, norm_fn=norm_fn, indice_key="subm_5")
+        import pudb
+        pudb.set_trace()
 
         self.num_point_features = out_channels
         self.num_bev_features = out_channels
@@ -164,8 +166,6 @@ class PedL(nn.Module):
         x_conv4 = self.conv4(x_conv3)
 
         # out = self.block(input_sp_tensor)
-        import pudb
-        pudb.set_trace()
         batch_dict['spatial_features_2d'] = x_conv4.dense()
 
         return batch_dict
