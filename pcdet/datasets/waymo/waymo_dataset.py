@@ -204,7 +204,6 @@ class WaymoDataset(DatasetTemplate):
             data_dict.pop('beam_inclination_range', None)
             data_dict.pop('extrinsic', None)
             data_dict.pop('range_image_shape', None)
-            data_dict.pop('metadata', None)
 
         return data_dict
 
