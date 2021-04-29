@@ -100,8 +100,6 @@ class BaseBEVBackbone(nn.Module):
                 ups.append(self.deblocks[i](x))
             else:
                 ups.append(x)
-        import pudb
-        pudb.set_trace()
         if len(ups) > 1:
             for i in range(1, len(ups)):
                 ups[i] = F.interpolate(ups[i], size=[ups[0].size(2), ups[0].size(3)], mode='bilinear',
