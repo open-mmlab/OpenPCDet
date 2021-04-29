@@ -3,18 +3,14 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
 
-    SAMPLED_INTERVAL: {
-      'train': 10,
-      'test': 10
-    }
 
     DATA_PROCESSOR:
       - NAME: mask_points_and_boxes_outside_range
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
-        MAX_POINTS_PER_VOXEL: 5
+        VOXEL_SIZE: [ 0.1, 0.1, 6 ]
+        MAX_POINTS_PER_VOXEL: 32
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
             'test': 90000
@@ -135,7 +131,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 31
+    NUM_EPOCHS: 30
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
