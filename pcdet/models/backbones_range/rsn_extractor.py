@@ -120,6 +120,7 @@ class UNet(nn.Module):
         output = self.upcat(conv1, up1)
         output = F.interpolate(output, size=[x.size(2), x.size(3)], mode='bilinear',
                                  align_corners=True)
+        batch_dict.pop('range_image', None)
         batch_dict['range_features'] = output
         return batch_dict
 
