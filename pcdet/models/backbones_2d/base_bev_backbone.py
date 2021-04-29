@@ -98,7 +98,8 @@ class BaseBEVBackbone(nn.Module):
                 ups.append(self.deblocks[i](x))
             else:
                 ups.append(x)
-
+        import pudb
+        pudb.set_trace()
         if len(ups) > 1:
             x = torch.cat(ups, dim=1)
         elif len(ups) == 1:
