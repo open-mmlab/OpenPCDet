@@ -20,8 +20,8 @@ DATA_CONFIG:
         VOXEL_SIZE: [ 0.1, 0.1, 10 ]
         MAX_POINTS_PER_VOXEL: 8
         MAX_NUMBER_OF_VOXELS: {
-            'train': 80000,
-            'test': 90000
+            'train': 8000,
+            'test': 16000
         }
     RANGE_CONFIG:
       RANGE_IMAGE_SHAPE: [64, 2650]
