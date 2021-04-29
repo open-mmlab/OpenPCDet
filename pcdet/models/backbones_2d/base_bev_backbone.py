@@ -103,7 +103,7 @@ class BaseBEVBackbone(nn.Module):
         import pudb
         pudb.set_trace()
         if len(ups) > 1:
-            for i in range(1, len(ups) + 1):
+            for i in range(1, len(ups)):
                 ups[i] = F.interpolate(ups[i], size=[ups[0].size(2), ups[0].size(3)], mode='bilinear',
                                        align_corners=True)
             x = torch.cat(ups, dim=1)
