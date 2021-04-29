@@ -22,7 +22,7 @@ DATA_CONFIG:
           }
 
 MODEL:
-    NAME: CenterPoint
+    NAME: RSN
 
     VFE:
         NAME: MeanVFE

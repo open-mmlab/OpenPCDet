@@ -34,9 +34,14 @@ class RangeTemplate(Detector3DTemplate):
             return pred_dicts, recall_dicts
 
     def get_training_loss(self):
-        weight_dict = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
-        seg_weight = weight_dict['seg_weight']
-        rpn_weight = weight_dict['rpn_weight']
+        loss_config = self.model_cfg.get('LOSS_CONFIG', None)
+        if loss_config is not None:
+            weight_dict = loss_config['LOSS_WEIGHTS']
+            seg_weight = weight_dict['seg_weight']
+            rpn_weight = weight_dict['rpn_weight']
+        else:
+            seg_weight = 1
+            rpn_weight = 1
         disp_dict = {}
 
         loss_seg = self.seg_head.get_loss()
