@@ -1,16 +1,17 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 
 
 class BaseBEVBackbone(nn.Module):
-    def __init__(self, model_cfg, input_channels,**kwargs):
+    def __init__(self, model_cfg, input_channels, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
 
         if self.model_cfg.get('LAYER_NUMS', None) is not None:
-            assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
+            assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(
+                self.model_cfg.NUM_FILTERS)
             layer_nums = self.model_cfg.LAYER_NUMS
             layer_strides = self.model_cfg.LAYER_STRIDES
             num_filters = self.model_cfg.NUM_FILTERS
@@ -102,9 +103,9 @@ class BaseBEVBackbone(nn.Module):
         import pudb
         pudb.set_trace()
         if len(ups) > 1:
-            for i in range(1, len(ups)+1):
+            for i in range(1, len(ups) + 1):
                 ups[i] = F.interpolate(ups[i], size=[ups[0].size(2), ups[0].size(3)], mode='bilinear',
-                                 align_corners=True)
+                                       align_corners=True)
             x = torch.cat(ups, dim=1)
         elif len(ups) == 1:
             x = ups[0]
