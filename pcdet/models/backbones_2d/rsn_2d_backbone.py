@@ -110,9 +110,6 @@ class CarS(nn.Module):
         x_conv4 = self.conv4(x_conv3)
         x_conv5 = self.conv5(x_conv4)
         x_conv6 = self.conv6(x_conv5)
-        import pudb
-        pudb.set_trace()
-
         # out = self.block(input_sp_tensor)
         batch_dict['spatial_features_2d'] = x_conv6.dense()
 

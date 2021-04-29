@@ -131,7 +131,7 @@ class CenterAssigner(object):
         """
         max_objs = self._max_objs * self.dense_reg
         # grid size shape (W, H, D), feature map shape (W/S, H/S)
-        feature_map_size = self.grid_size[:2] // self.out_size_factor
+        feature_map_size = [(i - 1) // self.out_size_factor + 1 for i in self.grid_size[:2]]
 
         batch_size = gt_boxes.shape[0]
         gt_classes = gt_boxes[:, :, -1]  # last layer
