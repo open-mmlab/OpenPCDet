@@ -3,7 +3,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    POINT_CLOUD_RANGE: [-79.5, -79.5, -5, 79.5, 79.5, 5]
+#    POINT_CLOUD_RANGE: [-79.5, -79.5, -5, 79.5, 79.5, 5]
 
     USE_DOUBLE_FLIP_TEST: &double_flip False
 
