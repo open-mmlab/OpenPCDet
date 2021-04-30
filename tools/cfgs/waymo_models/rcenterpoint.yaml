@@ -124,7 +124,7 @@ MODEL:
             NMS_POST_MAXSIZE: 500
     LOSS_CONFIG:
         LOSS_WEIGHTS: {
-            'seg_weight': 1.0,
+            'seg_weight': 400.0,
             'rpn_weight': 1.0
         }
 
