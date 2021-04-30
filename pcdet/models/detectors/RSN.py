@@ -12,11 +12,11 @@ class RangeTemplate(Detector3DTemplate):
 
     def forward(self, batch_dict):
         for i, cur_module in enumerate(self.module_list):
-            self.iter += 1
-            tic = time.time()
+            # self.iter += 1
+            # tic = time.time()
             batch_dict = cur_module(batch_dict)
-            toc = time.time()
-            self.time[i] += toc - tic
+            # toc = time.time()
+            # self.time[i] += toc - tic
 
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
@@ -26,11 +26,11 @@ class RangeTemplate(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            tic = time.time()
+            # tic = time.time()
             pred_dicts, recall_dicts = self.post_processing(batch_dict)
-            toc = time.time()
-            self.time[-1] += toc - tic
-            print(self.time / self.iter)
+            # toc = time.time()
+            # self.time[-1] += toc - tic
+            # print(self.time / self.iter)
             return pred_dicts, recall_dicts
 
     def get_training_loss(self):
