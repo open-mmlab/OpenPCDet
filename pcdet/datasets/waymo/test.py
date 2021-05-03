@@ -69,8 +69,7 @@ def plot_pointcloud(pointcloud, vals='height'):
     return fig
 
 
-point = np.fromfile('0004.npy')
-point = point.reshape(-1, 6)
-print(point)
-# fig = plot_pointcloud(point)
-# mlab.show()
+point = np.load('0003.npy')
+# print(point)
+fig = plot_pointcloud(point)
+mlab.show()
