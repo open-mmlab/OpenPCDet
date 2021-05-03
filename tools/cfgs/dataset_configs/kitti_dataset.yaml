@@ -17,7 +17,7 @@ FOV_POINTS_ONLY: True
 
 
 DATA_AUGMENTOR:
-    EXTEND_FACTOR: 2  # value by with the dataset will be multiplied (0 does augmentation by replacement)
+    EXTEND_FACTOR: 1.5  # value by with the dataset will be multiplied (0 does augmentation by replacement)
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling

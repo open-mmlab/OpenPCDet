@@ -2,6 +2,8 @@ import copy
 import pickle
 
 import numpy as np
+import math
+import random
 from skimage import io
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -53,8 +55,13 @@ class KittiDataset(DatasetTemplate):
 
         if self.augment_factor > 0:
             # make copies of original KIITI data to be augmented
-            for i in range(self.augment_factor):
-                self.kitti_infos.extend(kitti_infos)
+            for i in range(math.ceil(self.augment_factor)):
+                aug_frac = math.modf(self.augment_factor)[0]
+                if i >= math.ceil(self.augment_factor)-1 and aug_frac != 0:  # on the last iteration check if the factor has a decimal part
+                    random.shuffle(kitti_infos)   # shuffles to randomize the combination of chosen frames
+                    self.kitti_infos.extend(kitti_infos[: int(self.original_size * aug_frac)])  # copy only part of the frames
+                else:
+                    self.kitti_infos.extend(kitti_infos)
         else:
             self.kitti_infos.extend(kitti_infos)
 

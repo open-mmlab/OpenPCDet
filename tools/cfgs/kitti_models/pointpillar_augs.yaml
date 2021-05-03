@@ -21,7 +21,7 @@ DATA_CONFIG:
             'test': 40000
           }
     DATA_AUGMENTOR:
-        EXTEND_FACTOR: 2
+        EXTEND_FACTOR: 1.5
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
