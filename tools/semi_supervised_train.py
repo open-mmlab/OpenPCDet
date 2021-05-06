@@ -13,6 +13,15 @@ import concurrent.futures as futures
 from pcdet.datasets.neolix.neolix_pseudo_dataset import create_neolix_infos, NeolixDataset
 
 def generate_list_file(data_path,list_file,suffix,org_list_file=''):
+    """Generate new list file for labeled data and pseudo-labeled data.
+    
+    Args:
+      data_path: path to pseudo labels.
+      list_file: path to save new training list.
+      org_list_file: original training list file for labeled data.
+    Returns:
+      
+    """
     data_list = ["pseudo/" + data.stem for data in Path(data_path).glob("*."+suffix)]
 
     if Path(org_list_file).exists():
@@ -32,6 +41,16 @@ def make_dir(*dir_list):
         Path(dir_path).mkdir(parents=True,exist_ok=True)
 
 def rewrite_file_list(org_list_file, list_file, parent_folder):
+    """Add parent_folder to paths in list file. 
+    
+    Args:
+      org_list_file: original list file.
+      list_file: path for saving new list file.
+      parent_folder: parent folder to be added.
+    Returns:
+
+    """
+
     with open(org_list_file,"r") as f:
         val_list =[line.strip() for line in f.readlines()]
 
@@ -39,10 +58,29 @@ def rewrite_file_list(org_list_file, list_file, parent_folder):
         for data in val_list:
             f.write(parent_folder + "/" + data + "\n")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="argument parser")
+    parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
+    parser.add_argument('--root_path', type=str, default=None, help='specify the root path for generated dataset, e.g. path/to/pseudo_label_dataset')
+    parser.add_argument('--org_list_file', type=str, default=None, help='specify the orginal list file to create new train list file')
+    parser.add_argument('--org_val_list_file', type=str, default=None, help='specify the original val list file to add sub folder' )
+    parser.add_argument('--cfg_file', type=str, default=None, help='specify the dataset config file to create infos' )
+    parser.add_argument('--use_npy_file', type=str, default=False, help='whether to use offline-agumented npy file)
+    parser.add_argument('--check_empty_label', default=False, help='whether to check empty labels')
+    parser.add_argument('--need_count_labels', default=True, help='whether to count anchor size in labels')
+    parser.add_argument('--train_cfg_file', default="cfgs/neolix_models/pointpillar_1029.yaml", help='specify the yaml file for training')
+    parser.add_argument('--workers', type=int, default=4, help='number of multi thread workers')
+    args = parser.parse_args()
+
+    return args
+
 def count_labels(l_path, selected_class,num_workers=4):
-    """
-    size: h,w,l
-    z_axis: the coordinate of the bounding box in z-axis
+    """Calculate anchor size.
+    Args:
+      l_path: path to labels.
+      selected_class: class to be calculated.
+    Returns:
+      (w, l, h)
     """
     def count_single_label(label_file):
         size = []
@@ -60,7 +98,6 @@ def count_labels(l_path, selected_class,num_workers=4):
         np_z_axis = np.array(z_axis)
         if np_size.shape[0] == 0:
             return 0,0,0,0,0
-        # import pdb; pdb.set_trace()
         s_h = np_size[:, 0].sum()
         s_w = np_size[:, 1].sum()
         s_l = np_size[:, 2].sum()
@@ -118,67 +155,58 @@ def org_count_labels(l_path, selected_class):
 
 
 if __name__ == '__main__':
-    create_new_train_list = False #True
-    rewrite_val_list = False #True
-    use_npy_file = False
-    create_infos = False
-    check_empty_label = False
-    need_count_labels = True
 
-    root_path = "/nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/"
-    pseudo_label_path = root_path + "training/label_2/pseudo"
-    list_file = root_path + "ImageSets/train.txt"
-    org_list_file = "/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/train.txt"
+    args = parse_args()
+    # args.cfg_file = "cfgs/dataset_configs/neolix_pseudo_dataset.yaml"
+    classes_list = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
+
+    root_path = args.root_path#"/nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset"
+    pseudo_label_path = root_path + "/training/label_2/pseudo"
+    # args.org_list_file = "/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/train.txt"
 
     # generate train list
-    make_dir(pseudo_label_path, Path(list_file).parent)
-    if create_new_train_list:
+    if args.org_list_file:
+        list_file = root_path + "/ImageSets/train.txt"
+        make_dir(pseudo_label_path, Path(list_file).parent)
         print("generate list file: ", list_file)
-        # generate_list_file(label_path, list_file, suffix="txt")
-        generate_list_file(pseudo_label_path, list_file, suffix="txt", org_list_file=org_list_file)
-
+        generate_list_file(pseudo_label_path, list_file, suffix="txt", org_list_file=args.org_list_file)
 
     # rewrite val.txt
-    if rewrite_val_list:
-        org_val_list_file = "/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/val.txt"
-        val_list_file = "/nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/ImageSets/val.txt"
-        rewrite_file_list(org_val_list_file, val_list_file,"labeled")
+    if args.org_val_list_file:
+        # org_val_list_file = "/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/val.txt"
+        val_list_file = root_path + "/ImageSets/val.txt"
+        rewrite_file_list(args.org_val_list_file, val_list_file, parent_folder="labeled")
 
-    # import pdb; pdb.set_trace()
-    if create_infos:
-        # create infos pickle files
-        cfg_file = "cfgs/dataset_configs/neolix_pseudo_dataset.yaml"
-        dataset_cfg = EasyDict(yaml.load(open(cfg_file)))
-        classes_list = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
-        #['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable']
-
+    # create infos pickle files
+    if args.cfg_file:
+        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         create_neolix_infos(
                                             dataset_cfg=dataset_cfg,
                                             class_names=classes_list,
                                             data_path=Path(root_path),
                                             save_path=Path(root_path),
-                                            workers=8
+                                            workers=args.workers
                                             )
 
     # generate npy file
-    if use_npy_file:
+    if args.use_npy_file:
         # train npy
         train_dataset = NeolixDataset(dataset_cfg=dataset_cfg, class_names=classes_list, root_path=Path(root_path), training=True)
-        processed_npy_path = root_path + f'process_data/{train_dataset.split}_process_results'
+        processed_npy_path = root_path + f'/process_data/{train_dataset.split}_process_results'
         train_dataset.process_results_dir = processed_npy_path
         print("process_data_path:", train_dataset.process_results_dir)
-        train_dataset.__generateitem__(num_workers=4)
+        train_dataset.__generateitem__(num_workers=args.workers)
         # val npy
         # another method is to use set_split method of dataset class.
         val_dataset = NeolixDataset(dataset_cfg=dataset_cfg, class_names=classes_list, root_path=Path(root_path), training=False)
-        processed_npy_path = root_path + f'process_data/{val_dataset.split}_process_results'
+        processed_npy_path = root_path + f'/process_data/{val_dataset.split}_process_results'
         val_dataset.process_results_dir = processed_npy_path
         print("process_data_path:", val_dataset.process_results_dir)
-        val_dataset.__generateitem__(num_workers=4)
+        val_dataset.__generateitem__(num_workers=args.workers)
 
-    if check_empty_label:
+    if args.check_empty_label:
         file_list = list(Path(pseudo_label_path).glob("*.txt"))
-        empty_list = root_path + "empty_pseudo_list.txt"
+        empty_list = root_path + "/empty_pseudo_list.txt"
         with open(empty_list, "w") as ef:
             for i in tqdm(range(len(file_list))):
                 pseudo_label = file_list[i]
@@ -189,24 +217,23 @@ if __name__ == '__main__':
                     ef.write(pseudo_label.name+"\n")
 
     # change training configs: anchor
-    if need_count_labels:
-        class_ls = ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
-        class_path = "/nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/training/label_2"
-        train_cfg_file = "cfgs/neolix_models/pointpillar_1029.yaml"
+    if args.need_count_labels:
+        label_path = root_path + "/training/label_2"
+        # train_cfg_file = "cfgs/neolix_models/pointpillar_1029.yaml"
 
         with open(train_cfg_file, "r") as yaml_file:
             train_cfg = yaml_file.read()
             yaml_file.seek(0)
             train_cfg_yaml = yaml.load(yaml_file)
 
-        for i,c in enumerate(class_ls):
+        for i,c in enumerate(class_list):
             assert train_cfg_yaml["MODEL"]["DENSE_HEAD"]["ANCHOR_GENERATOR_CONFIG"][i]['class_name'] == c
             org_str = str(train_cfg_yaml["MODEL"]["DENSE_HEAD"]["ANCHOR_GENERATOR_CONFIG"][i]['anchor_sizes'][0])
             if train_cfg.find(org_str) != -1:
-                new_str = str(count_labels(class_path, c, num_workers=8))
+                new_str = str(count_labels(class_path, c, num_workers=args.workers))
                 # new_str = str(org_count_labels(class_path, c))
                 train_cfg = train_cfg.replace(org_str, new_str)
             else:
                 print(f"************{c} not find***************")
-        with open(train_cfg_file, "w") as yaml_file:
+        with open(args.train_cfg_file, "w") as yaml_file:
             yaml_file.write(train_cfg)
