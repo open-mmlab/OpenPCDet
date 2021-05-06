@@ -216,7 +216,7 @@ class NeolixDataset(DatasetTemplate):
             infos = executor.map(process_single_scene, sample_id_list)
         return list(infos)
 
-    def create_groundtruth_database(self, info_path=None, used_classes=None, split='train'):
+    def create_groundtruth_database(self, info_path=None, used_classes=None, split='train',num_workers=4):
 
         database_save_path = Path(self.root_path) / ('gt_database' if split == 'train' else ('gt_database_%s' % split))
         db_info_save_path = Path(self.root_path) / ('neolix_dbinfos_%s.pkl' % split)
@@ -227,8 +227,8 @@ class NeolixDataset(DatasetTemplate):
         with open(info_path, 'rb') as f:
             infos = pickle.load(f)
 
-        # def create_single_gt_points(k):
-        for k in range(len(infos)):
+        def create_single_gt_points(k):
+            single_db_infos = {}
             print('gt_database sample: %d/%d' % (k + 1, len(infos)))
             info = infos[k]
             sample_idx = info['point_cloud']['lidar_idx']
@@ -248,7 +248,7 @@ class NeolixDataset(DatasetTemplate):
                 filename = '%s_%s_%d.bin' % (sample_idx, names[i], i)
                 filepath = database_save_path / filename
                 # Pyten-mkdir
-                filepath.parent.mkdir(parents=True, exist_ok=True) 
+                filepath.parent.mkdir(parents=True, exist_ok=True)
                 gt_points = points[point_indices[i] > 0]
 
                 gt_points[:, :3] -= gt_boxes[i, :3]
@@ -263,10 +263,20 @@ class NeolixDataset(DatasetTemplate):
                     db_info = {'name': names[i], 'path': db_path, 'pc_idx': sample_idx, 'gt_idx': i,
                                'box3d_lidar': gt_boxes[i], 'num_points_in_gt': gt_points.shape[0],
                                'difficulty': difficulty[i], 'bbox': bbox[i], 'score': annos['score'][i]}
-                    if names[i] in all_db_infos:
-                        all_db_infos[names[i]].append(db_info)
+                    if names[i] in single_db_infos:
+                        single_db_infos[names[i]].append(db_info)
                     else:
-                        all_db_infos[names[i]] = [db_info]
+                        single_db_infos[names[i]] = [db_info]
+            return single_db_infos
+
+        with futures.ThreadPoolExecutor(num_workers) as executor:
+            for result in executor.mapcreate_single_gt_points, range(len(infos))):
+                for k in result:
+                    if k in all_db_infos:
+                        all_db_infos[k].extend(result[k])
+                    else:
+                        all_db_infos[k] = result[k]
+
         for k, v in all_db_infos.items():
             print('Database %s: %d' % (k, len(v)))
 
