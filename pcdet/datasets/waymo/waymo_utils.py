@@ -478,10 +478,23 @@ def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
     mlab.show()
 
 
-def plot_rangeimage(rangeimage):
+def plot_rangeimage(rangeimage, theta=1):
+    """
+
+    Args:
+        rangeimage:
+        theta: the angle range for front view
+
+    Returns:
+
+    """
     import PIL.Image as image
     if len(rangeimage.shape) > 2:
         rangeimage = rangeimage[..., 0]
+    height, width = rangeimage.shape
+    left = int(width * (0.5 - theta / 2))
+    right = int(width * (0.5 + theta / 2))
+    rangeimage = rangeimage[:, left:right]
     rangeimage = image.fromarray(rangeimage / rangeimage.max() * 255)
     rangeimage.show()
 
