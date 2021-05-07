@@ -401,8 +401,6 @@ def test(data_dict):
     ri_mask_ranges_tf = np.squeeze(ri_mask_ranges_tf.numpy(), axis=0)
     data_dict['range_mask'] = range_mask
 
-    return data_dict
-
 
 def plot_pointcloud(pointcloud, vals='height'):
     import mayavi.mlab as mlab
