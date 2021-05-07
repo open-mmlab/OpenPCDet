@@ -4,19 +4,20 @@ DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
 
     AUG_CONFIG_LIST:
-        - NAME: gt_sampling
-          USE_ROAD_PLANE: False
-          DB_INFO_PATH:
-              - pcdet_waymo_dbinfos_train_sampled_10.pkl
-          PREPARE: {
-              filter_by_min_points: [ 'Vehicle:5', 'Pedestrian:5', 'Cyclist:5' ],
-              filter_by_difficulty: [ -1 ],
-          }
+      - DISABLE_AUG_LIST: ['random_world_flip','random_world_rotation','random_world_scaling']
+      - NAME: gt_sampling
+        USE_ROAD_PLANE: False
+        DB_INFO_PATH:
+            - pcdet_waymo_dbinfos_train_sampled_10.pkl
+        PREPARE: {
+            filter_by_min_points: [ 'Vehicle:5', 'Pedestrian:5', 'Cyclist:5' ],
+            filter_by_difficulty: [ -1 ],
+        }
 
-          SAMPLE_GROUPS: [ 'Vehicle:40', 'Pedestrian:40', 'Cyclist:20' ]
-          NUM_POINT_FEATURES: 5
-          REMOVE_EXTRA_WIDTH: [ 0.0, 0.0, 0.0 ]
-          LIMIT_WHOLE_SCENE: True
+        SAMPLE_GROUPS: [ 'Vehicle:40', 'Pedestrian:40', 'Cyclist:20' ]
+        NUM_POINT_FEATURES: 5
+        REMOVE_EXTRA_WIDTH: [ 0.0, 0.0, 0.0 ]
+        LIMIT_WHOLE_SCENE: True
 
 
     USE_DOUBLE_FLIP_TEST: &double_flip False
