@@ -5,6 +5,7 @@ import numpy as np
 import math
 import random
 from skimage import io
+import json
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
@@ -231,10 +232,6 @@ class KittiDataset(DatasetTemplate):
             bbox = annos['bbox']
             difficulty = annos['difficulty']
             gt_boxes = annos['gt_boxes_lidar']
-            #truncated = annos['truncated']
-            #occluded = annos['occluded']
-            #alpha = annos['alpha']
-            #dimensions = annos['dimensions']
 
             num_obj = gt_boxes.shape[0]
             point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
@@ -395,10 +392,6 @@ class KittiDataset(DatasetTemplate):
             input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar,
-                #'truncated': annos['truncated'].astype(np.float32),
-                #'occluded': annos['occluded'].astype(np.int32),
-                #'alpha': annos['alpha'].astype(np.float32),
-                #'misc': annos
             })
             road_plane = self.get_road_plane(sample_idx)
             if road_plane is not None:
@@ -412,6 +405,15 @@ class KittiDataset(DatasetTemplate):
 
         data_dict['image_shape'] = img_shape
         self.cur_frame += 1
+
+        # save each frame's augmentation details in a json file
+        if self.logger is not None:
+            if 'augmentations' not in data_dict:
+                self.logger.info(f'Frame {self.cur_frame} is the same as the original input')
+            else:
+                aug_dict = data_dict['augmentations'] 
+                self.logger.info(f'Frame {self.cur_frame} suffered the following augmentations: {aug_dict}')
+
         return data_dict
 
 

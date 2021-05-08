@@ -120,13 +120,7 @@ class DataBaseSampler(object):
         gt_boxes = data_dict['gt_boxes'][gt_boxes_mask]
         gt_names = data_dict['gt_names'][gt_boxes_mask]
         points = data_dict['points']
-        #truncated = data_dict['truncated'][gt_boxes_mask]
-        #occluded = data_dict['occluded'][gt_boxes_mask]
-        #alpha = data_dict['alpha'][gt_boxes_mask]
-        #misc = {}
-        #for k in data_dict['misc'].keys():
-        #    misc[k] = data_dict['misc'][k][gt_boxes_mask]
-        #TODO
+
         if self.sampler_cfg.get('USE_ROAD_PLANE', False):
             sampled_gt_boxes, mv_height = self.put_boxes_on_road_planes(
                 sampled_gt_boxes, data_dict['road_plane'], data_dict['calib']
@@ -157,7 +151,6 @@ class DataBaseSampler(object):
         sampled_occluded = []
         sampled_alpha = []
         sampled_misc = {}
-        TODO
         for x in total_valid_sampled_dict:
             sampled_truncated = np.concatenate([sampled_truncated, x['truncated']], axis=0)
             sampled_occluded = np.concatenate([sampled_occluded, x['occluded']], axis=0)
@@ -168,7 +161,6 @@ class DataBaseSampler(object):
                 else:
                     sampled_misc[k] = x['misc'][k]
         '''
-            #TODO
 
         large_sampled_gt_boxes = box_utils.enlarge_box3d(
             sampled_gt_boxes[:, 0:7], extra_width=self.sampler_cfg.REMOVE_EXTRA_WIDTH
