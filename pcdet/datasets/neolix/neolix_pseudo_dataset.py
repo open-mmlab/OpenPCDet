@@ -12,7 +12,6 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_neolix, common_utils, object3d_neolix
 from ..dataset import DatasetTemplate
 
-
 data_id = -1
 write_data_id = -1
 
@@ -270,7 +269,7 @@ class NeolixDataset(DatasetTemplate):
             return single_db_infos
 
         with futures.ThreadPoolExecutor(num_workers) as executor:
-            for result in executor.mapcreate_single_gt_points, range(len(infos))):
+            for result in executor.map(create_single_gt_points, range(len(infos))):
                 for k in result:
                     if k in all_db_infos:
                         all_db_infos[k].extend(result[k])
