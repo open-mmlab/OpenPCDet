@@ -374,7 +374,7 @@ class KittiDataset(DatasetTemplate):
         sample_idx = info['point_cloud']['lidar_idx']
         enable_augment = int(sample_idx) >= 100000 
         augmented_sample_idx = info['point_cloud']['lidar_idx']
-        
+
         if enable_augment:
             sample_idx = '%06d' % (int(info['point_cloud']['lidar_idx']) % 100000)
 
@@ -415,7 +415,6 @@ class KittiDataset(DatasetTemplate):
                 input_dict['road_plane'] = road_plane
 
         # PREFORM AUGMENTATIONS
-        self.logger.propagate = False
         if self.augment_factor <= 0:
             data_dict = self.prepare_data(data_dict=input_dict, augment=True)
         else:
@@ -435,7 +434,6 @@ class KittiDataset(DatasetTemplate):
                 aug_dict = json.dumps(data_dict['augmentations'], indent=2)
                 self.logger.info(f'Sample {augmented_sample_idx} was created from frame {sample_idx} with the following augmentations: {aug_dict}')
         
-        self.logger.propagate = True
         return data_dict
 
 
