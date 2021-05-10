@@ -19,7 +19,7 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
 
-def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None, inference=False):
+def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
     final_output_dir = result_dir / 'final_result' / 'data'
@@ -60,7 +60,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         statistics_info(cfg, ret_dict, metric, disp_dict)
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
-            output_path=final_output_dir if save_to_file else None, inference=inference
+            output_path=final_output_dir if save_to_file else None
         )
         det_annos += annos
         if cfg.LOCAL_RANK == 0:
@@ -106,10 +106,11 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
-    # info_f = open('/home/songhongli/OpenPCDet/output/neolix_models/pointpillar_sample_4_5cls_deleted_bicycles/default/eval/epoch_160/val/default/result.pkl', 'rb')
+    # info_f = open('/home/liuwanqiang/OpenPCDet-master/OpenPCDet-master/output/neolix_models/pv_rcnn_1027/default/eval/epoch_80/val/default/result.pkl', 'rb')
     # det_annos = pickle.load(info_f)
     det_range_ls = None
     det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 30], [-10, 10, 30, 50], [-10, 10, 50, 70]]
+    # det_range_ls = [[-10, 10, 0, 10]]
     if not det_range_ls is None:
         for detect_range in det_range_ls:
             print("*" * 60)

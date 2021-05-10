@@ -144,7 +144,8 @@ class DatasetTemplate(torch_data.Dataset):
             return self.__getitem__(new_index)
 
         data_dict.pop('gt_names', None)
-        data_dict.pop('gt_boxes', None)
+        if not self.training:
+            data_dict.pop('gt_boxes', None)
 
         return data_dict
 

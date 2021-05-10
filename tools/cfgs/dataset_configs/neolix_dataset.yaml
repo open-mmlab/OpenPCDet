@@ -1,16 +1,35 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1024/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/'
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
+TYPE_TO_ID: {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
+
+EVAL:
+    OVERLAP_0_7: [[0.7, 0.5, 0.5, 0.5, 0.7, 0.7],
+                  [0.7, 0.5, 0.5, 0.5, 0.7, 0.7],
+                  [0.7, 0.5, 0.5, 0.5, 0.7, 0.7]]
+    OVERLAP_0_5: [[0.7, 0.5,  0.5,  0.5,  0.7, 0.5],
+                  [0.5, 0.25, 0.25, 0.25, 0.5, 0.5],
+                  [0.5, 0.25, 0.25, 0.25, 0.5, 0.5]]
+    CLASS_TO_NAME: {
+      '0': 'Vehicle',
+      '1': 'Pedestrian',
+      '2': 'Cyclist',
+      '3': 'Unknown',
+      '4': 'Large_vehicle'
+    }
+
+################  The above parameters need to be modified
 
 POINT_CLOUD_RANGE: [-69.12, -69.12, -1.5, 69.12, 69.12, 2.5] #[-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
 
 DATA_SPLIT: {
     'train': train,
-    'test': test
+    'test': val
 }
 
 INFO_PATH: {
     'train': [neolix_infos_train.pkl],
-    'test': [neolix_infos_test.pkl],
+    'test': [neolix_infos_val.pkl],
 }
 
 FOV_POINTS_ONLY: False
@@ -24,8 +43,7 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - neolix_dbinfos_train.pkl
           PREPARE: {
-             filter_by_min_points: ['Vehicle', 'Large_vehicle', 'Pedestrian', 'Cyclist', 'Bicycle', 'Unknown_movable', 'Unknown_unmovable'],
-             #filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5'], #['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5', 'Large_vehicle:10'],
+             filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5'], #['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5', 'Large_vehicle:10'],
              filter_by_difficulty: [-1],
           }
 
