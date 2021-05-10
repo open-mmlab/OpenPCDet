@@ -143,10 +143,7 @@ def random_local_translation_along_x(gt_boxes, points, offset_range):
     augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs.update({
-            'object_id': idx,
-            'offset': offset
-        })
+        augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 0] += offset
 
@@ -169,10 +166,7 @@ def random_local_translation_along_y(gt_boxes, points, offset_range):
     augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs.update({
-            'object_id': idx,
-            'offset': offset
-        })
+        augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 1] += offset
 
@@ -195,10 +189,7 @@ def random_local_translation_along_z(gt_boxes, points, offset_range):
     augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs.update({
-            'object_id': idx,
-            'offset': offset
-        })
+        augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 2] += offset
 
@@ -284,10 +275,7 @@ def local_scaling(gt_boxes, points, scale_range):
     augs = {}
     for idx, box in enumerate(gt_boxes):
         noise_scale = np.random.uniform(scale_range[0], scale_range[1])
-        augs.update({
-            'object_id': idx,
-            'noise_scale': noise_scale
-        })
+        augs[f'object_{idx}'] = noise_scale
         points_in_box, mask = get_points_in_box(points, box)
         
         # tranlation to axis center
@@ -318,10 +306,7 @@ def local_rotation(gt_boxes, points, rot_range):
     augs = {}
     for idx, box in enumerate(gt_boxes):
         noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
-        augs.update({
-            'object_id': idx,
-            'noise_rotation': noise_rotation
-        })
+        augs[f'object_{idx}'] = noise_rotation
         points_in_box, mask = get_points_in_box(points, box)
         
         centroid_x = box[0]

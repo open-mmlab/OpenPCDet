@@ -49,10 +49,10 @@ class DataAugmentor(object):
             gt_boxes, points, enable = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
                 gt_boxes, points,
             )
-            merge_dict(data_dict, {
+            common_utils.merge_dict(data_dict, {
                 'augmentations': {
                     'random_world_flip': {
-                        'ALONG_AXIS_%s' % cur_axis: enable
+                        f'ALONG_AXIS_{cur_axis}': str(enable)
                     }
                 }
             })
@@ -71,7 +71,7 @@ class DataAugmentor(object):
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
         )
 
-        merge_dict(data_dict, {
+        common_utils.merge_dict(data_dict, {
                 'augmentations': {
                     'random_world_rotation': {
                         'WORLD_ROT_ANGLE': noise_rotation
@@ -90,7 +90,7 @@ class DataAugmentor(object):
             data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE']
         )
 
-        merge_dict(data_dict, {
+        common_utils.merge_dict(data_dict, {
                 'augmentations': {
                     'random_world_rotation': {
                         'WORLD_SCALE': noise_scale
@@ -113,10 +113,10 @@ class DataAugmentor(object):
                 gt_boxes, points, offset_range,
             )
 
-            merge_dict(data_dict,{
+            common_utils.merge_dict(data_dict,{
                 'augmentations': {
                     'random_world_translation': {
-                        'ALONG_AXIS_%s': offset
+                        f'ALONG_AXIS_{cur_axis}': offset
                     }
                 }
             })
@@ -136,10 +136,10 @@ class DataAugmentor(object):
                 gt_boxes, points, offset_range,
             )
 
-            merge_dict(data_dict,{
+            common_utils.merge_dict(data_dict,{
                 'augmentations': {
                     'random_local_translation': {
-                        'ALONG_AXIS_%s': augs
+                        f'ALONG_AXIS_{cur_axis}': augs
                     }
                 }
             })
@@ -158,7 +158,7 @@ class DataAugmentor(object):
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
         )
 
-        merge_dict(data_dict,{
+        common_utils.merge_dict(data_dict,{
                 'augmentations': {
                     'random_local_rotation': {
                         'LOCAL_ROT_ANGLE': augs
@@ -177,7 +177,7 @@ class DataAugmentor(object):
             data_dict['gt_boxes'], data_dict['points'], config['LOCAL_SCALE_RANGE']
         )
 
-        merge_dict(data_dict,{
+        common_utils.merge_dict(data_dict,{
                 'augmentations': {
                     'random_local_scaling': {
                         'LOCAL_SCALE': augs
@@ -248,19 +248,3 @@ class DataAugmentor(object):
             data_dict['gt_names'] = data_dict['gt_names'][gt_boxes_mask]
             data_dict.pop('gt_boxes_mask')
         return data_dict
-
-#from https://stackoverflow.com/a/7205107
-def merge_dict(a, b, path=None):
-    "merges b into a"
-    if path is None: path = []
-    for key in b:
-        if key in a:
-            if isinstance(a[key], dict) and isinstance(b[key], dict):
-                merge_dict(a[key], b[key], path + [str(key)])
-            elif a[key] == b[key]:
-                pass # same leaf value
-            else:
-                raise Exception('Conflict at %s' % '.'.join(path + [str(key)]))
-        else:
-            a[key] = b[key]
-    return a
