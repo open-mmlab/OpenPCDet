@@ -57,6 +57,8 @@ class DemoDataset(DatasetTemplate):
             'points': points,
             'frame_id': index,
         }
+        import pudb
+        pudb.set_trace()
         if self.info_path is not None:
             info = self.infos[index]
 
