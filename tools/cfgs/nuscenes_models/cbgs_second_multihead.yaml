@@ -2,7 +2,7 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
               'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
+    _BASE_CONFIG_: /home/muzi2045/Documents/project/OpenPCDet/tools/cfgs/dataset_configs/nuscenes_dataset.yaml
 
 
 MODEL:
