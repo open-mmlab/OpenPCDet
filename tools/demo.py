@@ -5,6 +5,7 @@ from pathlib import Path
 import mayavi.mlab as mlab
 import numpy as np
 import torch
+import pickle
 
 import pcdet
 from pcdet.config import cfg, cfg_from_yaml_file
@@ -15,7 +16,7 @@ from visual_utils import visualize_utils as V
 
 
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin'):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin', info_path=None):
         """
         Args:
             root_path:
@@ -34,6 +35,7 @@ class DemoDataset(DatasetTemplate):
         data_file_list.sort()
         self.sample_file_list = data_file_list
         self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
+        self.info_path = info_path
 
     def __len__(self):
         return len(self.sample_file_list)
@@ -46,6 +48,11 @@ class DemoDataset(DatasetTemplate):
         else:
             raise NotImplementedError
 
+        if self.info_path is not None:
+            with open(self.info_path,'r') as f:
+                infos = pickle.load(f)
+            info = infos[index]
+
         input_dict = {
             'points': points,
             'frame_id': index,
@@ -57,6 +64,11 @@ class DemoDataset(DatasetTemplate):
         else:
             data_dict = self.prepare_data(data_dict=input_dict)
         if self.range_config:
+            data_dict.update({
+                'beam_inclination_range': info['beam_inclination_range'],
+                'extrinsic': info['extrinsic'],
+                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650])
+            })
             import pcdet.datasets.waymo.waymo_utils as waymo_utils
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
             points_feature_num = data_dict['points'].shape[1]
@@ -78,6 +90,7 @@ def parse_config():
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
+    parser.add_argument('--info_path', type=str,default=None)
 
     args = parser.parse_args()
 
@@ -92,7 +105,7 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, info_path=Path(args.info_path)
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
