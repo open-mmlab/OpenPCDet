@@ -49,7 +49,7 @@ class DemoDataset(DatasetTemplate):
             raise NotImplementedError
 
         if self.info_path is not None:
-            with open(self.info_path,'r') as f:
+            with open(self.info_path,'rb') as f:
                 infos = pickle.load(f)
             info = infos[index]
 
