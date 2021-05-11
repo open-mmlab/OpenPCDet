@@ -41,6 +41,8 @@ class DemoDataset(DatasetTemplate):
         return len(self.sample_file_list)
 
     def __getitem__(self, index):
+        import pudb
+        pudb.set_trace()
         if self.ext == '.bin':
             points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
         elif self.ext == '.npy':
@@ -121,8 +123,7 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-            import pudb
-            pudb.set_trace()
+
 
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], gt_boxes=data_dict.get('gt_boxes',None),ref_boxes=pred_dicts[0]['pred_boxes'],
