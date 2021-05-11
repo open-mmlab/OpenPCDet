@@ -126,7 +126,7 @@ def main():
             pred_dicts, _ = model.forward(data_dict)
             import pudb
             pudb.set_trace()
-            mask = pred_dicts[0]['pred_boxes'][:, 3:6] > 20
+            mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
 
 
 
