@@ -150,7 +150,7 @@ def main():
             gt_corners = gt_corners.transpose((1, 2, 0))
             # x1, x2, x3, x4 = gt_corners[:4, 0]
             # y1, y2, y3, y4 = gt_corners[:4, 1]
-            # plt.plot((x1, x2, x3, x4,x1), (y1, y2, y3, y4,y1), color='yellowgreen', linewidth=2)
+            plt.plot((x1, x2, x3, x4,x1), (y1, y2, y3, y4,y1), color='yellowgreen', linewidth=2)
             pred_boxes = pred_dicts[0]['pred_boxes'][mask].cpu().numpy()
             pred_corners = V.boxes_to_corners_3d(pred_boxes[:100])
             pred_corners = pred_corners.transpose((1, 2, 0))
