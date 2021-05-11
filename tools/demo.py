@@ -49,9 +49,10 @@ class DemoDataset(DatasetTemplate):
             raise NotImplementedError
 
         if self.info_path is not None:
+            import re
             with open(Path(self.info_path), 'rb') as f:
                 infos = pickle.load(f)
-            info = infos[index]
+            info = infos[int(re.findall('\d+.',self.info_path)[0][:-1])]
 
         input_dict = {
             'points': points,
@@ -120,6 +121,8 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
+            import pudb
+            pudb.set_trace()
 
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], gt_boxes=data_dict.get('gt_boxes',None),ref_boxes=pred_dicts[0]['pred_boxes'],
