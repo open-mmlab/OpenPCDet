@@ -106,7 +106,7 @@ MODEL:
                 use_circle_nms: False
                 use_max_pool_nms: True
                 nms_pre_max_size: 4096
-                nms_post_max_size: 200
+                nms_post_max_size: 30
                 nms_iou_threshold: 0.1
 
     POST_PROCESSING:
