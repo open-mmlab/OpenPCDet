@@ -127,15 +127,16 @@ def main():
             import pudb
             pudb.set_trace()
             mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
+            mask = mask.all(dim=1)
 
 
 
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:4],
             #     gt_boxes=data_dict.get('gt_boxes', None)[0],
-            #     ref_boxes=pred_dicts[0]['pred_boxes'][:15],
-            #     ref_scores=pred_dicts[0]['pred_scores'][:15],
-            #     ref_labels=pred_dicts[0]['pred_labels'][:15]
+            #     ref_boxes=pred_dicts[0]['pred_boxes'][mask][:15],
+            #     ref_scores=pred_dicts[0]['pred_scores'][mask][:15],
+            #     ref_labels=pred_dicts[0]['pred_labels'][mask][:15]
             # )
             # mlab.show(stop=True)
             points = data_dict['points'][:, 1:4].cpu().numpy()
@@ -150,7 +151,7 @@ def main():
             # x1, x2, x3, x4 = gt_corners[:4, 0]
             # y1, y2, y3, y4 = gt_corners[:4, 1]
             # plt.plot((x1, x2, x3, x4,x1), (y1, y2, y3, y4,y1), color='yellowgreen', linewidth=2)
-            pred_boxes = pred_dicts[0]['pred_boxes'].cpu().numpy()
+            pred_boxes = pred_dicts[0]['pred_boxes'][mask].cpu().numpy()
             pred_corners = V.boxes_to_corners_3d(pred_boxes[:100])
             pred_corners = pred_corners.transpose((1, 2, 0))
             x1, x2, x3, x4 = pred_corners[:4, 0]
