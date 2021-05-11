@@ -17,7 +17,7 @@ def load_data_to_gpu(batch_dict):
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue
-        if key in ['frame_id', 'metadata', 'calib', 'image_shape']:
+        if key in ['frame_id', 'metadata', 'calib', 'image_shape', 'augmentations']:
             continue
         batch_dict[key] = torch.from_numpy(val).float().cuda()
 

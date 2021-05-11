@@ -9,6 +9,8 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+from pathlib import Path
+
 
 
 def check_numpy_to_torch(x):
@@ -81,19 +83,25 @@ def get_voxel_centers(voxel_coords, downsample_times, voxel_size, point_cloud_ra
     return voxel_centers
 
 
-def create_logger(log_file=None, rank=0, log_level=logging.INFO):
+def create_logger(log_file=None, rank=0, log_level=logging.DEBUG):
     logger = logging.getLogger(__name__)
     logger.setLevel(log_level if rank == 0 else 'ERROR')
     formatter = logging.Formatter('%(asctime)s  %(levelname)5s  %(message)s')
     console = logging.StreamHandler()
-    console.setLevel(log_level if rank == 0 else 'ERROR')
+    console.setLevel(logging.INFO if rank == 0 else 'ERROR')
     console.setFormatter(formatter)
     logger.addHandler(console)
     if log_file is not None:
         file_handler = logging.FileHandler(filename=log_file)
-        file_handler.setLevel(log_level if rank == 0 else 'ERROR')
+        file_handler.setLevel(logging.INFO if rank == 0 else 'ERROR')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+
+        debug_file_handler = logging.FileHandler(filename=Path(str(log_file)[:-4] + '_details.txt'))
+        debug_file_handler.setLevel(logging.DEBUG if rank == 0 else 'ERROR')
+        debug_file_handler.setFormatter(formatter)
+        logger.addHandler(debug_file_handler)
+
     return logger
 
 

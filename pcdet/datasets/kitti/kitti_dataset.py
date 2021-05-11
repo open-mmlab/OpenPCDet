@@ -419,7 +419,7 @@ class KittiDataset(DatasetTemplate):
             data_dict = self.prepare_data(data_dict=input_dict, augment=True)
         else:
             if enable_augment:
-                self.logger.info(f'Starting augmentation for sample: {sample_idx}')
+                self.logger.debug(f'Starting augmentation for sample: {sample_idx}')
                 data_dict = self.prepare_data(data_dict=input_dict, augment=True)
             else:
                 data_dict = self.prepare_data(data_dict=input_dict, augment=False)
@@ -429,10 +429,10 @@ class KittiDataset(DatasetTemplate):
         # save each frame's augmentation details in a json file
         if self.logger is not None:
             if 'augmentations' not in data_dict:
-                self.logger.info(f'Sample {sample_idx} is the same as the original input')
+                self.logger.debug(f'Sample {sample_idx} is the same as the original input')
             else:
                 aug_dict = json.dumps(data_dict['augmentations'], indent=2)
-                self.logger.info(f'Sample {augmented_sample_idx} was created from frame {sample_idx} with the following augmentations: {aug_dict}')
+                self.logger.debug(f'Sample {augmented_sample_idx} was created from frame {sample_idx} with the following augmentations: {aug_dict}')
         
         return data_dict
 

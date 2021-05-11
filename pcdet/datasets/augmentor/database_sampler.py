@@ -200,7 +200,7 @@ class DataBaseSampler(object):
         if total_valid_sampled_dict.__len__() > 0:
             data_dict = self.add_sampled_boxes_to_scene(data_dict, sampled_gt_boxes, total_valid_sampled_dict)
             for object in total_valid_sampled_dict:
-                self.logger.info('Added %s_%d from frame %s to this frame' % (object['name'], object['gt_idx'], object['image_idx']))
+                self.logger.debug('Added %s_%d from frame %s to frame %s' % (object['name'], object['gt_idx'], object['image_idx'], data_dict['frame_id']))
 
         data_dict.pop('gt_boxes_mask')
         return data_dict
