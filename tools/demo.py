@@ -123,15 +123,15 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-            import pudb
-            pudb.set_trace()
+            # import pudb
+            # pudb.set_trace()
 
             V.draw_scenes(
                 points=data_dict['points'][:, 1:4],
                 gt_boxes=data_dict.get('gt_boxes', None)[0],
-                ref_boxes=pred_dicts[0]['pred_boxes'][:30],
-                ref_scores=pred_dicts[0]['pred_scores'][:30],
-                ref_labels=pred_dicts[0]['pred_labels'][:30]
+                ref_boxes=pred_dicts[0]['pred_boxes'][:1],
+                ref_scores=pred_dicts[0]['pred_scores'][:1],
+                ref_labels=pred_dicts[0]['pred_labels'][:1]
             )
             mlab.show(stop=True)
 
