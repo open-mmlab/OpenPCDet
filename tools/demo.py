@@ -147,6 +147,10 @@ class DemoDataset(DatasetTemplate):
             single_pred_dict = generate_single_sample_dict(index, box_dict)
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
+
+            if len(single_pred_dict['name']) == 0:
+                continue
+
             if output_path is not None:
                 label_path = output_path
                 track_format = False
@@ -165,20 +169,19 @@ class DemoDataset(DatasetTemplate):
                                         type_name] + prob_ls)
                     np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index] + '.bin')
                 else:
-                    with open(label_path + '/' + batch_dict['frame_id'][index] + '.txt', 'w') as f:
+                    output_path.mkdir(parents=True,exist_ok=True)
+                    cur_det_file = output_path / (frame_id + '.txt')
+                    with open(cur_det_file, 'w') as f:
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
                         dims = single_pred_dict['dimensions']  # lhw -> hwl
-                        content = []
                         for idx in range(len(bbox)):
-                            content.append('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
-                                           % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
-                                              bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
-                                              dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
-                                              loc[idx][1], loc[idx][2] - dims[idx][1] / 2,
-                                              -np.pi / 2 - single_pred_dict['rotation_y'][idx],
-                                              single_pred_dict['score'][idx]))
-                        f.write("\n".join(content))
+                            print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                  % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                                     bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                     dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                     loc[idx][1], loc[idx][2]-dims[idx][1]/2, single_pred_dict['rotation_y'][idx],
+                                     single_pred_dict['score'][idx]), file=f)
 
         return annos
 
@@ -207,9 +210,10 @@ def main():
     args, cfg = parse_config()
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
+    # import pdb; pdb.set_trace()
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path)
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path) if args.label_path else None
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
@@ -230,7 +234,7 @@ def main():
                 pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
                 data_dict, pred_dicts, cfg.CLASS_NAMES,
-                output_path=args.output_path
+                output_path=Path(args.output_path), inference=False
             )
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],
