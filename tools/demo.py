@@ -146,7 +146,7 @@ def main():
             gt_corners = gt_corners.transpose((1, 2, 0))
             x1, x2, x3, x4 = gt_corners[:4, 0]
             y1, y2, y3, y4 = gt_corners[:4, 1]
-            plt.plot((x1, x2), (y1, y2), color='yellowgreen', linewidth=2)
+            plt.plot((x1, x3), (y1, y3), color='yellowgreen', linewidth=2)
             plt.show()
 
     logger.info('Demo done.')
