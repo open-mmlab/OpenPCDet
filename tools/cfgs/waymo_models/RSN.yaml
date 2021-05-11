@@ -107,7 +107,7 @@ MODEL:
                 use_max_pool_nms: False
                 nms_pre_max_size: 4096
                 nms_post_max_size: 500
-                nms_iou_threshold: 0.7
+                nms_iou_threshold: 0.1
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
