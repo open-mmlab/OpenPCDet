@@ -38,6 +38,9 @@ class DemoDataset(DatasetTemplate):
         self.sample_file_list = data_file_list
         self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
         self.info_path = info_path
+        if self.info_path is not None:
+            with open(Path(self.info_path), 'rb') as f:
+                self.infos = pickle.load(f)
 
     def __len__(self):
         return len(self.sample_file_list)
@@ -55,10 +58,7 @@ class DemoDataset(DatasetTemplate):
             'frame_id': index,
         }
         if self.info_path is not None:
-            import re
-            with open(Path(self.info_path), 'rb') as f:
-                infos = pickle.load(f)
-            info = infos[int(re.findall('\d+.', str(self.root_path))[-1][:-1])]
+            info = self.infos[index]
 
         if self.range_config:
             # data_dict = input_dict
@@ -124,8 +124,8 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-            import pudb
-            pudb.set_trace()
+            # import pudb
+            # pudb.set_trace()
             mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
             mask = mask.all(dim=1)
 
