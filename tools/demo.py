@@ -158,6 +158,7 @@ def main():
             y1, y2, y3, y4 = pred_corners[:4, 1]
             plt.plot((x1, x2, x3, x4, x1), (y1, y2, y3, y4, y1), color='red', linewidth=2)
             plt.savefig('bev-%d-RSN.png'%idx)
+            plt.clf()
             # plt.show()
 
     logger.info('Demo done.')
