@@ -54,7 +54,7 @@ class DemoDataset(DatasetTemplate):
             import re
             with open(Path(self.info_path), 'rb') as f:
                 infos = pickle.load(f)
-            info = infos[int(re.findall('\d+.',self.info_path)[0][:-1])]
+            info = infos[int(re.findall('\d+.',str(self.root_path))[-1][:-1])]
 
         input_dict = {
             'points': points,
