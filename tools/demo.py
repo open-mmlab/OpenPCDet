@@ -138,7 +138,7 @@ def main():
             points = data_dict['points'][:, 1:4].cpu().numpy()
             rgba_colors = np.zeros((points.shape[0], 4))
             rgba_colors[:, 2] = 1
-            rgba_colors[:, 3] = points[:, 3]
+            rgba_colors[:, 3] = points[:, 2]
             plt.scatter(points[:, 0], points[:, 1], s=0.5, color=rgba_colors[:, :3])
             # gt_boxes = data_dict.get('gt_boxes', None)[0].cpu().numpy()
             # gt_boxes = V.boxes_to_corners_3d(gt_boxes[:30])
