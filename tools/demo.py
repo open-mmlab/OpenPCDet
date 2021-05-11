@@ -131,14 +131,14 @@ def main():
 
 
 
-            # V.draw_scenes(
-            #     points=data_dict['points'][:, 1:4],
-            #     gt_boxes=data_dict.get('gt_boxes', None)[0],
-            #     ref_boxes=pred_dicts[0]['pred_boxes'][mask][:15],
-            #     ref_scores=pred_dicts[0]['pred_scores'][mask][:15],
-            #     ref_labels=pred_dicts[0]['pred_labels'][mask][:15]
-            # )
-            # mlab.show(stop=True)
+            V.draw_scenes(
+                points=data_dict['points'][:, 1:4],
+                gt_boxes=data_dict.get('gt_boxes', None)[0],
+                ref_boxes=pred_dicts[0]['pred_boxes'][mask][:15],
+                ref_scores=pred_dicts[0]['pred_scores'][mask][:15],
+                ref_labels=pred_dicts[0]['pred_labels'][mask][:15]
+            )
+            mlab.show(stop=True)
             points = data_dict['points'][:, 1:4].cpu().numpy()
             rgba_colors = np.zeros((points.shape[0], 4))
             rgba_colors[:, 2] = 1
