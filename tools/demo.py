@@ -129,16 +129,14 @@ def main():
             mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
             mask = mask.all(dim=1)
 
-
-
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:4],
-                gt_boxes=data_dict.get('gt_boxes', None)[0],
-                ref_boxes=pred_dicts[0]['pred_boxes'][mask][:len(data_dict.get('gt_boxes', None)[0])],
-                ref_scores=pred_dicts[0]['pred_scores'][mask][:len(data_dict.get('gt_boxes', None)[0])],
-                ref_labels=pred_dicts[0]['pred_labels'][mask][:len(data_dict.get('gt_boxes', None)[0])]
-            )
-            mlab.show(stop=True)
+            # V.draw_scenes(
+            #     points=data_dict['points'][:, 1:4],
+            #     gt_boxes=data_dict.get('gt_boxes', None)[0],
+            #     ref_boxes=pred_dicts[0]['pred_boxes'][mask][:len(data_dict.get('gt_boxes', None)[0])],
+            #     ref_scores=pred_dicts[0]['pred_scores'][mask][:len(data_dict.get('gt_boxes', None)[0])],
+            #     ref_labels=pred_dicts[0]['pred_labels'][mask][:len(data_dict.get('gt_boxes', None)[0])]
+            # )
+            # mlab.show(stop=True)
             points = data_dict['points'][:, 1:4].cpu().numpy()
             rgba_colors = np.zeros((points.shape[0], 4))
             rgba_colors[:, 2] = 1
@@ -148,15 +146,15 @@ def main():
             gt_boxes = data_dict.get('gt_boxes', None)[0].cpu().numpy()
             gt_corners = V.boxes_to_corners_3d(gt_boxes)
             gt_corners = gt_corners.transpose((1, 2, 0))
-            # x1, x2, x3, x4 = gt_corners[:4, 0]
-            # y1, y2, y3, y4 = gt_corners[:4, 1]
-            plt.plot((x1, x2, x3, x4,x1), (y1, y2, y3, y4,y1), color='yellowgreen', linewidth=2)
+            x1, x2, x3, x4 = gt_corners[:4, 0]
+            y1, y2, y3, y4 = gt_corners[:4, 1]
+            plt.plot((x1, x2, x3, x4, x1), (y1, y2, y3, y4, y1), color='yellowgreen', linewidth=2)
             pred_boxes = pred_dicts[0]['pred_boxes'][mask].cpu().numpy()
             pred_corners = V.boxes_to_corners_3d(pred_boxes[:100])
             pred_corners = pred_corners.transpose((1, 2, 0))
             x1, x2, x3, x4 = pred_corners[:4, 0]
             y1, y2, y3, y4 = pred_corners[:4, 1]
-            plt.plot((x1, x2, x3, x4,x1), (y1, y2, y3, y4,y1), color='red', linewidth=2)
+            plt.plot((x1, x2, x3, x4, x1), (y1, y2, y3, y4, y1), color='red', linewidth=2)
             plt.show()
 
     logger.info('Demo done.')
