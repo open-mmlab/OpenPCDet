@@ -6,6 +6,7 @@ import mayavi.mlab as mlab
 import numpy as np
 import torch
 
+import pcdet
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
@@ -32,6 +33,7 @@ class DemoDataset(DatasetTemplate):
 
         data_file_list.sort()
         self.sample_file_list = data_file_list
+        self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
 
     def __len__(self):
         return len(self.sample_file_list)
@@ -49,7 +51,22 @@ class DemoDataset(DatasetTemplate):
             'frame_id': index,
         }
 
-        data_dict = self.prepare_data(data_dict=input_dict)
+        if self.range_config:
+            # data_dict = input_dict
+            data_dict = self.prepare_data(data_dict=input_dict, process=False)
+        else:
+            data_dict = self.prepare_data(data_dict=input_dict)
+        if self.range_config:
+            import pcdet.datasets.waymo.waymo_utils as waymo_utils
+            data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
+            points_feature_num = data_dict['points'].shape[1]
+            data_dict['points'] = np.concatenate((data_dict['points'], data_dict['ri_indices']), axis=1)
+            data_dict = self.prepare_data(data_dict=data_dict, augment=False)
+            data_dict['points'] = data_dict['points'][:, :points_feature_num]
+            data_dict.pop('beam_inclination_range', None)
+            data_dict.pop('extrinsic', None)
+            data_dict.pop('range_image_shape', None)
+
         return data_dict
 
 
