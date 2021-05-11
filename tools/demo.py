@@ -48,16 +48,18 @@ class DemoDataset(DatasetTemplate):
         else:
             raise NotImplementedError
 
-        if self.info_path is not None:
-            import re
-            with open(Path(self.info_path), 'rb') as f:
-                infos = pickle.load(f)
-            info = infos[int(re.findall('\d+.',str(self.root_path))[-1][:-1])]
+
 
         input_dict = {
             'points': points,
             'frame_id': index,
         }
+        if self.info_path is not None:
+            import re
+            with open(Path(self.info_path), 'rb') as f:
+                infos = pickle.load(f)
+            info = infos[int(re.findall('\d+.',str(self.root_path))[-1][:-1])]
+            input_dict.update({'gt_boxes': info['annos']['gt_boxes_lidar'] })
 
         if self.range_config:
             # data_dict = input_dict
@@ -69,7 +71,6 @@ class DemoDataset(DatasetTemplate):
                 'beam_inclination_range': info['beam_inclination_range'],
                 'extrinsic': info['extrinsic'],
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650]),
-                'gt_boxes': info['annos']['gt_boxes_lidar']
             })
             import pcdet.datasets.waymo.waymo_utils as waymo_utils
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
