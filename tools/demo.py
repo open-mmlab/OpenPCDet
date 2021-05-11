@@ -67,7 +67,8 @@ class DemoDataset(DatasetTemplate):
             data_dict.update({
                 'beam_inclination_range': info['beam_inclination_range'],
                 'extrinsic': info['extrinsic'],
-                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650])
+                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650]),
+                'gt_boxes': info['annos']['gt_boxes_lidar']
             })
             import pcdet.datasets.waymo.waymo_utils as waymo_utils
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
@@ -121,7 +122,7 @@ def main():
             pred_dicts, _ = model.forward(data_dict)
 
             V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                points=data_dict['points'][:, 1:], gt_boxes=data_dict.get('gt_boxes',None),ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
             mlab.show(stop=True)
