@@ -16,7 +16,8 @@ from visual_utils import visualize_utils as V
 
 
 class DemoDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin', info_path=None):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, ext='.bin',
+                 info_path=None):
         """
         Args:
             root_path:
@@ -48,8 +49,6 @@ class DemoDataset(DatasetTemplate):
         else:
             raise NotImplementedError
 
-
-
         input_dict = {
             'points': points,
             'frame_id': index,
@@ -58,14 +57,14 @@ class DemoDataset(DatasetTemplate):
             import re
             with open(Path(self.info_path), 'rb') as f:
                 infos = pickle.load(f)
-            info = infos[int(re.findall('\d+.',str(self.root_path))[-1][:-1])]
-            input_dict.update({'gt_boxes': info['annos']['gt_boxes_lidar'] })
+            info = infos[int(re.findall('\d+.', str(self.root_path))[-1][:-1])]
 
         if self.range_config:
             # data_dict = input_dict
             data_dict = self.prepare_data(data_dict=input_dict, process=False)
         else:
             data_dict = self.prepare_data(data_dict=input_dict)
+
         if self.range_config:
             data_dict.update({
                 'beam_inclination_range': info['beam_inclination_range'],
@@ -81,6 +80,8 @@ class DemoDataset(DatasetTemplate):
             data_dict.pop('beam_inclination_range', None)
             data_dict.pop('extrinsic', None)
             data_dict.pop('range_image_shape', None)
+        if self.info_path is not None:
+            data_dict.update({'gt_boxes': info['annos']['gt_boxes_lidar']})
 
         return data_dict
 
@@ -126,7 +127,8 @@ def main():
             pudb.set_trace()
 
             V.draw_scenes(
-                points=data_dict['points'][:, 1:], gt_boxes=data_dict.get('gt_boxes',None),ref_boxes=pred_dicts[0]['pred_boxes'],
+                points=data_dict['points'][:, 1:], gt_boxes=data_dict.get('gt_boxes', None),
+                ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
             mlab.show(stop=True)
