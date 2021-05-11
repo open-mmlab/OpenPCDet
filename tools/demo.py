@@ -124,8 +124,8 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-            # import pudb
-            # pudb.set_trace()
+            import pudb
+            pudb.set_trace()
 
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:4],
@@ -140,8 +140,12 @@ def main():
             rgba_colors[:, 2] = 1
             rgba_colors[:, 3] = points[:, 2]
             plt.scatter(points[:, 0], points[:, 1], s=0.5, color=rgba_colors[:, :3])
-            # gt_boxes = data_dict.get('gt_boxes', None)[0].cpu().numpy()
-            # gt_boxes = V.boxes_to_corners_3d(gt_boxes[:30])
+
+            gt_boxes = data_dict.get('gt_boxes', None)[0].cpu().numpy()
+            gt_corners = V.boxes_to_corners_3d(gt_boxes[:30])
+            x1, x2, x3, x4 = gt_boxes[:, :4, 0]
+            y1, y2, y3, y4 = gt_boxes[:, :4, 1]
+            plt.plot((x1, x2), (y1, y2), color='yellowgreen', linewidth=2)
             plt.show()
 
     logger.info('Demo done.')
