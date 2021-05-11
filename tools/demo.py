@@ -144,12 +144,13 @@ def main():
             gt_boxes = data_dict.get('gt_boxes', None)[0].cpu().numpy()
             gt_corners = V.boxes_to_corners_3d(gt_boxes[:30])
             gt_corners = gt_corners.transpose((1, 2, 0))
-            x1, x2, x3, x4 = gt_corners[:4, 0]
-            y1, y2, y3, y4 = gt_corners[:4, 1]
-            plt.plot((x1, y1), (x2, y2), color='yellowgreen', linewidth=2)
-            # plt.plot((x1, y1), (x4, y4), color='yellowgreen', linewidth=2)
-            # plt.plot((x3, y3), (x2, y2), color='yellowgreen', linewidth=2)
-            # plt.plot((x3, y3), (x4, y4), color='yellowgreen', linewidth=2)
+            for i in range(gt_corners.shape[-1]):
+                x1, x2, x3, x4 = gt_corners[:4, 0, i]
+                y1, y2, y3, y4 = gt_corners[:4, 1, i]
+                plt.plot((x1, y1), (x2, y2), color='yellowgreen', linewidth=2)
+                plt.plot((x1, y1), (x4, y4), color='yellowgreen', linewidth=2)
+                plt.plot((x3, y3), (x2, y2), color='yellowgreen', linewidth=2)
+                plt.plot((x3, y3), (x4, y4), color='yellowgreen', linewidth=2)
             plt.show()
 
     logger.info('Demo done.')
