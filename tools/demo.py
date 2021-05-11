@@ -49,7 +49,7 @@ class DemoDataset(DatasetTemplate):
             raise NotImplementedError
 
         if self.info_path is not None:
-            with open(self.info_path,'rb') as f:
+            with open(Path(self.info_path), 'rb') as f:
                 infos = pickle.load(f)
             info = infos[index]
 
@@ -90,7 +90,7 @@ def parse_config():
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
-    parser.add_argument('--info_path', type=str,default=None)
+    parser.add_argument('--info_path', type=str, default=None)
 
     args = parser.parse_args()
 
@@ -105,7 +105,7 @@ def main():
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.data_path), ext=args.ext, logger=logger, info_path=Path(args.info_path)
+        root_path=Path(args.data_path), ext=args.ext, logger=logger, info_path=args.info_path
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
