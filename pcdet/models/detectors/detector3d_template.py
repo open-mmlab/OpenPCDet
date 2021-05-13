@@ -31,7 +31,7 @@ class Detector3DTemplate(nn.Module):
     def update_global_step(self):
         self.global_step += 1
 
-    def build_networks(self):
+    def build_networks(self, val=False):
         model_info_dict = {
             'module_list': [],
             'num_rawpoint_features': self.dataset.point_feature_encoder.num_point_features,
@@ -41,9 +41,15 @@ class Detector3DTemplate(nn.Module):
             'voxel_size': self.dataset.voxel_size
         }
         for module_name in self.module_topology:
-            module, model_info_dict = getattr(self, 'build_%s' % module_name)(
-                model_info_dict=model_info_dict
-            )
+            if module_name in ['dense_head', 'point_head']:
+                module, model_info_dict = getattr(self, 'build_%s' % module_name)(
+                    model_info_dict=model_info_dict,
+                    val=val
+                )
+            else:
+                module, model_info_dict = getattr(self, 'build_%s' % module_name)(
+                    model_info_dict=model_info_dict
+                )
             self.add_module(module_name, module)
         return model_info_dict['module_list']
 
@@ -116,7 +122,7 @@ class Detector3DTemplate(nn.Module):
         model_info_dict['num_point_features_before_fusion'] = pfe_module.num_point_features_before_fusion
         return pfe_module, model_info_dict
 
-    def build_dense_head(self, model_info_dict):
+    def build_dense_head(self, model_info_dict, val=False):
         if self.model_cfg.get('DENSE_HEAD', None) is None:
             return None, model_info_dict
         dense_head_module = dense_heads.__all__[self.model_cfg.DENSE_HEAD.NAME](
@@ -126,12 +132,13 @@ class Detector3DTemplate(nn.Module):
             class_names=self.class_names,
             grid_size=model_info_dict['grid_size'],
             point_cloud_range=model_info_dict['point_cloud_range'],
-            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False)
+            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False),
+            val=val
         )
         model_info_dict['module_list'].append(dense_head_module)
         return dense_head_module, model_info_dict
 
-    def build_point_head(self, model_info_dict):
+    def build_point_head(self, model_info_dict, val=False):
         if self.model_cfg.get('POINT_HEAD', None) is None:
             return None, model_info_dict
 
@@ -144,7 +151,8 @@ class Detector3DTemplate(nn.Module):
             model_cfg=self.model_cfg.POINT_HEAD,
             input_channels=num_point_features,
             num_class=self.num_class if not self.model_cfg.POINT_HEAD.CLASS_AGNOSTIC else 1,
-            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False)
+            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False),
+            val=val
         )
 
         model_info_dict['module_list'].append(point_head_module)

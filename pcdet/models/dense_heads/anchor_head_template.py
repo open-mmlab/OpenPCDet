@@ -9,7 +9,7 @@ from .target_assigner.axis_aligned_target_assigner import AxisAlignedTargetAssig
 
 
 class AnchorHeadTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training):
+    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training, val=False):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
@@ -33,6 +33,7 @@ class AnchorHeadTemplate(nn.Module):
 
         self.forward_ret_dict = {}
         self.build_losses(self.model_cfg.LOSS_CONFIG)
+        self.val = val
 
     @staticmethod
     def generate_anchors(anchor_generator_cfg, grid_size, point_cloud_range, anchor_ndim=7):
@@ -102,6 +103,7 @@ class AnchorHeadTemplate(nn.Module):
         cls_preds = self.forward_ret_dict['cls_preds']
         box_cls_labels = self.forward_ret_dict['box_cls_labels']
         batch_size = int(cls_preds.shape[0])
+        # print('batch_size_pre', batch_size)
         cared = box_cls_labels >= 0  # [N, num_anchors]
         positives = box_cls_labels > 0
         negatives = box_cls_labels == 0

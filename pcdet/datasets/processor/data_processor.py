@@ -6,10 +6,11 @@ from ...utils import box_utils, common_utils
 
 
 class DataProcessor(object):
-    def __init__(self, processor_configs, point_cloud_range, training):
+    def __init__(self, processor_configs, point_cloud_range, training, val=False):
         self.point_cloud_range = point_cloud_range
         self.training = training
-        self.mode = 'train' if training else 'test'
+        self.val = val
+        self.mode = 'train' if (training and (not self.val)) else 'test'
         self.grid_size = self.voxel_size = None
         self.data_processor_queue = []
         for cur_cfg in processor_configs:
@@ -21,7 +22,7 @@ class DataProcessor(object):
             return partial(self.mask_points_and_boxes_outside_range, config=config)
         mask = common_utils.mask_points_by_range(data_dict['points'], self.point_cloud_range)
         data_dict['points'] = data_dict['points'][mask]
-        if data_dict.get('gt_boxes', None) is not None and config.REMOVE_OUTSIDE_BOXES and self.training:
+        if data_dict.get('gt_boxes', None) is not None and config.REMOVE_OUTSIDE_BOXES and self.training and not self.val:
             mask = box_utils.mask_boxes_outside_range_numpy(
                 data_dict['gt_boxes'], self.point_cloud_range, min_num_corners=config.get('min_num_corners', 1)
             )

@@ -11,10 +11,11 @@ from .processor.point_feature_encoder import PointFeatureEncoder
 
 
 class DatasetTemplate(torch_data.Dataset):
-    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg=None, class_names=None, training=True, val=False, root_path=None, logger=None):
         super().__init__()
         self.dataset_cfg = dataset_cfg
         self.training = training
+        self.val = val
         self.class_names = class_names
         self.logger = logger
         self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH)
@@ -27,11 +28,13 @@ class DatasetTemplate(torch_data.Dataset):
             self.dataset_cfg.POINT_FEATURE_ENCODING,
             point_cloud_range=self.point_cloud_range
         )
+        self.is_data_augmentor = self.training and (not val)
         self.data_augmentor = DataAugmentor(
             self.root_path, self.dataset_cfg.DATA_AUGMENTOR, self.class_names, logger=self.logger
-        ) if self.training else None
+        # ) if self.training else None
+        ) if self.is_data_augmentor else None
         self.data_processor = DataProcessor(
-            self.dataset_cfg.DATA_PROCESSOR, point_cloud_range=self.point_cloud_range, training=self.training
+            self.dataset_cfg.DATA_PROCESSOR, point_cloud_range=self.point_cloud_range, training=self.training, val=val
         )
 
         self.grid_size = self.data_processor.grid_size
@@ -41,7 +44,8 @@ class DatasetTemplate(torch_data.Dataset):
 
     @property
     def mode(self):
-        return 'train' if self.training else 'test'
+        # return 'train' if self.training else 'test'
+        return 'train' if self.is_data_augmentor else 'test'
 
     def __getstate__(self):
         d = dict(self.__dict__)
@@ -114,7 +118,7 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        if self.training:
+        if self.training and (not self.val):
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
@@ -139,7 +143,8 @@ class DatasetTemplate(torch_data.Dataset):
             data_dict=data_dict
         )
 
-        if self.training and len(data_dict['gt_boxes']) == 0:
+        # if self.training and len(data_dict['gt_boxes']) == 0:
+        if self.is_data_augmentor and len(data_dict['gt_boxes']) == 0:
             new_index = np.random.randint(self.__len__())
             return self.__getitem__(new_index)
 

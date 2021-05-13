@@ -290,8 +290,8 @@ def compute_statistics_jit(overlaps,
                      or ignored_det[i] == 1 or ignored_threshold[i])):
                 fp += 1
                 # if (not fused_statistics) & (overlap_k == 1) & (difficulty_l == 0) & (metric == 1):
-                    # with open("fp.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fp_file:
-                    #     fp_file.write("pc_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
+                #     with open("fp.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fp_file:
+                #         fp_file.write("pc_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
                 dt_true.append(0)
                 pre_score.append(dt_scores[i])
         nstuff = 0
@@ -411,7 +411,7 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
             dt_boxes = np.concatenate([a["bbox"] for a in dt_annos_part], 0)
             overlap_part = image_box_overlap(gt_boxes, dt_boxes)
         elif metric == 1:
-            # print(gt_annos_part[0])
+            # print(gt_annos_part[0], gt_annos_part[0])
             # print('[dt_annos[0]]', dt_annos_part[0])
             loc = np.concatenate(
                 [a["location"][:, [0, 1]] for a in gt_annos_part], 0)
@@ -582,16 +582,17 @@ def eval_class(gt_annos,
                 fns = np.array(fns)
                 dt_trues = np.array(dt_trues)
                 dt_scoress = np.array(dt_scoress)
-                if l == 0:
-                    # np.save("metric_%d.%d.%d.%d_true" % (metric, m, l, k), dt_trues)
-                    # np.save("metric_%d.%d.%d.%d_score" % (metric, m, l, k), dt_scores)
-                    if k == 1:
-                        print("m:", m, " l:", l, " k:", k)
-                        # print('tp', tps.sum())
-                        # print('fn', fns.sum())
-                        # print('fp', fps.sum())
-                        print("recall", tps.sum() / (tps.sum() + fns.sum()))
-                        print("precision", tps.sum() / (tps.sum() + fps.sum()))
+                if metric == 1:
+                    if l == 0:
+                        # np.save("metric_%d.%d.%d.%d_true" % (metric, m, l, k), dt_trues)
+                        # np.save("metric_%d.%d.%d.%d_score" % (metric, m, l, k), dt_scores)
+                        if k == 1:
+                            print("m:", m, " l:", l, " k:", k)
+                            # print('tp', tps.sum())
+                            # print('fn', fns.sum())
+                            # print('fp', fps.sum())
+                            print("recall", tps.sum() / (tps.sum() + fns.sum()))
+                            print("precision", tps.sum() / (tps.sum() + fps.sum()))
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt)
                 thresholds = np.array(thresholds)
                 pr = np.zeros([len(thresholds), 4])
@@ -675,8 +676,8 @@ def do_eval(gt_annos,
             eval_cfg=None):
     # min_overlaps: [num_minoverlap, metric, num_class]
     difficultys = [0, 1, 2]
-    print(('*' * 60))
-    print('The recall and precision in mode bbox')
+    # print(('*' * 60))
+    # print('The recall and precision in mode bbox')
     ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0,
                      min_overlaps, compute_aos, det_range=det_range, eval_cfg=eval_cfg)
     # ret: [num_class, num_diff, num_minoverlap, num_sample_points]
@@ -703,8 +704,8 @@ def do_eval(gt_annos,
     if PR_detail_dict is not None:
         PR_detail_dict['bev'] = ret['precision']
 
-    print(('*' * 60))
-    print('The recall and precision in mode box3d')
+    # print(('*' * 60))
+    # print('The recall and precision in mode box3d')
     ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
                      min_overlaps, det_range=det_range, save_fn_fp=True, eval_cfg=eval_cfg)
     mAP_3d = get_mAP(ret["precision"])
@@ -783,6 +784,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict, det_range=det_range, eval_cfg=eval_cfg)
 
     ret_dict = {}
+    map_ls = []
     for j, curcls in enumerate(current_classes):
         # mAP threshold array: [num_minoverlap, metric, class]
         # mAP result: [num_class, num_diff, num_minoverlap]
@@ -796,6 +798,8 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
             result += print_str((f"bev  AP:{mAPbev[j, 0, i]:.4f}, "
                                  f"{mAPbev[j, 1, i]:.4f}, "
                                  f"{mAPbev[j, 2, i]:.4f}"))
+            if i == 1:
+                map_ls.append(mAPbev[j, 1, i])
             result += print_str((f"3d   AP:{mAP3d[j, 0, i]:.4f}, "
                                  f"{mAP3d[j, 1, i]:.4f}, "
                                  f"{mAP3d[j, 2, i]:.4f}"))
@@ -851,7 +855,8 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
             #     ret_dict['%s_image/moderate_R40' % class_to_name[curcls]] = mAPbbox_R40[j, 1, 0]
             #     ret_dict['%s_image/hard_R40' % class_to_name[curcls]] = mAPbbox_R40[j, 2, 0]
 
-    return result, ret_dict
+        mAP = np.array(map_ls).mean()
+    return result, ret_dict, mAP
 
 
 def get_coco_eval_result(gt_annos, dt_annos, current_classes):

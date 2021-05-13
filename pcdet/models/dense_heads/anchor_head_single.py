@@ -6,7 +6,7 @@ from .anchor_head_template import AnchorHeadTemplate
 
 class AnchorHeadSingle(AnchorHeadTemplate):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range,
-                 predict_boxes_when_training=True, **kwargs):
+                 predict_boxes_when_training=True, val=False, **kwargs):
         super().__init__(
             model_cfg=model_cfg, num_class=num_class, class_names=class_names, grid_size=grid_size, point_cloud_range=point_cloud_range,
             predict_boxes_when_training=predict_boxes_when_training
@@ -31,6 +31,7 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         else:
             self.conv_dir_cls = None
         self.init_weights()
+        self.val = val
 
     def init_weights(self):
         pi = 0.01
@@ -55,13 +56,18 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         else:
             dir_cls_preds = None
 
-        if self.training:
+        # targets_dict = self.assign_targets(
+        #     gt_boxes=data_dict['gt_boxes']
+        # )
+        # self.forward_ret_dict.update(targets_dict)
+        if self.training or self.val:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
             )
             self.forward_ret_dict.update(targets_dict)
 
-        if not self.training or self.predict_boxes_when_training:
+        # if not self.training or self.predict_boxes_when_training:
+        if 1:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=data_dict['batch_size'],
                 cls_preds=cls_preds, box_preds=box_preds, dir_cls_preds=dir_cls_preds
