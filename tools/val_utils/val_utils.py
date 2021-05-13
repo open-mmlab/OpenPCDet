@@ -19,7 +19,8 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
 
-def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None, val=False):
+def val_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None,
+                  val=False, tb_log=None, rank=None, accumulated_iter=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
     final_output_dir = result_dir / 'final_result' / 'data'
@@ -46,7 +47,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
                 device_ids=[local_rank],
                 broadcast_buffers=False
         )
-    model.eval()
+    # if not val:
+    #     model.eval()
 
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
@@ -54,8 +56,14 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
-            pred_dicts, ret_dict = model(batch_dict)
+            # pred_dicts, ret_dict = model(batch_dict)
+            loss, tb_dict, disp_dict, pred_dicts, ret_dict = model(batch_dict)
+            loss = loss['loss']
         disp_dict = {}
+        if tb_log is not None:
+            tb_log.add_scalar('val/loss', loss, accumulated_iter)
+            for key, val in tb_dict.items():
+                tb_log.add_scalar('val/' + key, val, accumulated_iter)
 
         statistics_info(cfg, ret_dict, metric, disp_dict)
         annos = dataset.generate_prediction_dicts(
@@ -75,9 +83,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         det_annos = common_utils.merge_results_dist(det_annos, len(dataset), tmpdir=result_dir / 'tmpdir')
         metric = common_utils.merge_results_dist([metric], world_size, tmpdir=result_dir / 'tmpdir')
 
-    logger.info('*************** Performance of EPOCH %s *****************' % epoch_id)
-    sec_per_example = (time.time() - start_time) / len(dataloader.dataset)
-    logger.info('Generate label finished(sec_per_example: %.4f second).' % sec_per_example)
+    # logger.info('*************** Performance of EPOCH %s *****************' % epoch_id)
+    # sec_per_example = (time.time() - start_time) / len(dataloader.dataset)
+    # logger.info('Generate label finished(sec_per_example: %.4f second).' % sec_per_example)
 
     if cfg.LOCAL_RANK != 0:
         return {}
@@ -121,13 +129,11 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
                 eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
                 output_path=final_output_dir
             )
-
-            logger.info(result_str)
+            # logger.info(result_str)
             ret_dict.update(result_dict)
-            print('The mAP of model epoch%s is %f' % (epoch_id, mAP))
-            logger.info('Result is save to %s' % result_dir)
-            logger.info('****************Evaluation done.*****************')
-        return ret_dict
+            # logger.info('Result is save to %s' % result_dir)
+            # logger.info('****************Evaluation done.*****************')
+        return ret_dict, mAP
     else:
         detect_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
         detect_range = [0, detect_range[3], 0, detect_range[4]]
@@ -147,3 +153,4 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
 if __name__ == '__main__':
     pass
+

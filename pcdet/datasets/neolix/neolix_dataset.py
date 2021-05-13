@@ -15,7 +15,7 @@ write_data_id = -1
 
 
 class NeolixDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg, class_names, training=True, val=False, root_path=None, logger=None):
         """
         Args:
             root_path:
@@ -25,7 +25,7 @@ class NeolixDataset(DatasetTemplate):
             logger:
         """
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, val=val, root_path=root_path, logger=logger
         )
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
@@ -373,9 +373,9 @@ class NeolixDataset(DatasetTemplate):
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.neolix_infos]
-        ap_result_str, ap_dict = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range, eval_cfg=self.dataset_cfg)
+        ap_result_str, ap_dict, mAP = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range, eval_cfg=self.dataset_cfg)
 
-        return ap_result_str, ap_dict
+        return ap_result_str, ap_dict, mAP
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -433,7 +433,7 @@ class NeolixDataset(DatasetTemplate):
         return data_dict
 
 
-def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
+def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=8):
     dataset = NeolixDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
     train_split, val_split = 'train', 'val'
 
@@ -444,11 +444,11 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
 
     # print('---------------Start to generate data infos---------------')
 
-    dataset.set_split(train_split)
-    neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
-    with open(train_filename, 'wb') as f:
-        pickle.dump(neolix_infos_train, f)
-    print('Neolix info train file is saved to %s' % train_filename)
+    # dataset.set_split(train_split)
+    # neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    # with open(train_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_train, f)
+    # print('Neolix info train file is saved to %s' % train_filename)
 
     dataset.set_split(val_split)
     neolix_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
@@ -456,21 +456,21 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
         pickle.dump(neolix_infos_val, f)
     print('Neolix info val file is saved to %s' % val_filename)
 
-    with open(trainval_filename, 'wb') as f:
-        pickle.dump(neolix_infos_train + neolix_infos_val, f)
-    print('Neolix info trainval file is saved to %s' % trainval_filename)
-
-    dataset.set_split('test')
-    neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
-    with open(test_filename, 'wb') as f:
-        pickle.dump(neolix_infos_test, f)
-    print('Neolix info test file is saved to %s' % test_filename)
-
-    print('---------------Start create groundtruth database for data augmentation---------------')
-    dataset.set_split(train_split)
-    dataset.create_groundtruth_database(train_filename, split=train_split)
-
-    print('---------------Data preparation Done---------------')
+    # with open(trainval_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_train + neolix_infos_val, f)
+    # print('Neolix info trainval file is saved to %s' % trainval_filename)
+    #
+    # dataset.set_split('test')
+    # neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
+    # with open(test_filename, 'wb') as f:
+    #     pickle.dump(neolix_infos_test, f)
+    # print('Neolix info test file is saved to %s' % test_filename)
+    #
+    # print('---------------Start create groundtruth database for data augmentation---------------')
+    # dataset.set_split(train_split)
+    # dataset.create_groundtruth_database(train_filename, split=train_split)
+    #
+    # print('---------------Data preparation Done---------------')
 
 
 if __name__ == '__main__':

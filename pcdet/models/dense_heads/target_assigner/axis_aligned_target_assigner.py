@@ -47,6 +47,7 @@ class AxisAlignedTargetAssigner(object):
         reg_weights = []
 
         batch_size = gt_boxes_with_classes.shape[0]
+        # print('batch_size_target', batch_size)
         gt_classes = gt_boxes_with_classes[:, :, -1]
         gt_boxes = gt_boxes_with_classes[:, :, :-1]
         for k in range(batch_size):
@@ -109,7 +110,6 @@ class AxisAlignedTargetAssigner(object):
                 target_dict['box_reg_targets'] = torch.cat(
                     target_dict['box_reg_targets'], dim=-2
                 ).view(-1, self.box_coder.code_size)
-
                 target_dict['box_cls_labels'] = torch.cat(target_dict['box_cls_labels'], dim=-1).view(-1)
                 target_dict['reg_weights'] = torch.cat(target_dict['reg_weights'], dim=-1).view(-1)
 
