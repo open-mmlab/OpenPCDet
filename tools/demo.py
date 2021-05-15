@@ -128,8 +128,11 @@ def main():
             pred_dicts, _ = model.forward(data_dict)
             # import pudb
             # pudb.set_trace()
-            mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
-            mask = mask.all(dim=1)
+            # mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
+            # mask = mask.all(dim=1)
+            mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
+            mask2 = mask2 < 20 & mask2 > 0.05
+
 
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:4],
@@ -151,13 +154,13 @@ def main():
             x1, x2, x3, x4 = gt_corners[:4, 0]
             y1, y2, y3, y4 = gt_corners[:4, 1]
             plt.plot((x1, x2, x3, x4, x1), (y1, y2, y3, y4, y1), color='yellowgreen', linewidth=2)
-            pred_boxes = pred_dicts[0]['pred_boxes'][mask].cpu().numpy()
+            pred_boxes = pred_dicts[0]['pred_boxes'][mask2].cpu().numpy()
             pred_corners = V.boxes_to_corners_3d(pred_boxes[:100])
             pred_corners = pred_corners.transpose((1, 2, 0))
             x1, x2, x3, x4 = pred_corners[:4, 0]
             y1, y2, y3, y4 = pred_corners[:4, 1]
             plt.plot((x1, x2, x3, x4, x1), (y1, y2, y3, y4, y1), color='red', linewidth=2)
-            plt.savefig('bev-%d-second.png'%idx)
+            plt.savefig('bev-%d-rsn.png'%idx)
             plt.clf()
             # plt.show()
 
