@@ -128,10 +128,12 @@ def main():
             pred_dicts, _ = model.forward(data_dict)
             # import pudb
             # pudb.set_trace()
-            # mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
-            # mask = mask.all(dim=1)
+            mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
+            mask = mask.all(dim=1)
             mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
             mask2 = (mask2 < 20) & (mask2 > 0.05)
+            mask2 = mask2 & mask
+
 
 
             # V.draw_scenes(
