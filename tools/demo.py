@@ -131,7 +131,7 @@ def main():
             # mask = pred_dicts[0]['pred_boxes'][:, 3:6] < 20
             # mask = mask.all(dim=1)
             mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
-            mask2 = mask2 < 20 & mask2 > 0.05
+            mask2 = (mask2 < 20) & (mask2 > 0.05)
 
 
             # V.draw_scenes(
