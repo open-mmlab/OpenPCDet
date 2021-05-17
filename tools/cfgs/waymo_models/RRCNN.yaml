@@ -7,6 +7,12 @@ DATA_CONFIG:
 
     USE_DOUBLE_FLIP_TEST: &double_flip False
 
+    SAMPLED_INTERVAL: {
+      'train': 50,
+      'test': 25
+    }
+
+
     DATA_PROCESSOR:
       - NAME: mask_points_and_boxes_outside_range
         REMOVE_OUTSIDE_BOXES: True
