@@ -58,7 +58,7 @@ MODEL:
           'anchor_rotations': [ 0, 1.57 ],
           'anchor_bottom_heights': [ 0 ],
           'align_center': False,
-          'feature_map_stride': 8,
+          'feature_map_stride': 1,
           'matched_threshold': 0.55,
           'unmatched_threshold': 0.4
         },
@@ -68,7 +68,7 @@ MODEL:
           'anchor_rotations': [ 0, 1.57 ],
           'anchor_bottom_heights': [ 0 ],
           'align_center': False,
-          'feature_map_stride': 8,
+          'feature_map_stride': 1,
           'matched_threshold': 0.5,
           'unmatched_threshold': 0.35
         },
@@ -78,7 +78,7 @@ MODEL:
           'anchor_rotations': [ 0, 1.57 ],
           'anchor_bottom_heights': [ 0 ],
           'align_center': False,
-          'feature_map_stride': 8,
+          'feature_map_stride': 1,
           'matched_threshold': 0.5,
           'unmatched_threshold': 0.35
         }
