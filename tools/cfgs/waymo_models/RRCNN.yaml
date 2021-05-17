@@ -42,14 +42,6 @@ MODEL:
       NAME: HeightCompression
       NUM_BEV_FEATURES: 576
 
-    BACKBONE_2D:
-      NAME: BaseBEVBackbone
-
-      LAYER_NUMS: [ 5, 5 ]
-      LAYER_STRIDES: [ 1, 2 ]
-      NUM_FILTERS: [ 128, 256 ]
-      UPSAMPLE_STRIDES: [ 1, 2 ]
-      NUM_UPSAMPLE_FILTERS: [ 256, 256 ]
     DENSE_HEAD:
       NAME: AnchorHeadSingle
       CLASS_AGNOSTIC: False

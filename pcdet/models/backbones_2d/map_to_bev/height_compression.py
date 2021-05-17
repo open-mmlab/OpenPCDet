@@ -2,10 +2,11 @@ import torch.nn as nn
 
 
 class HeightCompression(nn.Module):
-    def __init__(self, model_cfg, **kwargs):
+    def __init__(self, model_cfg, grid_size, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_bev_features = self.model_cfg.NUM_BEV_FEATURES
+        self.sparse_shape = grid_size[::-1] + [1, 0, 0]
 
     def forward(self, batch_dict):
         """
@@ -17,8 +18,20 @@ class HeightCompression(nn.Module):
                 spatial_features:
 
         """
-        encoded_spconv_tensor = batch_dict['encoded_spconv_tensor']
-        spatial_features = encoded_spconv_tensor.dense()
+        if 'encoded_spconv_tensor' in batch_dict.keys():
+            encoded_spconv_tensor = batch_dict['encoded_spconv_tensor']
+            spatial_features = encoded_spconv_tensor.dense()
+        else:
+            import spconv
+            batch_size = batch_dict['batch_size']
+            voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
+            input_sp_tensor = spconv.SparseConvTensor(
+                features=voxel_features,
+                indices=voxel_coords.int(),
+                spatial_shape=self.sparse_shape,
+                batch_size=batch_size
+            )
+            spatial_features = input_sp_tensor.dense()
         N, C, D, H, W = spatial_features.shape
         spatial_features = spatial_features.view(N, C * D, H, W)
         batch_dict['spatial_features'] = spatial_features
