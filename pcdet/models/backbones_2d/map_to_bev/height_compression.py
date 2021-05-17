@@ -36,5 +36,5 @@ class HeightCompression(nn.Module):
         spatial_features = spatial_features.view(N, C * D, H, W)
         batch_dict['spatial_features'] = spatial_features
         batch_dict['spatial_features_2d'] = spatial_features
-        batch_dict['spatial_features_stride'] = batch_dict['encoded_spconv_tensor_stride']
+        batch_dict['spatial_features_stride'] = batch_dict.get('encoded_spconv_tensor_stride', 1)
         return batch_dict
