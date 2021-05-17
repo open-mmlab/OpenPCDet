@@ -11,7 +11,6 @@ from PIL import Image
 # import mayavi.mlab as mlab
 from vis_utils import calibration_kitti, object3d_kitti, visualizer
 
-
 '''
  Values  Name        Description
 ----------------------------------------------------------------------------
@@ -37,6 +36,8 @@ from vis_utils import calibration_kitti, object3d_kitti, visualizer
 DATA_PATH = '/home/qxl/DATACENTER/kitti/training'
 
 image_set = os.listdir(os.path.join(DATA_PATH, 'image_2'))
+
+
 # print (len(image_set))
 
 def get_image(idx):
@@ -44,26 +45,30 @@ def get_image(idx):
     return cv2.imread(img_file)
     # return  Image.open(img_file).convert('RGB')
 
+
 def get_calib(idx):
     calib_file = os.path.join(DATA_PATH, 'calib', idx + '.txt')
     return calibration_kitti.Calibration(calib_file)
+
 
 def get_label(idx):
     label_file = os.path.join(DATA_PATH, 'label_2', idx + '.txt')
     return object3d_kitti.get_objects_from_label(label_file)
 
+
 def get_lidar(idx):
     lidar_file = os.path.join(DATA_PATH, 'velodyne', idx + '.bin')
     return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
-def get_fov_flag(pts_rect, img_shape, calib):
-        pts_img, pts_rect_depth = calib.rect_to_img(pts_rect)
-        val_flag_1 = np.logical_and(pts_img[:, 0] >= 0, pts_img[:, 0] < img_shape[1])
-        val_flag_2 = np.logical_and(pts_img[:, 1] >= 0, pts_img[:, 1] < img_shape[0])
-        val_flag_merge = np.logical_and(val_flag_1, val_flag_2)
-        pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)
 
-        return pts_valid_flag
+def get_fov_flag(pts_rect, img_shape, calib):
+    pts_img, pts_rect_depth = calib.rect_to_img(pts_rect)
+    val_flag_1 = np.logical_and(pts_img[:, 0] >= 0, pts_img[:, 0] < img_shape[1])
+    val_flag_2 = np.logical_and(pts_img[:, 1] >= 0, pts_img[:, 1] < img_shape[0])
+    val_flag_merge = np.logical_and(val_flag_1, val_flag_2)
+    pts_valid_flag = np.logical_and(val_flag_merge, pts_rect_depth >= 0)
+
+    return pts_valid_flag
 
 
 # Front-view Image
@@ -76,13 +81,13 @@ def Image_Vis_2d():
         anno = get_label(sample_idx)
 
         # print (len(anno))
-        print ('The anno of %s:' % (name))
+        print('The anno of %s:' % (name))
         for a in anno:
-            print ('    %s' % (a.to_str()))
+            print('    %s' % (a.to_str()))
 
             loc = a.loc
             loc = calib.rect_to_img(loc[None])[0]
-            cv2.circle(img, (loc[0, 0], loc[0,1]), 2, color=(255,0,0), thickness=2)
+            cv2.circle(img, (loc[0, 0], loc[0, 1]), 2, color=(255, 0, 0), thickness=2)
             cv2.imshow('1', img)
             cv2.waitKey()
 
@@ -97,12 +102,13 @@ def Image_Vis_2d():
             cv2.imshow('1', img)
             cv2.waitKey()
 
+
 # BEV
 def Lidar_Vis_3d():
     for name in image_set:
         sample_idx = os.path.splitext(name)[0]
         points = get_lidar(sample_idx)
-        print (sample_idx)
+        print(sample_idx)
         if sample_idx != '004409':
             continue
 
@@ -113,7 +119,7 @@ def Lidar_Vis_3d():
         pc_range = [0, -40, -3, 70.4, 40, 1]
         print(points.shape)
         mask = (points[:, 0] >= pc_range[0]) & (points[:, 0] <= pc_range[3]) \
-                & (points[:, 1] >= pc_range[1]) & (points[:, 1] <= pc_range[4])
+               & (points[:, 1] >= pc_range[1]) & (points[:, 1] <= pc_range[4])
         points = points[mask]
 
         # N = points.shape[0]
@@ -121,30 +127,36 @@ def Lidar_Vis_3d():
         # sample_n = np.random.choice(np.arange(N), size=64, replace=64>N)
         # points = points[sample_n]
 
-        rgba_colors = np.zeros((points.shape[0],4))
-        rgba_colors[:,2] = 1
+        rgba_colors = np.zeros((points.shape[0], 4))
+        rgba_colors[:, 2] = 1
         rgba_colors[:, 3] = points[:, 3]
-        plt.scatter(points[:,0], points[:, 1], s=0.5, color=rgba_colors[:, :3])
+        plt.scatter(points[:, 0], points[:, 1], s=0.5, color=rgba_colors[:, :3])
 
         for a in anno:
             if a.cls_type == 'DontCare':
                 continue
-            print ('    %s %s: %.3f' % (a.to_str(), 'head', -(np.pi/2 + a.ry)))
+            print('    %s %s: %.3f' % (a.to_str(), 'head', -(np.pi / 2 + a.ry)))
 
             # a.ry = np.pi / 2
             corners3d = a.generate_corners3d()
             pts_lidar = calib.rect_to_lidar(corners3d)
             for i in range(5):
                 if i == 3:
-                    plt.plot((pts_lidar[i, 0], pts_lidar[0, 0]), (pts_lidar[i, 1], pts_lidar[0, 1]), color='red', linewidth=1)
+                    plt.plot((pts_lidar[i, 0], pts_lidar[0, 0]), (pts_lidar[i, 1], pts_lidar[0, 1]), color='red',
+                             linewidth=1)
                 elif i == 4:
-                    x1 = ((pts_lidar[3, 0] - pts_lidar[0, 0])/3 + pts_lidar[0, 0] + (pts_lidar[2, 0] - pts_lidar[1, 0])/3 + pts_lidar[1, 0]) / 2
-                    x2 = ((pts_lidar[0, 0] - pts_lidar[3, 0])/4 + pts_lidar[0, 0] + (pts_lidar[1, 0] - pts_lidar[2, 0])/4 + pts_lidar[1, 0]) / 2
-                    y1 = ((pts_lidar[3, 1] - pts_lidar[0, 1])/3 + pts_lidar[0, 1] + (pts_lidar[2, 1] - pts_lidar[1, 1])/3 + pts_lidar[1, 1]) / 2
-                    y2 = ((pts_lidar[0, 1] - pts_lidar[3, 1])/4 + pts_lidar[0, 1] + (pts_lidar[1, 1] - pts_lidar[2, 1])/4 + pts_lidar[1, 1]) / 2
+                    x1 = ((pts_lidar[3, 0] - pts_lidar[0, 0]) / 3 + pts_lidar[0, 0] + (
+                                pts_lidar[2, 0] - pts_lidar[1, 0]) / 3 + pts_lidar[1, 0]) / 2
+                    x2 = ((pts_lidar[0, 0] - pts_lidar[3, 0]) / 4 + pts_lidar[0, 0] + (
+                                pts_lidar[1, 0] - pts_lidar[2, 0]) / 4 + pts_lidar[1, 0]) / 2
+                    y1 = ((pts_lidar[3, 1] - pts_lidar[0, 1]) / 3 + pts_lidar[0, 1] + (
+                                pts_lidar[2, 1] - pts_lidar[1, 1]) / 3 + pts_lidar[1, 1]) / 2
+                    y2 = ((pts_lidar[0, 1] - pts_lidar[3, 1]) / 4 + pts_lidar[0, 1] + (
+                                pts_lidar[1, 1] - pts_lidar[2, 1]) / 4 + pts_lidar[1, 1]) / 2
                     plt.plot((x1, x2), (y1, y2), color='yellowgreen', linewidth=2)
                 else:
-                    plt.plot((pts_lidar[i, 0], pts_lidar[i+1, 0]), (pts_lidar[i, 1], pts_lidar[i+1, 1]), color='red', linewidth=1)
+                    plt.plot((pts_lidar[i, 0], pts_lidar[i + 1, 0]), (pts_lidar[i, 1], pts_lidar[i + 1, 1]),
+                             color='red', linewidth=1)
 
         plt.show()
 

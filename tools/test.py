@@ -38,8 +38,7 @@ def parse_config():
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
-    parser.add_argument('--runs_on', type=str, default='server',choices=['server', 'cloud'])
-
+    parser.add_argument('--runs_on', type=str, default='server', choices=['server', 'cloud'])
 
     args = parser.parse_args()
 
