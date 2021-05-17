@@ -12,7 +12,7 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
+        VOXEL_SIZE: [ 0.4, 0.4, 0.3 ]
         MAX_POINTS_PER_VOXEL: 5
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
