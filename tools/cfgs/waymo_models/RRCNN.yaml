@@ -46,7 +46,7 @@ MODEL:
 
     MAP_TO_BEV:
       NAME: HeightCompression
-      NUM_BEV_FEATURES: 777
+      NUM_BEV_FEATURES: 74
 
     DENSE_HEAD:
       NAME: AnchorHeadSingle
