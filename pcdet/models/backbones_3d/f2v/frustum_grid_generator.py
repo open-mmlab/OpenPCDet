@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import kornia
 
-from pcdet.utils import transform_utils, grid_utils, depth_utils
+from pcdet.utils import transform_utils
 
 
 class FrustumGridGenerator(nn.Module):
@@ -92,7 +92,7 @@ class FrustumGridGenerator(nn.Module):
         image_grid, image_depths = transform_utils.project_to_image(project=I_C, points=camera_grid)
 
         # Convert depths to depth bins
-        image_depths = depth_utils.bin_depths(depth_map=image_depths, **self.disc_cfg)
+        image_depths = transform_utils.bin_depths(depth_map=image_depths, **self.disc_cfg)
 
         # Stack to form frustum grid
         image_depths = image_depths.unsqueeze(-1)
@@ -121,7 +121,7 @@ class FrustumGridGenerator(nn.Module):
                                    device=image_shape.device,
                                    dtype=image_shape.dtype)
         frustum_shape = torch.cat((image_depth, image_shape))
-        frustum_grid = grid_utils.normalize_coords(coords=frustum_grid, shape=frustum_shape)
+        frustum_grid = transform_utils.normalize_coords(coords=frustum_grid, shape=frustum_shape)
 
         # Replace any NaNs or infinites with out of bounds
         mask = ~torch.isfinite(frustum_grid)

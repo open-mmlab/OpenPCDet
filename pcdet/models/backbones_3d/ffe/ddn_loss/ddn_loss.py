@@ -3,7 +3,7 @@ import torch.nn as nn
 import kornia
 
 from .balancer import Balancer
-from pcdet.utils import depth_utils
+from pcdet.utils import transform_utils
 
 
 class DDNLoss(nn.Module):
@@ -54,7 +54,7 @@ class DDNLoss(nn.Module):
         tb_dict = {}
 
         # Bin depth map to create target
-        depth_target = depth_utils.bin_depths(depth_maps, **self.disc_cfg, target=True)
+        depth_target = transform_utils.bin_depths(depth_maps, **self.disc_cfg, target=True)
 
         # Compute loss
         loss = self.loss_func(depth_logits, depth_target)
