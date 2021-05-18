@@ -3,7 +3,7 @@ from functools import partial
 import numpy as np
 
 from ...utils import common_utils
-from . import augmentor_utils, database_sampler, image_augmentor_utils
+from . import augmentor_utils, database_sampler
 
 
 class DataAugmentor(object):
@@ -88,7 +88,7 @@ class DataAugmentor(object):
         calib = data_dict["calib"]
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['horizontal']
-            images, depth_maps, gt_boxes = getattr(image_augmentor_utils, 'random_flip_%s' % cur_axis)(
+            images, depth_maps, gt_boxes = getattr(augmentor_utils, 'random_image_flip_%s' % cur_axis)(
                 images, depth_maps, gt_boxes, calib,
             )
 
