@@ -48,7 +48,7 @@ class DDNLoss(nn.Module):
             depth_maps: (B, H, W), Depth map [m]
             gt_boxes2d: torch.Tensor (B, N, 4), 2D box labels for foreground/background balancing
         Returns:
-            loss: (1), Depth classification network loss
+            loss: (1), Depth distribution network loss
             tb_dict: dict[float], All losses to log in tensorboard
         """
         tb_dict = {}

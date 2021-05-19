@@ -92,5 +92,12 @@ class DepthFFN(nn.Module):
         return frustum_features
 
     def get_loss(self):
+        """
+        Gets DDN loss
+        Args:
+        Returns:
+            loss: (1), Depth distribution network loss
+            tb_dict: dict[float], All losses to log in tensorboard
+        """
         loss, tb_dict = self.ddn_loss(**self.forward_ret_dict)
         return loss, tb_dict
