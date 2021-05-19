@@ -53,7 +53,7 @@ class Detector3DTemplate(nn.Module):
             return None, model_info_dict
 
         backbone_range_module = backbones_range.__all__[self.model_cfg.BACKBONE_RANGE.NAME](
-            in_channels=3,
+            in_channels=self.model_cfg.BACKBONE_RANGE.get('NUM_INPUT_CHANNELS', 3),
             model_cfg=self.model_cfg.BACKBONE_RANGE,
             num_point_features=model_info_dict['num_rawpoint_features'],
             point_cloud_range=model_info_dict['point_cloud_range'],
@@ -83,7 +83,8 @@ class Detector3DTemplate(nn.Module):
             point_cloud_range=model_info_dict['point_cloud_range']
         )
         model_info_dict['module_list'].append(map_to_point_cloud_module)
-        model_info_dict['num_rawpoint_features'] = model_info_dict['num_rawpoint_features'] + model_info_dict['num_point_features']
+        model_info_dict['num_rawpoint_features'] = model_info_dict['num_rawpoint_features'] + model_info_dict[
+            'num_point_features']
         return map_to_point_cloud_module, model_info_dict
 
     def build_vfe(self, model_info_dict):
