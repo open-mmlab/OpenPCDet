@@ -290,8 +290,9 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
     range_images = np.transpose(range_images, (2, 0, 1))
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
-    ri_xyz = np.zeros((height,width,3))
-    ri_xyz[ri_indices[:,0],ri_indices[:,1]] = points_vehicle_frame
+    ri_xyz = np.zeros((3, height, width))
+    ri_xyz[:, ri_indices[:, 0], ri_indices[:, 1]] = points_vehicle_frame
+    data_dict['ri_xyz'] = ri_xyz
 
     if training:
         gt_boxes = data_dict['gt_boxes']
@@ -822,22 +823,21 @@ def plot_bev(pointcloud, res=(0.1, 0.1, 0.3), pc_range=(-80, -80, -10.0, 80, 80,
     y = pointcloud[:, 1]  # y position of point
     z = pointcloud[:, 2]  # z position of point
     r = pointcloud[:, 3]
-    xmin = max(np.amin(x, axis=0),pc_range[0])
-    xmax = min(np.amax(x, axis=0),pc_range[3])
+    xmin = max(np.amin(x, axis=0), pc_range[0])
+    xmax = min(np.amax(x, axis=0), pc_range[3])
 
-    ymin = max(np.amin(y, axis=0),pc_range[1])
-    ymax = min(np.amax(y, axis=0),pc_range[4])
+    ymin = max(np.amin(y, axis=0), pc_range[1])
+    ymax = min(np.amax(y, axis=0), pc_range[4])
 
-    zmin = max(np.amin(z, axis=0),pc_range[2])
-    zmax = min(np.amax(z, axis=0),pc_range[5])
+    zmin = max(np.amin(z, axis=0), pc_range[2])
+    zmax = min(np.amax(z, axis=0), pc_range[5])
     print(xmin, xmax, ymin, ymax, zmin, zmax)
     d = np.sqrt(x ** 2 + y ** 2)  # Map Distance from sensor
 
-
     # INITIALIZE EMPTY ARRAY - of the dimensions we want
-    x_dim = int((xmax-xmin) / res[0])
-    y_dim = int((ymax-ymin) / res[1])
-    z_dim = int((zmax-zmin) / res[2])
+    x_dim = int((xmax - xmin) / res[0])
+    y_dim = int((ymax - ymin) / res[1])
+    z_dim = int((zmax - zmin) / res[2])
     top = np.zeros([y_dim + 1, x_dim + 1, z_dim + 1], dtype=np.float32)
 
     # FILTER - To return only indices of points within desired cube
