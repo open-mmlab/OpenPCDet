@@ -25,7 +25,7 @@ class CaDDN(Detector3DTemplate):
         disp_dict = {}
 
         loss_rpn, tb_dict_rpn = self.dense_head.get_loss()
-        loss_depth, tb_dict_depth = self.ffe.get_loss()
+        loss_depth, tb_dict_depth = self.vfe.get_loss()
 
         tb_dict = {
             'loss_rpn': loss_rpn.item(),

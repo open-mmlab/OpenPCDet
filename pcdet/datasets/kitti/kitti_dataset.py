@@ -2,7 +2,7 @@ import copy
 import pickle
 
 import numpy as np
-from skimage import io, transform
+from skimage import io
 
 from . import kitti_utils
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -103,8 +103,6 @@ class KittiDataset(DatasetTemplate):
         depth = io.imread(depth_file)
         depth = depth.astype(np.float32)
         depth /= 256.0
-        depth = transform.downscale_local_mean(image=depth,
-                                               factors=(self.depth_downsample_factor, self.depth_downsample_factor))
         return depth
 
     def get_calib(self, idx):
@@ -421,7 +419,7 @@ class KittiDataset(DatasetTemplate):
             input_dict['depth_maps'] = self.get_depth_map(sample_idx)
 
         if "calib_matricies" in get_item_list:
-            input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] =  kitti_utils.calib_to_matricies(calib)
+            input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] = kitti_utils.calib_to_matricies(calib)
 
         data_dict = self.prepare_data(data_dict=input_dict)
 

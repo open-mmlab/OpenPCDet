@@ -1,16 +1,15 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from . import ddn
-from .ddn_loss import DDNLoss
+from . import ddn, ddn_loss
 from pcdet.models.model_utils.basic_block_2d import BasicBlock2D
 
 
-class DepthFFE(nn.Module):
+class DepthFFN(nn.Module):
 
     def __init__(self, model_cfg, downsample_factor):
         """
-        Initialize frustum feature extractor module via depth distribution estimation
+        Initialize frustum feature network via depth distribution estimation
         Args:
             model_cfg: EasyDict, Depth classification network config
             downsample_factor: int, Depth map downsample factor
@@ -21,16 +20,17 @@ class DepthFFE(nn.Module):
         self.downsample_factor = downsample_factor
 
         # Create modules
-        ddn_cfg = model_cfg.DDN
-        self.ddn = ddn.__all__[ddn_cfg.NAME](
+        self.ddn = ddn.__all__[model_cfg.DDN.NAME](
             num_classes=self.disc_cfg["num_bins"] + 1,
-            backbone_name=ddn_cfg.BACKBONE_NAME,
-            **ddn_cfg.ARGS
+            backbone_name=model_cfg.DDN.BACKBONE_NAME,
+            **model_cfg.DDN.ARGS
         )
         self.channel_reduce = BasicBlock2D(**model_cfg.CHANNEL_REDUCE)
-        self.ddn_loss = DDNLoss(disc_cfg=self.disc_cfg,
-                                downsample_factor=downsample_factor,
-                                **model_cfg.DDN_LOSS)
+        self.ddn_loss = ddn_loss.__all__[model_cfg.LOSS.NAME](
+            disc_cfg=self.disc_cfg,
+            downsample_factor=downsample_factor,
+            **model_cfg.LOSS.ARGS
+        )
         self.forward_ret_dict = {}
 
     def get_output_feature_dim(self):

@@ -12,58 +12,58 @@ DATA_CONFIG:
         - NAME: calculate_grid_size
           VOXEL_SIZE: [0.16, 0.16, 0.16]
 
+        - NAME: downsample_depth_map
+          DOWNSAMPLE_FACTOR: 4
+
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
             - NAME: random_image_flip
               ALONG_AXIS_LIST: ['horizontal']
 
-    IMAGE:
-        COLLATE:
-            MODE: Pad
-            CONSTANT_VALUES: [0.485, 0.456, 0.406]
-    DEPTH_MAP:
-        DOWNSAMPLE_FACTOR: 4
-
 MODEL:
     NAME: CaDDN
 
-    FFE:
-        NAME: DepthFFE
-        DDN:
-            NAME: DDNDeepLabV3
-            BACKBONE_NAME: ResNet101
-            ARGS: {
-                "feat_extract_layer": "layer1",
-                "pretrained_path": "../checkpoints/deeplabv3_resnet101_coco-586e9e4e.pth"
+    VFE:
+        NAME: ImageVFE
+        FFN:
+            NAME: DepthFFN
+            DDN:
+                NAME: DDNDeepLabV3
+                BACKBONE_NAME: ResNet101
+                ARGS: {
+                    "feat_extract_layer": "layer1",
+                    "pretrained_path": "../checkpoints/deeplabv3_resnet101_coco-586e9e4e.pth"
+                }
+            CHANNEL_REDUCE: {
+                "in_channels": 256,
+                "out_channels": 64,
+                "kernel_size": 1,
+                "stride": 1,
+                "bias": False
             }
-        CHANNEL_REDUCE: {
-            "in_channels": 256,
-            "out_channels": 64,
-            "kernel_size": 1,
-            "stride": 1,
-            "bias": False
-        }
-        DISCRETIZE: {
-            "mode": LID,
-            "num_bins": 80,
-            "depth_min": 2.0,
-            "depth_max": 46.8
-        }
-        DDN_LOSS: {
-            'weight': 3.0,
-            'alpha': 0.25,
-            'gamma': 2.0,
-            'fg_weight': 13,
-            'bg_weight': 1
-        }
+            DISCRETIZE: {
+                "mode": LID,
+                "num_bins": 80,
+                "depth_min": 2.0,
+                "depth_max": 46.8
+            }
+            LOSS:
+                NAME: DDNLoss
+                ARGS: {
+                    'weight': 3.0,
+                    'alpha': 0.25,
+                    'gamma': 2.0,
+                    'fg_weight': 13,
+                    'bg_weight': 1
+                }
+        F2V:
+            NAME: FrustumToVoxel
+            SAMPLER: {
+                "mode": "bilinear",
+                "padding_mode": "zeros"
+            }
 
-    F2V:
-        NAME: FrustumToVoxel
-        SAMPLER: {
-            "mode": "bilinear",
-            "padding_mode": "zeros"
-        }
 
     MAP_TO_BEV:
         NAME: Conv2DCollapse
