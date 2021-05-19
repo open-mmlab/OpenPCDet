@@ -290,8 +290,9 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
     range_images = np.transpose(range_images, (2, 0, 1))
     data_dict['range_image'] = range_images
     data_dict['ri_indices'] = ri_indices
-    ri_xyz = np.zeros((3, height, width))
-    ri_xyz[:, ri_indices[:, 0], ri_indices[:, 1]] = points_vehicle_frame
+    ri_xyz = np.zeros((height, width, 3))
+    ri_xyz[ri_indices[:, 0], ri_indices[:, 1]] = points_vehicle_frame
+    ri_xyz = ri_xyz.transpose((2, 0, 1))
     data_dict['ri_xyz'] = ri_xyz
 
     if training:
