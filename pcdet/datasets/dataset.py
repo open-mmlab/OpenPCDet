@@ -39,6 +39,11 @@ class DatasetTemplate(torch_data.Dataset):
         self.total_epochs = 0
         self._merge_all_iters_to_one_epoch = False
 
+        if hasattr(self.data_processor, "depth_downsample_factor"):
+            self.depth_downsample_factor = self.data_processor.depth_downsample_factor
+        else:
+            self.depth_downsample_factor = None
+
     @property
     def mode(self):
         return 'train' if self.training else 'test'
@@ -97,7 +102,7 @@ class DatasetTemplate(torch_data.Dataset):
         """
         Args:
             data_dict:
-                points: (N, 3 + C_in)
+                points: optional, (N, 3 + C_in)
                 gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
                 gt_names: optional, (N), string
                 ...
@@ -133,7 +138,11 @@ class DatasetTemplate(torch_data.Dataset):
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
             data_dict['gt_boxes'] = gt_boxes
 
-        data_dict = self.point_feature_encoder.forward(data_dict)
+            if data_dict.get('gt_boxes2d', None) is not None:
+                data_dict['gt_boxes2d'] = data_dict['gt_boxes2d'][selected]
+
+        if data_dict.get('points', None) is not None:
+            data_dict = self.point_feature_encoder.forward(data_dict)
 
         data_dict = self.data_processor.forward(
             data_dict=data_dict
@@ -172,6 +181,43 @@ class DatasetTemplate(torch_data.Dataset):
                     for k in range(batch_size):
                         batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
                     ret[key] = batch_gt_boxes3d
+                elif key in ['gt_boxes2d']:
+                    max_boxes = 0
+                    max_boxes = max([len(x) for x in val])
+                    batch_boxes2d = np.zeros((batch_size, max_boxes, val[0].shape[-1]), dtype=np.float32)
+                    for k in range(batch_size):
+                        if val[k].size > 0:
+                            batch_boxes2d[k, :val[k].__len__(), :] = val[k]
+                    ret[key] = batch_boxes2d
+                elif key in ["images", "depth_maps"]:
+                    # Get largest image size (H, W)
+                    max_h = 0
+                    max_w = 0
+                    for image in val:
+                        max_h = max(max_h, image.shape[0])
+                        max_w = max(max_w, image.shape[1])
+
+                    # Change size of images
+                    images = []
+                    for image in val:
+                        pad_h = common_utils.get_pad_params(desired_size=max_h, cur_size=image.shape[0])
+                        pad_w = common_utils.get_pad_params(desired_size=max_w, cur_size=image.shape[1])
+                        pad_width = (pad_h, pad_w)
+                        # Pad with nan, to be replaced later in the pipeline.
+                        pad_value = np.nan
+
+                        if key == "images":
+                            pad_width = (pad_h, pad_w, (0, 0))
+                        elif key == "depth_maps":
+                            pad_width = (pad_h, pad_w)
+
+                        image_pad = np.pad(image,
+                                           pad_width=pad_width,
+                                           mode='constant',
+                                           constant_values=pad_value)
+
+                        images.append(image_pad)
+                    ret[key] = np.stack(images, axis=0)
                 else:
                     ret[key] = np.stack(val, axis=0)
             except:

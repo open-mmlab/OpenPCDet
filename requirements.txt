@@ -6,3 +6,5 @@ easydict
 pyyaml
 scikit-image
 tqdm
+kornia
+torchvision

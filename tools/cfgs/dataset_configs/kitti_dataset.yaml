@@ -13,8 +13,8 @@ INFO_PATH: {
     'test': [kitti_infos_val.pkl],
 }
 
+GET_ITEM_LIST: ["points"]
 FOV_POINTS_ONLY: True
-
 
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
