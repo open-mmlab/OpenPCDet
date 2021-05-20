@@ -14,3 +14,6 @@ venv/
 *.zip
 *.bin
 figs/
+3d_renders/
+data/kitti/testing/velodyne/000004.bin
+pcdet/version.py

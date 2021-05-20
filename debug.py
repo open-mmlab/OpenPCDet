@@ -1,36 +1,11 @@
-# To add a new cell, type '# %%'
-# To add a new markdown cell, type '# %% [markdown]'
-# %%
-from IPython import get_ipython
-
-# %% [markdown]
-# # KITTI Dataset augmentation visualization
-# %% [markdown]
-# ## Dataset structure
-# 
-# ```
-# 📦gta
-# ┗ 📂training
-#   ┣ 📂calib
-#   ┃ ┣ 📜<file_id>.txt
-#   ┃ ┗ 📜 ...
-#   ┣ 📂image_2
-#   ┃ ┣ 📜<file_id>.png
-#   ┃ ┗ 📜 ...
-#   ┣ 📂label_2
-#   ┃ ┣ 📜<file_id>.txt
-#   ┃ ┗ 📜 ...
-#   ┗ 📂velodyne
-#     ┣ 📜<file_id>.bin
-#     ┗ 📜 ...
-# ```
-
 # %%
 import os
 import mayavi.mlab as mlab
 import numpy as np
 from copy import deepcopy
 import pickle
+import logging
+
 
 import pcdet.datasets.augmentor
 
@@ -50,7 +25,7 @@ mlab.init_notebook()
 # ## Visualizing the LiDAR point cloud with labels
 
 # %%
-logger = common_utils.create_logger()
+logger = common_utils.create_logger(log_level=logging.DEBUG)
 
 
 # %%
@@ -76,7 +51,7 @@ logger.info(f'Total number of samples: \t{len(train_set)}')
 data_dict_list = []
 logger.info('Loading samples')
 for idx, data_dict in enumerate(train_set):
-    logger.info(f'Loaded sample index: \t{idx + 1}')
+    logger.info(f'Loaded sample index: \t{idx+1}')
     data_dict = train_set.collate_batch([data_dict])
     data_dict_list.append(data_dict)
     #if idx > 8: break
