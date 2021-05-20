@@ -419,7 +419,6 @@ class KittiDataset(DatasetTemplate):
             data_dict = self.prepare_data(data_dict=input_dict, augment=True)
         else:
             if enable_augment:
-                self.logger.debug(f'Starting augmentation for sample: {sample_idx}')
                 data_dict = self.prepare_data(data_dict=input_dict, augment=True)
             else:
                 data_dict = self.prepare_data(data_dict=input_dict, augment=False)
