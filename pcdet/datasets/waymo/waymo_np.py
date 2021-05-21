@@ -176,7 +176,7 @@ def decode_lidar_features(lidar_point_feature):
     return np.stack([decoded_r, decoded_intensity], axis=-1)
 
 
-def group_max(groups, data):
+def group_max(groups, data, keep='closest'):
     # this is only needed if groups is unsorted
     if len(data.shape) > 1:
         order = np.lexsort((data[:, 0], groups))
@@ -185,8 +185,14 @@ def group_max(groups, data):
     groups = groups[order]
     data = data[order]
     index = np.empty(len(groups), 'bool')
-    index[-1] = True
-    index[:-1] = groups[1:] != groups[:-1]
+    # farthest
+    if keep=='farthest':
+        index[-1] = True
+        index[:-1] = groups[1:] != groups[:-1]
+    elif keep=='closest':
+        # closest
+        index[0] = True
+        index[1:] = groups[1:] != groups[:-1]
     return groups[index], data[index]
 
 
