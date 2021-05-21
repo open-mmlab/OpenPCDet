@@ -125,19 +125,25 @@ def encode_lidar_features(lidar_point_feature):
     """
     if lidar_point_feature.dtype != np.float32:
         raise TypeError('lidar_point_feature must be of type float32.')
+    feature_tuple = list(map(np.squeeze, np.split(lidar_point_feature, lidar_point_feature.shape[-1], axis=-1)))
+    r = feature_tuple[0]
+    intensity = feature_tuple[1]
 
-    r, intensity, elongation = list(map(np.squeeze, np.split(lidar_point_feature, 3, axis=-1)))
     encoded_r = _encode_range(r).astype(np.uint32)
     encoded_intensity = _encode_intensity(intensity).astype(np.uint32)
-    encoded_elongation = _encode_elongation(elongation).astype(np.uint32)
 
     encoded_r_shifted = np.left_shift(encoded_r, 16)
-
     encoded_intensity = np.bitwise_or(encoded_r_shifted, encoded_intensity).astype(np.int64)
-    encoded_elongation = np.bitwise_or(encoded_r_shifted, encoded_elongation).astype(np.int64)
     encoded_r = encoded_r.astype(np.int64)
 
-    return np.stack([encoded_r, encoded_intensity, encoded_elongation], axis=-1)
+    if len(feature_tuple) > 2:
+        elongation = feature_tuple[2]
+        encoded_elongation = _encode_elongation(elongation).astype(np.uint32)
+        encoded_elongation = np.bitwise_or(encoded_r_shifted, encoded_elongation).astype(np.int64)
+
+        return np.stack([encoded_r, encoded_intensity, encoded_elongation], axis=-1)
+
+    return np.stack([encoded_r, encoded_intensity], axis=-1)
 
 
 def decode_lidar_features(lidar_point_feature):
@@ -152,15 +158,22 @@ def decode_lidar_features(lidar_point_feature):
       [N, 3] float tensors that encodes lidar_point_feature.
     """
 
-    r, intensity, elongation = list(map(np.squeeze, np.split(lidar_point_feature, 3, axis=-1)))
+    feature_tuple = list(map(np.squeeze, np.split(lidar_point_feature, lidar_point_feature.shape[-1], axis=-1)))
+    r = feature_tuple[0]
+    intensity = feature_tuple[1]
+    # r, intensity, elongation = list(map(np.squeeze, np.split(lidar_point_feature, 3, axis=-1)))
 
     decoded_r = _decode_range(r)
     intensity = np.bitwise_and(intensity, int(0xFFFF))
     decoded_intensity = _decode_intensity(intensity.astype(np.uint16))
-    elongation = np.bitwise_and(elongation, int(0xFF))
-    decoded_elongation = _decode_elongation(elongation.astype(np.uint8))
+    if len(feature_tuple) > 2:
+        elongation = feature_tuple[2]
+        elongation = np.bitwise_and(elongation, int(0xFF))
+        decoded_elongation = _decode_elongation(elongation.astype(np.uint8))
 
-    return np.stack([decoded_r, decoded_intensity, decoded_elongation], axis=-1)
+        return np.stack([decoded_r, decoded_intensity, decoded_elongation], axis=-1)
+
+    return np.stack([decoded_r, decoded_intensity], axis=-1)
 
 
 def group_max(groups, data):
