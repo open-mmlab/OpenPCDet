@@ -277,9 +277,9 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
     inclination = np.linspace(inclination_min, inclination_max, height)
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
-                                                                                         num_points, extrinsic,
+                                                                                         num_points,
                                                                                          inclination,
-                                                                                         range_image_size,
+                                                                                         range_image_size, extrinsic,
                                                                                          point_features)
     # clipping and rescaling
     # mean, std = range_images.mean(axis=(0, 1)), range_images.std(axis=(0, 1))
@@ -320,7 +320,7 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
 
         gt_points_vehicle_frame = points_vehicle_frame[select, :]
         range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
-            gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+            gt_points_vehicle_frame, num_points, inclination, range_image_size, extrinsic)
         range_mask[range_mask > 0] = 1
         data_dict['range_mask'] = range_mask
         # data_dict['flag_of_pts'] = np.expand_dims(select, axis=1).astype(np.float)
@@ -350,7 +350,7 @@ def test(data_dict):
     num_points = points.shape[0]
     range_image_size = data_dict['range_image_shape']
     height, width = range_image_size
-    extrinsic = data_dict.get('extrinsic',None)
+    extrinsic = data_dict.get('extrinsic', None)
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
@@ -359,9 +359,9 @@ def test(data_dict):
     pudb.set_trace()
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
-                                                                                         num_points, extrinsic,
+                                                                                         num_points,
                                                                                          inclination,
-                                                                                         range_image_size,
+                                                                                         range_image_size, extrinsic,
                                                                                          point_features)
 
     points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(points_vehicle_frame, axis=0))
@@ -396,7 +396,7 @@ def test(data_dict):
     gt_points_vehicle_frame = points_vehicle_frame[select, :]
 
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
-        gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
+        gt_points_vehicle_frame, num_points, inclination, range_image_size, extrinsic)
     range_mask[range_mask > 0] = 1
     gt_points_vehicle_frame_tf = tf.convert_to_tensor(np.expand_dims(gt_points_vehicle_frame, axis=0))
     range_mask_tf, ri_mask_indices_tf, ri_mask_ranges_tf = range_image_utils.build_range_image_from_point_cloud(
