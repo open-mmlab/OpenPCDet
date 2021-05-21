@@ -270,7 +270,7 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
     num_points = points.shape[0]
     range_image_size = data_dict['range_image_shape']
     height, width = range_image_size
-    extrinsic = data_dict['extrinsic']
+    extrinsic = data_dict.get('extrinsic', None)
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
@@ -282,8 +282,8 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
                                                                                          range_image_size,
                                                                                          point_features)
     # clipping and rescaling
-    mean, std = range_images.mean(axis=(0, 1)), range_images.std(axis=(0, 1))
-    range_images = (range_images - mean) / std
+    # mean, std = range_images.mean(axis=(0, 1)), range_images.std(axis=(0, 1))
+    # range_images = (range_images - mean) / std
     range_images[..., 0] = np.clip(range_images[..., 0], 0.0, 79.5) / 79.5
     range_images[..., 1:] = np.clip(range_images[..., 1:], 0.0, 2.0) / 2.0
     # (H, W, C) -> (C, H, W)

@@ -30,6 +30,7 @@ class KittiDataset(DatasetTemplate):
 
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
+        self.range_config = dataset_cfg.get('RANGE_CONFIG', False)
 
     def include_kitti_data(self, mode):
         if self.logger is not None:
@@ -51,7 +52,8 @@ class KittiDataset(DatasetTemplate):
 
     def set_split(self, split):
         super().__init__(
-            dataset_cfg=self.dataset_cfg, class_names=self.class_names, training=self.training, root_path=self.root_path, logger=self.logger
+            dataset_cfg=self.dataset_cfg, class_names=self.class_names, training=self.training,
+            root_path=self.root_path, logger=self.logger
         )
         self.split = split
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
@@ -258,6 +260,7 @@ class KittiDataset(DatasetTemplate):
         Returns:
 
         """
+
         def get_template_prediction(num_samples):
             ret_dict = {
                 'name': np.zeros(num_samples), 'truncated': np.zeros(num_samples),
@@ -352,6 +355,7 @@ class KittiDataset(DatasetTemplate):
         img_shape = info['image']['image_shape']
         if self.dataset_cfg.FOV_POINTS_ONLY:
             pts_rect = calib.lidar_to_rect(points[:, 0:3])
+            # fov: field of view
             fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
             points = points[fov_flag]
 
@@ -359,6 +363,7 @@ class KittiDataset(DatasetTemplate):
             'points': points,
             'frame_id': sample_idx,
             'calib': calib,
+            'beam_inclination_range': (-24.9, 2)
         }
 
         if 'annos' in info:
@@ -377,7 +382,27 @@ class KittiDataset(DatasetTemplate):
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
-        data_dict = self.prepare_data(data_dict=input_dict)
+        if self.range_config:
+            # data_dict = input_dict
+            data_dict = self.prepare_data(data_dict=input_dict, process=False)
+        else:
+            data_dict = self.prepare_data(data_dict=input_dict)
+
+        if self.range_config:
+            from ..waymo import waymo_utils
+            data_dict.update({
+                'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [48, 512])
+            })
+            waymo_utils.test(data_dict)
+            # data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
+            points_feature_num = data_dict['points'].shape[1]
+            data_dict['points'] = np.concatenate((data_dict['points'], data_dict['ri_indices']), axis=1)
+            data_dict = self.prepare_data(data_dict=data_dict, augment=False)
+            data_dict['points'] = data_dict['points'][:, :points_feature_num]
+            data_dict.pop('beam_inclination_range', None)
+            data_dict.pop('extrinsic', None)
+            data_dict.pop('range_image_shape', None)
+
 
         data_dict['image_shape'] = img_shape
         return data_dict
@@ -425,10 +450,12 @@ def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4
 
 if __name__ == '__main__':
     import sys
+
     if sys.argv.__len__() > 1 and sys.argv[1] == 'create_kitti_infos':
         import yaml
         from pathlib import Path
         from easydict import EasyDict
+
         dataset_cfg = EasyDict(yaml.load(open(sys.argv[2])))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_kitti_infos(

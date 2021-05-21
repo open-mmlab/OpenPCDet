@@ -165,7 +165,7 @@ def decode_lidar_features(lidar_point_feature):
 
 def group_max(groups, data):
     # this is only needed if groups is unsorted
-    if len(data.shape)>1:
+    if len(data.shape) > 1:
         order = np.lexsort((data[:, 0], groups))
     else:
         order = np.lexsort((data, groups))
@@ -211,9 +211,9 @@ def scatter_nd_with_pool_np(index, value, shape, pool_method=group_max):
 
 def build_range_image_from_point_cloud_np(points_frame,
                                           num_points,
-                                          extrinsic,
                                           inclination,
                                           range_image_size,
+                                          extrinsic=None,
                                           point_features=None,
                                           dtype=np.float64):
     """Build virtual range image from point cloud assuming uniform azimuth.
@@ -237,25 +237,38 @@ def build_range_image_from_point_cloud_np(points_frame,
     ri_ranges: [N] tensor. It represents the distance between a point and
         sensor frame origin of each point.
     """
+
+    def veh2laser(points_frame, extrinsic, dtype):
+
+        points_frame = points_frame.astype(dtype)
+
+        extrinsic = extrinsic.astype(dtype)
+        # [4, 4]
+        vehicle_to_laser = np.linalg.inv(extrinsic)
+        # [3, 3]
+        rotation = vehicle_to_laser[0:3, 0:3]
+        # [1, 3]
+        translation = np.expand_dims(vehicle_to_laser[0:3, 3], 0)
+
+        # Points in sensor frame
+        # [N, 3]
+        # trans(R^-1)
+        points = np.einsum('ij,kj->ik', points_frame, rotation) + translation
+
+        # [1,], within [-pi, pi]
+        az_correction = np.arctan2(extrinsic[1, 0], extrinsic[0, 0])
+        return points, az_correction
+
+    if extrinsic is not None:
+        points, az_correction = veh2laser(points_frame, extrinsic, dtype)
+    else:
+        points = points_frame
+        az_correction = 0
+
     points_frame_dtype = points_frame.dtype
-
-    points_frame = points_frame.astype(dtype)
     inclination = inclination.astype(dtype)
-    extrinsic = extrinsic.astype(dtype)
-
     height, width = range_image_size
 
-    # [4, 4]
-    vehicle_to_laser = np.linalg.inv(extrinsic)
-    # [3, 3]
-    rotation = vehicle_to_laser[0:3, 0:3]
-    # [1, 3]
-    translation = np.expand_dims(vehicle_to_laser[0:3, 3], 0)
-
-    # Points in sensor frame
-    # [N, 3]
-    # trans(R^-1)
-    points = np.einsum('ij,kj->ik', points_frame, rotation) + translation
     # [N]
     xy_norm = np.linalg.norm(points[..., 0:2], axis=-1)
     # [N]
@@ -267,8 +280,6 @@ def build_range_image_from_point_cloud_np(points_frame,
     # [N]
     point_ri_row_indices = np.argmin(point_inclination_diff, axis=-1)
 
-    # [1,], within [-pi, pi]
-    az_correction = np.arctan2(extrinsic[1, 0], extrinsic[0, 0])
     # [N], within [-pi, pi]
     # point_azimuth = np.arctan2(points[..., 1].astype(np.float64), points[..., 0].astype(np.float64)).astype(
     #     np.float64) + az_correction - 1e-9
