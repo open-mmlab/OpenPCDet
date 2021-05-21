@@ -350,11 +350,13 @@ def test(data_dict):
     num_points = points.shape[0]
     range_image_size = data_dict['range_image_shape']
     height, width = range_image_size
-    extrinsic = data_dict['extrinsic']
+    extrinsic = data_dict.get('extrinsic',None)
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
     inclination = np.linspace(inclination_max, inclination_min, height)
+    import pudb
+    pudb.set_trace()
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
                                                                                          num_points, extrinsic,
@@ -392,8 +394,7 @@ def test(data_dict):
     # flag_of_pts = point_indices.max(axis=0)
 
     gt_points_vehicle_frame = points_vehicle_frame[select, :]
-    import pudb
-    pudb.set_trace()
+
     range_mask, ri_mask_indices, ri_mask_ranges = waymo_np.build_range_image_from_point_cloud_np(
         gt_points_vehicle_frame, num_points, extrinsic, inclination, range_image_size)
     range_mask[range_mask > 0] = 1
