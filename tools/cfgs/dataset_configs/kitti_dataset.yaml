@@ -17,7 +17,7 @@ FOV_POINTS_ONLY: True
 
 
 DATA_AUGMENTOR:
-    EXTEND_FACTOR: 1.5  # value by with the dataset will be multiplied (0 does augmentation by replacement)
+    EXTEND_FACTOR: 1.25  # value by with the dataset will be multiplied (0 does augmentation by replacement)
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
@@ -29,7 +29,7 @@ DATA_AUGMENTOR:
              filter_by_difficulty: [-1],
           }
 
-          SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Cyclist:15']
+          SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]

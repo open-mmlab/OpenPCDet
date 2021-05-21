@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
-    _BASE_CONFIG_: tools/cfgs/dataset_configs/kitti_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
     POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
@@ -22,7 +22,7 @@ DATA_CONFIG:
           }
     DATA_AUGMENTOR:
         EXTEND_FACTOR: 0
-        DISABLE_AUG_LIST: ['placeholder']
+        DISABLE_AUG_LIST: ['random_local_scaling', 'random_world_frustum_dropout', random_local_frustum_dropout]
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               USE_ROAD_PLANE: False
@@ -40,7 +40,7 @@ DATA_CONFIG:
               LIMIT_WHOLE_SCENE: False
 
             - NAME: random_local_rotation
-              LOCAL_ROT_ANGLE: [-0.78539816, 0.78539816]
+              LOCAL_ROT_ANGLE: [-0.15707963267, 0.15707963267]
 
             - NAME: random_local_scaling
               LOCAL_SCALE_RANGE: [0.95, 1.05]
@@ -55,12 +55,12 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
             - NAME: random_world_translation
-              WORLD_TRANSLATION_RANGE: [ -1.05, 1.05 ]
-              ALONG_AXIS_LIST: ['y']
+              WORLD_TRANSLATION_RANGE: [ -0.2, 0.2 ]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
 
             - NAME: random_local_translation
-              LOCAL_TRANSLATION_RANGE: [ -1.05, 1.05 ]
-              ALONG_AXIS_LIST: ['y']
+              LOCAL_TRANSLATION_RANGE: [ -0.25, 0.25 ]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
 
             - NAME: random_world_frustum_dropout
               INTENSITY_RANGE: [ 0, 0.2 ]
