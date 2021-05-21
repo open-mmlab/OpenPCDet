@@ -78,59 +78,62 @@ MODEL:
     NUM_UPSAMPLE_FILTERS: [ 256, 256 ]
 
   DENSE_HEAD:
-    NAME: CenterHead
+    NAME: AnchorHeadSingle
     CLASS_AGNOSTIC: False
-    DATASET: waymo
-    MODE: 3d
-    USE_DCN: False
-    NO_LOG: False
-    TASKS: &tasks_head
-      - num_class: 1
-        class_names: [ 'Vehicle' ]
-      - num_class: 1
-        class_names: [ 'Pedestrian' ]
-      - num_class: 1
-        class_names: [ 'Cyclist' ]
 
-    PARAMETERS:
-      share_conv_channel: 64 # may not correct
-      init_bias: -2.19
-      common_heads: { 'reg': [ 2,2 ], 'height': [ 1,2 ], 'dim': [ 3,2 ], 'rot': [ 2,2 ] } # {cat: [classes, num_conv]}
+    USE_DIRECTION_CLASSIFIER: True
+    DIR_OFFSET: 0.78539
+    DIR_LIMIT_OFFSET: 0.0
+    NUM_DIR_BINS: 2
 
-    LOSS_CONFIG:
-      code_weights: [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-      weight: 2
+    ANCHOR_GENERATOR_CONFIG: [
+      {
+        'class_name': 'Vehicle',
+        'anchor_sizes': [ [ 4.7, 2.1, 1.7 ] ],
+        'anchor_rotations': [ 0, 1.57 ],
+        'anchor_bottom_heights': [ 0 ],
+        'align_center': False,
+        'feature_map_stride': 8,
+        'matched_threshold': 0.55,
+        'unmatched_threshold': 0.4
+      },
+      {
+        'class_name': 'Pedestrian',
+        'anchor_sizes': [ [ 0.91, 0.86, 1.73 ] ],
+        'anchor_rotations': [ 0, 1.57 ],
+        'anchor_bottom_heights': [ 0 ],
+        'align_center': False,
+        'feature_map_stride': 8,
+        'matched_threshold': 0.5,
+        'unmatched_threshold': 0.35
+      },
+      {
+        'class_name': 'Cyclist',
+        'anchor_sizes': [ [ 1.78, 0.84, 1.78 ] ],
+        'anchor_rotations': [ 0, 1.57 ],
+        'anchor_bottom_heights': [ 0 ],
+        'align_center': False,
+        'feature_map_stride': 8,
+        'matched_threshold': 0.5,
+        'unmatched_threshold': 0.35
+      }
+    ]
 
     TARGET_ASSIGNER_CONFIG:
-      NAME: CenterAssigner
+      NAME: AxisAlignedTargetAssigner
+      POS_FRACTION: -1.0
+      SAMPLE_SIZE: 512
+      NORM_BY_NUM_EXAMPLES: False
+      MATCH_HEIGHT: False
       BOX_CODER: ResidualCoder
-      tasks: *tasks_head
-      out_size_factor: 8
-      dense_reg: 1
-      gaussian_overlap: 0.1
-      max_objs: 500
-      min_radius: 2
-      mapping: {
-        'Vehicle': 1,
-        'Pedestrian': 2,
-        'Cyclist': 3
-      }
 
-    TEST_CONFIG:
-      double_flip: *double_flip
-      post_center_limit_range: [ -80, -80, -10.0, 80, 80, 10.0 ]
-      score_threshold: 0.1
-      pc_range: [ -75.2, -75.2 ]
-      out_size_factor: 8
-      voxel_size: [ 0.1, 0.1 ]
-      nms:
-        use_rotate_nms: True
-        use_multi_class_nms: False
-        use_circle_nms: False
-        use_max_pool_nms: False
-        nms_pre_max_size: 4096
-        nms_post_max_size: 500
-        nms_iou_threshold: 0.7
+    LOSS_CONFIG:
+      LOSS_WEIGHTS: {
+        'cls_weight': 1.0,
+        'loc_weight': 2.0,
+        'dir_weight': 0.2,
+        'code_weights': [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+      }
 
 
   POST_PROCESSING:
