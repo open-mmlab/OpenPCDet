@@ -406,6 +406,12 @@ def test(data_dict):
     ri_mask_ranges_tf = np.squeeze(ri_mask_ranges_tf.numpy(), axis=0)
     data_dict['range_mask'] = range_mask
 
+def plot_pointcloud_open3d(pointcloud):
+    import open3d
+    point_cloud = open3d.PointCloud()
+    point_cloud.points = open3d.Vector3dVector(pointcloud)
+    open3d.draw_geometries([point_cloud])
+
 
 def plot_pointcloud(pointcloud, vals='height'):
     import mayavi.mlab as mlab
