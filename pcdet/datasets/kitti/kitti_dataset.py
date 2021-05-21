@@ -353,11 +353,11 @@ class KittiDataset(DatasetTemplate):
         calib = self.get_calib(sample_idx)
 
         img_shape = info['image']['image_shape']
-        # if self.dataset_cfg.FOV_POINTS_ONLY:
-        #     pts_rect = calib.lidar_to_rect(points[:, 0:3])
-        #     # fov: field of view
-        #     fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
-        #     points = points[fov_flag]
+        if self.dataset_cfg.FOV_POINTS_ONLY:
+            pts_rect = calib.lidar_to_rect(points[:, 0:3])
+            # fov: field of view
+            fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
+            points = points[fov_flag]
 
         input_dict = {
             'points': points,
@@ -382,14 +382,15 @@ class KittiDataset(DatasetTemplate):
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
-        if self.range_config:
-            # data_dict = input_dict
-            data_dict = self.prepare_data(data_dict=input_dict, process=False)
-        else:
-            data_dict = self.prepare_data(data_dict=input_dict)
+        # if self.range_config:
+        #     # data_dict = input_dict
+        #     data_dict = self.prepare_data(data_dict=input_dict, process=False)
+        # else:
+        #     data_dict = self.prepare_data(data_dict=input_dict)
 
         if self.range_config:
             from ..waymo import waymo_utils
+            data_dict = input_dict
             data_dict.update({
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [48, 512])
             })
