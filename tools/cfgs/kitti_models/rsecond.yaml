@@ -3,7 +3,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
     RANGE_CONFIG:
-      RANGE_IMAGE_SHAPE: [ 64, 2650 ]
+      RANGE_IMAGE_SHAPE: [ 64, 512 ]
 
 
 MODEL:
