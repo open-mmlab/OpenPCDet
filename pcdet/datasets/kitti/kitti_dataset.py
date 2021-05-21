@@ -363,7 +363,7 @@ class KittiDataset(DatasetTemplate):
             'points': points,
             'frame_id': sample_idx,
             'calib': calib,
-            'beam_inclination_range': (-24.9, 2)
+            'beam_inclination_range': (-0.43458698374658805, 0.03490658503988659)
         }
 
         if 'annos' in info:
