@@ -1,8 +1,12 @@
-numpy
+numpy~=1.20.2
 torch>=1.1
 numba
 tensorboardX
 easydict
 pyyaml
-scikit-image
+scikit-image~=0.18.1
 tqdm
+
+scipy~=1.6.2
+mayavi~=4.7.2
+setuptools~=54.2.0
