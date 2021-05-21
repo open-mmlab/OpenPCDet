@@ -214,7 +214,7 @@ def scatter_nd_with_pool_np(index, value, shape, pool_method=group_max):
     width = shape[1]
     # idx: [N]
     idx_1d = index[:, 0] * width + index[:, 1]
-    index_encoded, value_pooled = pool_method(idx_1d, value)
+    index_encoded, value_pooled = pool_method(idx_1d, value,keep='farthest')
 
     index_unique = np.stack(
         [index_encoded // width, np.mod(index_encoded, width)], axis=-1

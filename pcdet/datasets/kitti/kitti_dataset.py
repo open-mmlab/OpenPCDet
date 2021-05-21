@@ -381,8 +381,7 @@ class KittiDataset(DatasetTemplate):
             road_plane = self.get_road_plane(sample_idx)
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
-        import pudb
-        pudb.set_trace()
+
         if self.range_config:
             # data_dict = input_dict
             data_dict = self.prepare_data(data_dict=input_dict, process=False)
@@ -391,7 +390,6 @@ class KittiDataset(DatasetTemplate):
 
         if self.range_config:
             from ..waymo import waymo_utils
-            # data_dict = input_dict
             data_dict.update({
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [48, 512])
             })
