@@ -274,7 +274,7 @@ def convert_point_cloud_to_range_image(data_dict, training=True):
 
     inclination_min, inclination_max = data_dict['beam_inclination_range']
     # [H, ]
-    inclination = np.linspace( inclination_max,inclination_min, height)
+    inclination = np.linspace(inclination_max, inclination_min, height)
 
     range_images, ri_indices, ri_ranges = waymo_np.build_range_image_from_point_cloud_np(points_vehicle_frame,
                                                                                          num_points,
