@@ -17,7 +17,7 @@ class FrustumGridGenerator(nn.Module):
         """
         super().__init__()
         self.dtype = torch.float32
-        self.grid_size = torch.as_tensor(grid_size)
+        self.grid_size = torch.as_tensor(grid_size, dtype=self.dtype)
         self.pc_range = pc_range
         self.out_of_bounds_val = -2
         self.disc_cfg = disc_cfg

@@ -1,4 +1,6 @@
 from collections import OrderedDict
+from pathlib import Path
+from torch import hub
 
 import numpy as np
 import torch
@@ -56,6 +58,15 @@ class DDNTemplate(nn.Module):
         # Update weights
         if self.pretrained_path is not None:
             model_dict = model.state_dict()
+            
+            # Download pretrained model if not available yet
+            checkpoint_path = Path(self.pretrained_path)
+            if not checkpoint_path.exists():
+                checkpoint = checkpoint_path.name
+                save_dir = checkpoint_path.parent
+                save_dir.mkdir(parents=True)
+                url = f'https://download.pytorch.org/models/{checkpoint}'
+                hub.load_state_dict_from_url(url, save_dir)
 
             # Get pretrained state dict
             pretrained_dict = torch.load(self.pretrained_path)
