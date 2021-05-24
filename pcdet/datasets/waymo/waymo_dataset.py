@@ -196,10 +196,10 @@ class WaymoDataset(DatasetTemplate):
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650])
             })
             # add key 'range_image'(C, H, W), 'range_mask'(H, W), 'ri_indices'(N, 2) to data_dict, 2 means H, W
-            # data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
-            # data_dict['range_image'] = np.concatenate((data_dict['range_image'], data_dict['ri_xyz']), axis=0)
-            # data_dict.pop('ri_xyz', None)
-            waymo_utils.test(data_dict)
+            data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
+            data_dict['range_image'] = np.concatenate((data_dict['range_image'], data_dict['ri_xyz']), axis=0)
+            data_dict.pop('ri_xyz', None)
+            # waymo_utils.test(data_dict)
 
             points_feature_num = data_dict['points'].shape[1]
             data_dict['points'] = np.concatenate((data_dict['points'], data_dict['ri_indices']), axis=1)
