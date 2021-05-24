@@ -6,7 +6,7 @@ class HeightCompression(nn.Module):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_bev_features = self.model_cfg.NUM_BEV_FEATURES
-        self.sparse_shape = grid_size[::-1] + [1, 0, 0]
+        self.sparse_shape = grid_size[::-1]
 
     def forward(self, batch_dict):
         """
