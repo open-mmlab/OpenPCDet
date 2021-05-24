@@ -406,12 +406,6 @@ def test(data_dict):
     ri_mask_ranges_tf = np.squeeze(ri_mask_ranges_tf.numpy(), axis=0)
     data_dict['range_mask'] = range_mask
 
-def plot_pointcloud_open3d(pointcloud):
-    import open3d
-    point_cloud = open3d.PointCloud()
-    point_cloud.points = open3d.Vector3dVector(pointcloud)
-    open3d.draw_geometries([point_cloud])
-
 
 def plot_pointcloud(pointcloud, vals='height'):
     import mayavi.mlab as mlab
@@ -497,15 +491,19 @@ def plot_rangeimage(rangeimage, theta=1):
     Returns:
 
     """
-    import PIL.Image as image
+
     if len(rangeimage.shape) > 2:
         rangeimage = rangeimage[..., 0]
     height, width = rangeimage.shape
     left = int(width * (0.5 - theta / 2))
     right = int(width * (0.5 + theta / 2))
     rangeimage = rangeimage[:, left:right]
-    rangeimage = image.fromarray(rangeimage / rangeimage.max() * 255)
-    rangeimage.show()
+    rangeimage = rangeimage / rangeimage.max() * 255
+    # import PIL.Image as image
+    # rangeimage = image.fromarray(rangeimage)
+    # rangeimage.show()
+    import matplotlib.pyplot as plt
+    plt.imshow(rangeimage, cmap='jet')
 
 
 def boxes_to_corners_3d(boxes3d):

@@ -11,7 +11,7 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
-# from visual_utils import visualize_utils as V
+
 import matplotlib.pyplot as plt
 
 
@@ -136,18 +136,19 @@ def main():
             mask2 = mask2 & mask
 
 
-            import open3d
-            point_cloud = open3d.PointCloud()
-            point_cloud.points = open3d.Vector3dVector(data_dict['points'][:, 1:4])
-            open3d.draw_geometries([point_cloud])
-            # import mayavi.mlab as mlab
-            # V.draw_scenes(
-            #     points=data_dict['points'][:, 1:4],
-            #     gt_boxes=data_dict.get('gt_boxes', None)[0],
-            #     ref_boxes=pred_dicts[0]['pred_boxes'][mask2][:len(data_dict.get('gt_boxes', None)[0])],
-            #     ref_scores=pred_dicts[0]['pred_scores'][mask2][:len(data_dict.get('gt_boxes', None)[0])],
-            #     ref_labels=pred_dicts[0]['pred_labels'][mask2][:len(data_dict.get('gt_boxes', None)[0])]
-            # )
+            # import open3d
+            # point_cloud = open3d.PointCloud()
+            # point_cloud.points = open3d.Vector3dVector(data_dict['points'][:, 1:4])
+            # open3d.draw_geometries([point_cloud])
+            import mayavi.mlab as mlab
+            from visual_utils import visualize_utils as V
+            V.draw_scenes(
+                points=data_dict['points'][:, 1:4],
+                gt_boxes=data_dict.get('gt_boxes', None)[0],
+                ref_boxes=pred_dicts[0]['pred_boxes'][mask2][:len(data_dict.get('gt_boxes', None)[0])],
+                ref_scores=pred_dicts[0]['pred_scores'][mask2][:len(data_dict.get('gt_boxes', None)[0])],
+                ref_labels=pred_dicts[0]['pred_labels'][mask2][:len(data_dict.get('gt_boxes', None)[0])]
+            )
             # mlab.show(stop=True)
 
 
