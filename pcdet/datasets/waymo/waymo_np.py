@@ -315,8 +315,12 @@ def build_range_image_from_point_cloud_np(points_frame,
                                                 np.pi) / (2.0 * np.pi) * width
     point_ri_col_indices = np.round(point_ri_col_indices).astype(np.int32)
 
-    assert (point_ri_col_indices >= 0).all()
-    assert (point_ri_col_indices < width).all()
+    try:
+        assert (point_ri_col_indices >= 0).all()
+        assert (point_ri_col_indices < width).all()
+    except:
+        import pudb
+        pudb.set_trace()
 
     # [N, 2]
     ri_indices = np.stack([point_ri_row_indices, point_ri_col_indices], -1)
