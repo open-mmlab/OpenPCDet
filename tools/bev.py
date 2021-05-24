@@ -188,8 +188,8 @@ def main():
             points = data_dict['points'][:, 1:4].cpu().numpy()
             x_points = points[:, 0]
             y_points = points[:, 1]
-            z_points = points[:, 2]
-            reflectance = points[:, 3]
+            # z_points = points[:, 2]
+            # reflectance = points[:, 3]
 
             # INITIALIZE EMPTY ARRAY - of the dimensions we want
             x_max = int((pc_range[3] - pc_range[0]) / res)
