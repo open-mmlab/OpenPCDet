@@ -203,7 +203,7 @@ def main():
             # Three filters for: Front-to-back, side-to-side, and height ranges
             # Note left side is positive y axis in LIDAR coordinates
             f_filt = np.logical_and((x_points > pc_range[0]), (x_points < pc_range[3]))
-            s_filt = np.logical_and((y_points > -pc_range[1]), (y_points < -pc_range[4]))
+            s_filt = np.logical_and((y_points > pc_range[1]), (y_points < pc_range[4]))
             filt = np.logical_and(f_filt, s_filt)
             indices = np.argwhere(filt).flatten()
             xi_points = x_points[indices]
