@@ -481,7 +481,7 @@ def plot_pointcloud_with_gt_boxes(pointcloud, gt_boxes):
     mlab.show()
 
 
-def plot_rangeimage(rangeimage, theta=1):
+def plot_rangeimage(rangeimage, theta=1, conf='m'):
     """
 
     Args:
@@ -499,13 +499,15 @@ def plot_rangeimage(rangeimage, theta=1):
     right = int(width * (0.5 + theta / 2))
     rangeimage = rangeimage[:, left:right]
     rangeimage = rangeimage / rangeimage.max() * 255
-    # import PIL.Image as image
-    # rangeimage = image.fromarray(rangeimage)
-    # rangeimage.show()
-    import matplotlib.pyplot as plt
-    plt.axis('off')
-    plt.imshow(rangeimage, cmap='jet')
-    plt.show()
+    if conf == 'p':
+        import PIL.Image as image
+        rangeimage = image.fromarray(rangeimage)
+        rangeimage.show()
+    elif conf =='m':
+        import matplotlib.pyplot as plt
+        plt.axis('off')
+        plt.imshow(rangeimage, cmap='jet')
+        plt.show()
 
 
 def boxes_to_corners_3d(boxes3d):
