@@ -78,26 +78,26 @@ MODEL:
               'matched_threshold': 0.55,
               'unmatched_threshold': 0.4
             },
-            {
-              'class_name': 'Pedestrian',
-              'anchor_sizes': [ [ 0.91, 0.86, 1.73 ] ],
-              'anchor_rotations': [ 0, 1.57 ],
-              'anchor_bottom_heights': [ 0 ],
-              'align_center': False,
-              'feature_map_stride': 1,
-              'matched_threshold': 0.5,
-              'unmatched_threshold': 0.35
-            },
-            {
-              'class_name': 'Cyclist',
-              'anchor_sizes': [ [ 1.78, 0.84, 1.78 ] ],
-              'anchor_rotations': [ 0, 1.57 ],
-              'anchor_bottom_heights': [ 0 ],
-              'align_center': False,
-              'feature_map_stride': 1,
-              'matched_threshold': 0.5,
-              'unmatched_threshold': 0.35
-            }
+#            {
+#              'class_name': 'Pedestrian',
+#              'anchor_sizes': [ [ 0.91, 0.86, 1.73 ] ],
+#              'anchor_rotations': [ 0, 1.57 ],
+#              'anchor_bottom_heights': [ 0 ],
+#              'align_center': False,
+#              'feature_map_stride': 1,
+#              'matched_threshold': 0.5,
+#              'unmatched_threshold': 0.35
+#            },
+#            {
+#              'class_name': 'Cyclist',
+#              'anchor_sizes': [ [ 1.78, 0.84, 1.78 ] ],
+#              'anchor_rotations': [ 0, 1.57 ],
+#              'anchor_bottom_heights': [ 0 ],
+#              'align_center': False,
+#              'feature_map_stride': 1,
+#              'matched_threshold': 0.5,
+#              'unmatched_threshold': 0.35
+#            }
         ]
 
       TARGET_ASSIGNER_CONFIG:
