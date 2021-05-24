@@ -186,8 +186,8 @@ def main():
             mask2 = mask2 & mask
 
             points = data_dict['points'][:, 1:4].cpu().numpy()
-            import pudb
-            pudb.set_trace()
+            # import pudb
+            # pudb.set_trace()
             x_points = points[:, 0]
             y_points = points[:, 1]
             # z_points = points[:, 2]
@@ -223,8 +223,8 @@ def main():
             top = (top / np.max(top) * 255).astype(np.uint8)
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.imshow(top, aspect='equal', cmap='gray')
-            # draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(),pc_range)
-            # draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range)
+            draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(),pc_range, color='blue')
+            draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
             plt.axis('off')
             plt.tight_layout()
             plt.savefig('result/bev-%d-rrcnn.png'%idx)
