@@ -70,9 +70,11 @@ class DemoDataset(DatasetTemplate):
             data_dict = self.prepare_data(data_dict=input_dict)
 
         if self.range_config:
+            beam_inclination_range = info['beam_inclination_range'] if self.info_path is not None else (-0.43458698374658805, 0.03490658503988659)
+            extrinsic = info['extrinsic'] if self.info_path is not None else None
             data_dict.update({
-                'beam_inclination_range': info['beam_inclination_range'],
-                'extrinsic': info['extrinsic'],
+                'beam_inclination_range': beam_inclination_range,
+                'extrinsic': extrinsic,
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [64, 2650]),
             })
             import pcdet.datasets.waymo.waymo_utils as waymo_utils
