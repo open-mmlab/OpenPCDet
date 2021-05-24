@@ -120,7 +120,7 @@ def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
 
 def draw_boxes(ax, boxes,pc_range, color='green'):
     corners = V.boxes_to_corners_3d(boxes)
-    corners = corners.transpose((1, 2, 0))
+    # corners = corners.transpose((1, 2, 0))
     for o in range(len(boxes)):
         x1, x2, x3, x4 = corners[o][:4, 0]
         y1, y2, y3, y4 = corners[o][:4, 1]
