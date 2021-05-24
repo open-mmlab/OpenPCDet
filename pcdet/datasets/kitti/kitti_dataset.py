@@ -394,8 +394,8 @@ class KittiDataset(DatasetTemplate):
                 'range_image_shape': self.range_config.get('RANGE_IMAGE_SHAPE', [48, 512])
             })
             # waymo_utils.test(data_dict)
-            import pudb
-            pudb.set_trace()
+            # import pudb
+            # pudb.set_trace()
             data_dict = waymo_utils.convert_point_cloud_to_range_image(data_dict, self.training)
             points_feature_num = data_dict['points'].shape[1]
             data_dict['points'] = np.concatenate((data_dict['points'], data_dict['ri_indices']), axis=1)
