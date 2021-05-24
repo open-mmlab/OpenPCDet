@@ -100,21 +100,21 @@ MODEL:
 #            }
         ]
 
-      TARGET_ASSIGNER_CONFIG:
-          NAME: AxisAlignedTargetAssigner
-          POS_FRACTION: -1.0
-          SAMPLE_SIZE: 512
-          NORM_BY_NUM_EXAMPLES: False
-          MATCH_HEIGHT: False
-          BOX_CODER: ResidualCoder
+        TARGET_ASSIGNER_CONFIG:
+            NAME: AxisAlignedTargetAssigner
+            POS_FRACTION: -1.0
+            SAMPLE_SIZE: 512
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False
+            BOX_CODER: ResidualCoder
 
-      LOSS_CONFIG:
-        LOSS_WEIGHTS: {
-            'cls_weight': 1.0,
-            'loc_weight': 2.0,
-            'dir_weight': 0.2,
-            'code_weights': [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-          }
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 2.0,
+                'dir_weight': 0.2,
+                'code_weights': [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+              }
 
 
     POST_PROCESSING:
