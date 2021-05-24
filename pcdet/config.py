@@ -69,6 +69,8 @@ def merge_new_config(config, new_config):
 
 
 def cfg_from_yaml_file(cfg_file, config):
+    import pudb
+    pudb.set_trace()
     with open(cfg_file, 'r') as f:
         try:
             new_config = yaml.load(f, Loader=yaml.FullLoader)
