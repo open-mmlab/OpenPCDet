@@ -503,7 +503,9 @@ def plot_rangeimage(rangeimage, theta=1):
     # rangeimage = image.fromarray(rangeimage)
     # rangeimage.show()
     import matplotlib.pyplot as plt
+    plt.axis('off')
     plt.imshow(rangeimage, cmap='jet')
+    plt.show()
 
 
 def boxes_to_corners_3d(boxes3d):
