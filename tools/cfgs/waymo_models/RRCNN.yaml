@@ -1,24 +1,45 @@
 CLASS_NAMES: ['Vehicle']
 #CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
+#DATA_CONFIG:
+#    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+#
+#    POINT_CLOUD_RANGE: [-75.52, -75.52, -2, 75.52, 75.52, 5]
+#
+#    SAMPLED_INTERVAL: {
+#      'train': 50,
+#      'test': 25
+#    }
+#
+#
+#    DATA_PROCESSOR:
+#      - NAME: mask_points_and_boxes_outside_range
+#        REMOVE_OUTSIDE_BOXES: True
+#
+#      - NAME: transform_points_to_voxels
+#        VOXEL_SIZE: [ 0.32, 0.32, 7 ]
+#        MAX_POINTS_PER_VOXEL: 32
+#        MAX_NUMBER_OF_VOXELS: {
+#            'train': 80000,
+#            'test': 90000
+#        }
+#    RANGE_CONFIG:
+#      RANGE_IMAGE_SHAPE: [64, 2650]
+
+
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+#    POINT_CLOUD_RANGE: [-79.5, -79.5, -5, 79.5, 79.5, 5]
 
-    POINT_CLOUD_RANGE: [-75.52, -75.52, -2, 75.52, 75.52, 5]
-
-    SAMPLED_INTERVAL: {
-      'train': 50,
-      'test': 25
-    }
-
+    USE_DOUBLE_FLIP_TEST: &double_flip False
 
     DATA_PROCESSOR:
       - NAME: mask_points_and_boxes_outside_range
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.32, 0.32, 7 ]
-        MAX_POINTS_PER_VOXEL: 32
+        VOXEL_SIZE: [ 0.2, 0.2, 0.3 ]
+        MAX_POINTS_PER_VOXEL: 5
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
             'test': 90000
