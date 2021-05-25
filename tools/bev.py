@@ -196,16 +196,16 @@ def main():
             # reflectance = points[:, 3]
 
             # INITIALIZE EMPTY ARRAY - of the dimensions we want
-            x_max = int((pc_range[3] - pc_range[0]) / res)
-            y_max = int((pc_range[4] - pc_range[1]) / res)
+            x_max = int((pc_range[4] - pc_range[1]) / res)
+            y_max = int((pc_range[3] - pc_range[0]) / res)
             # top = np.zeros([y_max+1, x_max+1, z_max+1], dtype=np.float32)
             top = np.ones([y_max + 1, x_max + 1], dtype=np.float32)
 
             # FILTER - To return only indices of points within desired cube
             # Three filters for: Front-to-back, side-to-side, and height ranges
             # Note left side is positive y axis in LIDAR coordinates
-            f_filt = np.logical_and((x_points > pc_range[1]), (x_points < pc_range[4]))
-            s_filt = np.logical_and((y_points > pc_range[0]), (y_points < pc_range[3]))
+            f_filt = np.logical_and((x_points > pc_range[0]), (x_points < pc_range[3]))
+            s_filt = np.logical_and((y_points > pc_range[1]), (y_points < pc_range[4]))
             filt = np.logical_and(f_filt, s_filt)
             indices = np.argwhere(filt).flatten()
             xi_points = x_points[indices]
@@ -217,8 +217,8 @@ def main():
             # SHIFT PIXELS TO HAVE MINIMUM BE (0,0)
             # floor & ceil used to prevent anything being rounded to below 0 after
             # shift
-            x_img -= int(np.floor(pc_range[0] / res))
-            y_img += int(np.floor(pc_range[1] / res))
+            x_img -= int(np.floor(pc_range[1] / res))
+            y_img += int(np.floor(pc_range[0] / res))
             # FILL PIXEL VALUES IN IMAGE ARRAY
             # top[y_img, x_img, i] = pixel_values
             top[y_img, x_img] = 0
