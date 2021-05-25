@@ -139,7 +139,11 @@ class QueryAndGroup(nn.Module):
         grouped_xyz = grouping_operation(xyz, xyz_batch_cnt, idx, new_xyz_batch_cnt)  # (M1 + M2, 3, nsample)
         grouped_xyz -= new_xyz.unsqueeze(-1)
 
-        grouped_xyz[empty_ball_mask] = 0
+        try:
+            grouped_xyz[empty_ball_mask] = 0
+        except RuntimeError:
+            grouped_xyz.detach()
+            grouped_xyz[empty_ball_mask] = 0
 
         if features is not None:
             grouped_features = grouping_operation(features, xyz_batch_cnt, idx, new_xyz_batch_cnt)  # (M1 + M2, C, nsample)
