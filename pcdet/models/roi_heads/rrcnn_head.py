@@ -22,7 +22,7 @@ class RRCNNHead(RoIHeadTemplate):
         #     block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
         # )
         self.conv_rpn = spconv.SparseSequential(
-            block(input_channels, 64, 3, padding=1, indice_key='rcnn_subm2'),
+            block(input_channels - 3, 64, 3, padding=1, indice_key='rcnn_subm2'),
             block(64, c0, 3, padding=1, indice_key='rcnn_subm1_2'),
         )
 
