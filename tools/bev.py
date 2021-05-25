@@ -169,27 +169,27 @@ def main():
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
-    # model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
-    # model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-    # model.cuda()
-    # model.eval()
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
+    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
+    model.cuda()
+    model.eval()
     pc_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
     res = 0.1
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
-            # data_dict = demo_dataset.collate_batch([data_dict])
-            # load_data_to_gpu(data_dict)
-            # pred_dicts, _ = model.forward(data_dict)
-            # # import pudb
-            # # pudb.set_trace()
-            # mask = pred_dicts[0]['pred_boxes'][:, 3:5] < 20
-            # mask = mask.all(dim=1)
-            # mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
-            # mask2 = (mask2 < 20) & (mask2 > 0.05)
-            # mask2 = mask2 & mask
+            data_dict = demo_dataset.collate_batch([data_dict])
+            load_data_to_gpu(data_dict)
+            pred_dicts, _ = model.forward(data_dict)
+            # import pudb
+            # pudb.set_trace()
+            mask = pred_dicts[0]['pred_boxes'][:, 3:5] < 20
+            mask = mask.all(dim=1)
+            mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
+            mask2 = (mask2 < 20) & (mask2 > 0.05)
+            mask2 = mask2 & mask
 
-            points = data_dict['points'][:, 1:4]
+            points = data_dict['points'][:, 1:4].cpu().numpy()
             # import pudb
             # pudb.set_trace()
             x_points = points[:, 0]
@@ -230,7 +230,7 @@ def main():
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.imshow(top, aspect='equal', cmap='gray')
 
-            draw_boxes(ax, data_dict['gt_boxes'][0], pc_range, color='blue')
+            draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
             # import pudb
             # pudb.set_trace()
             # draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')

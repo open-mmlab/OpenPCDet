@@ -4,7 +4,7 @@ CLASS_NAMES: ['Car']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
 
-    POINT_CLOUD_RANGE: [75.52, -39.68, -3, 75.52, 39.68, 1]
+    POINT_CLOUD_RANGE: [0, -39.68, -3, 75.52, 39.68, 1]
 
     SAMPLED_INTERVAL: {
       'train': 1,
