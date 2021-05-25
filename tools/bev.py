@@ -169,10 +169,10 @@ def main():
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-    model.cuda()
-    model.eval()
+    # model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
+    # model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
+    # model.cuda()
+    # model.eval()
     pc_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
     res = 0.1
     with torch.no_grad():
