@@ -189,7 +189,7 @@ def main():
             # mask2 = (mask2 < 20) & (mask2 > 0.05)
             # mask2 = mask2 & mask
 
-            points = data_dict['points'][:, 1:4].cpu().numpy()
+            points = data_dict['points'][:, 1:4]
             # import pudb
             # pudb.set_trace()
             x_points = points[:, 0]
