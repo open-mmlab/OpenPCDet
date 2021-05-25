@@ -16,7 +16,8 @@ class RRCNNHead(RoIHeadTemplate):
         self.SA_modules = nn.ModuleList()
         block = self.post_act_block
 
-        c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES // 2
+        # c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES // 2
+        c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES
         # self.conv_part = spconv.SparseSequential(
         #     block(4, 64, 3, padding=1, indice_key='rcnn_subm1'),
         #     block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
