@@ -70,8 +70,10 @@ class DemoDataset(DatasetTemplate):
             data_dict = self.prepare_data(data_dict=input_dict)
 
         if self.range_config:
-            beam_inclination_range = info['beam_inclination_range'] if self.info_path is not None else (-0.43458698374658805, 0.03490658503988659)
-            extrinsic = info['extrinsic'] if self.info_path is not None else None
+            beam_inclination_range = info.get('beam_inclination_range', (
+            -0.43458698374658805, 0.03490658503988659)) if self.info_path is not None else (
+            -0.43458698374658805, 0.03490658503988659)
+            extrinsic = info.get('extrinsic', None) if self.info_path is not None else None
             data_dict.update({
                 'beam_inclination_range': beam_inclination_range,
                 'extrinsic': extrinsic,
@@ -120,7 +122,7 @@ def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
     return xmin_img, xmax_img, ymin_img, ymax_img
 
 
-def draw_boxes(ax, boxes,pc_range, color='green'):
+def draw_boxes(ax, boxes, pc_range, color='green'):
     corners = V.boxes_to_corners_3d(boxes)
     # corners = corners.transpose((1, 2, 0))
     for o in range(len(boxes)):
@@ -225,15 +227,15 @@ def main():
             top = (top / np.max(top) * 255).astype(np.uint8)
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.imshow(top, aspect='equal', cmap='gray')
-            # import pudb
-            # pudb.set_trace()
-            # draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
+            import pudb
+            pudb.set_trace()
+            draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
             # import pudb
             # pudb.set_trace()
             draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
             plt.axis('off')
             plt.tight_layout()
-            plt.savefig('result/bev-%d-rrcnn.png'%idx)
+            plt.savefig('result/bev-%d-rrcnn.png' % idx)
             # rgba_colors = np.zeros((points.shape[0], 4))
             # rgba_colors[:, 2] = 1
             # rgba_colors[:, 3] = points[:, 2]
