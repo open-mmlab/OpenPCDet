@@ -116,8 +116,8 @@ def parse_config():
 def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
     xmin_img = -ymax / res - pc_range[1] / res
     xmax_img = -ymin / res - pc_range[1] / res
-    ymin_img = -xmax / res - pc_range[0] / res
-    ymax_img = -xmin / res - pc_range[0] / res
+    ymin_img = xmax / res - pc_range[0] / res
+    ymax_img = xmin / res - pc_range[0] / res
 
     return xmin_img, xmax_img, ymin_img, ymax_img
 
@@ -210,6 +210,8 @@ def main():
             s_filt = np.logical_and((y_points > pc_range[1]), (y_points < pc_range[4]))
             filt = np.logical_and(f_filt, s_filt)
             indices = np.argwhere(filt).flatten()
+            import pudb
+            pudb.set_trace()
             xi_points = x_points[indices]
             yi_points = y_points[indices]
             # CONVERT TO PIXEL POSITION VALUES - Based on resolution
@@ -227,12 +229,11 @@ def main():
             top = (top / np.max(top) * 255).astype(np.uint8)
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.imshow(top, aspect='equal', cmap='gray')
-            import pudb
-            pudb.set_trace()
+
             draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
             # import pudb
             # pudb.set_trace()
-            draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
+            # draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
             plt.axis('off')
             plt.tight_layout()
             plt.savefig('result/bev-%d-rrcnn.png' % idx)
