@@ -119,37 +119,39 @@ class RRCNNHead(RoIHeadTemplate):
         batch_idx = batch_dict['points'][:, 0]
         point_coords = batch_dict['points'][:, 1:4]
         point_features = batch_dict['points'][:, 4:]
-        part_features = torch.cat((
-            batch_dict['point_part_offset'] if not self.model_cfg.get('DISABLE_PART', False) else point_coords,
-            batch_dict['point_cls_scores'].view(-1, 1).detach()
-        ), dim=1)
-        part_features[part_features[:, -1] < self.model_cfg.SEG_MASK_SCORE_THRESH, 0:3] = 0
+        # part_features = torch.cat((
+        #     batch_dict['point_part_offset'] if not self.model_cfg.get('DISABLE_PART', False) else point_coords,
+        #     batch_dict['point_cls_scores'].view(-1, 1).detach()
+        # ), dim=1)
+        # part_features[part_features[:, -1] < self.model_cfg.SEG_MASK_SCORE_THRESH, 0:3] = 0
 
         rois = batch_dict['rois']
 
-        pooled_part_features_list, pooled_rpn_features_list = [], []
+        # pooled_part_features_list, pooled_rpn_features_list = [], []
+        pooled_rpn_features_list = []
 
         for bs_idx in range(batch_size):
             bs_mask = (batch_idx == bs_idx)
             cur_point_coords = point_coords[bs_mask]
-            cur_part_features = part_features[bs_mask]
+            # cur_part_features = part_features[bs_mask]
             cur_rpn_features = point_features[bs_mask]
             cur_roi = rois[bs_idx][:, 0:7].contiguous()  # (N, 7)
 
-            pooled_part_features = self.roiaware_pool3d_layer.forward(
-                cur_roi, cur_point_coords, cur_part_features, pool_method='avg'
-            )  # (N, out_x, out_y, out_z, 4)
+            # pooled_part_features = self.roiaware_pool3d_layer.forward(
+            #     cur_roi, cur_point_coords, cur_part_features, pool_method='avg'
+            # )  # (N, out_x, out_y, out_z, 4)
             pooled_rpn_features = self.roiaware_pool3d_layer.forward(
                 cur_roi, cur_point_coords, cur_rpn_features, pool_method='max'
             )  # (N, out_x, out_y, out_z, C)
 
-            pooled_part_features_list.append(pooled_part_features)
+            # pooled_part_features_list.append(pooled_part_features)
             pooled_rpn_features_list.append(pooled_rpn_features)
 
-        pooled_part_features = torch.cat(pooled_part_features_list, dim=0)  # (B * N, out_x, out_y, out_z, 4)
+        # pooled_part_features = torch.cat(pooled_part_features_list, dim=0)  # (B * N, out_x, out_y, out_z, 4)
         pooled_rpn_features = torch.cat(pooled_rpn_features_list, dim=0)  # (B * N, out_x, out_y, out_z, C)
 
-        return pooled_part_features, pooled_rpn_features
+        # return pooled_part_features, pooled_rpn_features
+        return pooled_rpn_features
 
     @staticmethod
     def fake_sparse_idx(sparse_idx, batch_size_rcnn):
@@ -178,12 +180,14 @@ class RRCNNHead(RoIHeadTemplate):
             batch_dict['roi_labels'] = targets_dict['roi_labels']
 
         # RoI aware pooling
-        pooled_part_features, pooled_rpn_features = self.roiaware_pool(batch_dict)
-        batch_size_rcnn = pooled_part_features.shape[0]  # (B * N, out_x, out_y, out_z, 4)
+        # pooled_part_features, pooled_rpn_features = self.roiaware_pool(batch_dict)
+        pooled_rpn_features = self.roiaware_pool(batch_dict)
+        # batch_size_rcnn = pooled_part_features.shape[0]  # (B * N, out_x, out_y, out_z, 4)
+        batch_size_rcnn =pooled_rpn_features.shape[0]  # (B * N, out_x, out_y, out_z, 4)
 
         # transform to sparse tensors
-        sparse_shape = np.array(pooled_part_features.shape[1:4], dtype=np.int32)
-        sparse_idx = pooled_part_features.sum(dim=-1).nonzero()  # (non_empty_num, 4) ==> [bs_idx, x_idx, y_idx, z_idx]
+        sparse_shape = np.array(pooled_rpn_features.shape[1:4], dtype=np.int32)
+        sparse_idx = pooled_rpn_features.sum(dim=-1).nonzero()  # (non_empty_num, 4) ==> [bs_idx, x_idx, y_idx, z_idx]
         if sparse_idx.shape[0] < 3:
             sparse_idx = self.fake_sparse_idx(sparse_idx, batch_size_rcnn)
             if self.training:
@@ -191,17 +195,18 @@ class RRCNNHead(RoIHeadTemplate):
                 targets_dict['rcnn_cls_labels'].fill_(-1)
                 targets_dict['reg_valid_mask'].fill_(-1)
 
-        part_features = pooled_part_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
+        # part_features = pooled_part_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
         rpn_features = pooled_rpn_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
         coords = sparse_idx.int()
-        part_features = spconv.SparseConvTensor(part_features, coords, sparse_shape, batch_size_rcnn)
+        # part_features = spconv.SparseConvTensor(part_features, coords, sparse_shape, batch_size_rcnn)
         rpn_features = spconv.SparseConvTensor(rpn_features, coords, sparse_shape, batch_size_rcnn)
 
         # forward rcnn network
-        x_part = self.conv_part(part_features)
+        # x_part = self.conv_part(part_features)
         x_rpn = self.conv_rpn(rpn_features)
 
-        merged_feature = torch.cat((x_rpn.features, x_part.features), dim=1)  # (N, C)
+        # merged_feature = torch.cat((x_rpn.features, x_part.features), dim=1)  # (N, C)
+        merged_feature = x_rpn.features
         shared_feature = spconv.SparseConvTensor(merged_feature, coords, sparse_shape, batch_size_rcnn)
         shared_feature = shared_feature.dense().view(batch_size_rcnn, -1, 1)
 
