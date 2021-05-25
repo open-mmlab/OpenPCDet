@@ -230,7 +230,7 @@ def main():
             fig, ax = plt.subplots(figsize=(10, 10))
             ax.imshow(top, aspect='equal', cmap='gray')
 
-            draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
+            draw_boxes(ax, data_dict['gt_boxes'][0], pc_range, color='blue')
             # import pudb
             # pudb.set_trace()
             # draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
