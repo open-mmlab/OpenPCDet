@@ -17,10 +17,10 @@ class RRCNNHead(RoIHeadTemplate):
         block = self.post_act_block
 
         c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES // 2
-        self.conv_part = spconv.SparseSequential(
-            block(4, 64, 3, padding=1, indice_key='rcnn_subm1'),
-            block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
-        )
+        # self.conv_part = spconv.SparseSequential(
+        #     block(4, 64, 3, padding=1, indice_key='rcnn_subm1'),
+        #     block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
+        # )
         self.conv_rpn = spconv.SparseSequential(
             block(input_channels, 64, 3, padding=1, indice_key='rcnn_subm2'),
             block(64, c0, 3, padding=1, indice_key='rcnn_subm1_2'),

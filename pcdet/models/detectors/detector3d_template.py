@@ -194,6 +194,8 @@ class Detector3DTemplate(nn.Module):
         return point_head_module, model_info_dict
 
     def build_roi_head(self, model_info_dict):
+        import pudb
+        pudb.set_trace()
         if self.model_cfg.get('ROI_HEAD', None) is None:
             return None, model_info_dict
         point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](
