@@ -178,16 +178,16 @@ def main():
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
             logger.info(f'Visualized sample index: \t{idx + 1}')
-            data_dict = demo_dataset.collate_batch([data_dict])
-            load_data_to_gpu(data_dict)
-            pred_dicts, _ = model.forward(data_dict)
-            # import pudb
-            # pudb.set_trace()
-            mask = pred_dicts[0]['pred_boxes'][:, 3:5] < 20
-            mask = mask.all(dim=1)
-            mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
-            mask2 = (mask2 < 20) & (mask2 > 0.05)
-            mask2 = mask2 & mask
+            # data_dict = demo_dataset.collate_batch([data_dict])
+            # load_data_to_gpu(data_dict)
+            # pred_dicts, _ = model.forward(data_dict)
+            # # import pudb
+            # # pudb.set_trace()
+            # mask = pred_dicts[0]['pred_boxes'][:, 3:5] < 20
+            # mask = mask.all(dim=1)
+            # mask2 = pred_dicts[0]['pred_boxes'][:, 4] / pred_dicts[0]['pred_boxes'][:, 3]
+            # mask2 = (mask2 < 20) & (mask2 > 0.05)
+            # mask2 = mask2 & mask
 
             points = data_dict['points'][:, 1:4].cpu().numpy()
             # import pudb
