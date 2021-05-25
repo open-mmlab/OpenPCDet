@@ -114,10 +114,10 @@ def parse_config():
 
 
 def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
-    xmin_img = -ymax / res - pc_range[0] / res
-    xmax_img = -ymin / res - pc_range[0] / res
-    ymin_img = -xmax / res - pc_range[1] / res
-    ymax_img = -xmin / res - pc_range[1] / res
+    xmin_img = -ymax / res - pc_range[1] / res
+    xmax_img = -ymin / res - pc_range[1] / res
+    ymin_img = -xmax / res - pc_range[0] / res
+    ymax_img = -xmin / res - pc_range[0] / res
 
     return xmin_img, xmax_img, ymin_img, ymax_img
 
@@ -131,19 +131,19 @@ def draw_boxes(ax, boxes, pc_range, color='green'):
 
         x1, x2, y1, y2 = transform_to_img(x1, x2, y1, y2, pc_range)
         x3, x4, y3, y4 = transform_to_img(x3, x4, y3, y4, pc_range)
-        ps = []
-        polygon = np.zeros([5, 2], dtype=np.float32)
-        polygon[0, 0] = x1
-        polygon[1, 0] = x2
-        polygon[2, 0] = x3
-        polygon[3, 0] = x4
-        polygon[4, 0] = x1
-
-        polygon[0, 1] = y1
-        polygon[1, 1] = y2
-        polygon[2, 1] = y3
-        polygon[3, 1] = y4
-        polygon[4, 1] = y1
+        # ps = []
+        # polygon = np.zeros([5, 2], dtype=np.float32)
+        # polygon[0, 0] = x1
+        # polygon[1, 0] = x2
+        # polygon[2, 0] = x3
+        # polygon[3, 0] = x4
+        # polygon[4, 0] = x1
+        #
+        # polygon[0, 1] = y1
+        # polygon[1, 1] = y2
+        # polygon[2, 1] = y3
+        # polygon[3, 1] = y4
+        # polygon[4, 1] = y1
 
         line1 = [(x1, y1), (x2, y2)]
         line2 = [(x2, y2), (x3, y3)]
