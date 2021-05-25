@@ -1,8 +1,11 @@
+from .roi_head_template import RoIHeadTemplate
+
+import numpy as np
+import spconv
+import torch
 import torch.nn as nn
 
-from ...ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
-from ...utils import common_utils
-from .roi_head_template import RoIHeadTemplate
+from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 
 
 class RRCNNHead(RoIHeadTemplate):
@@ -10,24 +13,22 @@ class RRCNNHead(RoIHeadTemplate):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
 
-        mlps = self.model_cfg.ROI_GRID_POOL.MLPS
-        for k in range(len(mlps)):
-            # TODO: XYZ feature in use
-            mlps[k] = [input_channels - 3] + mlps[k]
+        self.SA_modules = nn.ModuleList()
+        block = self.post_act_block
 
-        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-            radii=self.model_cfg.ROI_GRID_POOL.POOL_RADIUS,
-            nsamples=self.model_cfg.ROI_GRID_POOL.NSAMPLE,
-            mlps=mlps,
-            use_xyz=True,
-            pool_method=self.model_cfg.ROI_GRID_POOL.POOL_METHOD,
+        c0 = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES // 2
+        self.conv_part = spconv.SparseSequential(
+            block(4, 64, 3, padding=1, indice_key='rcnn_subm1'),
+            block(64, c0, 3, padding=1, indice_key='rcnn_subm1_1'),
+        )
+        self.conv_rpn = spconv.SparseSequential(
+            block(input_channels, 64, 3, padding=1, indice_key='rcnn_subm2'),
+            block(64, c0, 3, padding=1, indice_key='rcnn_subm1_2'),
         )
 
-        GRID_SIZE = self.model_cfg.ROI_GRID_POOL.GRID_SIZE
-        c_out = sum([x[-1] for x in mlps])
-        pre_channel = GRID_SIZE * GRID_SIZE * GRID_SIZE * c_out
-
         shared_fc_list = []
+        pool_size = self.model_cfg.ROI_AWARE_POOL.POOL_SIZE
+        pre_channel = self.model_cfg.ROI_AWARE_POOL.NUM_FEATURES * pool_size * pool_size * pool_size
         for k in range(0, self.model_cfg.SHARED_FC.__len__()):
             shared_fc_list.extend([
                 nn.Conv1d(pre_channel, self.model_cfg.SHARED_FC[k], kernel_size=1, bias=False),
@@ -48,6 +49,11 @@ class RRCNNHead(RoIHeadTemplate):
             input_channels=pre_channel,
             output_channels=self.box_coder.code_size * self.num_class,
             fc_list=self.model_cfg.REG_FC
+        )
+
+        self.roiaware_pool3d_layer = roiaware_pool3d_utils.RoIAwarePool3d(
+            out_size=self.model_cfg.ROI_AWARE_POOL.POOL_SIZE,
+            max_pts_each_voxel=self.model_cfg.ROI_AWARE_POOL.MAX_POINTS_PER_VOXEL
         )
         self.init_weights(weight_init='xavier')
 
@@ -71,7 +77,32 @@ class RRCNNHead(RoIHeadTemplate):
                     nn.init.constant_(m.bias, 0)
         nn.init.normal_(self.reg_layers[-1].weight, mean=0, std=0.001)
 
-    def roi_grid_pool(self, batch_dict):
+    def post_act_block(self, in_channels, out_channels, kernel_size, indice_key, stride=1, padding=0, conv_type='subm'):
+        if conv_type == 'subm':
+            m = spconv.SparseSequential(
+                spconv.SubMConv3d(in_channels, out_channels, kernel_size, bias=False, indice_key=indice_key),
+                nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
+                nn.ReLU(),
+            )
+        elif conv_type == 'spconv':
+            m = spconv.SparseSequential(
+                spconv.SparseConv3d(in_channels, out_channels, kernel_size, stride=stride, padding=padding,
+                                    bias=False, indice_key=indice_key),
+                nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
+                nn.ReLU(),
+            )
+        elif conv_type == 'inverseconv':
+            m = spconv.SparseSequential(
+                spconv.SparseInverseConv3d(in_channels, out_channels, kernel_size,
+                                           indice_key=indice_key, bias=False),
+                nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01),
+                nn.ReLU(),
+            )
+        else:
+            raise NotImplementedError
+        return m
+
+    def roiaware_pool(self, batch_dict):
         """
         Args:
             batch_dict:
@@ -85,67 +116,59 @@ class RRCNNHead(RoIHeadTemplate):
 
         """
         batch_size = batch_dict['batch_size']
+        batch_idx = batch_dict['point_coords'][:, 0]
+        point_coords = batch_dict['point_coords'][:, 1:4]
+        point_features = batch_dict['point_features']
+        part_features = torch.cat((
+            batch_dict['point_part_offset'] if not self.model_cfg.get('DISABLE_PART', False) else point_coords,
+            batch_dict['point_cls_scores'].view(-1, 1).detach()
+        ), dim=1)
+        part_features[part_features[:, -1] < self.model_cfg.SEG_MASK_SCORE_THRESH, 0:3] = 0
+
         rois = batch_dict['rois']
-        point_coords = batch_dict['points'][:, :4]
-        point_features = batch_dict['points'][:, 4:]
 
+        pooled_part_features_list, pooled_rpn_features_list = [], []
 
-        global_roi_grid_points, local_roi_grid_points = self.get_global_grid_points_of_roi(
-            rois, grid_size=self.model_cfg.ROI_GRID_POOL.GRID_SIZE
-        )  # (BxN, 6x6x6, 3)
-        global_roi_grid_points = global_roi_grid_points.view(batch_size, -1, 3)  # (B, Nx6x6x6, 3)
+        for bs_idx in range(batch_size):
+            bs_mask = (batch_idx == bs_idx)
+            cur_point_coords = point_coords[bs_mask]
+            cur_part_features = part_features[bs_mask]
+            cur_rpn_features = point_features[bs_mask]
+            cur_roi = rois[bs_idx][:, 0:7].contiguous()  # (N, 7)
 
-        xyz = point_coords[:, 1:4]
-        xyz_batch_cnt = xyz.new_zeros(batch_size).int()
-        batch_idx = point_coords[:, 0]
-        for k in range(batch_size):
-            xyz_batch_cnt[k] = (batch_idx == k).sum()
+            pooled_part_features = self.roiaware_pool3d_layer.forward(
+                cur_roi, cur_point_coords, cur_part_features, pool_method='avg'
+            )  # (N, out_x, out_y, out_z, 4)
+            pooled_rpn_features = self.roiaware_pool3d_layer.forward(
+                cur_roi, cur_point_coords, cur_rpn_features, pool_method='max'
+            )  # (N, out_x, out_y, out_z, C)
 
-        new_xyz = global_roi_grid_points.view(-1, 3)
-        new_xyz_batch_cnt = xyz.new_zeros(batch_size).int().fill_(global_roi_grid_points.shape[1])
-        pooled_points, pooled_features = self.roi_grid_pool_layer(
-            xyz=xyz.contiguous(),
-            xyz_batch_cnt=xyz_batch_cnt,
-            new_xyz=new_xyz,
-            new_xyz_batch_cnt=new_xyz_batch_cnt,
-            features=point_features.contiguous(),
-        )  # (M1 + M2 ..., C)
+            pooled_part_features_list.append(pooled_part_features)
+            pooled_rpn_features_list.append(pooled_rpn_features)
 
-        pooled_features = pooled_features.view(
-            -1, self.model_cfg.ROI_GRID_POOL.GRID_SIZE ** 3,
-            pooled_features.shape[-1]
-        )  # (BxN, 6x6x6, C)
-        return pooled_features
+        pooled_part_features = torch.cat(pooled_part_features_list, dim=0)  # (B * N, out_x, out_y, out_z, 4)
+        pooled_rpn_features = torch.cat(pooled_rpn_features_list, dim=0)  # (B * N, out_x, out_y, out_z, C)
 
-    def get_global_grid_points_of_roi(self, rois, grid_size):
-        rois = rois.view(-1, rois.shape[-1])
-        batch_size_rcnn = rois.shape[0]
-
-        local_roi_grid_points = self.get_dense_grid_points(rois, batch_size_rcnn, grid_size)  # (B, 6x6x6, 3)
-        global_roi_grid_points = common_utils.rotate_points_along_z(
-            local_roi_grid_points.clone(), rois[:, 6]
-        ).squeeze(dim=1)
-        global_center = rois[:, 0:3].clone()
-        global_roi_grid_points += global_center.unsqueeze(dim=1)
-        return global_roi_grid_points, local_roi_grid_points
+        return pooled_part_features, pooled_rpn_features
 
     @staticmethod
-    def get_dense_grid_points(rois, batch_size_rcnn, grid_size):
-        faked_features = rois.new_ones((grid_size, grid_size, grid_size))
-        dense_idx = faked_features.nonzero()  # (N, 3) [x_idx, y_idx, z_idx]
-        dense_idx = dense_idx.repeat(batch_size_rcnn, 1, 1).float()  # (B, 6x6x6, 3)
-
-        local_roi_size = rois.view(batch_size_rcnn, -1)[:, 3:6]
-        roi_grid_points = (dense_idx + 0.5) / grid_size * local_roi_size.unsqueeze(dim=1) \
-                          - (local_roi_size.unsqueeze(dim=1) / 2)  # (B, 6x6x6, 3)
-        return roi_grid_points
+    def fake_sparse_idx(sparse_idx, batch_size_rcnn):
+        print('Warning: Sparse_Idx_Shape(%s) \r' % (str(sparse_idx.shape)), end='', flush=True)
+        # at most one sample is non-empty, then fake the first voxels of each sample(BN needs at least
+        # two values each channel) as non-empty for the below calculation
+        sparse_idx = sparse_idx.new_zeros((batch_size_rcnn, 3))
+        bs_idxs = torch.arange(batch_size_rcnn).type_as(sparse_idx).view(-1, 1)
+        sparse_idx = torch.cat((bs_idxs, sparse_idx), dim=1)
+        return sparse_idx
 
     def forward(self, batch_dict):
         """
-        :param input_data: input dict
-        :return:
-        """
+        Args:
+            batch_dict:
 
+        Returns:
+
+        """
         targets_dict = self.proposal_layer(
             batch_dict, nms_config=self.model_cfg.NMS_CONFIG['TRAIN' if self.training else 'TEST']
         )
@@ -155,16 +178,37 @@ class RRCNNHead(RoIHeadTemplate):
             batch_dict['roi_labels'] = targets_dict['roi_labels']
 
         # RoI aware pooling
-        pooled_features = self.roi_grid_pool(batch_dict)  # (BxN, 6x6x6, C)
+        pooled_part_features, pooled_rpn_features = self.roiaware_pool(batch_dict)
+        batch_size_rcnn = pooled_part_features.shape[0]  # (B * N, out_x, out_y, out_z, 4)
 
-        grid_size = self.model_cfg.ROI_GRID_POOL.GRID_SIZE
-        batch_size_rcnn = pooled_features.shape[0]
-        pooled_features = pooled_features.permute(0, 2, 1). \
-            contiguous().view(batch_size_rcnn, -1, grid_size, grid_size, grid_size)  # (BxN, C, 6, 6, 6)
+        # transform to sparse tensors
+        sparse_shape = np.array(pooled_part_features.shape[1:4], dtype=np.int32)
+        sparse_idx = pooled_part_features.sum(dim=-1).nonzero()  # (non_empty_num, 4) ==> [bs_idx, x_idx, y_idx, z_idx]
+        if sparse_idx.shape[0] < 3:
+            sparse_idx = self.fake_sparse_idx(sparse_idx, batch_size_rcnn)
+            if self.training:
+                # these are invalid samples
+                targets_dict['rcnn_cls_labels'].fill_(-1)
+                targets_dict['reg_valid_mask'].fill_(-1)
 
-        shared_features = self.shared_fc_layer(pooled_features.view(batch_size_rcnn, -1, 1))
-        rcnn_cls = self.cls_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
-        rcnn_reg = self.reg_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
+        part_features = pooled_part_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
+        rpn_features = pooled_rpn_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
+        coords = sparse_idx.int()
+        part_features = spconv.SparseConvTensor(part_features, coords, sparse_shape, batch_size_rcnn)
+        rpn_features = spconv.SparseConvTensor(rpn_features, coords, sparse_shape, batch_size_rcnn)
+
+        # forward rcnn network
+        x_part = self.conv_part(part_features)
+        x_rpn = self.conv_rpn(rpn_features)
+
+        merged_feature = torch.cat((x_rpn.features, x_part.features), dim=1)  # (N, C)
+        shared_feature = spconv.SparseConvTensor(merged_feature, coords, sparse_shape, batch_size_rcnn)
+        shared_feature = shared_feature.dense().view(batch_size_rcnn, -1, 1)
+
+        shared_feature = self.shared_fc_layer(shared_feature)
+
+        rcnn_cls = self.cls_layers(shared_feature).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
+        rcnn_reg = self.reg_layers(shared_feature).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
 
         if not self.training:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
@@ -178,5 +222,4 @@ class RRCNNHead(RoIHeadTemplate):
             targets_dict['rcnn_reg'] = rcnn_reg
 
             self.forward_ret_dict = targets_dict
-
         return batch_dict

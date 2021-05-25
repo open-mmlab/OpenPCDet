@@ -120,10 +120,12 @@ MODEL:
         NAME: RRCNNHead
         CLASS_AGNOSTIC: True
 
-        SHARED_FC: [ 256, 256 ]
+        SHARED_FC: [ 256, 256, 256 ]
         CLS_FC: [ 256, 256 ]
         REG_FC: [ 256, 256 ]
         DP_RATIO: 0.3
+
+        SEG_MASK_SCORE_THRESH: 0.3
 
         NMS_CONFIG:
             TRAIN:
@@ -139,12 +141,10 @@ MODEL:
                 NMS_POST_MAXSIZE: 100
                 NMS_THRESH: 0.7
 
-        ROI_GRID_POOL:
-            GRID_SIZE: 6
-            MLPS: [ [ 64, 64 ], [ 64, 64 ] ]
-            POOL_RADIUS: [ 0.8, 1.6 ]
-            NSAMPLE: [ 16, 16 ]
-            POOL_METHOD: max_pool
+        ROI_AWARE_POOL:
+            POOL_SIZE: 12
+            NUM_FEATURES: 128
+            MAX_POINTS_PER_VOXEL: 128
 
         TARGET_CONFIG:
             BOX_CODER: ResidualCoder
@@ -159,7 +159,7 @@ MODEL:
             CLS_BG_THRESH_LO: 0.1
             HARD_BG_RATIO: 0.8
 
-            REG_FG_THRESH: 0.55
+            REG_FG_THRESH: 0.65
 
         LOSS_CONFIG:
             CLS_LOSS: BinaryCrossEntropy
