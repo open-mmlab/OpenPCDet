@@ -4,7 +4,7 @@ CLASS_NAMES: ['Vehicle']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
 
-    POINT_CLOUD_RANGE: [-75.52, -75.52, -2, 75.52, 75.52, 5]
+    POINT_CLOUD_RANGE: [-75.52, -75.52, -2, 75.52, 75.52, 4]
 
     SAMPLED_INTERVAL: {
       'train': 1,
@@ -17,7 +17,7 @@ DATA_CONFIG:
         REMOVE_OUTSIDE_BOXES: True
 
       - NAME: transform_points_to_voxels
-        VOXEL_SIZE: [ 0.32, 0.32, 7 ]
+        VOXEL_SIZE: [ 0.32, 0.32, 6 ]
         MAX_POINTS_PER_VOXEL: 32
         MAX_NUMBER_OF_VOXELS: {
             'train': 80000,
