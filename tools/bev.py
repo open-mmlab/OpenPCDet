@@ -231,12 +231,13 @@ def main():
             ax.imshow(top, aspect='equal', cmap='gray')
 
             draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
-            # import pudb
-            # pudb.set_trace()
+            import pudb
+            pudb.set_trace()
             draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
             plt.axis('off')
             plt.tight_layout()
             plt.savefig('result/bev-%d-rrcnn.png' % idx)
+            plt.clf()
             # rgba_colors = np.zeros((points.shape[0], 4))
             # rgba_colors[:, 2] = 1
             # rgba_colors[:, 3] = points[:, 2]
