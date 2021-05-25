@@ -302,7 +302,7 @@ def build_range_image_from_point_cloud_np(points_frame,
     # [N], within [-pi, pi]
     # point_azimuth = np.arctan2(points[..., 1].astype(np.float64), points[..., 0].astype(np.float64)).astype(
     #     np.float64) + az_correction - 1e-9
-    point_azimuth = np.arctan2(points[..., 1], points[..., 0]) + az_correction
+    point_azimuth = np.arctan2(points[..., 1], points[..., 0]) + az_correction - 1e-9
 
     # solve the problem of np.float32 accuracy problem
     point_azimuth_gt_pi_mask = point_azimuth > np.pi

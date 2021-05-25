@@ -24,7 +24,7 @@ DATA_CONFIG:
             'test': 90000
         }
     RANGE_CONFIG:
-      RANGE_IMAGE_SHAPE: [64, 2650]
+      RANGE_IMAGE_SHAPE: [64, 512]
 
 
 
