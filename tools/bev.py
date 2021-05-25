@@ -112,10 +112,10 @@ def parse_config():
 
 
 def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
-    xmin_img = -ymax / res - pc_range[1] / res
-    xmax_img = -ymin / res - pc_range[1] / res
-    ymin_img = -xmax / res - pc_range[0] / res
-    ymax_img = -xmin / res - pc_range[0] / res
+    xmin_img = -ymax / res - pc_range[0] / res
+    xmax_img = -ymin / res - pc_range[0] / res
+    ymin_img = -xmax / res - pc_range[1] / res
+    ymax_img = -xmin / res - pc_range[1] / res
 
     return xmin_img, xmax_img, ymin_img, ymax_img
 
@@ -228,8 +228,8 @@ def main():
             # import pudb
             # pudb.set_trace()
             # draw_boxes(ax, data_dict.get('gt_boxes', None)[0].cpu().numpy(), pc_range, color='blue')
-            import pudb
-            pudb.set_trace()
+            # import pudb
+            # pudb.set_trace()
             draw_boxes(ax, pred_dicts[0]['pred_boxes'][mask2][:100].cpu().numpy(), pc_range, color='red')
             plt.axis('off')
             plt.tight_layout()
