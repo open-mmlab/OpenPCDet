@@ -114,10 +114,10 @@ def parse_config():
 
 
 def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
-    xmin_img = -ymax / res - pc_range[1] / res
-    xmax_img = -ymin / res - pc_range[1] / res
-    ymin_img = xmax / res - pc_range[0] / res
-    ymax_img = xmin / res - pc_range[0] / res
+    xmin_img = ymax / res - pc_range[1] / res
+    xmax_img = ymin / res - pc_range[1] / res
+    ymin_img = -xmax / res - pc_range[0] / res
+    ymax_img = -xmin / res - pc_range[0] / res
 
     return xmin_img, xmax_img, ymin_img, ymax_img
 
@@ -215,14 +215,14 @@ def main():
             xi_points = x_points[indices]
             yi_points = y_points[indices]
             # CONVERT TO PIXEL POSITION VALUES - Based on resolution
-            x_img = (-yi_points / res).astype(np.int32)  # x axis is -y in LIDAR
+            x_img = (yi_points / res).astype(np.int32)  # x axis is -y in LIDAR
             y_img = (-xi_points / res).astype(np.int32)  # y axis is -x in LIDAR
 
             # SHIFT PIXELS TO HAVE MINIMUM BE (0,0)
             # floor & ceil used to prevent anything being rounded to below 0 after
             # shift
             x_img -= int(np.floor(pc_range[1] / res))
-            y_img += int(np.floor(pc_range[0] / res))
+            y_img -= int(np.floor(pc_range[0] / res))
             # FILL PIXEL VALUES IN IMAGE ARRAY
             # top[y_img, x_img, i] = pixel_values
             top[y_img, x_img] = 0
