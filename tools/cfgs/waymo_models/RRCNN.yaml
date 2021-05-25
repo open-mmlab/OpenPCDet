@@ -7,8 +7,8 @@ DATA_CONFIG:
     POINT_CLOUD_RANGE: [-75.52, -75.52, -2, 75.52, 75.52, 4]
 
     SAMPLED_INTERVAL: {
-      'train': 1,
-      'test': 1
+      'train': 5,
+      'test': 5
     }
 
 
