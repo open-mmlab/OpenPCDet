@@ -138,12 +138,10 @@ class QueryAndGroup(nn.Module):
         idx, empty_ball_mask = ball_query(self.radius, self.nsample, xyz, xyz_batch_cnt, new_xyz, new_xyz_batch_cnt)
         grouped_xyz = grouping_operation(xyz, xyz_batch_cnt, idx, new_xyz_batch_cnt)  # (M1 + M2, 3, nsample)
         grouped_xyz -= new_xyz.unsqueeze(-1)
+        import pudb
+        pudb.set_trace()
 
-        try:
-            grouped_xyz[empty_ball_mask] = 0
-        except RuntimeError:
-            grouped_xyz.detach()
-            grouped_xyz[empty_ball_mask] = 0
+        grouped_xyz[empty_ball_mask] = 0
 
         if features is not None:
             grouped_features = grouping_operation(features, xyz_batch_cnt, idx, new_xyz_batch_cnt)  # (M1 + M2, C, nsample)
