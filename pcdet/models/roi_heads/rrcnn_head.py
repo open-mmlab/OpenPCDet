@@ -12,7 +12,8 @@ class RRCNNHead(RoIHeadTemplate):
 
         mlps = self.model_cfg.ROI_GRID_POOL.MLPS
         for k in range(len(mlps)):
-            mlps[k] = [input_channels] + mlps[k]
+            # TODO: XYZ feature in use
+            mlps[k] = [input_channels - 3] + mlps[k]
 
         self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
             radii=self.model_cfg.ROI_GRID_POOL.POOL_RADIUS,
