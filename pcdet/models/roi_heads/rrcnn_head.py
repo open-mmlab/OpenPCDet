@@ -204,8 +204,8 @@ class RRCNNHead(RoIHeadTemplate):
 
         # forward rcnn network
         # x_part = self.conv_part(part_features)
-        import pudb
-        pudb.set_trace()
+        # import pudb
+        # pudb.set_trace()
         x_rpn = self.conv_rpn(rpn_features)
 
         # merged_feature = torch.cat((x_rpn.features, x_part.features), dim=1)  # (N, C)
