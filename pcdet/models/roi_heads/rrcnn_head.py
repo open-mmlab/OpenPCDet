@@ -116,9 +116,9 @@ class RRCNNHead(RoIHeadTemplate):
 
         """
         batch_size = batch_dict['batch_size']
-        batch_idx = batch_dict['point_coords'][:, 0]
-        point_coords = batch_dict['point_coords'][:, 1:4]
-        point_features = batch_dict['point_features']
+        batch_idx = batch_dict['points'][:, 0]
+        point_coords = batch_dict['points'][:, 1:4]
+        point_features = batch_dict['points'][:, 4:]
         part_features = torch.cat((
             batch_dict['point_part_offset'] if not self.model_cfg.get('DISABLE_PART', False) else point_coords,
             batch_dict['point_cls_scores'].view(-1, 1).detach()
