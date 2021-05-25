@@ -116,8 +116,8 @@ def parse_config():
 def transform_to_img(xmin, xmax, ymin, ymax, pc_range, res=0.1):
     xmin_img = ymax / res - pc_range[1] / res
     xmax_img = ymin / res - pc_range[1] / res
-    ymin_img = -xmax / res - pc_range[0] / res
-    ymax_img = -xmin / res - pc_range[0] / res
+    ymin_img = -xmax / res + pc_range[3] / res
+    ymax_img = -xmin / res + pc_range[3] / res
 
     return xmin_img, xmax_img, ymin_img, ymax_img
 
