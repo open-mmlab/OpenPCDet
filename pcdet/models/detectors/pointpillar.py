@@ -19,7 +19,6 @@ class PointPillar(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            # print('----------test---------')
             pred_dicts, recall_dicts = self.post_processing(batch_dict)
             if not self.val:
                 return pred_dicts, recall_dicts

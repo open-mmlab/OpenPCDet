@@ -124,7 +124,7 @@ def val_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sav
         for detect_range in det_range_ls:
             print("*" * 60)
             print("Eval range is abs(x) <10, %d < abs(y) < %d" % (detect_range[2], detect_range[3]))
-            result_str, result_dict, mAP = dataset.evaluation(
+            result_str, result_dict, f2score = dataset.evaluation(
                 det_annos, class_names, det_range=detect_range,
                 eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
                 output_path=final_output_dir
@@ -133,7 +133,7 @@ def val_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sav
             ret_dict.update(result_dict)
             # logger.info('Result is save to %s' % result_dir)
             # logger.info('****************Evaluation done.*****************')
-        return ret_dict, mAP
+        return ret_dict, f2score
     else:
         detect_range = cfg.DATA_CONFIG.POINT_CLOUD_RANGE
         detect_range = [0, detect_range[3], 0, detect_range[4]]

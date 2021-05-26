@@ -2,6 +2,7 @@ import io as sysio
 
 import numba
 import numpy as np
+import math
 
 from .rotate_iou import rotate_iou_gpu_eval
 
@@ -266,8 +267,8 @@ def compute_statistics_jit(overlaps,
         if (valid_detection == NO_DETECTION) and ignored_gt[i] == 0:
             fn += 1
             # if (not fused_statistics) & (overlap_k == 1) & (difficulty_l == 0) & (metric == 1):
-                # with open("fn.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fn_file:
-                #     fn_file.write("pcd_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
+            #     with open("fn.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fn_file:
+            #         fn_file.write("pcd_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
         elif ((valid_detection != NO_DETECTION)
               and (ignored_gt[i] == 1 or ignored_det[det_idx] == 1)):
             assigned_detection[det_idx] = True
@@ -543,6 +544,8 @@ def eval_class(gt_annos,
     recall = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     aos = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    recall_ls = []
+    precision_ls = []
     for m, current_class in enumerate(current_classes):
         for l, difficulty in enumerate(difficultys):
             rets = _prepare_data(gt_annos, dt_annos, current_class, difficulty, det_range=det_range, eval_cfg=eval_cfg)
@@ -588,11 +591,15 @@ def eval_class(gt_annos,
                         # np.save("metric_%d.%d.%d.%d_score" % (metric, m, l, k), dt_scores)
                         if k == 1:
                             print("m:", m, " l:", l, " k:", k)
-                            # print('tp', tps.sum())
-                            # print('fn', fns.sum())
-                            # print('fp', fps.sum())
-                            print("recall", tps.sum() / (tps.sum() + fns.sum()))
-                            print("precision", tps.sum() / (tps.sum() + fps.sum()))
+                            print('tp', tps.sum())
+                            print('fn', fns.sum())
+                            print('fp', fps.sum())
+                            rec = tps.sum() / (tps.sum() + fns.sum())
+                            pre = tps.sum() / (tps.sum() + fps.sum())
+                            recall_ls.append(rec)
+                            precision_ls.append(pre)
+                            print("recall", rec)
+                            print("precision", pre)
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt)
                 thresholds = np.array(thresholds)
                 pr = np.zeros([len(thresholds), 4])
@@ -639,6 +646,8 @@ def eval_class(gt_annos,
         "recall": recall,
         "precision": precision,
         "orientation": aos,
+        "recall_ls": recall_ls,
+        "precision_ls": precision_ls
     }
     return ret_dict
 
@@ -700,6 +709,8 @@ def do_eval(gt_annos,
                      min_overlaps, det_range=det_range, save_fn_fp=True, eval_cfg=eval_cfg)
     mAP_bev = get_mAP(ret["precision"])
     mAP_bev_R40 = get_mAP_R40(ret["precision"])
+    recall_ls = ret['recall_ls']
+    precision_ls = ret['precision_ls']
 
     if PR_detail_dict is not None:
         PR_detail_dict['bev'] = ret['precision']
@@ -712,7 +723,7 @@ def do_eval(gt_annos,
     mAP_3d_R40 = get_mAP_R40(ret["precision"])
     if PR_detail_dict is not None:
         PR_detail_dict['3d'] = ret['precision']
-    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40
+    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40, recall_ls, precision_ls
 
 
 def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
@@ -780,9 +791,19 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
             if anno['alpha'][0] != -10:
                 compute_aos = True
             break
-    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40 = do_eval(
+    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40, recall_ls, precision_ls = do_eval(
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict, det_range=det_range, eval_cfg=eval_cfg)
 
+    cls_num = len(recall_ls)
+    f2_score_ls = []
+    print('recall_ls', recall_ls)
+    print('precision_ls', precision_ls)
+    for i in range(cls_num):
+        f2k = (1 + 2 * 2) * (precision_ls[i] * recall_ls[i]) / (2 * 2 * precision_ls[i] + recall_ls[i])
+        f2_score_ls.append(f2k)
+    f2_score = np.mean(f2_score_ls)
+    if math.isnan(f2_score):
+        f2_score = 0
     ret_dict = {}
     map_ls = []
     for j, curcls in enumerate(current_classes):
@@ -856,7 +877,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
             #     ret_dict['%s_image/hard_R40' % class_to_name[curcls]] = mAPbbox_R40[j, 2, 0]
 
         mAP = np.array(map_ls).mean()
-    return result, ret_dict, mAP
+    return result, ret_dict, f2_score
 
 
 def get_coco_eval_result(gt_annos, dt_annos, current_classes):

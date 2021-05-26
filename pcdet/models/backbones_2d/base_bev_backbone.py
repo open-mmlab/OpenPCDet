@@ -132,7 +132,8 @@ class BaseBEVBackbone(nn.Module):
     #     for i in range(len(self.blocks)):
     #         x = self.blocks[i](x)
     #
-    #         stride = int(spatial_features.shape[2] / x.shape[2])
+    #         # stride = int(spatial_features.shape[2] / x.shape[2])
+    #         stride = torch.floor_divide(spatial_features.shape[2], x.shape[2])
     #         ret_dict['spatial_features_%dx' % stride] = x
     #         if len(self.deblocks) > 0:
     #             ups.append(self.deblocks[i](x))

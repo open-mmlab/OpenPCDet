@@ -1,5 +1,6 @@
 DATASET: 'NeolixDataset'
-DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/'
+#DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/'
+DATA_PATH: '/nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/test_cls_compat/'
 CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
 TYPE_TO_ID: {'Vehicle': 1, 'Pedestrian': 2, 'Cyclist': 3, 'Unknown': 4, 'Large_vehicle': 5}
 
