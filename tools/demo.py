@@ -149,7 +149,7 @@ def main():
                 ref_scores=pred_dicts[0]['pred_scores'][mask2][:len(data_dict.get('gt_boxes', None)[0])],
                 ref_labels=pred_dicts[0]['pred_labels'][mask2][:len(data_dict.get('gt_boxes', None)[0])]
             )
-            # mlab.show(stop=True)
+            mlab.show(stop=True)
 
 
     logger.info('Demo done.')
