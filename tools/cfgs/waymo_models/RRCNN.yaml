@@ -8,7 +8,7 @@ DATA_CONFIG:
 
     SAMPLED_INTERVAL: {
       'train': 1,
-      'test': 5
+      'test': 1
     }
 
 
@@ -178,8 +178,8 @@ MODEL:
         SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
-        EVAL_METRIC: waymo
-#        EVAL_METRIC: kitti
+#        EVAL_METRIC: waymo
+        EVAL_METRIC: kitti
 
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
