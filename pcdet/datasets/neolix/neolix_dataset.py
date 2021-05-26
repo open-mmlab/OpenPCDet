@@ -373,9 +373,9 @@ class NeolixDataset(DatasetTemplate):
 
         eval_det_annos = copy.deepcopy(det_annos)
         eval_gt_annos = [copy.deepcopy(info['annos']) for info in self.neolix_infos]
-        ap_result_str, ap_dict, mAP = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range, eval_cfg=self.dataset_cfg)
+        ap_result_str, ap_dict, f2score = neolix_eval.get_official_eval_result(eval_gt_annos, eval_det_annos, class_names, det_range=det_range, eval_cfg=self.dataset_cfg)
 
-        return ap_result_str, ap_dict, mAP
+        return ap_result_str, ap_dict, f2score
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -442,7 +442,7 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
     trainval_filename = save_path / 'neolix_infos_trainval.pkl'
     test_filename = save_path / 'neolix_infos_test.pkl'
 
-    # print('---------------Start to generate data infos---------------')
+    print('---------------Start to generate data infos---------------')
 
     # dataset.set_split(train_split)
     # neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)

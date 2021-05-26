@@ -106,7 +106,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     with open(result_dir / 'result.pkl', 'wb') as f:
         pickle.dump(det_annos, f)
-    # info_f = open('/home/liuwanqiang/OpenPCDet-master/OpenPCDet-master/output/neolix_models/pointpillar_1022/default/eval/epoch_80/val/default/result.pkl', 'rb')
+    # info_f = open('/home/liuwanqiang/OpenPCDet-master/OpenPCDet-master/output/neolix_models/pointpillar_1031/default/eval/epoch_80/val/default/result.pkl', 'rb')
     # det_annos = pickle.load(info_f)
     det_range_ls = None
     # det_range_ls = [[-10, 10, 0, 10], [-10, 10, 10, 30], [-10, 10, 30, 50], [-10, 10, 50, 70]]
@@ -116,7 +116,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         for detect_range in det_range_ls:
             print("*" * 60)
             print("Eval range is abs(x) <10, %d < abs(y) < %d" % (detect_range[2], detect_range[3]))
-            result_str, result_dict, mAP = dataset.evaluation(
+            result_str, result_dict, f2score = dataset.evaluation(
                 det_annos, class_names, det_range=detect_range,
                 eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
                 output_path=final_output_dir
@@ -124,7 +124,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
             logger.info(result_str)
             ret_dict.update(result_dict)
-            print('The mAP of model epoch%s is %f' % (epoch_id, mAP))
+            print('The f2score of model epoch%s is %f' % (epoch_id, f2score))
             logger.info('Result is save to %s' % result_dir)
             logger.info('****************Evaluation done.*****************')
         return ret_dict

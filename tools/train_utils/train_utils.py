@@ -85,9 +85,9 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, train_sampler=None,
                 lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50,
-                merge_all_iters_to_one_epoch=False, cfg=None, args_para=None, logger=None):
+                merge_all_iters_to_one_epoch=False, cfg=None, args_para=None, logger=None, test_loader=None):
     accumulated_iter = start_iter
-    max_mAP = -1
+    max_f2score = -1
     map_epoch_dict = {}
     max_ckpt_save_num = 5
     with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
@@ -122,23 +122,18 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             output_dir.mkdir(parents=True, exist_ok=True)
             logger.info('**********************VAL! Start evaluation %s/%s**********************' %
                         (cfg.EXP_GROUP_PATH, cfg.TAG))
-            test_set, test_loader, sampler = build_dataloader(
-                dataset_cfg=cfg.DATA_CONFIG,
-                class_names=cfg.CLASS_NAMES,
-                batch_size=args_para.batch_size,
-                dist=dist_train, workers=args_para.workers, logger=logger, training=True, val=True
-            )
+
             eval_output_dir = output_dir / 'eval' / 'eval_with_train'
             eval_output_dir.mkdir(parents=True, exist_ok=True)
             # start evaluation
             model.val = True
             model.eval()
-            ret_dict, mAP = val_utils.val_one_epoch(
+            ret_dict, f2score = val_utils.val_one_epoch(
                 cfg, model, test_loader, cur_epoch + 1, logger, dist_test=dist_train,
                 result_dir=eval_output_dir, save_to_file=args_para.save_to_file, val=True, tb_log=tb_log, rank=rank,
                 accumulated_iter=accumulated_iter - 1
             )
-            print('The mAP of model epoch%d is %f' % (cur_epoch + 1, mAP))
+            print('The f2-score of model epoch%d is %f' % (cur_epoch + 1, f2score))
             logger.info('**********************End evaluation %s/%s(%s)**********************' %
                         (cfg.EXP_GROUP_PATH, cfg.TAG, args_para.extra_tag))
             # end add
@@ -149,13 +144,21 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             if trained_epoch % ckpt_save_interval == 0 and rank == 0:
                 ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
                 ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d' % trained_epoch)
+                if trained_epoch == 80:
+                    print('+' * 100)
+                    print('trained_epoch', trained_epoch)
+                    save_checkpoint(
+                        checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
+                    )
+                    print('#' * 200)
+                    print(map_epoch_dict)
                 if trained_epoch == total_epochs:
                     print('+' * 100)
                     print('trained_epoch', trained_epoch)
                     save_checkpoint(
                         checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
                     )
-                    map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = mAP
+                    map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = f2score
                     map_epoch_dict = dict(sorted(map_epoch_dict.items(), key=lambda kv:(kv[1], kv[0])))
                     print('#' * 200)
                     print(map_epoch_dict)
@@ -163,27 +166,27 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                     save_checkpoint(
                         checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
                     )
-                    map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = mAP
+                    map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = f2score
                     map_epoch_dict = dict(sorted(map_epoch_dict.items(), key=lambda kv:(kv[1], kv[0])))
                     print('#' * 200)
                     print(map_epoch_dict)
                 else:
-                    if mAP > map_epoch_dict[list(map_epoch_dict.keys())[0]]:
+                    if f2score > map_epoch_dict[list(map_epoch_dict.keys())[0]]:
                         print('$' * 200)
-                        print(mAP, map_epoch_dict)
+                        print(f2score, map_epoch_dict)
                         os.remove(ckpt_save_dir / list(map_epoch_dict.keys())[0])
                         map_epoch_dict.pop(list(map_epoch_dict.keys())[0])
-                        map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = mAP
+                        map_epoch_dict['checkpoint_epoch_%d.pth' % trained_epoch] = f2score
                         map_epoch_dict = dict(sorted(map_epoch_dict.items(), key=lambda kv: (kv[1], kv[0])))
                         save_checkpoint(
                             checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
                         )
                         print(map_epoch_dict)
                     else:
-                        print('Small mAP, map_epoch_dict=', map_epoch_dict)
+                        print('Small f2score, map_epoch_dict=', map_epoch_dict)
             final_map = map_epoch_dict.get(list(map_epoch_dict.keys())[-1], 0)
             if tb_log is not None:
-                tb_log.add_scalar('mAP', final_map, trained_epoch)
+                tb_log.add_scalar('f2score', final_map, trained_epoch)
             model.val = False
             model.train()
 
@@ -238,4 +241,4 @@ def save_checkpoint(state, filename='checkpoint'):
         torch.save({'optimizer_state': optimizer_state}, optimizer_filename)
 
     filename = '{}.pth'.format(filename)
-    torch.save(state, filename)
+    torch.save(state, filename, _use_new_zipfile_serialization=False)

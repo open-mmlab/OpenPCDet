@@ -38,6 +38,7 @@ def parse_config():
     parser.add_argument('--merge_all_iters_to_one_epoch', action='store_true', default=False, help='')
     parser.add_argument('--set', dest='set_cfgs', default=None, nargs=argparse.REMAINDER,
                         help='set extra config keys if needed')
+    parser.add_argument('--ckpt_save_dir', type=str, default=None, help='ckpt save dir')
 
     parser.add_argument('--max_waiting_mins', type=int, default=0, help='max waiting minutes')
     parser.add_argument('--start_epoch', type=int, default=0, help='')
@@ -78,8 +79,10 @@ def main():
 
     if args.fix_random_seed:
         common_utils.set_random_seed(666)
-
-    output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
+    if args.ckpt_save_dir is None:
+        output_dir = cfg.ROOT_DIR / 'output' / cfg.EXP_GROUP_PATH / cfg.TAG / args.extra_tag
+    else:
+        output_dir = Path(args.ckpt_save_dir)
     ckpt_dir = output_dir / 'ckpt'
     output_dir.mkdir(parents=True, exist_ok=True)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
@@ -137,8 +140,11 @@ def main():
     model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
     # import pdb
     # pdb.set_trace()
+    print('before parallel')
+    print('cfg.LOCAL_RANK', cfg.LOCAL_RANK)
     if dist_train:
         model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])
+    print('after parallel')
     logger.info(model)
     lr_scheduler, lr_warmup_scheduler = build_scheduler(
         optimizer, total_iters_each_epoch=len(train_loader), total_epochs=args.epochs,
@@ -150,6 +156,14 @@ def main():
     #             % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
     # train_loader.dataset.__generateitem__()
     # return 0
+
+    test_set, test_loader, sampler = build_dataloader(
+        dataset_cfg=cfg.DATA_CONFIG,
+        class_names=cfg.CLASS_NAMES,
+        batch_size=args.batch_size,
+        dist=False, workers=args.workers, logger=logger, training=True, val=True
+    )
+
     train_model(
         model,
         optimizer,
@@ -170,7 +184,8 @@ def main():
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
         cfg=cfg,
         args_para=args,
-        logger=logger
+        logger=logger,
+        test_loader=test_loader
     )
 
     logger.info('**********************End training %s/%s(%s)**********************\n\n\n'

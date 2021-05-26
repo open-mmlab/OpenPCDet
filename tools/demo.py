@@ -170,8 +170,10 @@ class DemoDataset(DatasetTemplate):
                     np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index] + '.bin')
                 else:
                     output_path.mkdir(parents=True,exist_ok=True)
+                    print('output', output_path)
                     cur_det_file = output_path / (frame_id + '.txt')
                     with open(cur_det_file, 'w') as f:
+                        print(cur_det_file)
                         bbox = single_pred_dict['bbox']
                         loc = single_pred_dict['location']
                         dims = single_pred_dict['dimensions']  # lhw -> hwl
@@ -234,7 +236,7 @@ def main():
                 pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
                 data_dict, pred_dicts, cfg.CLASS_NAMES,
-                output_path=Path(args.output_path), inference=False
+                output_path=Path(args.output_path)
             )
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],
