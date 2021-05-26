@@ -1,13 +1,19 @@
 # Installation
 
 ### Requirements
-All the codes are tested in the following environment:
-* Linux (tested on Ubuntu 14.04/16.04)
+All the codes are tested in the following environment(2080ti):
+* Linux (tested on Ubuntu 14.04/16.04/18.04)
 * Python 3.6+
-* PyTorch 1.1 or higher (tested on PyTorch 1.1, 1,3, 1,5)
+* PyTorch 1.1 or higher (tested on PyTorch 1.1, 1,3, 1.4, 1.5, 1.6)
 * CUDA 9.0 or higher (PyTorch 1.3+ needs CUDA 9.2+)
 * [`spconv v1.0 (commit 8da6f96)`](https://github.com/traveller59/spconv/tree/8da6f967fb9a054d8870c3515b1b44eca2103634) or [`spconv v1.2`](https://github.com/traveller59/spconv)
 
+For A100 gpu, the following environment is tested:
+- gpu驱动 450.80.02
+- cuda版本 11.0
+- Python 3.7+
+- Pytorch 1.8.1+cu111
+- pcdet master([commit 00003c](https://github.com/neolixcn/OpenPCDet/tree/00003c92985af4a474dc306823efbddbe1d74140))
 
 ### Install `pcdet v0.3`
 NOTE: Please re-install `pcdet v0.3` by running `python setup.py develop` even if you have already installed previous version.

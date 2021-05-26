@@ -48,7 +48,7 @@ def generate_pseudo_labels(args, cfg):
             pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
                 data_dict, pred_dicts, cfg.CLASS_NAMES,
-                output_path=Path(args.root_path) / "training/label_2/pseudo", inference=False
+                output_path=Path(args.root_path) / "training/label_2/pseudo"
             )
 
     logger.info('Generating Pseudo Labels done.')
@@ -172,7 +172,7 @@ def parse_args():
     # parser.add_argument('--data_path', type=str, default='demo_data', help='specify the raw point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
-    parser.add_argument('--label_path', type=str, default=None, help='specify the point cloud data label or directory')
+    # parser.add_argument('--label_path', type=str, default=None, help='specify the point cloud data label or directory')
     # parser.add_argument('--save_path', type=str, default=None, help='specify path to save pseudo labels')
     # parser.add_argument('--org_root_path', type=str, default=None, help='specify the original root path for training dataset(please not end with "/")')
     parser.add_argument('--copy_org_data', type=str2bool, default=True, help='whether to copy labeled data and raw velodyne')

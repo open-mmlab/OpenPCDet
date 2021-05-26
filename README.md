@@ -14,8 +14,8 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 - [Installation](docs/INSTALL.md)
 - [Quick Demo](docs/DEMO.md)
 - [Getting Started](docs/GETTING_STARTED.md)
+- [Semi-Supervised Leanrning](docs/Semi_supervised_learning.md)
 - [Citation](#citation)
-
 
 ## Changelog
 [2020-11-27] **Bugfixed:** Please re-prepare the validation infos of Waymo dataset (version 1.2) if you would like to 
@@ -145,6 +145,9 @@ visualize the predicted results on your custom data or the original KITTI data.
 
 Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to learn more usage about this project.
 
+## Semi-Supervised Leanrning
+
+To train with semi-supervised leanring method like pseudo-labeing, please refer to [Semi-Supervised Leanrning.md](docs/Semi_supervised_learning.md) to learn more.
 
 ## License
 

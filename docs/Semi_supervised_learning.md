@@ -19,10 +19,8 @@ Meaning of Arguments:
  - --infer_bs, the batch size used for inference.
  - -- infer_workers, the workers used for inference.
  - --score_thresh, specify the score thresh for generating pseudo labels.
- - --data_path, the point cloud data file or directory.
  - --ckpt, the pretrained model of teacher network.
  - --ext, the extension of your point cloud data file, default='.bin'.
- - --label_path, the point cloud data label or directory.
  - --copy_org_data, whether to copy labeled data and raw velodyne. if True, the following 3 parameters need to be specified.
  - --org_velodyne_path, the velodyne path of original labeled data(please not end with "/").
  - --org_label_path, the label path of original labeled data(please not end with "/").
@@ -40,10 +38,12 @@ Meaning of Arguments:
 #### Use command or run Script
 
 ```
+# enter tools folder
+cd tools
 # m1: run command
 python semi_supervised_train.py --teacher_cfg_file cfgs/neolix_models/pv_rcnn_1028.yaml --gpus 1,2 --score_thresh 0.25 --ckpt /nfs/neolix_data1/pv_rcnn_1028.pth --cfg_file cfgs/dataset_configs/neolix_pseudo_dataset_9w9_0p1.yaml --train_cfg_file cfgs/neolix_models/pointpillar_1031.yaml --copy_org_data True --org_velodyne_path /nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/training/velodyne/labeled --org_label_path /nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/training/label_2/labeled --org_raw_data_path /nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset/training/velodyne/pseudo --root_path /nfs/neolix_data1/neolix_dataset/develop_dataset/pseudo_label_dataset_0p1 --org_list_file /nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/train.txt --org_val_list_file /nfs/neolix_data1/neolix_dataset/develop_dataset/lidar_object_detection/ID_1022/ImageSets/val.txt --workers 8
 # m2: change params in script and run
-bash tools/scripts/generate_pseudo_label_data.sh
+bash scripts/generate_pseudo_label_data.sh
 ```
 
 ## 3. Train with labeled and pseudo datasets in multi GPUS.
