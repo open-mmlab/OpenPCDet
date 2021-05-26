@@ -26,7 +26,7 @@ def generate_pseudo_labels(args, cfg):
     logger.info('-----------------Generating Pseudo Labels-------------------------')
     demo_dataset = DemoDataset(
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
-        root_path=Path(args.org_raw_data_path), ext=args.ext, logger=logger, label_path=Path(args.label_path) if args.label_path else None
+        root_path=Path(args.org_raw_data_path), ext=args.ext, logger=logger, label_path=None
     )
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 

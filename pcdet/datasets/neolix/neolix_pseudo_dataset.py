@@ -95,7 +95,8 @@ class NeolixDataset(DatasetTemplate):
         label_file = self.root_split_path / 'label_2' / ('%s.txt' % idx)
         # print(label_file)
         assert label_file.exists()
-        return object3d_neolix.get_objects_from_label(label_file)
+        # return object3d_neolix.get_objects_from_label(label_file)
+        return object3d_neolix.get_objects_from_label(label_file, self.dataset_cfg.TYPE_TO_ID)
 
     def get_calib(self, idx):
         calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
