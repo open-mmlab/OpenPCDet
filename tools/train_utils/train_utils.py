@@ -133,7 +133,8 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 result_dir=eval_output_dir, save_to_file=args_para.save_to_file, val=True, tb_log=tb_log, rank=rank,
                 accumulated_iter=accumulated_iter - 1
             )
-            print('The f2-score of model epoch%d is %f' % (cur_epoch + 1, f2score))
+            if rank == 0:
+                print('The f2-score of model epoch%d is %f' % (cur_epoch + 1, f2score))
             logger.info('**********************End evaluation %s/%s(%s)**********************' %
                         (cfg.EXP_GROUP_PATH, cfg.TAG, args_para.extra_tag))
             # end add
@@ -184,9 +185,9 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                         print(map_epoch_dict)
                     else:
                         print('Small f2score, map_epoch_dict=', map_epoch_dict)
-            final_map = map_epoch_dict.get(list(map_epoch_dict.keys())[-1], 0)
-            if tb_log is not None:
-                tb_log.add_scalar('f2score', final_map, trained_epoch)
+                final_map = map_epoch_dict.get(list(map_epoch_dict.keys())[-1], 0)
+                if tb_log is not None:
+                    tb_log.add_scalar('f2score', final_map, trained_epoch)
             model.val = False
             model.train()
 

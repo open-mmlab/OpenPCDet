@@ -88,7 +88,7 @@ def val_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sav
     # logger.info('Generate label finished(sec_per_example: %.4f second).' % sec_per_example)
 
     if cfg.LOCAL_RANK != 0:
-        return {}
+        return {}, 0
 
     ret_dict = {}
     if dist_test:
