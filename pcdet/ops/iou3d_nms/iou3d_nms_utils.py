@@ -13,10 +13,10 @@ def boxes_bev_iou_cpu(boxes_a, boxes_b):
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
-
+        ans_iou: (N, M)
     """
     boxes_a, is_numpy = common_utils.check_numpy_to_torch(boxes_a)
     boxes_b, is_numpy = common_utils.check_numpy_to_torch(boxes_b)
@@ -32,7 +32,7 @@ def boxes_iou_bev(boxes_a, boxes_b):
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
         ans_iou: (N, M)
@@ -49,7 +49,7 @@ def boxes_iou3d_gpu(boxes_a, boxes_b):
     """
     Args:
         boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
-        boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+        boxes_b: (M, 7) [x, y, z, dx, dy, dz, heading]
 
     Returns:
         ans_iou: (N, M)
