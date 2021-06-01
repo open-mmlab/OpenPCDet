@@ -17,7 +17,7 @@ FOV_POINTS_ONLY: True
 
 
 DATA_AUGMENTOR:
-    EXTEND_FACTOR: 1.25  # value by with the dataset will be multiplied (0 does augmentation by replacement)
+    EXTEND_FACTOR: 1  # value by with the dataset will be multiplied (0 does augmentation by replacement)
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
@@ -25,11 +25,11 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - kitti_dbinfos_train.pkl
           PREPARE: {
-             filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
+             filter_by_min_points: ['Car:15'],
              filter_by_difficulty: [-1],
           }
 
-          SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15']
+          SAMPLE_GROUPS: ['Car:15']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]

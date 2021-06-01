@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   // Use IntelliSense to learn about possible attributes.
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
@@ -39,19 +38,3 @@
     }
   ]
 }
-=======
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: debug.py",
-            "type": "python",
-            "request": "launch",
-            "program": "debug.py",
-            "console": "integratedTerminal"
-        }
-    ]
-}
->>>>>>> a20816f4497b77bfd3de9ab1cbbff855fdbe5c9b
