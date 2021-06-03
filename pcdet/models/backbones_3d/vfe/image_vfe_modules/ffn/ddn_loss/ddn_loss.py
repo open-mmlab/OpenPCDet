@@ -1,10 +1,13 @@
 import torch
 import torch.nn as nn
-import kornia
 
 from .balancer import Balancer
 from pcdet.utils import transform_utils
 
+try:
+    import kornia
+except:
+    print('Warning: kornia is not installed. This package is only required by CaDDN')
 
 class DDNLoss(nn.Module):
 

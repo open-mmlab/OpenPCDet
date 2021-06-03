@@ -1,6 +1,11 @@
 import math
 import torch
-import kornia
+
+try:
+    import kornia
+except:
+    print('Warning: kornia is not installed. This package is only required by CaDDN')
+
 
 
 def project_to_image(project, points):

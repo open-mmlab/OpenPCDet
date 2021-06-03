@@ -2,9 +2,14 @@ from collections import namedtuple
 
 import numpy as np
 import torch
-import kornia
 
 from .detectors import build_detector
+
+try:
+    import kornia
+except:
+    print('Warning: kornia is not installed. This package is only required by CaDDN')
+
 
 
 def build_network(model_cfg, num_class, dataset):

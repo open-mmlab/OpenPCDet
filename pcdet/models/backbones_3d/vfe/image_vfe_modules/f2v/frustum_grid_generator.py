@@ -1,10 +1,13 @@
 import torch
 import torch.nn as nn
-import kornia
 
 from pcdet.utils import transform_utils
 
-
+try:
+    import kornia
+except:
+    print('Warning: kornia is not installed. This package is only required by CaDDN')
+    
 class FrustumGridGenerator(nn.Module):
 
     def __init__(self, grid_size, pc_range, disc_cfg):

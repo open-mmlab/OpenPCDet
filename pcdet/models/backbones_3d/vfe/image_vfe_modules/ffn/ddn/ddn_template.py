@@ -7,7 +7,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-import kornia
+
+try:
+    import kornia
+except:
+    print('Warning: kornia is not installed. This package is only required by CaDDN')
 
 
 class DDNTemplate(nn.Module):

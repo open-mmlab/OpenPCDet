@@ -6,6 +6,7 @@ from .pv_rcnn import PVRCNN
 from .second_net import SECONDNet
 from .second_net_iou import SECONDNetIoU
 from .caddn import CaDDN
+from .voxel_rcnn import VoxelRCNN
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -15,7 +16,8 @@ __all__ = {
     'PointPillar': PointPillar,
     'PointRCNN': PointRCNN,
     'SECONDNetIoU': SECONDNetIoU,
-    'CaDDN': CaDDN
+    'CaDDN': CaDDN,
+    'VoxelRCNN': VoxelRCNN
 }
 
 
