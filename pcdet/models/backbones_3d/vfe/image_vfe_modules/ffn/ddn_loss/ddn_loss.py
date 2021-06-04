@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import kornia
+from kornia.losses.focal import FocalLoss
 
 from .balancer import Balancer
 from pcdet.utils import transform_utils
@@ -37,7 +37,7 @@ class DDNLoss(nn.Module):
         # Set loss function
         self.alpha = alpha
         self.gamma = gamma
-        self.loss_func = kornia.losses.FocalLoss(alpha=self.alpha, gamma=self.gamma, reduction="none")
+        self.loss_func = FocalLoss(alpha=self.alpha, gamma=self.gamma, reduction="none")
         self.weight = weight
 
     def forward(self, depth_logits, depth_maps, gt_boxes2d):
