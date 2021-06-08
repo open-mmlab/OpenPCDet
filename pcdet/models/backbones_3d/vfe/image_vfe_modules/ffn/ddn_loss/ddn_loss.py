@@ -1,14 +1,17 @@
 import torch
 import torch.nn as nn
 
+
 from .balancer import Balancer
 from pcdet.utils import transform_utils
 
 try:
-    import kornia
+    from kornia.losses.focal import FocalLoss
 except:
-    print('Warning: kornia is not installed. This package is only required by CaDDN')
+    pass 
+    # print('Warning: kornia is not installed. This package is only required by CaDDN')
 
+    
 class DDNLoss(nn.Module):
 
     def __init__(self,
@@ -40,7 +43,7 @@ class DDNLoss(nn.Module):
         # Set loss function
         self.alpha = alpha
         self.gamma = gamma
-        self.loss_func = kornia.losses.FocalLoss(alpha=self.alpha, gamma=self.gamma, reduction="none")
+        self.loss_func = FocalLoss(alpha=self.alpha, gamma=self.gamma, reduction="none")
         self.weight = weight
 
     def forward(self, depth_logits, depth_maps, gt_boxes2d):

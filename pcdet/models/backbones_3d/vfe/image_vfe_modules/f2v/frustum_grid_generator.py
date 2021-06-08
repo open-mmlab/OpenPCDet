@@ -1,13 +1,16 @@
 import torch
 import torch.nn as nn
 
+try:
+    from kornia.utils.grid import create_meshgrid3d
+    from kornia.geometry.linalg import transform_points
+except Exception as e:
+    # Note: Kornia team will fix this import issue to try to allow the usage of lower torch versions.
+    print('Warning: kornia is not installed correctly, please ignore this warning if you do not use CaDDN. Otherwise, it is recommended to use torch version greater than 1.2 to use kornia properly.')
+
 from pcdet.utils import transform_utils
 
-try:
-    import kornia
-except:
-    print('Warning: kornia is not installed. This package is only required by CaDDN')
-    
+
 class FrustumGridGenerator(nn.Module):
 
     def __init__(self, grid_size, pc_range, disc_cfg):
@@ -33,7 +36,7 @@ class FrustumGridGenerator(nn.Module):
 
         # Create voxel grid
         self.depth, self.width, self.height = self.grid_size.int()
-        self.voxel_grid = kornia.utils.create_meshgrid3d(depth=self.depth,
+        self.voxel_grid = create_meshgrid3d(depth=self.depth,
                                                          height=self.height,
                                                          width=self.width,
                                                          normalized_coordinates=False)
@@ -88,7 +91,7 @@ class FrustumGridGenerator(nn.Module):
         voxel_grid = voxel_grid.repeat_interleave(repeats=B, dim=0)
 
         # Transform to camera frame
-        camera_grid = kornia.transform_points(trans_01=trans, points_1=voxel_grid)
+        camera_grid = transform_points(trans_01=trans, points_1=voxel_grid)
 
         # Project to image
         I_C = I_C.reshape(B, 1, 1, 3, 4)
