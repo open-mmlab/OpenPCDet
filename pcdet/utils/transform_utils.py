@@ -1,9 +1,14 @@
 import math
 import torch
-from kornia.geometry.conversions import (
-    convert_points_to_homogeneous,
-    convert_points_from_homogeneous,
-)
+
+try:
+    from kornia.geometry.conversions import (
+        convert_points_to_homogeneous,
+        convert_points_from_homogeneous,
+    )
+except:
+    pass 
+    # print('Warning: kornia is not installed. This package is only required by CaDDN')
 
 
 def project_to_image(project, points):

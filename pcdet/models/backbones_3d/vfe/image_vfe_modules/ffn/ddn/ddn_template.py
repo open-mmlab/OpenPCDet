@@ -7,9 +7,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from kornia.enhance.normalize import normalize
 
+try:
+    from kornia.enhance.normalize import normalize
+except:
+    pass
+    # print('Warning: kornia is not installed. This package is only required by CaDDN')
 
+    
 class DDNTemplate(nn.Module):
 
     def __init__(self, constructor, feat_extract_layer, num_classes, pretrained_path=None, aux_loss=None):

@@ -77,6 +77,7 @@ class Detector3DTemplate(nn.Module):
         )
         model_info_dict['module_list'].append(backbone_3d_module)
         model_info_dict['num_point_features'] = backbone_3d_module.num_point_features
+        model_info_dict['backbone_channels'] = backbone_3d_module.backbone_channels
         return backbone_3d_module, model_info_dict
 
     def build_map_to_bev_module(self, model_info_dict):
@@ -159,6 +160,9 @@ class Detector3DTemplate(nn.Module):
         point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](
             model_cfg=self.model_cfg.ROI_HEAD,
             input_channels=model_info_dict['num_point_features'],
+            backbone_channels=model_info_dict['backbone_channels'],
+            point_cloud_range=model_info_dict['point_cloud_range'],
+            voxel_size=model_info_dict['voxel_size'],
             num_class=self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
         )
 

@@ -2,9 +2,15 @@ from collections import namedtuple
 
 import numpy as np
 import torch
-from kornia.utils.image import image_to_tensor
 
 from .detectors import build_detector
+
+try:
+    import kornia
+except:
+    pass 
+    # print('Warning: kornia is not installed. This package is only required by CaDDN')
+
 
 
 def build_network(model_cfg, num_class, dataset):
