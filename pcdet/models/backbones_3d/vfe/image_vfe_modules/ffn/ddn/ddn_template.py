@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-import kornia
+from kornia.enhance.normalize import normalize
 
 
 class DDNTemplate(nn.Module):
@@ -151,7 +151,7 @@ class DDNTemplate(nn.Module):
             mask = torch.isnan(x)
 
             # Match ResNet pretrained preprocessing
-            x = kornia.normalize(x, mean=self.norm_mean, std=self.norm_std)
+            x = normalize(x, mean=self.norm_mean, std=self.norm_std)
 
             # Make padded pixels = 0
             x[mask] = 0
