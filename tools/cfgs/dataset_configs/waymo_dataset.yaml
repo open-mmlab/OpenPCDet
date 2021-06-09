@@ -1,6 +1,6 @@
 DATASET: 'WaymoDataset'
 DATA_PATH: '../data/waymo'
-PROCESSED_DATA_TAG: 'waymo_processed_data'
+PROCESSED_DATA_TAG: 'waymo_processed_data_v0_3_1'
 
 POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
 
@@ -20,7 +20,7 @@ DATA_AUGMENTOR:
         - NAME: gt_sampling
           USE_ROAD_PLANE: False
           DB_INFO_PATH:
-              - pcdet_waymo_dbinfos_train_sampled_10.pkl
+              - waymo_processed_data_v0_3_1_waymo_dbinfos_train_sampled_1.pkl
           PREPARE: {
              filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5'],
              filter_by_difficulty: [-1],
@@ -62,6 +62,6 @@ DATA_PROCESSOR:
       VOXEL_SIZE: [0.1, 0.1, 0.15]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
-        'train': 80000,
-        'test': 90000
+        'train': 150000,
+        'test': 150000
       }
