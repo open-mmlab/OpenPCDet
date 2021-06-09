@@ -77,7 +77,6 @@ class WaymoDataset(DatasetTemplate):
         return sequence_file
 
     def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True, sampled_interval=1):
-        import concurrent.futures as futures
         from functools import partial
         from . import waymo_utils
         print('---------------The waymo sample interval is %d, total sequecnes is %d-----------------'
@@ -92,10 +91,10 @@ class WaymoDataset(DatasetTemplate):
             for sequence_file in self.sample_sequence_list
         ]
 
-        # process_single_sequence(sample_sequence_file_list[0])
-        with futures.ThreadPoolExecutor(num_workers) as executor:
-            sequence_infos = list(tqdm(executor.map(process_single_sequence, sample_sequence_file_list),
+        with multiprocessing.Pool(num_workers) as p:
+            sequence_infos = list(tqdm(p.imap(process_single_sequence, sample_sequence_file_list),
                                        total=len(sample_sequence_file_list)))
+
         all_sequences_infos = [item for infos in sequence_infos for item in infos]
         return all_sequences_infos
 
@@ -251,8 +250,8 @@ class WaymoDataset(DatasetTemplate):
 
     def create_groundtruth_database(self, info_path, save_path, used_classes=None, split='train', sampled_interval=10,
                                     processed_data_tag=None):
-        database_save_path = save_path / ('pcdet_gt_database_%s_sampled_%d' % (split, sampled_interval))
-        db_info_save_path = save_path / ('pcdet_waymo_dbinfos_%s_sampled_%d.pkl' % (split, sampled_interval))
+        database_save_path = save_path / ('%s_gt_database_%s_sampled_%d' % (processed_data_tag, split, sampled_interval))
+        db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d.pkl' % (processed_data_tag, split, sampled_interval))
 
         database_save_path.mkdir(parents=True, exist_ok=True)
         all_db_infos = {}
@@ -274,7 +273,21 @@ class WaymoDataset(DatasetTemplate):
             difficulty = annos['difficulty']
             gt_boxes = annos['gt_boxes_lidar']
 
+            if k % 4 != 0 and len(names) > 0:
+                mask = (names == 'Vehicle')
+                names = names[~mask]
+                difficulty = difficulty[~mask]
+                gt_boxes = gt_boxes[~mask]
+
+            if k % 2 != 0 and len(names) > 0:
+                mask = (names == 'Pedestrian')
+                names = names[~mask]
+                difficulty = difficulty[~mask]
+                gt_boxes = gt_boxes[~mask]
+
             num_obj = gt_boxes.shape[0]
+            if num_obj == 0:
+                continue
 
             box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                 torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
@@ -308,15 +321,15 @@ class WaymoDataset(DatasetTemplate):
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
-                       workers=multiprocessing.cpu_count()):
+                       workers=min(16, multiprocessing.cpu_count())):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
         training=False, logger=common_utils.create_logger()
     )
     train_split, val_split = 'train', 'val'
 
-    train_filename = save_path / ('waymo_infos_%s.pkl' % train_split)
-    val_filename = save_path / ('waymo_infos_%s.pkl' % val_split)
+    train_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, train_split))
+    val_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, val_split))
 
     print('---------------Start to generate data infos---------------')
 
@@ -343,8 +356,8 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('---------------Start create groundtruth database for data augmentation---------------')
     dataset.set_split(train_split)
     dataset.create_groundtruth_database(
-        info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
-        used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
+        info_path=train_filename, save_path=save_path, split='train', sampled_interval=1,
+        used_classes=['Vehicle', 'Pedestrian', 'Cyclist'], processed_data_tag=processed_data_tag
     )
     print('---------------Data preparation Done---------------')
 
@@ -355,6 +368,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    parser.add_argument('--processed_data_tag', type=str, default='waymo_processed_data_v0_5_0', help='')
     args = parser.parse_args()
 
     if args.func == 'create_waymo_infos':
@@ -362,11 +376,12 @@ if __name__ == '__main__':
         from easydict import EasyDict
         dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
             data_path=ROOT_DIR / 'data' / 'waymo',
             save_path=ROOT_DIR / 'data' / 'waymo',
             raw_data_tag='raw_data',
-            processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG
+            processed_data_tag=args.processed_data_tag
         )
