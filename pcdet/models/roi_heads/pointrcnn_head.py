@@ -8,7 +8,7 @@ from .roi_head_template import RoIHeadTemplate
 
 
 class PointRCNNHead(RoIHeadTemplate):
-    def __init__(self, input_channels, model_cfg, num_class=1):
+    def __init__(self, input_channels, model_cfg, num_class=1, **kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
         use_bn = self.model_cfg.USE_BN
