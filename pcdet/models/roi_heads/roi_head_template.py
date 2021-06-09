@@ -9,7 +9,7 @@ from .target_assigner.proposal_target_layer import ProposalTargetLayer
 
 
 class RoIHeadTemplate(nn.Module):
-    def __init__(self, num_class, model_cfg):
+    def __init__(self, num_class, model_cfg, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
