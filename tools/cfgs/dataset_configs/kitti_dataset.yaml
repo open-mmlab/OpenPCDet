@@ -11,6 +11,7 @@ DATA_SPLIT: {
 INFO_PATH: {
     'train': [kitti_infos_train.pkl],
     'test': [kitti_infos_val.pkl],
+    #'test': [kitti_infos_train.pkl],
 }
 
 FOV_POINTS_ONLY: True
