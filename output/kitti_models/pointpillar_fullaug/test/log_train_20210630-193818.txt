@@ -1,0 +1,653 @@
+2021-06-30 19:38:18,398   INFO  **********************Start logging**********************
+2021-06-30 19:38:18,398   INFO  CUDA_VISIBLE_DEVICES=ALL
+2021-06-30 19:38:18,398   INFO  cfg_file         cfgs/kitti_models/pointpillar_fullaug.yaml
+2021-06-30 19:38:18,398   INFO  batch_size       4
+2021-06-30 19:38:18,398   INFO  epochs           160
+2021-06-30 19:38:18,398   INFO  workers          8
+2021-06-30 19:38:18,398   INFO  extra_tag        test
+2021-06-30 19:38:18,398   INFO  ckpt             None
+2021-06-30 19:38:18,398   INFO  pretrained_model None
+2021-06-30 19:38:18,398   INFO  launcher         none
+2021-06-30 19:38:18,398   INFO  tcp_port         18888
+2021-06-30 19:38:18,398   INFO  sync_bn          False
+2021-06-30 19:38:18,398   INFO  fix_random_seed  False
+2021-06-30 19:38:18,398   INFO  ckpt_save_interval 1
+2021-06-30 19:38:18,398   INFO  local_rank       0
+2021-06-30 19:38:18,399   INFO  max_ckpt_save_num 30
+2021-06-30 19:38:18,399   INFO  merge_all_iters_to_one_epoch False
+2021-06-30 19:38:18,399   INFO  set_cfgs         None
+2021-06-30 19:38:18,399   INFO  max_waiting_mins 0
+2021-06-30 19:38:18,399   INFO  start_epoch      0
+2021-06-30 19:38:18,399   INFO  save_to_file     False
+2021-06-30 19:38:18,399   INFO  cfg.ROOT_DIR: /home/xavier/OpenPCDet
+2021-06-30 19:38:18,399   INFO  cfg.LOCAL_RANK: 0
+2021-06-30 19:38:18,399   INFO  cfg.CLASS_NAMES: ['Car']
+2021-06-30 19:38:18,399   INFO  
+cfg.DATA_CONFIG = edict()
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATASET: KittiDataset
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_PATH: ../data/kitti
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
+2021-06-30 19:38:18,399   INFO  
+cfg.DATA_CONFIG.DATA_SPLIT = edict()
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_SPLIT.train: train
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_SPLIT.test: val
+2021-06-30 19:38:18,399   INFO  
+cfg.DATA_CONFIG.INFO_PATH = edict()
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.INFO_PATH.train: ['kitti_infos_train.pkl']
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.INFO_PATH.test: ['kitti_infos_val.pkl']
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.FOV_POINTS_ONLY: True
+2021-06-30 19:38:18,399   INFO  
+cfg.DATA_CONFIG.DATA_AUGMENTOR = edict()
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_AUGMENTOR.EXTEND_FACTOR: 0
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_AUGMENTOR.DISABLE_AUG_LIST: ['random_world_frustum_dropout, random_local_frustum_dropout']
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.DATA_AUGMENTOR.AUG_CONFIG_LIST: [{'NAME': 'gt_sampling', 'USE_ROAD_PLANE': False, 'DB_INFO_PATH': ['kitti_dbinfos_train.pkl'], 'PREPARE': {'filter_by_min_points': ['Car:5'], 'filter_by_difficulty': [-1]}, 'SAMPLE_GROUPS': ['Car:15'], 'NUM_POINT_FEATURES': 4, 'DATABASE_WITH_FAKELIDAR': False, 'REMOVE_EXTRA_WIDTH': [0.0, 0.0, 0.0], 'LIMIT_WHOLE_SCENE': False}, {'NAME': 'random_local_rotation', 'LOCAL_ROT_ANGLE': [-0.78539816, 0.78539816]}, {'NAME': 'random_local_scaling', 'LOCAL_SCALE_RANGE': [0.95, 1.05]}, {'NAME': 'random_world_flip', 'ALONG_AXIS_LIST': ['x']}, {'NAME': 'random_world_rotation', 'WORLD_ROT_ANGLE': [-0.78539816, 0.78539816]}, {'NAME': 'random_world_scaling', 'WORLD_SCALE_RANGE': [0.95, 1.05]}, {'NAME': 'random_world_translation', 'WORLD_TRANSLATION_RANGE': [-1.05, 1.05], 'ALONG_AXIS_LIST': ['y']}, {'NAME': 'random_local_translation', 'LOCAL_TRANSLATION_RANGE': [-1.05, 1.05], 'ALONG_AXIS_LIST': ['y']}, {'NAME': 'random_world_frustum_dropout', 'INTENSITY_RANGE': [0, 0.2], 'DIRECTION': ['top']}, {'NAME': 'random_local_frustum_dropout', 'INTENSITY_RANGE': [0, 0.2], 'DIRECTION': ['top']}]
+2021-06-30 19:38:18,399   INFO  
+cfg.DATA_CONFIG.POINT_FEATURE_ENCODING = edict()
+2021-06-30 19:38:18,399   INFO  cfg.DATA_CONFIG.POINT_FEATURE_ENCODING.encoding_type: absolute_coordinates_encoding
+2021-06-30 19:38:18,400   INFO  cfg.DATA_CONFIG.POINT_FEATURE_ENCODING.used_feature_list: ['x', 'y', 'z', 'intensity']
+2021-06-30 19:38:18,400   INFO  cfg.DATA_CONFIG.POINT_FEATURE_ENCODING.src_feature_list: ['x', 'y', 'z', 'intensity']
+2021-06-30 19:38:18,400   INFO  cfg.DATA_CONFIG.DATA_PROCESSOR: [{'NAME': 'mask_points_and_boxes_outside_range', 'REMOVE_OUTSIDE_BOXES': True}, {'NAME': 'shuffle_points', 'SHUFFLE_ENABLED': {'train': True, 'test': False}}, {'NAME': 'transform_points_to_voxels', 'VOXEL_SIZE': [0.16, 0.16, 4], 'MAX_POINTS_PER_VOXEL': 32, 'MAX_NUMBER_OF_VOXELS': {'train': 16000, 'test': 40000}}]
+2021-06-30 19:38:18,400   INFO  cfg.DATA_CONFIG._BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.NAME: PointPillar
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL.VFE = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.VFE.NAME: PillarVFE
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.VFE.WITH_DISTANCE: False
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.VFE.USE_ABSLOTE_XYZ: True
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.VFE.USE_NORM: True
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.VFE.NUM_FILTERS: [64]
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL.MAP_TO_BEV = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.MAP_TO_BEV.NAME: PointPillarScatter
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.MAP_TO_BEV.NUM_BEV_FEATURES: 64
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL.BACKBONE_2D = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.NAME: BaseBEVBackbone
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.LAYER_NUMS: [3, 5, 5]
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.LAYER_STRIDES: [2, 2, 2]
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.NUM_FILTERS: [64, 128, 256]
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.UPSAMPLE_STRIDES: [1, 2, 4]
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.BACKBONE_2D.NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL.DENSE_HEAD = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.NAME: AnchorHeadSingle
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.CLASS_AGNOSTIC: False
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.USE_DIRECTION_CLASSIFIER: True
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.DIR_OFFSET: 0.78539
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.DIR_LIMIT_OFFSET: 0.0
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.NUM_DIR_BINS: 2
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.ANCHOR_GENERATOR_CONFIG: [{'class_name': 'Car', 'anchor_sizes': [[3.9, 1.6, 1.56]], 'anchor_rotations': [0, 1.57], 'anchor_bottom_heights': [-1.78], 'align_center': False, 'feature_map_stride': 2, 'matched_threshold': 0.6, 'unmatched_threshold': 0.45}]
+2021-06-30 19:38:18,400   INFO  
+cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG = edict()
+2021-06-30 19:38:18,400   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.NAME: AxisAlignedTargetAssigner
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.POS_FRACTION: -1.0
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.SAMPLE_SIZE: 512
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.NORM_BY_NUM_EXAMPLES: False
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.MATCH_HEIGHT: False
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.TARGET_ASSIGNER_CONFIG.BOX_CODER: ResidualCoder
+2021-06-30 19:38:18,401   INFO  
+cfg.MODEL.DENSE_HEAD.LOSS_CONFIG = edict()
+2021-06-30 19:38:18,401   INFO  
+cfg.MODEL.DENSE_HEAD.LOSS_CONFIG.LOSS_WEIGHTS = edict()
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.LOSS_CONFIG.LOSS_WEIGHTS.cls_weight: 1.0
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.LOSS_CONFIG.LOSS_WEIGHTS.loc_weight: 2.0
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.LOSS_CONFIG.LOSS_WEIGHTS.dir_weight: 0.2
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.DENSE_HEAD.LOSS_CONFIG.LOSS_WEIGHTS.code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+2021-06-30 19:38:18,401   INFO  
+cfg.MODEL.POST_PROCESSING = edict()
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.SCORE_THRESH: 0.1
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.OUTPUT_RAW_SCORE: False
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.EVAL_METRIC: kitti
+2021-06-30 19:38:18,401   INFO  
+cfg.MODEL.POST_PROCESSING.NMS_CONFIG = edict()
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.NMS_CONFIG.MULTI_CLASSES_NMS: False
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.NMS_CONFIG.NMS_TYPE: nms_gpu
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.NMS_CONFIG.NMS_THRESH: 0.01
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.NMS_CONFIG.NMS_PRE_MAXSIZE: 4096
+2021-06-30 19:38:18,401   INFO  cfg.MODEL.POST_PROCESSING.NMS_CONFIG.NMS_POST_MAXSIZE: 500
+2021-06-30 19:38:18,401   INFO  
+cfg.OPTIMIZATION = edict()
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.BATCH_SIZE_PER_GPU: 4
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.NUM_EPOCHS: 160
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.OPTIMIZER: adam_onecycle
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.LR: 0.003
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.WEIGHT_DECAY: 0.01
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.MOMENTUM: 0.9
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.MOMS: [0.95, 0.85]
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.PCT_START: 0.4
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.DIV_FACTOR: 10
+2021-06-30 19:38:18,401   INFO  cfg.OPTIMIZATION.DECAY_STEP_LIST: [35, 45]
+2021-06-30 19:38:18,402   INFO  cfg.OPTIMIZATION.LR_DECAY: 0.1
+2021-06-30 19:38:18,402   INFO  cfg.OPTIMIZATION.LR_CLIP: 1e-07
+2021-06-30 19:38:18,402   INFO  cfg.OPTIMIZATION.LR_WARMUP: False
+2021-06-30 19:38:18,402   INFO  cfg.OPTIMIZATION.WARMUP_EPOCH: 1
+2021-06-30 19:38:18,402   INFO  cfg.OPTIMIZATION.GRAD_NORM_CLIP: 10
+2021-06-30 19:38:18,402   INFO  cfg.TAG: pointpillar_fullaug
+2021-06-30 19:38:18,402   INFO  cfg.EXP_GROUP_PATH: kitti_models
+2021-06-30 19:38:18,470   INFO  Database filter by min points Car: 14357 => 13532
+2021-06-30 19:38:18,481   INFO  Database filter by difficulty Car: 13532 => 10759
+2021-06-30 19:38:18,485   INFO  Loading KITTI dataset
+2021-06-30 19:38:18,540   INFO  Total samples for KITTI dataset: 3712
+2021-06-30 19:38:21,684   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_137.pth to CPU
+2021-06-30 19:38:21,708   INFO  ==> Loading optimizer parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_137.pth to CPU
+2021-06-30 19:38:21,727   INFO  ==> Done
+2021-06-30 19:38:21,729   INFO  PointPillar(
+  (vfe): PillarVFE(
+    (pfn_layers): ModuleList(
+      (0): PFNLayer(
+        (linear): Linear(in_features=10, out_features=64, bias=False)
+        (norm): BatchNorm1d(64, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+      )
+    )
+  )
+  (backbone_3d): None
+  (map_to_bev_module): PointPillarScatter()
+  (pfe): None
+  (backbone_2d): BaseBEVBackbone(
+    (blocks): ModuleList(
+      (0): Sequential(
+        (0): ZeroPad2d(padding=(1, 1, 1, 1), value=0.0)
+        (1): Conv2d(64, 64, kernel_size=(3, 3), stride=(2, 2), bias=False)
+        (2): BatchNorm2d(64, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (3): ReLU()
+        (4): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (5): BatchNorm2d(64, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (6): ReLU()
+        (7): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (8): BatchNorm2d(64, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (9): ReLU()
+        (10): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (11): BatchNorm2d(64, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (12): ReLU()
+      )
+      (1): Sequential(
+        (0): ZeroPad2d(padding=(1, 1, 1, 1), value=0.0)
+        (1): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), bias=False)
+        (2): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (3): ReLU()
+        (4): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (5): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (6): ReLU()
+        (7): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (8): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (9): ReLU()
+        (10): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (11): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (12): ReLU()
+        (13): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (14): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (15): ReLU()
+        (16): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (17): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (18): ReLU()
+      )
+      (2): Sequential(
+        (0): ZeroPad2d(padding=(1, 1, 1, 1), value=0.0)
+        (1): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), bias=False)
+        (2): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (3): ReLU()
+        (4): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (5): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (6): ReLU()
+        (7): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (8): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (9): ReLU()
+        (10): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (11): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (12): ReLU()
+        (13): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (14): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (15): ReLU()
+        (16): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+        (17): BatchNorm2d(256, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (18): ReLU()
+      )
+    )
+    (deblocks): ModuleList(
+      (0): Sequential(
+        (0): ConvTranspose2d(64, 128, kernel_size=(1, 1), stride=(1, 1), bias=False)
+        (1): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (2): ReLU()
+      )
+      (1): Sequential(
+        (0): ConvTranspose2d(128, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+        (1): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (2): ReLU()
+      )
+      (2): Sequential(
+        (0): ConvTranspose2d(256, 128, kernel_size=(4, 4), stride=(4, 4), bias=False)
+        (1): BatchNorm2d(128, eps=0.001, momentum=0.01, affine=True, track_running_stats=True)
+        (2): ReLU()
+      )
+    )
+  )
+  (dense_head): AnchorHeadSingle(
+    (cls_loss_func): SigmoidFocalClassificationLoss()
+    (reg_loss_func): WeightedSmoothL1Loss()
+    (dir_loss_func): WeightedCrossEntropyLoss()
+    (conv_cls): Conv2d(384, 2, kernel_size=(1, 1), stride=(1, 1))
+    (conv_box): Conv2d(384, 14, kernel_size=(1, 1), stride=(1, 1))
+    (conv_dir_cls): Conv2d(384, 4, kernel_size=(1, 1), stride=(1, 1))
+  )
+  (point_head): None
+  (roi_head): None
+)
+2021-06-30 19:38:21,730   INFO  **********************Start training kitti_models/pointpillar_fullaug(test)**********************
+2021-06-30 20:36:22,028   INFO  **********************End training kitti_models/pointpillar_fullaug(test)**********************
+
+
+
+2021-06-30 20:36:22,028   INFO  **********************Start evaluation kitti_models/pointpillar_fullaug(test)**********************
+2021-06-30 20:36:22,029   INFO  Loading KITTI dataset
+2021-06-30 20:36:22,090   INFO  Total samples for KITTI dataset: 3769
+2021-06-30 20:36:22,091   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_150.pth to GPU
+2021-06-30 20:36:22,118   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:36:22,169   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:36:22,170   INFO  *************** EPOCH 150 EVALUATION *****************
+2021-06-30 20:37:46,821   INFO  *************** Performance of EPOCH 150 *****************
+2021-06-30 20:37:46,821   INFO  Generate label finished(sec_per_example: 0.0225 second).
+2021-06-30 20:37:46,821   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:37:46,821   INFO  recall_rcnn_0.3: 0.809233
+2021-06-30 20:37:46,821   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:37:46,821   INFO  recall_rcnn_0.5: 0.785675
+2021-06-30 20:37:46,821   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:37:46,821   INFO  recall_rcnn_0.7: 0.569857
+2021-06-30 20:37:46,823   INFO  Average predicted number of objects(3769 samples): 3.904
+2021-06-30 20:38:00,668   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.8262, 77.3391, 76.8938
+bev  AP:85.7084, 77.0995, 76.6578
+3d   AP:66.9142, 59.7467, 54.9353
+aos  AP:85.34, 76.12, 74.88
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.7585, 79.5399, 75.5959
+bev  AP:86.8527, 79.2496, 75.3105
+3d   AP:66.0186, 57.3979, 54.5010
+aos  AP:88.21, 78.16, 73.60
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.8262, 77.3391, 76.8938
+bev  AP:88.3304, 87.2130, 79.7594
+3d   AP:88.1824, 86.6796, 79.3833
+aos  AP:85.34, 76.12, 74.88
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.7585, 79.5399, 75.5959
+bev  AP:91.6267, 86.8021, 84.6144
+3d   AP:91.4303, 86.2034, 81.9963
+aos  AP:88.21, 78.16, 73.60
+
+2021-06-30 20:38:00,672   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_150/val
+2021-06-30 20:38:00,672   INFO  ****************Evaluation done.*****************
+2021-06-30 20:38:00,681   INFO  Epoch 150 has been evaluated
+2021-06-30 20:38:00,682   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_151.pth to GPU
+2021-06-30 20:38:00,710   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:38:00,761   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:38:00,762   INFO  *************** EPOCH 151 EVALUATION *****************
+2021-06-30 20:39:22,432   INFO  *************** Performance of EPOCH 151 *****************
+2021-06-30 20:39:22,432   INFO  Generate label finished(sec_per_example: 0.0217 second).
+2021-06-30 20:39:22,432   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:39:22,432   INFO  recall_rcnn_0.3: 0.807807
+2021-06-30 20:39:22,432   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:39:22,432   INFO  recall_rcnn_0.5: 0.784725
+2021-06-30 20:39:22,432   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:39:22,432   INFO  recall_rcnn_0.7: 0.566599
+2021-06-30 20:39:22,434   INFO  Average predicted number of objects(3769 samples): 3.894
+2021-06-30 20:39:25,834   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.8178, 77.2966, 76.9185
+bev  AP:85.5310, 77.0418, 76.6241
+3d   AP:66.6250, 59.5534, 54.8174
+aos  AP:85.35, 76.13, 74.92
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.6758, 79.4956, 75.5745
+bev  AP:86.6761, 79.1832, 75.2597
+3d   AP:65.6439, 57.1673, 54.3379
+aos  AP:88.15, 78.15, 73.61
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.8178, 77.2966, 76.9185
+bev  AP:88.2821, 87.1916, 79.7330
+3d   AP:88.1112, 86.6832, 79.3814
+aos  AP:85.35, 76.13, 74.92
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.6758, 79.4956, 75.5745
+bev  AP:91.5659, 86.7710, 84.5892
+3d   AP:91.3525, 86.1843, 81.9925
+aos  AP:88.15, 78.15, 73.61
+
+2021-06-30 20:39:25,834   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_151/val
+2021-06-30 20:39:25,834   INFO  ****************Evaluation done.*****************
+2021-06-30 20:39:25,847   INFO  Epoch 151 has been evaluated
+2021-06-30 20:39:25,848   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_152.pth to GPU
+2021-06-30 20:39:25,876   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:39:25,929   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:39:25,930   INFO  *************** EPOCH 152 EVALUATION *****************
+2021-06-30 20:40:47,853   INFO  *************** Performance of EPOCH 152 *****************
+2021-06-30 20:40:47,853   INFO  Generate label finished(sec_per_example: 0.0217 second).
+2021-06-30 20:40:47,853   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:40:47,853   INFO  recall_rcnn_0.3: 0.808215
+2021-06-30 20:40:47,853   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:40:47,853   INFO  recall_rcnn_0.5: 0.785268
+2021-06-30 20:40:47,853   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:40:47,853   INFO  recall_rcnn_0.7: 0.568839
+2021-06-30 20:40:47,855   INFO  Average predicted number of objects(3769 samples): 3.890
+2021-06-30 20:40:51,172   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.7713, 77.3411, 76.9404
+bev  AP:85.5685, 77.0815, 76.6264
+3d   AP:66.4718, 59.4953, 54.7294
+aos  AP:85.21, 76.15, 74.93
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.6679, 79.5334, 75.6068
+bev  AP:86.7066, 79.2195, 75.3001
+3d   AP:66.6747, 57.1105, 54.2587
+aos  AP:88.04, 78.19, 73.63
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.7713, 77.3411, 76.9404
+bev  AP:88.2210, 87.2053, 79.7429
+3d   AP:88.0376, 86.6667, 79.3577
+aos  AP:85.21, 76.15, 74.93
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.6679, 79.5334, 75.6068
+bev  AP:91.5317, 86.7781, 84.5944
+3d   AP:91.2642, 86.1462, 81.9584
+aos  AP:88.04, 78.19, 73.63
+
+2021-06-30 20:40:51,173   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_152/val
+2021-06-30 20:40:51,173   INFO  ****************Evaluation done.*****************
+2021-06-30 20:40:51,182   INFO  Epoch 152 has been evaluated
+2021-06-30 20:40:51,183   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_153.pth to GPU
+2021-06-30 20:40:51,212   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:40:51,265   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:40:51,266   INFO  *************** EPOCH 153 EVALUATION *****************
+2021-06-30 20:42:12,489   INFO  *************** Performance of EPOCH 153 *****************
+2021-06-30 20:42:12,489   INFO  Generate label finished(sec_per_example: 0.0216 second).
+2021-06-30 20:42:12,489   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:42:12,489   INFO  recall_rcnn_0.3: 0.808079
+2021-06-30 20:42:12,489   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:42:12,489   INFO  recall_rcnn_0.5: 0.785268
+2021-06-30 20:42:12,489   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:42:12,489   INFO  recall_rcnn_0.7: 0.568568
+2021-06-30 20:42:12,491   INFO  Average predicted number of objects(3769 samples): 3.892
+2021-06-30 20:42:15,895   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6675, 77.2820, 76.9222
+bev  AP:85.4471, 77.0491, 76.6525
+3d   AP:66.3141, 59.5016, 54.7430
+aos  AP:85.06, 76.04, 74.86
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5557, 79.4708, 75.5678
+bev  AP:86.5758, 79.1701, 75.2832
+3d   AP:66.5119, 57.1532, 54.2855
+aos  AP:87.89, 78.06, 73.53
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6675, 77.2820, 76.9222
+bev  AP:88.1784, 87.1744, 79.7363
+3d   AP:88.0172, 86.6733, 79.3921
+aos  AP:85.06, 76.04, 74.86
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5557, 79.4708, 75.5678
+bev  AP:91.4873, 86.7422, 84.5739
+3d   AP:91.2386, 86.1515, 81.9795
+aos  AP:87.89, 78.06, 73.53
+
+2021-06-30 20:42:15,896   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_153/val
+2021-06-30 20:42:15,896   INFO  ****************Evaluation done.*****************
+2021-06-30 20:42:15,907   INFO  Epoch 153 has been evaluated
+2021-06-30 20:42:15,908   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_154.pth to GPU
+2021-06-30 20:42:15,937   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:42:15,990   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:42:15,991   INFO  *************** EPOCH 154 EVALUATION *****************
+2021-06-30 20:43:37,610   INFO  *************** Performance of EPOCH 154 *****************
+2021-06-30 20:43:37,610   INFO  Generate label finished(sec_per_example: 0.0217 second).
+2021-06-30 20:43:37,610   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:43:37,610   INFO  recall_rcnn_0.3: 0.808350
+2021-06-30 20:43:37,610   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:43:37,610   INFO  recall_rcnn_0.5: 0.785336
+2021-06-30 20:43:37,610   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:43:37,610   INFO  recall_rcnn_0.7: 0.568296
+2021-06-30 20:43:37,612   INFO  Average predicted number of objects(3769 samples): 3.897
+2021-06-30 20:43:40,913   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6044, 77.2514, 76.8629
+bev  AP:85.5702, 77.0702, 76.6469
+3d   AP:66.4171, 59.4599, 54.7204
+aos  AP:85.08, 76.03, 74.83
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5103, 79.4338, 75.5081
+bev  AP:86.6833, 79.2007, 75.2743
+3d   AP:65.4020, 57.0724, 54.2782
+aos  AP:87.90, 78.05, 73.51
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6044, 77.2514, 76.8629
+bev  AP:88.2413, 87.1903, 79.7345
+3d   AP:88.0741, 86.6680, 79.3662
+aos  AP:85.08, 76.03, 74.83
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5103, 79.4338, 75.5081
+bev  AP:91.5427, 86.7689, 84.5733
+3d   AP:91.3245, 86.1558, 81.9630
+aos  AP:87.90, 78.05, 73.51
+
+2021-06-30 20:43:40,913   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_154/val
+2021-06-30 20:43:40,913   INFO  ****************Evaluation done.*****************
+2021-06-30 20:43:40,923   INFO  Epoch 154 has been evaluated
+2021-06-30 20:43:40,924   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_155.pth to GPU
+2021-06-30 20:43:40,952   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:43:41,005   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:43:41,006   INFO  *************** EPOCH 155 EVALUATION *****************
+2021-06-30 20:45:02,504   INFO  *************** Performance of EPOCH 155 *****************
+2021-06-30 20:45:02,504   INFO  Generate label finished(sec_per_example: 0.0216 second).
+2021-06-30 20:45:02,504   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:45:02,504   INFO  recall_rcnn_0.3: 0.809029
+2021-06-30 20:45:02,504   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:45:02,504   INFO  recall_rcnn_0.5: 0.785472
+2021-06-30 20:45:02,504   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:45:02,504   INFO  recall_rcnn_0.7: 0.570265
+2021-06-30 20:45:02,506   INFO  Average predicted number of objects(3769 samples): 3.899
+2021-06-30 20:45:05,916   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6607, 77.3116, 76.9048
+bev  AP:85.4456, 77.0285, 76.5868
+3d   AP:66.4848, 59.6155, 54.8168
+aos  AP:85.15, 76.09, 74.85
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5888, 79.5017, 75.5713
+bev  AP:86.5619, 79.1373, 75.2246
+3d   AP:66.7153, 57.2099, 54.3624
+aos  AP:88.00, 78.11, 73.55
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6607, 77.3116, 76.9048
+bev  AP:88.2222, 87.1856, 79.7531
+3d   AP:88.0581, 86.6663, 79.3899
+aos  AP:85.15, 76.09, 74.85
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5888, 79.5017, 75.5713
+bev  AP:91.5443, 86.7551, 84.5804
+3d   AP:91.3286, 86.1653, 81.9765
+aos  AP:88.00, 78.11, 73.55
+
+2021-06-30 20:45:05,917   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_155/val
+2021-06-30 20:45:05,917   INFO  ****************Evaluation done.*****************
+2021-06-30 20:45:05,927   INFO  Epoch 155 has been evaluated
+2021-06-30 20:45:05,927   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_156.pth to GPU
+2021-06-30 20:45:05,956   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:45:06,012   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:45:06,013   INFO  *************** EPOCH 156 EVALUATION *****************
+2021-06-30 20:46:27,237   INFO  *************** Performance of EPOCH 156 *****************
+2021-06-30 20:46:27,237   INFO  Generate label finished(sec_per_example: 0.0216 second).
+2021-06-30 20:46:27,237   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:46:27,237   INFO  recall_rcnn_0.3: 0.809233
+2021-06-30 20:46:27,237   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:46:27,238   INFO  recall_rcnn_0.5: 0.786151
+2021-06-30 20:46:27,238   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:46:27,238   INFO  recall_rcnn_0.7: 0.568500
+2021-06-30 20:46:27,239   INFO  Average predicted number of objects(3769 samples): 3.902
+2021-06-30 20:46:30,574   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6390, 77.2810, 76.8824
+bev  AP:85.4270, 77.0366, 76.6105
+3d   AP:66.6097, 59.5369, 54.7840
+aos  AP:85.10, 76.05, 74.85
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5482, 79.4619, 75.5294
+bev  AP:86.5602, 79.1344, 75.2337
+3d   AP:65.5938, 57.1667, 54.3395
+aos  AP:87.92, 78.08, 73.53
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6390, 77.2810, 76.8824
+bev  AP:88.2155, 87.2101, 79.7366
+3d   AP:88.0569, 86.7010, 79.3773
+aos  AP:85.10, 76.05, 74.85
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5482, 79.4619, 75.5294
+bev  AP:91.5404, 86.7707, 84.5847
+3d   AP:91.3499, 86.1805, 81.9781
+aos  AP:87.92, 78.08, 73.53
+
+2021-06-30 20:46:30,574   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_156/val
+2021-06-30 20:46:30,574   INFO  ****************Evaluation done.*****************
+2021-06-30 20:46:30,584   INFO  Epoch 156 has been evaluated
+2021-06-30 20:46:30,585   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_157.pth to GPU
+2021-06-30 20:46:30,614   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:46:30,667   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:46:30,668   INFO  *************** EPOCH 157 EVALUATION *****************
+2021-06-30 20:47:51,897   INFO  *************** Performance of EPOCH 157 *****************
+2021-06-30 20:47:51,897   INFO  Generate label finished(sec_per_example: 0.0216 second).
+2021-06-30 20:47:51,897   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:47:51,897   INFO  recall_rcnn_0.3: 0.808554
+2021-06-30 20:47:51,897   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:47:51,897   INFO  recall_rcnn_0.5: 0.785404
+2021-06-30 20:47:51,897   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:47:51,897   INFO  recall_rcnn_0.7: 0.567821
+2021-06-30 20:47:51,899   INFO  Average predicted number of objects(3769 samples): 3.900
+2021-06-30 20:47:55,229   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6226, 77.2782, 76.8749
+bev  AP:85.4008, 76.9947, 76.5872
+3d   AP:66.3459, 59.5029, 54.6870
+aos  AP:85.09, 76.04, 74.83
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5839, 79.4568, 75.5394
+bev  AP:86.5271, 79.1070, 75.2029
+3d   AP:66.5742, 57.0670, 54.2364
+aos  AP:87.96, 78.06, 73.53
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6226, 77.2782, 76.8749
+bev  AP:88.1941, 87.1778, 79.7339
+3d   AP:88.0298, 86.6811, 79.3827
+aos  AP:85.09, 76.04, 74.83
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5839, 79.4568, 75.5394
+bev  AP:91.5001, 86.7430, 84.5679
+3d   AP:91.3035, 86.1646, 81.9712
+aos  AP:87.96, 78.06, 73.53
+
+2021-06-30 20:47:55,230   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_157/val
+2021-06-30 20:47:55,230   INFO  ****************Evaluation done.*****************
+2021-06-30 20:47:55,241   INFO  Epoch 157 has been evaluated
+2021-06-30 20:47:55,241   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_158.pth to GPU
+2021-06-30 20:47:55,270   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:47:55,322   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:47:55,323   INFO  *************** EPOCH 158 EVALUATION *****************
+2021-06-30 20:49:16,473   INFO  *************** Performance of EPOCH 158 *****************
+2021-06-30 20:49:16,473   INFO  Generate label finished(sec_per_example: 0.0215 second).
+2021-06-30 20:49:16,473   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:49:16,473   INFO  recall_rcnn_0.3: 0.809029
+2021-06-30 20:49:16,473   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:49:16,473   INFO  recall_rcnn_0.5: 0.786015
+2021-06-30 20:49:16,473   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:49:16,473   INFO  recall_rcnn_0.7: 0.568160
+2021-06-30 20:49:16,475   INFO  Average predicted number of objects(3769 samples): 3.904
+2021-06-30 20:49:19,804   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.6073, 77.2879, 76.8828
+bev  AP:85.4381, 77.0202, 76.5813
+3d   AP:66.2759, 59.4336, 54.6674
+aos  AP:85.05, 76.06, 74.83
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5404, 79.4572, 75.5284
+bev  AP:86.5532, 79.1168, 75.2069
+3d   AP:65.2532, 57.0290, 54.2266
+aos  AP:87.90, 78.06, 73.51
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.6073, 77.2879, 76.8828
+bev  AP:88.2283, 87.1945, 79.7347
+3d   AP:88.0667, 86.6771, 79.3699
+aos  AP:85.05, 76.06, 74.83
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5404, 79.4572, 75.5284
+bev  AP:91.5307, 86.7535, 84.5809
+3d   AP:91.3333, 86.1634, 81.9679
+aos  AP:87.90, 78.06, 73.51
+
+2021-06-30 20:49:19,805   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_158/val
+2021-06-30 20:49:19,805   INFO  ****************Evaluation done.*****************
+2021-06-30 20:49:19,815   INFO  Epoch 158 has been evaluated
+2021-06-30 20:49:19,816   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_159.pth to GPU
+2021-06-30 20:49:19,845   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:49:19,898   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:49:19,899   INFO  *************** EPOCH 159 EVALUATION *****************
+2021-06-30 20:50:41,924   INFO  *************** Performance of EPOCH 159 *****************
+2021-06-30 20:50:41,924   INFO  Generate label finished(sec_per_example: 0.0218 second).
+2021-06-30 20:50:41,924   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:50:41,926   INFO  recall_rcnn_0.3: 0.808758
+2021-06-30 20:50:41,926   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:50:41,926   INFO  recall_rcnn_0.5: 0.785811
+2021-06-30 20:50:41,926   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:50:41,926   INFO  recall_rcnn_0.7: 0.569043
+2021-06-30 20:50:41,928   INFO  Average predicted number of objects(3769 samples): 3.901
+2021-06-30 20:50:45,337   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.5982, 77.2741, 76.8625
+bev  AP:85.3951, 77.0173, 76.5922
+3d   AP:66.4527, 59.5004, 54.7080
+aos  AP:85.01, 76.03, 74.81
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5403, 79.4536, 75.5244
+bev  AP:86.5161, 79.1137, 75.2110
+3d   AP:66.6673, 57.0894, 54.2590
+aos  AP:87.89, 78.05, 73.50
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.5982, 77.2741, 76.8625
+bev  AP:88.1900, 87.1890, 79.7318
+3d   AP:88.0288, 86.6854, 79.3809
+aos  AP:85.01, 76.03, 74.81
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5403, 79.4536, 75.5244
+bev  AP:91.4928, 86.7593, 84.5725
+3d   AP:91.2984, 86.1725, 81.9771
+aos  AP:87.89, 78.05, 73.50
+
+2021-06-30 20:50:45,337   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_159/val
+2021-06-30 20:50:45,337   INFO  ****************Evaluation done.*****************
+2021-06-30 20:50:45,348   INFO  Epoch 159 has been evaluated
+2021-06-30 20:50:45,348   INFO  ==> Loading parameters from checkpoint /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/ckpt/checkpoint_epoch_160.pth to GPU
+2021-06-30 20:50:45,377   INFO  ==> Checkpoint trained from version: pcdet+0.3.0+57d5b37
+2021-06-30 20:50:45,432   INFO  ==> Done (loaded 127/127)
+2021-06-30 20:50:45,433   INFO  *************** EPOCH 160 EVALUATION *****************
+2021-06-30 20:52:06,105   INFO  *************** Performance of EPOCH 160 *****************
+2021-06-30 20:52:06,105   INFO  Generate label finished(sec_per_example: 0.0214 second).
+2021-06-30 20:52:06,105   INFO  recall_roi_0.3: 0.000000
+2021-06-30 20:52:06,106   INFO  recall_rcnn_0.3: 0.809029
+2021-06-30 20:52:06,106   INFO  recall_roi_0.5: 0.000000
+2021-06-30 20:52:06,106   INFO  recall_rcnn_0.5: 0.786219
+2021-06-30 20:52:06,106   INFO  recall_roi_0.7: 0.000000
+2021-06-30 20:52:06,106   INFO  recall_rcnn_0.7: 0.568635
+2021-06-30 20:52:06,107   INFO  Average predicted number of objects(3769 samples): 3.903
+2021-06-30 20:52:09,460   INFO  Car AP@0.70, 0.70, 0.70:
+bbox AP:85.5956, 77.2809, 76.8770
+bev  AP:85.4387, 77.0373, 76.6085
+3d   AP:66.3737, 59.4910, 54.7368
+aos  AP:85.06, 76.05, 74.83
+Car AP_R40@0.70, 0.70, 0.70:
+bbox AP:88.5757, 79.4563, 75.5346
+bev  AP:86.5688, 79.1369, 75.2306
+3d   AP:66.5804, 57.1114, 54.2973
+aos  AP:87.94, 78.06, 73.52
+Car AP@0.70, 0.50, 0.50:
+bbox AP:85.5956, 77.2809, 76.8770
+bev  AP:88.2174, 87.1875, 79.7296
+3d   AP:88.0559, 86.6796, 79.3697
+aos  AP:85.06, 76.05, 74.83
+Car AP_R40@0.70, 0.50, 0.50:
+bbox AP:88.5757, 79.4563, 75.5346
+bev  AP:91.5258, 86.7538, 84.5752
+3d   AP:91.3168, 86.1715, 81.9722
+aos  AP:87.94, 78.06, 73.52
+
+2021-06-30 20:52:09,460   INFO  Result is save to /home/xavier/OpenPCDet/output/kitti_models/pointpillar_fullaug/test/eval/eval_with_train/epoch_160/val
+2021-06-30 20:52:09,460   INFO  ****************Evaluation done.*****************
+2021-06-30 20:52:09,471   INFO  Epoch 160 has been evaluated
+2021-06-30 20:52:39,501   INFO  **********************End evaluation kitti_models/pointpillar_fullaug(test)**********************
