@@ -27,8 +27,9 @@ def main():
         except IsADirectoryError:
             pass
 
-    with open(filepath + '/eval.csv', 'w') as csv:
-        csv.write(csv_line)
+    if csv_line != "":
+        with open(filepath + '/eval.csv', 'w') as csv:
+            csv.write(csv_line)
 
 if __name__ == '__main__':
     main()
