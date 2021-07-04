@@ -1,0 +1,131 @@
+CLASS_NAMES: ['Car', 'Bus', 'Truck', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/once_dataset.yaml
+
+MODEL:
+    NAME: CenterPoints
+
+    VFE:
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelResBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: CenterHead
+        CLASS_AGNOSTIC: False
+        DATASET: once
+        MODE: 3d
+        USE_DCN: False
+        TASKS: &tasks_head
+          - num_class: 1
+            class_names: ["Car"]
+          - num_class: 1
+            class_names: ["Bus"]
+          - num_class: 1
+            class_names: ["Truck"]
+          - num_class: 1
+            class_names: ["Pedestrian"]
+          - num_class: 1
+            class_names: ["Cyclist"]
+
+        PARAMETERS:
+          share_conv_channel: 64
+          init_bias: -2.19
+          common_heads: {'reg': [2, 2], 'height': [1, 2], 'dim':[3, 2], 'rot':[2, 2]}
+
+        LOSS_CONFIG:
+          code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+          weight: 0.25
+
+        TARGET_ASSIGNER_CONFIG:
+          tasks: *tasks_head
+          out_size_factor: 8
+          dense_reg: 1
+          gaussian_overlap: 0.1
+          max_objs: 500
+          min_radius: 2
+          mapping: {
+            "Car": 1,
+            "Bus": 2,
+            "Truck": 3,
+            "Pedestrian": 4,
+            "Cyclist": 5
+          }
+
+        TEST_CONFIG:
+          post_center_limit_range: [-75.2, -75.2, -5.0, 75.2, 75.2, 3.0]
+          max_per_img: 500
+          score_threshold: 0.1
+          pc_range: [-75.2, -75.2]
+          out_size_factor: 8
+          voxel_size: [0.1, 0.1]
+          double_flip: False
+          nms:
+            train:
+              use_iou_3d_nms: True
+              use_rotate_nms: False
+              use_maxpool_nms: False
+              use_circle_nms: False
+              min_radius: [4, 10, 12, 0.175, 0.85]
+              nms_iou_threshold: 0.8
+              nms_pre_max_size: 1500
+              nms_post_max_size: 80
+            test:
+              use_iou_3d_nms: True
+              use_rotate_nms: False
+              use_maxpool_nms: False
+              use_circle_nms: False
+              min_radius: [4, 10, 12, 0.175, 0.85]
+              nms_iou_threshold: 0.01
+              nms_pre_max_size: 500
+              nms_post_max_size: 83
+
+    POST_PROCESSING:
+      RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+      SCORE_THRESH: 0.1
+      OUTPUT_RAW_SCORE: False
+
+      EVAL_METRIC: once
+
+      NMS_CONFIG:
+        MULTI_CLASSES_NMS: False
+        NMS_TYPE: nms_gpu
+        NMS_THRESH: 0.01
+        NMS_PRE_MAXSIZE: 4096
+        NMS_POST_MAXSIZE: 500
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 4
+    NUM_EPOCHS: 80
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.003
+    WEIGHT_DECAY: 0.01
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 35
