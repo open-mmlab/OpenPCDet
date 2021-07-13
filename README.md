@@ -1,15 +1,15 @@
 # ONCE Benchmark
 
-This is a benchmark for 3D object detection on the [ONCE](https://arxiv.org/abs/2106.11037) (One Million Scenes) dataset. 
+This is a reproduced benchmark for 3D object detection on the [ONCE](https://arxiv.org/abs/2106.11037) (One Million Scenes) dataset. 
 
 The code is mainly based on [OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
 ## Introduction
 We provide the dataset API and some reproduced models on the ONCE dataset. 
 
-![](docs/small_demo.gif)
+; ![](docs/small_demo.gif)
 
-![](docs/overview.jpg)
+; ![](docs/overview.jpg)
 
 ## Installation
 The repo is based on OpenPCDet. If you have already installed OpenPCDet (version >= v0.3.0), you can skip this part and use the existing environment, but remember to re-compile CUDA operators by
@@ -33,7 +33,7 @@ We provide 1 fusion-based and 5 point cloud based 3D detectors. The training con
 
 For PointPainting, you have to first produce segmentation results yourself. We used [HRNet](https://github.com/HRNet/HRNet-Semantic-Segmentation) trained on CityScapes to generate segmentation masks. 
 
-Performances on the validation split (trained on the training split):
+Reproduced results on the validation split (trained on the training split):
 
 | Method        | Vehicle | Pedestrian | Cyclist | mAP   |
 | :-------------: | :-------: | :----------: | :-------: | :-----: |
@@ -49,7 +49,7 @@ We provide 5 semi-supervised methods based on the SECOND detector. The training 
 
 It is worth noting that all the methods are implemented by ourselves, and some are modified to attain better performance. Thus our implementations may be quite different from the original versions.
 
-Performances on the validation split (semi-trained on the 100k raw_small subset):
+Reproduced results on the validation split (semi-supervised learning on the 100k raw_small subset):
 
 | Method            | Vehicle | Pedestrian | Cyclist | mAP   |
 | :-----------------: | :-------: | :----------: | :-------: | :-----: |
