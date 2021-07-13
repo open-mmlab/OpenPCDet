@@ -7,10 +7,6 @@ The code is mainly based on [OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
 ## Introduction
 We provide the dataset API and some reproduced models on the ONCE dataset. 
 
-: ![](docs/small_demo.gif)
-
-: ![](docs/overview.jpg)
-
 ## Installation
 The repo is based on OpenPCDet. If you have already installed OpenPCDet (version >= v0.3.0), you can skip this part and use the existing environment, but remember to re-compile CUDA operators by
 ```shell
