@@ -12,6 +12,16 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "csv_parser",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "args": [
+        "output/kitti_models/ped/pointpillar_augs/exp1"
+      ]
+    },
+    {
       "name": "train",
       "type": "python",
       "request": "launch",

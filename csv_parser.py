@@ -13,20 +13,17 @@ def main():
 
     csv_line = ""
     for log in file_list:
-        flag = False
-        try:
+        if ".txt" in log:
+            flag = False
             with open(filepath + '/' + log) as f:
                 for line in f:
                     if 'Performance of EPOCH' in line:
                         csv_line = csv_line + line.split("EPOCH ",1)[1].split(" **")[0] + ', '
-                    elif 'Car AP_R40@0.70, 0.70, 0.70:' in line:
+                    elif ('Car AP_R40@0.70, 0.70, 0.70:' in line) or ('Pedestrian AP_R40@0.50, 0.50, 0.50:' in line):
                         flag = True
                     elif '3d' in line and flag:
                         csv_line = csv_line + line.split(":",1)[1]
                         flag = False
-        except IsADirectoryError:
-            pass
-
     if csv_line != "":
         with open(filepath + '/eval.csv', 'w') as csv:
             csv.write(csv_line)
