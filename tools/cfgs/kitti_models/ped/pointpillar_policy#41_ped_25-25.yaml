@@ -1,4 +1,4 @@
-CLASS_NAMES: ['Car']
+CLASS_NAMES: ['Pedestrian']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
@@ -21,23 +21,29 @@ DATA_CONFIG:
             'test': 40000
           }
     DATA_AUGMENTOR:
-        EXTEND_FACTOR: 1
-        DISABLE_AUG_LIST: ['gt_sampling', 'random_world_flip', 'random_world_rotation', 'random_world_scaling']
+        EXTEND_FACTOR: 2
+        DISABLE_AUG_LIST: ['random_local_scaling', 'random_world_frustum_dropout', random_local_frustum_dropout, random_local_translation]
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               USE_ROAD_PLANE: False
               DB_INFO_PATH:
                   - kitti_dbinfos_train.pkl
               PREPARE: {
-                 filter_by_min_points: ['Car:5'],
-                 filter_by_difficulty: [-1],
+                 filter_by_min_points: ['Pedestrian:5'],
+                 filter_by_difficulty: [-1, 2],
               }
 
-              SAMPLE_GROUPS: ['Car:15']
+              SAMPLE_GROUPS: ['Pedestrian:15']
               NUM_POINT_FEATURES: 4
               DATABASE_WITH_FAKELIDAR: False
               REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
               LIMIT_WHOLE_SCENE: False
+
+            - NAME: random_local_rotation
+              LOCAL_ROT_ANGLE: [-0.15707963267, 0.15707963267]
+
+            - NAME: random_local_scaling
+              LOCAL_SCALE_RANGE: [0.95, 1.05]
 
             - NAME: random_world_flip
               ALONG_AXIS_LIST: ['x']
@@ -47,6 +53,22 @@ DATA_CONFIG:
 
             - NAME: random_world_scaling
               WORLD_SCALE_RANGE: [0.95, 1.05]
+
+            - NAME: random_world_translation
+              WORLD_TRANSLATION_RANGE: [ -0.2, 0.2 ]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
+
+            - NAME: random_local_translation
+              LOCAL_TRANSLATION_RANGE: [0.95, 1.05]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
+
+            - NAME: random_world_frustum_dropout
+              INTENSITY_RANGE: [ 0, 0.2 ]
+              DIRECTION: ['top']
+
+            - NAME: random_local_frustum_dropout
+              INTENSITY_RANGE: [ 0, 0.2 ]
+              DIRECTION: ['top']
 
 MODEL:
     NAME: PointPillar
@@ -81,14 +103,14 @@ MODEL:
 
         ANCHOR_GENERATOR_CONFIG: [
             {
-                'class_name': 'Car',
-                'anchor_sizes': [[3.9, 1.6, 1.56]],
+                'class_name': 'Pedestrian',
+                'anchor_sizes': [[0.8, 0.6, 1.73]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.78],
+                'anchor_bottom_heights': [-0.6],
                 'align_center': False,
                 'feature_map_stride': 2,
-                'matched_threshold': 0.6,
-                'unmatched_threshold': 0.45
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             }
         ]
 
@@ -140,6 +162,6 @@ OPTIMIZATION:
     LR_CLIP: 0.0000001
 
     LR_WARMUP: False
-    WARMUP_EPOCH: 1
+    WARMUP_EPOCH: 0
 
     GRAD_NORM_CLIP: 10

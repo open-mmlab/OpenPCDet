@@ -55,7 +55,7 @@ class KittiDataset(DatasetTemplate):
         # store the size of the original dataset
         self.original_size = len(kitti_infos)
 
-        if self.augment_factor > 0:
+        if self.augment_factor > 0 and self.training == True:
             # make copies of original KIITI data to be augmented
             for i in range(math.ceil(self.augment_factor)):
                 aug_frac = math.modf(self.augment_factor)[0]

@@ -1,15 +1,50 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: debug.py",
-            "type": "python",
-            "request": "launch",
-            "program": "debug.py",
-            "console": "integratedTerminal"
-        }
-    ]
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "csv_parser",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "args": [
+        "output/kitti_models/ped/pointpillar_augs/exp1"
+      ]
+    },
+    {
+      "name": "train",
+      "type": "python",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/tools",
+      "program": "${workspaceFolder}/tools/train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "--cfg_file",
+        "cfgs/kitti_models/pointpillar_policy#36.yaml",
+        "--batch_size",
+        "1",
+        "--epochs",
+        "5",
+        "--extra_tag",
+        "tests"
+      ]
+    },
+    {
+      "name": "debug_file",
+      "type": "python",
+      "request": "launch",
+      "program": "debug.py",
+      "console": "integratedTerminal"
+    }
+  ]
 }
