@@ -34,6 +34,7 @@ class KittiDataset(DatasetTemplate):
 
         self.original_size = len(self.sample_id_list)  # size of the original dataset pre-augmentation
         self.augment_factor = dataset_cfg.DATA_AUGMENTOR.EXTEND_FACTOR
+        self.keep_raw_samples = dataset_cfg.DATA_AUGMENTOR.KEEP_RAW_SAMPLES
 
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
@@ -372,7 +373,10 @@ class KittiDataset(DatasetTemplate):
         info = copy.deepcopy(self.kitti_infos[index])
 
         sample_idx = info['point_cloud']['lidar_idx']
-        enable_augment = int(sample_idx) >= 100000 
+        if self.keep_raw_samples:
+            enable_augment = int(sample_idx) >= 100000 
+        else:
+            enable_augment = True
         augmented_sample_idx = info['point_cloud']['lidar_idx']
 
         if enable_augment:
