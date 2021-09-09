@@ -193,6 +193,8 @@ def main():
     logger.info('**********************End evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
 
+    if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:
+        train_set.clean_shared_memory()
 
 if __name__ == '__main__':
     main()

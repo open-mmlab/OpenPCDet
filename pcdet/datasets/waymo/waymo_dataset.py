@@ -96,6 +96,27 @@ class WaymoDataset(DatasetTemplate):
         dist.barrier()
         self.logger.info('Training data has been saved to shared memory')
 
+    def clean_shared_memory(self):
+        self.logger.info(f'Clean training data from shared memory (file limit={self.shared_memory_file_limit})')
+
+        cur_rank, num_gpus = common_utils.get_dist_info()
+        all_infos = self.infos[:self.shared_memory_file_limit] \
+            if self.shared_memory_file_limit < len(self.infos) else self.infos
+        cur_infos = all_infos[cur_rank::num_gpus]
+        for info in cur_infos:
+            pc_info = info['point_cloud']
+            sequence_name = pc_info['lidar_sequence']
+            sample_idx = pc_info['sample_idx']
+
+            sa_key = f'{sequence_name}___{sample_idx}'
+            if not os.path.exists(f"/dev/shm/{sa_key}"):
+                continue
+
+            SharedArray.delete(f"shm://{sa_key}")
+
+        dist.barrier()
+        self.logger.info('Training data has been deleted from shared memory')
+
     @staticmethod
     def check_sequence_name_with_all_version(sequence_file):
         if not sequence_file.exists():
