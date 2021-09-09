@@ -1,9 +1,12 @@
 import pickle
 
+import os
 import numpy as np
+import SharedArray
+import torch.distributed as dist
 
 from ...ops.iou3d_nms import iou3d_nms_utils
-from ...utils import box_utils
+from ...utils import box_utils, common_utils
 
 
 class DataBaseSampler(object):
@@ -25,9 +28,14 @@ class DataBaseSampler(object):
         for func_name, val in sampler_cfg.PREPARE.items():
             self.db_infos = getattr(self, func_name)(self.db_infos, val)
 
+        self.use_shared_memory = sampler_cfg.get('USE_SHARED_MEMORY', False)
+        if self.use_shared_memory:
+            self.load_db_to_shared_memory()
+
         self.sample_groups = {}
         self.sample_class_num = {}
         self.limit_whole_scene = sampler_cfg.get('LIMIT_WHOLE_SCENE', False)
+
         for x in sampler_cfg.SAMPLE_GROUPS:
             class_name, sample_num = x.split(':')
             if class_name not in class_names:
@@ -46,6 +54,25 @@ class DataBaseSampler(object):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
+
+    def load_db_to_shared_memory(self):
+        self.logger.info('Loading GT database to shared memory')
+        cur_rank, num_gpus = common_utils.get_dist_info()
+        for cur_class in self.class_names:
+            cur_info_list = self.db_infos[cur_class]
+            cur_info_list = cur_info_list[cur_rank::num_gpus]
+
+            for info in cur_info_list:
+                file_path = self.root_path / info['path']
+                sa_key = info['path'].replace('/', '___')
+                if os.path.exists(f"/dev/shm/{sa_key}"):
+                    continue
+
+                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape([-1, self.sampler_cfg.NUM_POINT_FEATURES])
+                common_utils.sa_create(f"shm://{sa_key}", obj_points)
+
+        dist.barrier()
+        self.logger.info('GT database has been saved to shared memory')
 
     def filter_by_difficulty(self, db_infos, removed_difficulty):
         new_db_infos = {}
@@ -129,9 +156,13 @@ class DataBaseSampler(object):
 
         obj_points_list = []
         for idx, info in enumerate(total_valid_sampled_dict):
-            file_path = self.root_path / info['path']
-            obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
-                [-1, self.sampler_cfg.NUM_POINT_FEATURES])
+            if self.use_shared_memory:
+                sa_key = info['path'].replace('/', '___')
+                obj_points = SharedArray.attach(f"shm://{sa_key}").copy()
+            else:
+                file_path = self.root_path / info['path']
+                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
+                    [-1, self.sampler_cfg.NUM_POINT_FEATURES])
 
             obj_points[:, :3] += info['box3d_lidar'][:3]
 

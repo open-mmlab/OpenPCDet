@@ -4,6 +4,7 @@ import pickle
 import random
 import shutil
 import subprocess
+import SharedArray
 
 import numpy as np
 import torch
@@ -232,4 +233,10 @@ def generate_voxel2pinds(sparse_tensor):
     v2pinds_tensor = scatter_point_inds(indices, point_indices, output_shape)
     return v2pinds_tensor
 
+
+def sa_create(name, var):
+    x = SharedArray.create(name, var.shape, dtype=var.dtype)
+    x[...] = var[...]
+    x.flags.writeable = False
+    return x
 
