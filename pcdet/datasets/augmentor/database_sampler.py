@@ -18,19 +18,19 @@ class DataBaseSampler(object):
         self.db_infos = {}
         for class_name in class_names:
             self.db_infos[class_name] = []
-
+        
         for db_info_path in sampler_cfg.DB_INFO_PATH:
             db_info_path = self.root_path.resolve() / db_info_path
             with open(str(db_info_path), 'rb') as f:
                 infos = pickle.load(f)
                 [self.db_infos[cur_class].extend(infos[cur_class]) for cur_class in class_names]
+        
 
         for func_name, val in sampler_cfg.PREPARE.items():
             self.db_infos = getattr(self, func_name)(self.db_infos, val)
 
         self.use_shared_memory = sampler_cfg.get('USE_SHARED_MEMORY', False)
-        if self.use_shared_memory:
-            self.load_db_to_shared_memory()
+        self.gt_database_data_key = self.load_db_to_shared_memory() if self.use_shared_memory else None
 
         self.sample_groups = {}
         self.sample_class_num = {}
@@ -58,21 +58,19 @@ class DataBaseSampler(object):
     def load_db_to_shared_memory(self):
         self.logger.info('Loading GT database to shared memory')
         cur_rank, num_gpus = common_utils.get_dist_info()
-        for cur_class in self.class_names:
-            cur_info_list = self.db_infos[cur_class]
-            cur_info_list = cur_info_list[cur_rank::num_gpus]
 
-            for info in cur_info_list:
-                file_path = self.root_path / info['path']
-                sa_key = info['path'].replace('/', '___')
-                if os.path.exists(f"/dev/shm/{sa_key}"):
-                    continue
-
-                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape([-1, self.sampler_cfg.NUM_POINT_FEATURES])
-                common_utils.sa_create(f"shm://{sa_key}", obj_points)
-
-        dist.barrier()
+        assert self.sampler_cfg.DB_DATA_PATH.__len__() == 1, 'Current only support single DB_DATA'
+        db_data_path = self.root_path.resolve() / self.sampler_cfg.DB_DATA_PATH[0]
+        sa_key = self.sampler_cfg.DB_DATA_PATH[0]
+            
+        if cur_rank % num_gpus == 0 and not os.path.exists(f"/dev/shm/{sa_key}"):
+            gt_database_data = np.load(db_data_path)
+            common_utils.sa_create(f"shm://{sa_key}", gt_database_data)
+            
+        if num_gpus > 1:
+            dist.barrier()
         self.logger.info('GT database has been saved to shared memory')
+        return sa_key
 
     def filter_by_difficulty(self, db_infos, removed_difficulty):
         new_db_infos = {}
@@ -155,10 +153,15 @@ class DataBaseSampler(object):
             data_dict.pop('road_plane')
 
         obj_points_list = []
+        if self.use_shared_memory:
+            gt_database_data = SharedArray.attach(f"shm://{self.gt_database_data_key}")
+        else:
+            gt_database_data = None 
+
         for idx, info in enumerate(total_valid_sampled_dict):
             if self.use_shared_memory:
-                sa_key = info['path'].replace('/', '___')
-                obj_points = SharedArray.attach(f"shm://{sa_key}").copy()
+                start_offset, end_offset = info['global_data_offset']
+                obj_points = gt_database_data[start_offset:end_offset]
             else:
                 file_path = self.root_path / info['path']
                 obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
