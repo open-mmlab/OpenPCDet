@@ -22,7 +22,7 @@ DATA_CONFIG:
           }
     DATA_AUGMENTOR:
         EXTEND_FACTOR: 10
-        KEEP_RAW_DATA: True
+        KEEP_RAW_DATA: False
         DISABLE_AUG_LIST: ['random_local_scaling', 'random_world_frustum_dropout', random_local_frustum_dropout, random_local_translation]
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
