@@ -1,6 +1,7 @@
 import pickle
 
 import os
+import copy
 import numpy as np
 import SharedArray
 import torch.distributed as dist
@@ -155,13 +156,14 @@ class DataBaseSampler(object):
         obj_points_list = []
         if self.use_shared_memory:
             gt_database_data = SharedArray.attach(f"shm://{self.gt_database_data_key}")
+            gt_database_data.setflags(write=0)
         else:
             gt_database_data = None 
 
         for idx, info in enumerate(total_valid_sampled_dict):
             if self.use_shared_memory:
                 start_offset, end_offset = info['global_data_offset']
-                obj_points = gt_database_data[start_offset:end_offset]
+                obj_points = copy.deepcopy(gt_database_data[start_offset:end_offset])
             else:
                 file_path = self.root_path / info['path']
                 obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
