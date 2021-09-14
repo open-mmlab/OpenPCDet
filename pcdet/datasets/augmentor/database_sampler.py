@@ -63,8 +63,9 @@ class DataBaseSampler(object):
         assert self.sampler_cfg.DB_DATA_PATH.__len__() == 1, 'Current only support single DB_DATA'
         db_data_path = self.root_path.resolve() / self.sampler_cfg.DB_DATA_PATH[0]
         sa_key = self.sampler_cfg.DB_DATA_PATH[0]
-            
-        if cur_rank % num_gpus == 0 and not os.path.exists(f"/dev/shm/{sa_key}"):
+        
+        # assume 8 gpus per machine 
+        if cur_rank % 8 == 0 and not os.path.exists(f"/dev/shm/{sa_key}"):
             gt_database_data = np.load(db_data_path)
             common_utils.sa_create(f"shm://{sa_key}", gt_database_data)
             
