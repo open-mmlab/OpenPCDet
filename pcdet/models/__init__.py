@@ -13,9 +13,9 @@ except:
 
 
 
-def build_network(model_cfg, num_class, dataset):
+def build_network(model_cfg, num_class, dataset, logger=None, global_cfg=None):
     model = build_detector(
-        model_cfg=model_cfg, num_class=num_class, dataset=dataset
+        model_cfg=model_cfg, num_class=num_class, dataset=dataset, logger=logger, global_cfg=global_cfg
     )
     return model
 

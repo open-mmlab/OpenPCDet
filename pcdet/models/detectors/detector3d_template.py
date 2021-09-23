@@ -11,11 +11,13 @@ from ..model_utils import model_nms_utils
 
 
 class Detector3DTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, dataset):
+    def __init__(self, model_cfg, num_class, dataset, logger=None, global_cfg=None):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
         self.dataset = dataset
+        self.logger = logger
+        self.global_cfg = global_cfg
         self.class_names = dataset.class_names
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
 
@@ -131,7 +133,9 @@ class Detector3DTemplate(nn.Module):
             class_names=self.class_names,
             grid_size=model_info_dict['grid_size'],
             point_cloud_range=model_info_dict['point_cloud_range'],
-            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False)
+            predict_boxes_when_training=self.model_cfg.get('ROI_HEAD', False),
+            logger=self.logger,
+            global_cfg=self.global_cfg
         )
         model_info_dict['module_list'].append(dense_head_module)
         return dense_head_module, model_info_dict
@@ -252,7 +256,7 @@ class Detector3DTemplate(nn.Module):
                     label_preds = batch_dict[label_key][index]
                 else:
                     label_preds = label_preds + 1
-                selected, selected_scores = model_nms_utils.class_agnostic_nms(
+                    selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
                     score_thresh=post_process_cfg.SCORE_THRESH

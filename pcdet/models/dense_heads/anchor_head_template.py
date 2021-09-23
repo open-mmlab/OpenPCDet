@@ -9,13 +9,17 @@ from .target_assigner.axis_aligned_target_assigner import AxisAlignedTargetAssig
 
 
 class AnchorHeadTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training):
+    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training, logger=None, global_cfg=None):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
         self.class_names = class_names
         self.predict_boxes_when_training = predict_boxes_when_training
+        self.grid_size = grid_size
+        self.logger = logger
+        self.global_cfg = global_cfg
         self.use_multihead = self.model_cfg.get('USE_MULTIHEAD', False)
+        
 
         anchor_target_cfg = self.model_cfg.TARGET_ASSIGNER_CONFIG
         self.box_coder = getattr(box_coder_utils, anchor_target_cfg.BOX_CODER)(
@@ -216,6 +220,7 @@ class AnchorHeadTemplate(nn.Module):
     def get_loss(self):
         cls_loss, tb_dict = self.get_cls_layer_loss()
         box_loss, tb_dict_box = self.get_box_reg_layer_loss()
+        
         tb_dict.update(tb_dict_box)
         rpn_loss = cls_loss + box_loss
 

@@ -20,7 +20,7 @@ DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
         - NAME: gt_sampling
-          USE_ROAD_PLANE: True
+          USE_ROAD_PLANE: False
           DB_INFO_PATH:
               - kitti_dbinfos_train.pkl
           PREPARE: {

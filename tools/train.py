@@ -43,6 +43,17 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
 
+    # extra config for semi supervised learning
+    parser.add_argument('--split', type=str, default='train')
+    parser.add_argument('--repeat', type=int, default=1)
+    parser.add_argument('--unlabeled_weight', type=float, default=1.0)
+    parser.add_argument('--unlabeled_supervise_cls', action='store_true', default=False)
+    parser.add_argument('--unlabeled_supervise_refine', action='store_true', default=False)
+    parser.add_argument('--lr', type=float, default=0.0)
+
+    parser.add_argument('--supervise_mode', type=int, default=0)
+    parser.add_argument('--dbinfos', type=str, default='kitti_db_infos_train.pkl')
+
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -51,6 +62,8 @@ def parse_config():
 
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs, cfg)
+
+    cfg.DATA_CONFIG.DATA_SPLIT['train'] = args.split    
 
     return args, cfg
 
@@ -109,10 +122,11 @@ def main():
         logger=logger,
         training=True,
         merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
-        total_epochs=args.epochs
+        total_epochs=args.epochs,
+        debug=cfg.DEBUG
     )
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
+    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set, logger=logger, global_cfg=cfg)
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
@@ -172,26 +186,26 @@ def main():
 
     logger.info('**********************End training %s/%s(%s)**********************\n\n\n'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+    if not cfg.DEBUG:
+        logger.info('**********************Start evaluation %s/%s(%s)**********************' %
+                    (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+        test_set, test_loader, sampler = build_dataloader(
+            dataset_cfg=cfg.DATA_CONFIG,
+            class_names=cfg.CLASS_NAMES,
+            batch_size=args.batch_size,
+            dist=dist_train, workers=args.workers, logger=logger, training=False
+        )
+        eval_output_dir = output_dir / 'eval' / 'eval_with_train'
+        eval_output_dir.mkdir(parents=True, exist_ok=True)
+        args.start_epoch = max(args.epochs - 10, 0)  # Only evaluate the last 10 epochs
 
-    logger.info('**********************Start evaluation %s/%s(%s)**********************' %
-                (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
-    test_set, test_loader, sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
-        class_names=cfg.CLASS_NAMES,
-        batch_size=args.batch_size,
-        dist=dist_train, workers=args.workers, logger=logger, training=False
-    )
-    eval_output_dir = output_dir / 'eval' / 'eval_with_train'
-    eval_output_dir.mkdir(parents=True, exist_ok=True)
-    args.start_epoch = max(args.epochs - 10, 0)  # Only evaluate the last 10 epochs
-
-    repeat_eval_ckpt(
-        model.module if dist_train else model,
-        test_loader, args, eval_output_dir, logger, ckpt_dir,
-        dist_test=dist_train
-    )
-    logger.info('**********************End evaluation %s/%s(%s)**********************' %
-                (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+        repeat_eval_ckpt(
+            model.module if dist_train else model,
+            test_loader, args, eval_output_dir, logger, ckpt_dir,
+            dist_test=dist_train
+        )
+        logger.info('**********************End evaluation %s/%s(%s)**********************' %
+                    (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
 
 
 if __name__ == '__main__':
