@@ -28,7 +28,7 @@ def build_optimizer(model, optim_cfg):
 
         optimizer_func = partial(optim.Adam, betas=(0.9, 0.99))
         optimizer = OptimWrapper.create(
-            optimizer_func, 3e-3, get_layer_groups(model), wd=optim_cfg.WEIGHT_DECAY, true_wd=True, bn_wd=True
+            optimizer_func,  optim_cfg.LR, get_layer_groups(model), wd=optim_cfg.WEIGHT_DECAY, true_wd=True, bn_wd=True
         )
     else:
         raise NotImplementedError
