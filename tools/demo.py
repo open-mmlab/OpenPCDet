@@ -2,9 +2,9 @@ import argparse
 import glob
 from pathlib import Path
 
-import mayavi.mlab as mlab
 import numpy as np
 import torch
+import mayavi.mlab as mlab
 
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
