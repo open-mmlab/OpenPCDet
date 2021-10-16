@@ -14,3 +14,4 @@ venv/
 *.bin
 figs/
 3d_renders/
+data_aumentation.ipynb
