@@ -93,7 +93,7 @@ class DatasetTemplate(torch_data.Dataset):
         """
         raise NotImplementedError
 
-    def prepare_data(self, data_dict):
+    def prepare_data(self, data_dict, augment):
         """
         Args:
             data_dict:
@@ -114,10 +114,10 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        if self.training:
+        if self.training and augment:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
-
+        
             data_dict = self.data_augmentor.forward(
                 data_dict={
                     **data_dict,
@@ -129,6 +129,13 @@ class DatasetTemplate(torch_data.Dataset):
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
             data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
             data_dict['gt_names'] = data_dict['gt_names'][selected]
+            #data_dict['truncated'] = data_dict['truncated'][selected]
+            #data_dict['occluded'] = data_dict['occluded'][selected]
+            #data_dict['alpha'] = data_dict['alpha'][selected]
+            #misc = {}
+            #for k in data_dict['misc'].keys():
+             #   misc[k] = data_dict['misc'][k][selected]
+            #data_dict['misc'] = misc
             gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
             data_dict['gt_boxes'] = gt_boxes
