@@ -14,5 +14,4 @@ venv/
 *.bin
 figs/
 3d_renders/
-pcdet/version.py
 output/
