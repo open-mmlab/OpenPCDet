@@ -89,11 +89,18 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
-
+            
+            currfig = mlab.figure(size=(1280,1280))
+            
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
                 ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
             )
+            mlab.view(azimuth=-179, elevation=0, distance=120.0, roll=90.0)
+    
+            cam = currfig.scene.camera
+            cam.zoom(2)
+
             mlab.show(stop=True)
 
     logger.info('Demo done.')

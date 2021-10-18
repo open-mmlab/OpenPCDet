@@ -10,15 +10,15 @@ DATA_SPLIT: {
 
 INFO_PATH: {
     'train': [kitti_infos_train.pkl],
-    #'test': [kitti_infos_val.pkl],
-    'test': [kitti_infos_train.pkl],
+    'test': [kitti_infos_val.pkl],
+    #'test': [kitti_infos_train.pkl],
 }
 
 FOV_POINTS_ONLY: True
 
 
 DATA_AUGMENTOR:
-    EXTEND_FACTOR: 1.2  # value by with the dataset will be multiplied (0 does augmentation by replacement)
+    EXTEND_FACTOR: 1  # value by with the dataset will be multiplied (0 does augmentation by replacement)
     KEEP_RAW_SAMPLES: True
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:

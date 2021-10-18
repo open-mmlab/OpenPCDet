@@ -12,6 +12,14 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "generate_36",
+      "type": "python",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/data/kitti",
+      "program": "${workspaceFolder}/data/kitti/generate_36.py",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "csv_parser",
       "type": "python",
       "request": "launch",
