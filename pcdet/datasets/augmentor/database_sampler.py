@@ -120,13 +120,7 @@ class DataBaseSampler(object):
         gt_boxes = data_dict['gt_boxes'][gt_boxes_mask]
         gt_names = data_dict['gt_names'][gt_boxes_mask]
         points = data_dict['points']
-        #truncated = data_dict['truncated'][gt_boxes_mask]
-        #occluded = data_dict['occluded'][gt_boxes_mask]
-        #alpha = data_dict['alpha'][gt_boxes_mask]
-        #misc = {}
-        #for k in data_dict['misc'].keys():
-        #    misc[k] = data_dict['misc'][k][gt_boxes_mask]
-        #TODO
+        
         if self.sampler_cfg.get('USE_ROAD_PLANE', False):
             sampled_gt_boxes, mv_height = self.put_boxes_on_road_planes(
                 sampled_gt_boxes, data_dict['road_plane'], data_dict['calib']
@@ -152,24 +146,6 @@ class DataBaseSampler(object):
         sampled_gt_names = np.array([x['name'] for x in total_valid_sampled_dict])
         sampled_misc = np.array([x['misc'] for x in total_valid_sampled_dict])
 
-        '''
-        sampled_truncated = []
-        sampled_occluded = []
-        sampled_alpha = []
-        sampled_misc = {}
-        TODO
-        for x in total_valid_sampled_dict:
-            sampled_truncated = np.concatenate([sampled_truncated, x['truncated']], axis=0)
-            sampled_occluded = np.concatenate([sampled_occluded, x['occluded']], axis=0)
-            sampled_alpha = np.concatenate([sampled_alpha, x['alpha']], axis=0)
-            for k in x['misc'].keys():
-                if k in sampled_misc:
-                    sampled_misc[k] = np.concatenate([sampled_alpha[k], x['misc'][k]])
-                else:
-                    sampled_misc[k] = x['misc'][k]
-        '''
-            #TODO
-
         large_sampled_gt_boxes = box_utils.enlarge_box3d(
             sampled_gt_boxes[:, 0:7], extra_width=self.sampler_cfg.REMOVE_EXTRA_WIDTH
         )
@@ -177,34 +153,11 @@ class DataBaseSampler(object):
         points = np.concatenate([obj_points, points], axis=0)
         gt_names = np.concatenate([gt_names, sampled_gt_names], axis=0)
         gt_boxes = np.concatenate([gt_boxes, sampled_gt_boxes], axis=0)
-        #truncated = np.concatenate([truncated, sampled_truncated], axis=0)
-        #occluded = np.concatenate([occluded, sampled_occluded], axis=0)
-        #alpha = np.concatenate([alpha, sampled_alpha], axis=0)
-        #misc = np.array([misc])
-        #misc = np.concatenate([misc, sampled_misc], axis=0)
-        #d = {}
-        #for k in misc[0].keys():
-        #    d[k] = []
-        #    d[k].append(list(dic.get(k, None) for dic in misc))
-        #    d[k] = d[k][0]
-        '''
-        for k in x['misc'].keys():
-            if k in misc:
-                misc[k] = np.concatenate([misc[k], sampled_misc[k]])
-            else:
-                misc[k] = sampled_misc[k]
-        '''
-        #TODO
-
+       
         data_dict['gt_boxes'] = gt_boxes
         data_dict['gt_names'] = gt_names
         data_dict['points'] = points
-        #data_dict['truncated'] = truncated
-        #data_dict['occluded'] = occluded
-        #data_dict['alpha'] = alpha
-        #data_dict['misc'] = d
-        #TODO
-
+       
         return data_dict
 
     def __call__(self, data_dict):

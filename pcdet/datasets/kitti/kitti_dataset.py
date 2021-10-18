@@ -231,10 +231,6 @@ class KittiDataset(DatasetTemplate):
             bbox = annos['bbox']
             difficulty = annos['difficulty']
             gt_boxes = annos['gt_boxes_lidar']
-            #truncated = annos['truncated']
-            #occluded = annos['occluded']
-            #alpha = annos['alpha']
-            #dimensions = annos['dimensions']
 
             num_obj = gt_boxes.shape[0]
             point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
