@@ -46,9 +46,16 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y']
-            gt_boxes, points = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
+            gt_boxes, points, enable = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
                 gt_boxes, points,
             )
+            common_utils.merge_dict(data_dict, {
+                'augmentations': {
+                    'random_world_flip': {
+                        f'ALONG_AXIS_{cur_axis}': str(enable)
+                    }
+                }
+            })
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -60,9 +67,17 @@ class DataAugmentor(object):
         rot_range = config['WORLD_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
-        gt_boxes, points = augmentor_utils.global_rotation(
+        gt_boxes, points, noise_rotation = augmentor_utils.global_rotation(
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
         )
+
+        common_utils.merge_dict(data_dict, {
+                'augmentations': {
+                    'random_world_rotation': {
+                        'WORLD_ROT_ANGLE': noise_rotation
+                    }
+                }
+            })
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -71,9 +86,18 @@ class DataAugmentor(object):
     def random_world_scaling(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_scaling, config=config)
-        gt_boxes, points = augmentor_utils.global_scaling(
+        gt_boxes, points, noise_scale = augmentor_utils.global_scaling(
             data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE']
         )
+
+        common_utils.merge_dict(data_dict, {
+                'augmentations': {
+                    'random_world_rotation': {
+                        'WORLD_SCALE': noise_scale
+                    }
+                }
+            })
+
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
@@ -85,9 +109,17 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y', 'z']
-            gt_boxes, points = getattr(augmentor_utils, 'random_translation_along_%s' % cur_axis)(
+            gt_boxes, points, offset = getattr(augmentor_utils, 'random_translation_along_%s' % cur_axis)(
                 gt_boxes, points, offset_range,
             )
+
+            common_utils.merge_dict(data_dict,{
+                'augmentations': {
+                    'random_world_translation': {
+                        f'ALONG_AXIS_{cur_axis}': offset
+                    }
+                }
+            })
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -100,9 +132,17 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y', 'z']
-            gt_boxes, points = getattr(augmentor_utils, 'random_local_translation_along_%s' % cur_axis)(
+            gt_boxes, points, augs = getattr(augmentor_utils, 'random_local_translation_along_%s' % cur_axis)(
                 gt_boxes, points, offset_range,
             )
+
+            common_utils.merge_dict(data_dict,{
+                'augmentations': {
+                    'random_local_translation': {
+                        f'ALONG_AXIS_{cur_axis}': augs
+                    }
+                }
+            })
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -114,9 +154,17 @@ class DataAugmentor(object):
         rot_range = config['LOCAL_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
-        gt_boxes, points = augmentor_utils.local_rotation(
+        gt_boxes, points, augs = augmentor_utils.local_rotation(
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
         )
+
+        common_utils.merge_dict(data_dict,{
+                'augmentations': {
+                    'random_local_rotation': {
+                        'LOCAL_ROT_ANGLE': augs
+                    }
+                }
+            })
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -125,9 +173,18 @@ class DataAugmentor(object):
     def random_local_scaling(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_local_scaling, config=config)
-        gt_boxes, points = augmentor_utils.local_scaling(
+        gt_boxes, points, augs = augmentor_utils.local_scaling(
             data_dict['gt_boxes'], data_dict['points'], config['LOCAL_SCALE_RANGE']
         )
+
+        common_utils.merge_dict(data_dict,{
+                'augmentations': {
+                    'random_local_scaling': {
+                        'LOCAL_SCALE': augs
+                    }
+                }
+            })
+
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
