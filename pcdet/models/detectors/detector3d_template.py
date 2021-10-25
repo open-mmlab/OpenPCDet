@@ -2,13 +2,17 @@ import os
 
 import torch
 import torch.nn as nn
+import copy
+import time
+import numpy as np
+import datetime
+import json
 
 from ...ops.iou3d_nms import iou3d_nms_utils
-from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
+from .. import backbones_2d, backbones_3d, dense_heads, roi_heads, load_data_to_gpu
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
 from ..model_utils import model_nms_utils
-
 
 class Detector3DTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, dataset):
@@ -23,6 +27,24 @@ class Detector3DTemplate(nn.Module):
             'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
             'backbone_2d', 'dense_head',  'point_head', 'roi_head'
         ]
+
+        self._time_dict = {
+                'PreProcess' : [],
+                'End-to-end': [],}
+        self.update_time_dict(dict())
+
+        self._eval_dict = {}
+        if 'DEADLINE_SEC' in dir(model_cfg):
+            self._default_deadline_sec = float(model_cfg.DEADLINE_SEC)
+            self._eval_dict['deadline_sec'] = self._default_deadline_sec
+        else:
+            self._eval_dict['deadline_sec'] = 10.0  # loong deadline
+        self._eval_dict['deadlines_missed'] = 0
+        self._eval_dict['deadline_diffs'] = []
+
+        print('Default deadline is:', self._eval_dict['deadline_sec'])
+
+        self._use_empty_det_dict_for_eval = False
 
     @property
     def mode(self):
@@ -173,7 +195,58 @@ class Detector3DTemplate(nn.Module):
     def forward(self, **kwargs):
         raise NotImplementedError
 
-    def post_processing(self, batch_dict):
+    def load_data_with_ds_index(self, dataset_index):
+        data_dict = self.dataset.collate_batch([self.dataset[dataset_index]])
+        load_data_to_gpu(data_dict)
+        return data_dict
+
+    # Also checks the deadline miss
+    def load_and_infer(self, dataset_index, extra_data = dict()):
+        start_time = time.time()
+        self.measure_time_start('End-to-end')
+        self.measure_time_start('PreProcess')
+        data_dict = self.load_data_with_ds_index(dataset_index)
+        data_dict['abs_deadline_sec'] = start_time + self._eval_dict['deadline_sec']
+        data_dict.update(extra_data)  # deadline, method, etc.
+        self.measure_time_end('PreProcess')
+        pred_dicts, recall_dict = self(data_dict) # this calls forward!
+        torch.cuda.synchronize()
+        finish_time = time.time()
+        self.measure_time_end('End-to-end')
+
+        tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
+        self._eval_dict['deadline_diffs'].append(tdiff)
+
+        dl_missed = (True if tdiff > 0 else False)
+        if dl_missed:
+            self._eval_dict['deadlines_missed'] += 1
+            if self._use_empty_det_dict_for_eval:
+                pred_dicts = [ self.get_empty_det_dict() for p in pred_dicts ]
+
+        # This part is about evaluation and should be done after execution
+        # when deadlines are being used
+        if not bool(recall_dict): # empty
+            for index in range(data_dict['batch_size']):
+                if data_dict.get('batch_index', None) is not None:
+                    assert data_dict['batch_box_preds'].shape.__len__() == 2
+                    batch_mask = (data_dict['batch_index'] == index)
+                else:
+                    assert data_dict['batch_box_preds'].shape.__len__() == 3
+                    batch_mask = index
+
+                src_box_preds = data_dict['batch_box_preds'][batch_mask]
+
+                recall_dict = self.generate_recall_record(box_preds=pred_dicts[index]['pred_boxes'] \
+                    if 'rois' not in data_dict else src_box_preds,
+                    recall_dict=recall_dict, batch_index=index, data_dict=data_dict,
+                    thresh_list=self.model_cfg.POST_PROCESSING.RECALL_THRESH_LIST
+                )
+            torch.cuda.synchronize()
+        self.calc_elapsed_times()
+
+        return data_dict, pred_dicts, recall_dict
+
+    def post_processing(self, batch_dict, gen_recall_record=True):
         """
         Args:
             batch_dict:
@@ -218,6 +291,11 @@ class Detector3DTemplate(nn.Module):
                 src_cls_preds = cls_preds
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
+
+            # TODO
+            # stage1 = 0.3, stage2 = 0.2 and stage1 = 0.1
+            #if 'stages_executed' in batch_dict:
+            #    post_process_cfg.SCORE_THRESH *= batch_dict['stages_executed']
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 if not isinstance(cls_preds, list):
@@ -266,11 +344,12 @@ class Detector3DTemplate(nn.Module):
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
 
-            recall_dict = self.generate_recall_record(
-                box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
-                recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
-                thresh_list=post_process_cfg.RECALL_THRESH_LIST
-            )
+                if gen_recall_record:
+                    recall_dict = self.generate_recall_record(
+                        box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
+                        recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
+                        thresh_list=post_process_cfg.RECALL_THRESH_LIST
+                    )
 
             record_dict = {
                 'pred_boxes': final_boxes,
@@ -383,3 +462,111 @@ class Detector3DTemplate(nn.Module):
         logger.info('==> Done')
 
         return it, epoch
+
+    def calc_elapsed_times(self):
+        for name, events_list in self._cuda_event_dict.items():
+            for events in events_list:
+                time_elapsed = events[0].elapsed_time(events[1])
+                self._time_dict[name].append(round(time_elapsed,3))
+
+        for v in self._cuda_event_dict.values():
+            v.clear()
+
+    def clear_stats(self):
+        # timers
+        for v1, v2 in zip(self._time_dict.values(), self._cuda_event_dict.values()):
+            v1.clear()
+            v2.clear()
+
+        # deadline
+        self._eval_dict['deadlines_missed'] = 0
+        self._eval_dict['deadline_diffs'].clear()
+
+    def get_time_dict_stats(self):
+        ret={}
+
+        for name, val in self._time_dict.items():
+            if len(val) == 0:
+                ret[name] = [0, 0, 0, 0, 0]
+            else:
+                val_max = max(val)
+                perc95 = np.percentile(val, 95, interpolation='lower')
+                perc99 = np.percentile(val, 99, interpolation='lower')
+                val = [et for et in val if et <= perc99]
+                ret[name] = [min(val), # min
+                         sum(val) / len(val),  # avrg
+                         perc95,
+                         perc99, # 99 percentile
+                         val_max]  # max
+        return ret
+
+    def get_time_dict(self):
+        return self._time_dict
+
+    def print_time_dict(self):
+        for name, vals in self._time_dict.items():
+            print('1D_LIST', name, vals)
+
+    def print_time_stats(self):
+        # Print these for humans
+        max_len=0
+        for name in self.get_time_dict_stats().keys():
+            max_len = max(len(name), max_len)
+        print((" " * max_len),"Min\tAvrg\t95perc\t99perc\tMax")
+        for name, val in self.get_time_dict_stats().items():
+            spaces = " " * (max_len - len(name)+1)
+            print(f"{name}{spaces}{val[0]:.2f}\t{val[1]:.2f}"
+                    f"\t{val[2]:.2f}\t{val[3]:.2f}\t{val[4]:.2f} ms")
+
+    # Does not allow same events to be nested
+    def measure_time_start(self, event_name_str, cuda_event=True):
+        #torch.cuda.nvtx.range_push(event_name_str)
+        if cuda_event:
+            new_events = [
+                torch.cuda.Event(enable_timing=True),  # start
+                torch.cuda.Event(enable_timing=True)  # end
+            ]
+            new_events[0].record()
+            self._cuda_event_dict[event_name_str].append(new_events)
+        else:
+            self._time_dict[event_name_str].append(time.time())
+
+    def measure_time_end(self, event_name_str, cuda_event=True):
+        if cuda_event:
+            self._cuda_event_dict[event_name_str][-1][1].record()
+        else:
+            time_elapsed = round((time.time() - self._time_dict[event_name_str][-1]) * 1000, 3)
+            self._time_dict[event_name_str][-1] = round(time_elapsed,3)
+        #torch.cuda.nvtx.range_pop()
+
+    def update_time_dict(self, dict_to_aggragate):
+        self._time_dict.update(dict_to_aggragate)
+        self._cuda_event_dict = copy.deepcopy(self._time_dict)
+
+    def dump_eval_dict(self, eval_result_dict=None):
+        self._eval_dict['exec_times'] = self.get_time_dict()
+        self._eval_dict['exec_time_stats'] = self.get_time_dict_stats()
+        self._eval_dict['eval_results_dict'] = eval_result_dict
+
+        print('Dumping evaluation dictionary file')
+        current_date_time = datetime.datetime.today()
+        dt_string = current_date_time.strftime('%d-%m-%y-%I-%M-%p')
+        with open(f"eval_dict_{dt_string}.json", 'w') as handle:
+            json.dump(self._eval_dict, handle, indent=4)
+
+    def init_empty_det_dict(self, det_dict_example):
+        self._det_dict_copy = {
+            "pred_boxes": torch.zeros([0, det_dict_example["pred_boxes"].size()[1]],
+            dtype=det_dict_example["pred_boxes"].dtype, device=det_dict_example["pred_boxes"].device),
+            "pred_scores": torch.zeros([0], dtype=det_dict_example["pred_scores"].dtype,
+            device=det_dict_example["pred_scores"].device),
+            "pred_labels": torch.zeros([0], dtype=det_dict_example["pred_labels"].dtype,
+            device=det_dict_example["pred_labels"].device),
+        }
+        self._use_empty_det_dict_for_eval = True
+
+    def get_empty_det_dict(self):
+        det_dict = {}
+        for k,v in self._det_dict_copy.items():
+            det_dict[k] = v.clone().detach()
+        return det_dict

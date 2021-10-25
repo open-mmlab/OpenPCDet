@@ -11,7 +11,7 @@ from .processor.point_feature_encoder import PointFeatureEncoder
 
 
 class DatasetTemplate(torch_data.Dataset):
-    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None, total_epochs=0):
         super().__init__()
         self.dataset_cfg = dataset_cfg
         self.training = training
@@ -36,7 +36,8 @@ class DatasetTemplate(torch_data.Dataset):
 
         self.grid_size = self.data_processor.grid_size
         self.voxel_size = self.data_processor.voxel_size
-        self.total_epochs = 0
+        self.total_epochs = total_epochs
+        self.cur_epochs = 0
         self._merge_all_iters_to_one_epoch = False
 
         if hasattr(self.data_processor, "depth_downsample_factor"):
