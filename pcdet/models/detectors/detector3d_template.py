@@ -29,8 +29,8 @@ class Detector3DTemplate(nn.Module):
         ]
 
         self._time_dict = {
-                'PreProcess' : [],
-                'End-to-end': [],}
+                'End-to-end': [],
+                'PreProcess' : [],}
         self.update_time_dict(dict())
 
         self._eval_dict = {}
@@ -267,6 +267,10 @@ class Detector3DTemplate(nn.Module):
         batch_size = batch_dict['batch_size']
         recall_dict = {}
         pred_dicts = []
+        if 'score_thresh' in batch_dict:
+            score_threshold_backup = post_process_cfg.SCORE_THRESH
+            post_process_cfg.SCORE_THRESH = batch_dict['score_thresh']
+
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
@@ -291,11 +295,6 @@ class Detector3DTemplate(nn.Module):
                 src_cls_preds = cls_preds
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
-
-            # TODO
-            # stage1 = 0.3, stage2 = 0.2 and stage1 = 0.1
-            #if 'stages_executed' in batch_dict:
-            #    post_process_cfg.SCORE_THRESH *= batch_dict['stages_executed']
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 if not isinstance(cls_preds, list):
@@ -357,6 +356,9 @@ class Detector3DTemplate(nn.Module):
                 'pred_labels': final_labels
             }
             pred_dicts.append(record_dict)
+
+        if 'score_thresh' in batch_dict:
+            post_process_cfg.SCORE_THRESH = score_threshold_backup
 
         return pred_dicts, recall_dict
 

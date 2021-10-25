@@ -141,6 +141,7 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict = self.backbone_2d(data_dict)
         self.measure_time_end('RPN-stage-1')
         stg_seq=[1]
+        data_dict['score_thresh'] = 0.3
         
         if data_dict['method'] == self.IMP_NOSLICE:
             torch.cuda.synchronize()
@@ -156,12 +157,14 @@ class PointPillarImprecise(Detector3DTemplate):
             data_dict = self.backbone_2d(data_dict)
             self.measure_time_end('RPN-stage-2')
             stg_seq.append(2)
+            data_dict['score_thresh'] = 0.2
 
         if num_stgs_to_run == 3:
             self.measure_time_start('RPN-stage-3')
             data_dict = self.backbone_2d(data_dict)
             self.measure_time_end('RPN-stage-3')
             stg_seq.append(3)
+            data_dict['score_thresh'] = 0.1
 
         self.measure_time_start('RPN-finalize')
         data_dict = self.dense_head(data_dict)
@@ -173,7 +176,7 @@ class PointPillarImprecise(Detector3DTemplate):
         # Now do postprocess and finish
         det_dicts, recall_dict = self.post_processing(data_dict, False)
         self.measure_time_end("PostProcess")
-        torch.cuda.synchronize()
+        #torch.cuda.synchronize()
         self.measure_time_end("Post-stage-1")
         self._eval_dict['rpn_stg_exec_seqs'].append(stg_seq)
         return det_dicts, recall_dict
@@ -238,12 +241,17 @@ class PointPillarImprecise(Detector3DTemplate):
 
         # I DON'T NEED TO CALL SYNC BECAUSE IT IS ALREADY SYNCED
         # FROM WHAT I SAW BUT DO IT ANYWAY, NO BIG LOSS
-        #torch.cuda.synchronize()
+        torch.cuda.synchronize()
 
         # Now decide the slice forwarding pattern
         # This algorithm takes 0.5 ms
         slices_to_exec = self.sched_slices_v2(slice_data_dicts, data_dict['abs_deadline_sec'])
         stg2_slices, stg3_slices = slices_to_exec
+        data_dict['score_thresh'] = 0.3
+        if len(stg2_slices) > 0:
+            data_dict['score_thresh'] -= 0.1
+        if len(stg3_slices) > 0:
+            data_dict['score_thresh'] -= 0.1
 
         stg_seq=[1]
         self.measure_time_end('RPN-stage-1')
