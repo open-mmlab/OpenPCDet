@@ -6,6 +6,9 @@
 
 It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A^2 net]`](https://arxiv.org/abs/1907.03670), [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192) and [`[Voxel R-CNN]`](https://arxiv.org/abs/2012.15712). 
 
+# Purpose of this fork
+
+Adding imprecise computation capability for point pillars.
 
 ## Overview
 - [Changelog](#changelog)
