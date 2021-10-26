@@ -5,13 +5,13 @@ import copy
 import json
 import math
 import gc
-# matplotlib.use('Agg')
 import threading
 import concurrent.futures
 from multiprocessing import Process
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-import torch
 
 # Default evaluation dict format
 # All values are 1D_LISTs
@@ -38,7 +38,7 @@ proto_AP_types_dict = {
     "image": [],
 }
 
-# Rows will be image bev 3d, cols will be easy medium hard
+# Rows will be aos image bev 3d, cols will be easy medium hard
 proto_AP_dict = {
     'Car': copy.deepcopy(proto_AP_types_dict),
     'Pedestrian': copy.deepcopy(proto_AP_types_dict),
@@ -304,8 +304,31 @@ def plot_func_sorted(plot_dict, x_key, filename_prefix):
 #procs.append(Process(target=plot_func_sorted, args=(plot_dict, 'num_voxels', "", )))
 #procs[-1].start()
 
+# compare averaged AP of car bus pedestrian classes over changing deadlines
+def plot_avg_AP(merged_exps_dict):
+    for cls in proto_AP_dict.keys():
+        fig, axs = plt.subplots(4, 1, figsize=(12, 15), constrained_layout=True)
+        for ax, eval_type in zip(axs, proto_AP_types_dict.keys()):
+            for exp_name, evals in merged_exps_dict.items():
+                x = evals['deadline_msec']
+                y = evals['AP'][cls][eval_type]
+                y = [sum(e) / len(e) if len(e) > 0 else .0 for e in y ]
+                l2d = ax.plot(x, y, label=exp_name)
+                ax.scatter(x, y, color=l2d[0].get_c())
+            ax.invert_xaxis()
+            ax.legend(fontsize='medium')
+            ax.set_ylabel(eval_type + ' AP', fontsize='large')
+            ax.set_xlabel('Deadline (msec)', fontsize='large')
+            ax.grid('True', ls='--')
+        fig.suptitle(cls + " class, average precision over different deadlines", fontsize=16)
+        plt.savefig(f"exp_plots/{cls}_AP_deadlines.jpg")
+
+procs.append(Process(target=plot_avg_AP, \
+                     args=(merged_exps_dict,)))
+procs[-1].start()
+
 # compare mAP for all types
-fig, axs = plt.subplots(3, 1, figsize=(12, 12), constrained_layout=True)
+fig, axs = plt.subplots(4, 1, figsize=(12, 15), constrained_layout=True)
 for ax, eval_type in zip(axs, proto_mAP_dict.keys()):
     for exp_name, evals in merged_exps_dict.items():
         x = evals['deadline_msec']
@@ -323,41 +346,8 @@ plt.savefig("exp_plots/mAP_deadlines.jpg")
 for p in procs:
     p.join()
 
-exit(0)
-
-# compare averaged AP of car bus pedestrian classes over changing deadlines
-def plot_avg_AP(diff_slc, exps_dict):
-    selected_classes = ['bus', 'car', 'pedestrian']
-    fig, axs = plt.subplots(3, 1, figsize=(12, 12), constrained_layout=True)
-    for i, ax in enumerate(axs):
-        cls = selected_classes[i]
-        for exp_name, exp_dict in exps_dict.items():
-            if diff_slc:
-                x = exp_dict['slice_size_perc']
-            else:
-                x = exp_dict['deadline_sec']
-            y = exp_dict['cls_APs'][cls][-1]  # averaged APs
-            ax.plot(x, y, label=exp_name)
-        ax.invert_xaxis()
-        ax.legend(fontsize='medium')
-        ax.set_ylabel(cls + ' average AP', fontsize='large')
-        if diff_slc:
-            ax.set_xlabel('Slice size percentage')
-            ax.set_xticks(list(range(10, 100, 5)))
-        else:
-            ax.set_xlabel('Deadline (sec)', fontsize='large')
-        ax.grid('True', ls='--')
-    fig.suptitle("Average Precision over different deadlines", fontsize=16)
-    if diff_slc:
-        plt.savefig("exp_plots/avg_AP_slice.jpg")
-    else:
-        plt.savefig("exp_plots/avg_AP_deadlines.jpg")
-
-
-procs.append(Process(target=plot_avg_AP, \
-                     args=(exps_dict,)))
-procs[-1].start()
-
+sys.exit(0)
+#####################################################################################
 def plot_impr_rem_hist(exps_dict):
     for exp_name, exp_dict in exps_dict.items():
         if 'imprecise' not in exp_name:
