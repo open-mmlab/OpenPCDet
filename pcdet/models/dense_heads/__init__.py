@@ -1,4 +1,5 @@
 from .anchor_head_multi import AnchorHeadMulti
+from .anchor_head_multi_imprecise import AnchorHeadMultiImprecise
 from .anchor_head_single import AnchorHeadSingle
 from .anchor_head_single_imprecise import AnchorHeadSingleImprecise
 from .anchor_head_template import AnchorHeadTemplate
@@ -14,4 +15,5 @@ __all__ = {
     'PointHeadSimple': PointHeadSimple,
     'PointHeadBox': PointHeadBox,
     'AnchorHeadMulti': AnchorHeadMulti,
+    'AnchorHeadMultiImprecise': AnchorHeadMultiImprecise,
 }

@@ -9,7 +9,6 @@ import json
 import numpy as np
 
 #dataset:
-#['__add__', '__annotations__', '__class__', '__class_getitem__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattr__', '__getattribute__', '__getitem__', '__getstate__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__', '__len__', '__lt__', '__module__', '__ne__', '__new__', '__orig_bases__', '__parameters__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__setstate__', '__sizeof__', '__slots__', '__str__', '__subclasshook__', '__weakref__', '_is_protocol', '_merge_all_iters_to_one_epoch', 'class_names', 'collate_batch', 'create_groundtruth_database', 'cur_epochs', 'data_augmentor', 'data_processor', 'dataset_cfg', 'depth_downsample_factor', 'evaluation', 'functions', 'generate_prediction_dicts', 'get_calib', 'get_depth_map', 'get_fov_flag', 'get_image', 'get_image_shape', 'get_infos', 'get_label', 'get_lidar', 'get_road_plane', 'grid_size', 'include_kitti_data', 'kitti_infos', 'logger', 'merge_all_iters_to_one_epoch', 'mode', 'point_cloud_range', 'point_feature_encoder', 'prepare_data', 'register_datapipe_as_function', 'register_function', 'root_path', 'root_split_path', 'sample_id_list', 'set_split', 'split', 'total_epochs', 'training', 'voxel_size']
 
 class PointPillarImprecise(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -19,6 +18,8 @@ class PointPillarImprecise(Detector3DTemplate):
 
         # imprecise computation specific
         #self._kitti = (dataset.dataset_cfg.DATASET == 'KittiDataset') # not needed
+        self._sep_mhead = model_cfg.DENSE_HEAD.SEPARATE_MULTIHEAD
+
         # available methods:
         self.BASELINE1 = 1
         self.BASELINE2 = 2
@@ -76,7 +77,6 @@ class PointPillarImprecise(Detector3DTemplate):
                 'PostProcess': [],})
 
     def forward(self, data_dict):
-        # I am planning to replace vfe and map_to_bev with autoware implementation
         if not self.training:
             return self.eval_forward(data_dict)
         else:
@@ -273,11 +273,11 @@ class PointPillarImprecise(Detector3DTemplate):
             cpa = self.slice_preds_with_ranges(data_dict["cls_preds"], self._preds_slc_ranges)
 
             for i in range(self._num_slices):
-                slice_data_dicts[i]["stages_executed"] = 1
-                slice_data_dicts[i]["stage1"]       = sa[i]
-                slice_data_dicts[i]["up1"]          = ua[i]
-                slice_data_dicts[i]["spatial_features_2d1"] = ua[i]
-                slice_data_dicts[i]["cls_preds"]    = cpa[i]
+                slice_data_dicts[i]["stages_executed"]       = 1
+                slice_data_dicts[i]["stage1"]                = sa[i]
+                slice_data_dicts[i]["up1"]                   = ua[i]
+                slice_data_dicts[i]["spatial_features_2d_1"] = ua[i]
+                slice_data_dicts[i]["cls_preds"]             = cpa[i]
 
             # We have slices to exec through stage 2
             # batch the chosen slices
@@ -304,7 +304,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
         if len(stg3_slices) == self._num_slices:
             # data_sliced will be always false
-            # at this point since stage2 slices
+            # at this point since spatial_features2d2 slices
             # will be also equal to _num_slices
             self.measure_time_start("RPN-stage-3")
             data_dict = self.backbone_2d(data_dict)
@@ -318,7 +318,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 ua2  = self.slice_with_ranges(data_dict["up2"], self._up2_slc_ranges)
 
                 for i in range(self._num_slices):
-                    slice_data_dicts[i]["stage2"]       = sa[i]
+                    slice_data_dicts[i]["stage2"] = sa[i]
                     slice_data_dicts[i]["up1"]          = ua1[i]
                     slice_data_dicts[i]["up2"]          = ua2[i]
                     slice_data_dicts[i]["stages_executed"] = 2
@@ -362,8 +362,8 @@ class PointPillarImprecise(Detector3DTemplate):
                 cur_stg = dt_d["stages_executed"] 
                 if dt_d["stages_executed"] == 1:
                     # stage 1 slices already has cls preds
-                    dt_d[f'spatial_features_2d{cur_stg}'] = \
-                            dt_d[f'spatial_features_2d{cur_stg}'].contiguous()
+                    dt_d[f'stage{cur_stg}'] = \
+                            dt_d[f'stage{cur_stg}'].contiguous()
                     dt_d = self.dense_head.forward_remaining_preds(dt_d)
                 else:
                     dt_d = self.dense_head(dt_d)
@@ -432,14 +432,23 @@ class PointPillarImprecise(Detector3DTemplate):
         slices = [ tensor[..., b:e, :] for b, e in ranges ]
         return slices
 
+    def print_dict(self, d):
+        for k, v in d.items():
+            print(k, ':', end=' ')
+            if torch.is_tensor(v):
+                print(v.size())
+            elif isinstance(v, list) and torch.is_tensor(v[0]):
+                for e in v:
+                    print(e.size(), end=' ')
+                print()
+            else:
+                print(v)
+
+
     def calibrate(self):
         data_dict = self.load_data_with_ds_index(0)
         print('\ndata_dict:') 
-        for k, v in data_dict.items():
-            if torch.is_tensor(v):
-                print(k, v.size())
-            else:
-                print(k, v)
+        self.print_dict(data_dict)
 
         # just do a regular forward first
         data_dict = self.vfe(data_dict)
@@ -454,23 +463,14 @@ class PointPillarImprecise(Detector3DTemplate):
 
         #Print full tensor sizes
         print('\nTensors:') 
-        for k, v in data_dict.items():
-            if torch.is_tensor(v):
-                print(k, v.size())
-            else:
-                print(k, v)
+        self.print_dict(data_dict)
 
         print('\nDetections:')
         for pd in det_dicts:
-            for k, v in pd.items():
-                if torch.is_tensor(v):
-                    print(k, v.size())
-                else:
-                    print(k, v)
+            self.print_dict(pd)
         
         print('\nRecall dict:')
-        for k,v in recall_dict.items():
-            print(k, v)
+        self.print_dict(recall_dict)
 
         self._box_preds_size = data_dict['box_preds'].size()
         self._cls_preds_size = data_dict['cls_preds'].size()

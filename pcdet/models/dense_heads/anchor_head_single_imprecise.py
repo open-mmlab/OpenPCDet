@@ -54,14 +54,14 @@ class AnchorHeadSingleImprecise(AnchorHeadTemplate):
     def forward_cls_preds(self, data_dict):
         cur_stg = data_dict["stages_executed"]
     
-        if f'spatial_features_2d{cur_stg}' not in data_dict:
+        if f'spatial_features_2d_{cur_stg}' not in data_dict:
             uplist = [data_dict[f"up{i}"] for i in range(1, cur_stg+1)]
             if len(uplist) == 1:
-                data_dict[f'spatial_features_2d{cur_stg}'] = uplist[0]
+                data_dict[f'spatial_features_2d_{cur_stg}'] = uplist[0]
             else:
-                data_dict[f'spatial_features_2d{cur_stg}'] = torch.cat(uplist, dim=1)
+                data_dict[f'spatial_features_2d_{cur_stg}'] = torch.cat(uplist, dim=1)
 
-        cls_preds = self.conv_cls_alternatives[cur_stg-1](data_dict[f'spatial_features_2d{cur_stg}'])
+        cls_preds = self.conv_cls_alternatives[cur_stg-1](data_dict[f'spatial_features_2d_{cur_stg}'])
         cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
         self.forward_ret_dict['cls_preds'] = cls_preds # needed for training
         data_dict['cls_preds'] = cls_preds
@@ -71,14 +71,14 @@ class AnchorHeadSingleImprecise(AnchorHeadTemplate):
     def forward_remaining_preds(self, data_dict):
         cur_stg = data_dict["stages_executed"]
 
-        box_preds = self.conv_box_alternatives[cur_stg-1](data_dict[f'spatial_features_2d{cur_stg}'])
+        box_preds = self.conv_box_alternatives[cur_stg-1](data_dict[f'spatial_features_2d_{cur_stg}'])
         box_preds = box_preds.permute(0, 2, 3, 1).contiguous()  # [N, H, W, C]
         self.forward_ret_dict['box_preds'] = box_preds # needed for training
         data_dict['box_preds'] = box_preds
 
         if self.conv_dir_cls_alternatives is not None:
             dir_cls_preds = self.conv_dir_cls_alternatives[cur_stg-1]( \
-                    data_dict[f'spatial_features_2d{cur_stg}'])
+                    data_dict[f'spatial_features_2d_{cur_stg}'])
             dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
             self.forward_ret_dict['dir_cls_preds'] = dir_cls_preds
             data_dict['dir_cls_preds'] = dir_cls_preds
