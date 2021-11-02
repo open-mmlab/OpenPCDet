@@ -202,10 +202,14 @@ class Detector3DTemplate(nn.Module):
 
     # Also checks the deadline miss
     def load_and_infer(self, dataset_index, extra_data = dict()):
+       	data_dict = self.dataset.getitem_pre(dataset_index)
         start_time = time.time()
+        torch.cuda.nvtx.range_push('End-to-end')
         self.measure_time_start('End-to-end')
         self.measure_time_start('PreProcess')
-        data_dict = self.load_data_with_ds_index(dataset_index)
+        data_dict = self.dataset.getitem_post(data_dict)
+        data_dict = self.dataset.collate_batch([data_dict])
+        load_data_to_gpu(data_dict)
         data_dict['abs_deadline_sec'] = start_time + self._eval_dict['deadline_sec']
         data_dict.update(extra_data)  # deadline, method, etc.
         self.measure_time_end('PreProcess')
@@ -213,6 +217,7 @@ class Detector3DTemplate(nn.Module):
         torch.cuda.synchronize()
         finish_time = time.time()
         self.measure_time_end('End-to-end')
+        torch.cuda.nvtx.range_pop()
 
         tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
         self._eval_dict['deadline_diffs'].append(tdiff)
@@ -522,7 +527,6 @@ class Detector3DTemplate(nn.Module):
 
     # Does not allow same events to be nested
     def measure_time_start(self, event_name_str, cuda_event=True):
-        #torch.cuda.nvtx.range_push(event_name_str)
         if cuda_event:
             new_events = [
                 torch.cuda.Event(enable_timing=True),  # start
@@ -539,7 +543,6 @@ class Detector3DTemplate(nn.Module):
         else:
             time_elapsed = round((time.time() - self._time_dict[event_name_str][-1]) * 1000, 3)
             self._time_dict[event_name_str][-1] = round(time_elapsed,3)
-        #torch.cuda.nvtx.range_pop()
 
     def update_time_dict(self, dict_to_aggragate):
         self._time_dict.update(dict_to_aggragate)

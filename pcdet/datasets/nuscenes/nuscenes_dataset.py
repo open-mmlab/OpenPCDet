@@ -114,7 +114,7 @@ class NuScenesDataset(DatasetTemplate):
 
         return len(self.infos)
 
-    def __getitem__(self, index):
+    def getitem_pre(self, index):
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
 
@@ -138,7 +138,10 @@ class NuScenesDataset(DatasetTemplate):
                 'gt_boxes': info['gt_boxes'] if mask is None else info['gt_boxes'][mask]
             })
 
-        data_dict = self.prepare_data(data_dict=input_dict)
+        return self.prepare_data_pre(data_dict=input_dict)
+
+    def getitem_post(self, data_dict):
+        data_dict = self.prepare_data_post(data_dict=data_dict)
 
         if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False):
             gt_boxes = data_dict['gt_boxes']
@@ -149,6 +152,12 @@ class NuScenesDataset(DatasetTemplate):
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
 
         return data_dict
+
+    def __getitem__(self, index):
+        data_dict = self.getitem_pre(index)
+        data_dict = self.getitem_post(data_dict)
+        return data_dict
+
 
     @staticmethod
     def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):

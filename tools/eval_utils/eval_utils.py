@@ -81,7 +81,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 #    else:
     # Currently, batch size of 1 is supported only
     for i in range(len(dataset)):
-        batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
+        with torch.no_grad():
+            batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
         disp_dict = {}
 
         statistics_info(cfg, ret_dict, metric, disp_dict)

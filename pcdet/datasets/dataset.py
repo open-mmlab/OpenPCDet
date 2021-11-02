@@ -1,6 +1,7 @@
 from collections import defaultdict
 from pathlib import Path
 
+import time
 import numpy as np
 import torch.utils.data as torch_data
 
@@ -99,27 +100,8 @@ class DatasetTemplate(torch_data.Dataset):
         """
         raise NotImplementedError
 
-    def prepare_data(self, data_dict):
-        """
-        Args:
-            data_dict:
-                points: optional, (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                ...
-
-        Returns:
-            data_dict:
-                frame_id: string
-                points: (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                use_lead_xyz: bool
-                voxels: optional (num_voxels, max_points_per_voxel, 3 + C)
-                voxel_coords: optional (num_voxels, 3)
-                voxel_num_points: optional (num_voxels)
-                ...
-        """
+    # Don't measure timing of this part
+    def prepare_data_pre(self, data_dict):
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
@@ -142,6 +124,10 @@ class DatasetTemplate(torch_data.Dataset):
             if data_dict.get('gt_boxes2d', None) is not None:
                 data_dict['gt_boxes2d'] = data_dict['gt_boxes2d'][selected]
 
+        return data_dict
+
+    # Measure timing of this part
+    def prepare_data_post(self, data_dict):
         if data_dict.get('points', None) is not None:
             data_dict = self.point_feature_encoder.forward(data_dict)
 
@@ -155,6 +141,32 @@ class DatasetTemplate(torch_data.Dataset):
 
         data_dict.pop('gt_names', None)
 
+        return data_dict
+
+
+    def prepare_data(self, data_dict):
+        """
+        Args:
+            data_dict:
+                points: optional, (N, 3 + C_in)
+                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+                gt_names: optional, (N), string
+                ...
+
+        Returns:
+            data_dict:
+                frame_id: string
+                points: (N, 3 + C_in)
+                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+                gt_names: optional, (N), string
+                use_lead_xyz: bool
+                voxels: optional (num_voxels, max_points_per_voxel, 3 + C)
+                voxel_coords: optional (num_voxels, 3)
+                voxel_num_points: optional (num_voxels)
+                ...
+        """
+        data_dict = self.prepare_data_pre(data_dict)
+        data_dict = self.prepare_data_post(data_dict)
         return data_dict
 
     @staticmethod
@@ -221,6 +233,7 @@ class DatasetTemplate(torch_data.Dataset):
                     ret[key] = np.stack(images, axis=0)
                 else:
                     ret[key] = np.stack(val, axis=0)
+
             except:
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError

@@ -242,22 +242,29 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1),
         }
 
+        data_dict['cls_preds'] = ret['cls_preds']
+        data_dict['box_preds'] = ret['box_preds']
+
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
             dir_cls_preds = [ret_dict['dir_cls_preds'] for ret_dict in ret_dicts]
             ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1)
+            data_dict['dir_cls_preds'] = ret['dir_cls_preds']
 
         self.forward_ret_dict.update(ret)
 
         return data_dict
 
     def forward_remaining_preds(self, data_dict):
-        # already done in forward_cls_preds
+        # already done box and dir in forward_cls_preds
 
         if self.training and data_dict["stages_executed"] == 1:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
             )
             self.forward_ret_dict.update(targets_dict)
+
+        if self.training and cur_stg == 3 and self.predict_boxes_when_training:
+            data_dict = self.gen_pred_boxes(data_dict)
 
         return data_dict
 
@@ -272,7 +279,7 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
         if isinstance(batch_cls_preds, list):
             multihead_label_mapping = []
             for idx in range(len(batch_cls_preds)):
-                multihead_label_mapping.append(self.rpn_heads[idx].head_label_indices)
+                multihead_label_mapping.append(self.rpn_head_alternatives[0][idx].head_label_indices)
 
             data_dict['multihead_label_mapping'] = multihead_label_mapping
 

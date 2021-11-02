@@ -18,7 +18,11 @@ class PointPillarImprecise(Detector3DTemplate):
 
         # imprecise computation specific
         #self._kitti = (dataset.dataset_cfg.DATASET == 'KittiDataset') # not needed
-        self._sep_mhead = model_cfg.DENSE_HEAD.SEPARATE_MULTIHEAD
+        if 'SEPARATE_MULTIHEAD' in dir(model_cfg.DENSE_HEAD):
+            self._sep_mhead = model_cfg.DENSE_HEAD.SEPARATE_MULTIHEAD
+        else:
+            self._sep_mhead = False
+        self._enable_slicing = not self._sep_mhead  # for now, don't enable
 
         # available methods:
         self.BASELINE1 = 1
@@ -75,6 +79,9 @@ class PointPillarImprecise(Detector3DTemplate):
                 'Pre-stage-1': [],
                 'Post-stage-1': [],
                 'PostProcess': [],})
+
+        #print('Model:')
+        #print(self)
 
     def forward(self, data_dict):
         if not self.training:
@@ -141,7 +148,7 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict = self.backbone_2d(data_dict)
         self.measure_time_end('RPN-stage-1')
         stg_seq=[1]
-        data_dict['score_thresh'] = 0.3
+        #data_dict['score_thresh'] = 0.1
         
         if data_dict['method'] == self.IMP_NOSLICE:
             torch.cuda.synchronize()
@@ -157,26 +164,29 @@ class PointPillarImprecise(Detector3DTemplate):
             data_dict = self.backbone_2d(data_dict)
             self.measure_time_end('RPN-stage-2')
             stg_seq.append(2)
-            data_dict['score_thresh'] = 0.2
+            #data_dict['score_thresh'] = 0.2
 
         if num_stgs_to_run == 3:
             self.measure_time_start('RPN-stage-3')
             data_dict = self.backbone_2d(data_dict)
             self.measure_time_end('RPN-stage-3')
             stg_seq.append(3)
-            data_dict['score_thresh'] = 0.1
+            #data_dict['score_thresh'] = 0.1
 
         self.measure_time_start('RPN-finalize')
+        #torch.cuda.nvtx.range_push('Head')
         data_dict = self.dense_head(data_dict)
+        #torch.cuda.nvtx.range_pop()
         self.measure_time_end('RPN-finalize')
         self.measure_time_end('RPN-total')
 
         self.measure_time_start("PostProcess")
-        data_dict = self.dense_head.gen_pred_boxes(data_dict)
         # Now do postprocess and finish
+        #torch.cuda.nvtx.range_push('PostProcess')
+        data_dict = self.dense_head.gen_pred_boxes(data_dict)
         det_dicts, recall_dict = self.post_processing(data_dict, False)
+        torch.cuda.nvtx.range_pop()
         self.measure_time_end("PostProcess")
-        #torch.cuda.synchronize()
         self.measure_time_end("Post-stage-1")
         self._eval_dict['rpn_stg_exec_seqs'].append(stg_seq)
         return det_dicts, recall_dict
@@ -419,7 +429,6 @@ class PointPillarImprecise(Detector3DTemplate):
         # Now do postprocess and finish
         det_dicts, recall_dict = self.post_processing(data_dict, False)
         self.measure_time_end("PostProcess")
-        #torch.cuda.synchronize()
         self.measure_time_end("Post-stage-1")
         self._eval_dict['rpn_stg_exec_seqs'].append(stg_seq)
         return det_dicts, recall_dict
@@ -472,109 +481,119 @@ class PointPillarImprecise(Detector3DTemplate):
         print('\nRecall dict:')
         self.print_dict(recall_dict)
 
-        self._box_preds_size = data_dict['box_preds'].size()
-        self._cls_preds_size = data_dict['cls_preds'].size()
+        if self._sep_mhead:
+            self._box_preds_size = [bp.size() for bp in data_dict['box_preds']]
+            self._cls_preds_size = [cp.size() for cp in data_dict['cls_preds']]
+        else:
+            self._box_preds_size = data_dict['box_preds'].size()
+            self._cls_preds_size = data_dict['cls_preds'].size()
+
         print('\nDense head return:\nbox_preds', self._box_preds_size)
         print('cls_preds', self._cls_preds_size)
         
         # needed for anchor mask
-        self._pred_zeroer = torch.zeros_like(data_dict['cls_preds'])
+        if self._sep_mhead:
+            self._pred_zeroer = [torch.zeros_like(cp) for cp in data_dict['cls_preds']]
+        else:
+            self._pred_zeroer = torch.zeros_like(data_dict['cls_preds'])
 
-        # this is needed for merging slices
-        self._pred_dict_copy = {"cls_preds":None, "box_preds": None,
-                    "dir_cls_preds": None}
-        for k in self._pred_dict_copy.keys():
-            self._pred_dict_copy[k] = torch.zeros_like(data_dict[k])
-        
-        det = det_dicts[0]
-        self.init_empty_det_dict(det)
+        if self._enable_slicing:
+            # this is needed for merging slices
+            self._pred_dict_copy = {"cls_preds":None, "box_preds": None,
+                        "dir_cls_preds": None}
+            for k in self._pred_dict_copy.keys():
+                self._pred_dict_copy[k] = torch.zeros_like(data_dict[k])
 
-        pred_sz = self._box_preds_size[self._cls_H_dim]
-        stg0_sz = data_dict["stage0"].size()[self._H_dim]
-        self._stg0_pred_scale_rate = stg0_sz / pred_sz
+            det = det_dicts[0]
+            self.init_empty_det_dict(det)
 
-        self._preds_slc_ranges, self._preds_ovl_slc_ranges = \
-                self.get_slice_ranges_v3(self._cls_preds_size[self._cls_H_dim])
+            pred_sz = self._box_preds_size[self._cls_H_dim]
+            stg0_sz = data_dict["stage0"].size()[self._H_dim]
+            self._stg0_pred_scale_rate = stg0_sz / pred_sz
 
-        # This part is for slicing
-        # Slicing can happen after stage 1 or stage 2
-        stg1_sz = data_dict["stage1"].size()[self._H_dim]
-        up1_sz = data_dict["up1"].size()[self._H_dim]
-        scale_rate = stg1_sz / pred_sz
-        self._stg1_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
-                for r in self._preds_slc_ranges]
-        scale_rate = up1_sz / pred_sz
-        self._up1_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
-                for r in self._preds_slc_ranges]
+            self._preds_slc_ranges, self._preds_ovl_slc_ranges = \
+                    self.get_slice_ranges_v3(self._cls_preds_size[self._cls_H_dim])
 
-        stg2_sz = data_dict["stage2"].size()[self._H_dim]
-        up2_sz = data_dict["up2"].size()[self._H_dim]
-        scale_rate = stg2_sz / pred_sz
-        self._stg2_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
-                for r in self._preds_slc_ranges]
-        scale_rate = up2_sz / pred_sz
-        self._up2_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
-                for r in self._preds_slc_ranges]
+            # This part is for slicing
+            # Slicing can happen after stage 1 or stage 2
+            stg1_sz = data_dict["stage1"].size()[self._H_dim]
+            up1_sz = data_dict["up1"].size()[self._H_dim]
+            scale_rate = stg1_sz / pred_sz
+            self._stg1_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
+                    for r in self._preds_slc_ranges]
+            scale_rate = up1_sz / pred_sz
+            self._up1_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
+                    for r in self._preds_slc_ranges]
 
-        self._num_slices = len(self._stg1_slc_ranges)
-        # split overlapped regions for class scores
-        posr = self._preds_ovl_slc_ranges
-        self._cls_scr_ranges = [(0, posr[0][0])]
-        for i in range(len(posr)-1):
-            ro1, ro2 = posr[i], posr[i+1]
-            self._cls_scr_ranges.append(ro1)
-            self._cls_scr_ranges.append((ro1[1], ro2[0]))
-        self._cls_scr_ranges.append(posr[-1])
-        self._cls_scr_ranges.append((posr[-1][1], pred_sz))
+            stg2_sz = data_dict["stage2"].size()[self._H_dim]
+            up2_sz = data_dict["up2"].size()[self._H_dim]
+            scale_rate = stg2_sz / pred_sz
+            self._stg2_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
+                    for r in self._preds_slc_ranges]
+            scale_rate = up2_sz / pred_sz
+            self._up2_slc_ranges = [(int(r[0] * scale_rate), int(r[1] * scale_rate))
+                    for r in self._preds_slc_ranges]
 
-        print("VAL min_slice_overlap_perc", self._min_slice_overlap_perc)
-        self._eval_dict["min_slice_overlap_perc"] = self._min_slice_overlap_perc
-        print("VAL num_slices", self._num_slices)
-        self._eval_dict["num_slices"] = self._num_slices
-        print("2D_LIST _stg1_slc_ranges", self._stg1_slc_ranges)
-        print("2D_LIST _stg2_slc_ranges", self._stg2_slc_ranges)
-        print("2D_LIST _preds_slc_ranges", self._preds_slc_ranges)
-        print('2D_LIST _cls_scr_ranges', self._cls_scr_ranges)
-        print("VAL slice_size_perc", self._slice_size_perc)
-        self._eval_dict["slice_size_perc"] = self._slice_size_perc
+            self._num_slices = len(self._stg1_slc_ranges)
+            # split overlapped regions for class scores
+            posr = self._preds_ovl_slc_ranges
+            self._cls_scr_ranges = [(0, posr[0][0])]
+            for i in range(len(posr)-1):
+                ro1, ro2 = posr[i], posr[i+1]
+                self._cls_scr_ranges.append(ro1)
+                self._cls_scr_ranges.append((ro1[1], ro2[0]))
+            self._cls_scr_ranges.append(posr[-1])
+            self._cls_scr_ranges.append((posr[-1][1], pred_sz))
 
-        if self._cudnn_benchmarking:
-            # This will trigger all possible slice inputs
-            print('Starting dry run for cudnn benchmarking')
-            self._calibration=True
-            self._dry_run_slices = []
-            #WARNING! This part assumes there are three rpn stages
-            for i in range(self._num_slices+1):
-                for j in range(i+1):
-                    self._dry_run_slices.append((i,j))
-            for drs in self._dry_run_slices:
-                self._cur_calib_tuple = drs
-                self.load_and_infer(0, {'method': self.IMP_SLICE})
-            self.clear_stats()
-            self._calibration=False
-            print('Dry run finished')
-        
-        #WARNING! This part assumes there are thee rpn stages
+            print("VAL min_slice_overlap_perc", self._min_slice_overlap_perc)
+            self._eval_dict["min_slice_overlap_perc"] = self._min_slice_overlap_perc
+            print("VAL num_slices", self._num_slices)
+            self._eval_dict["num_slices"] = self._num_slices
+            print("2D_LIST _stg1_slc_ranges", self._stg1_slc_ranges)
+            print("2D_LIST _stg2_slc_ranges", self._stg2_slc_ranges)
+            print("2D_LIST _preds_slc_ranges", self._preds_slc_ranges)
+            print('2D_LIST _cls_scr_ranges', self._cls_scr_ranges)
+            print("VAL slice_size_perc", self._slice_size_perc)
+            self._eval_dict["slice_size_perc"] = self._slice_size_perc
 
-        # generate 300 random indexes to use for calibration, if required
-        samples = np.random.randint(0, len(self.dataset)-1, 300)
+            if self._cudnn_benchmarking:
+                # This will trigger all possible slice inputs
+                print('Starting dry run for cudnn benchmarking')
+                self._calibration=True
+                self._dry_run_slices = []
+                #WARNING! This part assumes there are three rpn stages
+                for i in range(self._num_slices+1):
+                    for j in range(i+1):
+                        self._dry_run_slices.append((i,j))
+                for drs in self._dry_run_slices:
+                    self._cur_calib_tuple = drs
+                    self.load_and_infer(0, {'method': self.IMP_SLICE})
+                self.clear_stats()
+                self._calibration=False
+                print('Dry run finished')
+
+        # generate 50 random indexes to use for calibration, if required
+        samples = np.random.randint(0, len(self.dataset)-1, 50)
 
         m = np.finfo(np.single).max
-        self._post_stg1_slice_table   = np.full((self._num_slices+1, self._num_slices+1), m)
         self._post_stg1_noslice_table = np.full((self._num_stages,), m)
-        fnames= [f"calib_dict_noslice_{self.dataset.dataset_cfg.DATASET}.json",
-                f"calib_dict_slice{self._slice_size_perc}_{self.dataset.dataset_cfg.DATASET}.json"]
-        for fname, sliced in zip(fnames, [False, True]):
+        fnames= [f"calib_dict_noslice_{self.dataset.dataset_cfg.DATASET}.json"]
+        if self._enable_slicing:
+            self._post_stg1_slice_table = np.full((self._num_slices+1, self._num_slices+1), m)
+            fnames.append(f"calib_dict_slice{self._slice_size_perc}_" \
+                    f"{self.dataset.dataset_cfg.DATASET}.json")
+        for fname in fnames:
+            sliced = not bool('noslice' in fname)
             try:
                 with open(fname, 'r') as handle:
                     calib_dict = json.load(handle)
             except FileNotFoundError:
                 print(f'Calibration file {fname} not found, running calibration') 
                 calib_dict = self.do_calibration(fname, sliced, samples)
-            
+
             # Use 99 percentile Post-stage-1 times
             stat_dict = calib_dict['stats']
-            for k,v in stat_dict.items():
+            for k, v in stat_dict.items():
                 if sliced:
                     r, c = k.replace('(', '').replace(')', '').replace(',', '').split()
                     r, c = int(r), int(c)
@@ -584,8 +603,9 @@ class PointPillarImprecise(Detector3DTemplate):
                     r = int(r[0])
                     self._post_stg1_noslice_table[r-1] = v['Post-stage-1'][3]
 
-        print('Post stage 1 slice table:')
-        print(self._post_stg1_slice_table)
+        if self._enable_slicing:
+            print('Post stage 1 slice table:')
+            print(self._post_stg1_slice_table)
         print('Post stage 1 noslice table:')
         print(self._post_stg1_noslice_table)
 

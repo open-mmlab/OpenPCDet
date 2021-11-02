@@ -368,7 +368,8 @@ class KittiDataset(DatasetTemplate):
 
         return len(self.kitti_infos)
 
-    def __getitem__(self, index):
+
+    def getitem_pre(self, index):
         # index = 4
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.kitti_infos)
@@ -421,11 +422,17 @@ class KittiDataset(DatasetTemplate):
         if "calib_matricies" in get_item_list:
             input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] = kitti_utils.calib_to_matricies(calib)
 
-        data_dict = self.prepare_data(data_dict=input_dict)
+        input_dict['image_shape'] = img_shape
+        return self.prepare_data_pre(data_dict=input_dict)
 
-        data_dict['image_shape'] = img_shape
+
+    def getitem_post(self, data_dict):
+        return self.prepare_data_post(data_dict=data_dict)
+
+    def __getitem__(self, index):
+        data_dict = self.getitem_pre(index)
+        data_dict = self.getitem_post(data_dict)
         return data_dict
-
 
 def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
     dataset = KittiDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)

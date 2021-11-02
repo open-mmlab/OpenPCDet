@@ -92,6 +92,9 @@ class AnchorHeadSingleImprecise(AnchorHeadTemplate):
             )
             self.forward_ret_dict.update(targets_dict)
 
+        if self.training and cur_stg == 3 and self.predict_boxes_when_training:
+            data_dict = self.gen_pred_boxes(data_dict)
+
         return data_dict
 
     # need to call this after merging the slices
