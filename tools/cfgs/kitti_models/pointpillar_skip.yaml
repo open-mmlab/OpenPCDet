@@ -48,7 +48,7 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
 MODEL:
-    NAME: PointPillar
+    NAME: PointPillarImprecise
 
     VFE:
         NAME: PillarVFE
@@ -62,7 +62,7 @@ MODEL:
         NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
+        NAME: BaseBEVBackboneSkip
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]
@@ -140,8 +140,9 @@ MODEL:
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
+
+    METHOD: 6
     DEADLINE_SEC: 10.0
-    METHOD: 3
 
 
 OPTIMIZATION:

@@ -91,7 +91,7 @@ class BaseBEVBackboneSkip(nn.Module):
         spatial_features = data_dict['spatial_features']
         if 'layer_nums' in data_dict:
             layers_to_run = data_dict['layer_nums']
-            for l, lr in zip(layer_nums, layers_to_run):
+            for l, lr in zip(self.layer_nums, layers_to_run):
                 assert (lr > 0 and lr <= l)
         else:    
             layers_to_run = self.layer_nums
@@ -121,7 +121,4 @@ class BaseBEVBackboneSkip(nn.Module):
         data_dict['spatial_features_2d'] = x
 
         return data_dict
-
-    def layer_nums():
-        return self.layer_nums
 

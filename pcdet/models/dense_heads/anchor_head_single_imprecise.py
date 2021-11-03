@@ -96,17 +96,3 @@ class AnchorHeadSingleImprecise(AnchorHeadTemplate):
             data_dict = self.gen_pred_boxes(data_dict)
 
         return data_dict
-
-    # need to call this after merging the slices
-    def gen_pred_boxes(self, data_dict):
-        batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
-            batch_size=data_dict['batch_size'],
-            cls_preds=data_dict['cls_preds'],
-            box_preds=data_dict['box_preds'], 
-            dir_cls_preds=data_dict['dir_cls_preds']
-        )
-        data_dict['batch_cls_preds'] = batch_cls_preds
-        data_dict['batch_box_preds'] = batch_box_preds
-        data_dict['cls_preds_normalized'] = False
-
-        return data_dict

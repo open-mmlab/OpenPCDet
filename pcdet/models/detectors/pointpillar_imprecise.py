@@ -20,7 +20,6 @@ class PointPillarImprecise(Detector3DTemplate):
             self._sep_mhead = model_cfg.DENSE_HEAD.SEPARATE_MULTIHEAD
         else:
             self._sep_mhead = False
-        self._enable_slicing = not self._sep_mhead  # for now, don't enable
 
         # available methods:
         self.BASELINE1 = 1
@@ -33,6 +32,8 @@ class PointPillarImprecise(Detector3DTemplate):
 
         self._default_method = int(model_cfg.METHOD)
         print('Default method is:', self._default_method)
+        self._enable_slicing = not (self._sep_mhead or self._default_method >= self.SKIP_NOSLICE)
+
         self._eval_dict['method'] = self._default_method
         self._eval_dict['rpn_stg_exec_seqs'] = []
 
@@ -51,7 +52,10 @@ class PointPillarImprecise(Detector3DTemplate):
         self._cls_H_dim = 2
         self._W_dim = 2
         self._calibration = False
-        self._num_stages = len(self.backbone_2d.num_bev_features)
+        if self._default_method < self.SKIP_NOSLICE:
+            self._num_stages = len(self.backbone_2d.num_bev_features)
+        else:
+            self._num_stages = len(self.backbone_2d.layer_nums)
 
         self._score_threshold= float(model_cfg.POST_PROCESSING.SCORE_THRESH)
 
@@ -79,8 +83,8 @@ class PointPillarImprecise(Detector3DTemplate):
                 'Post-stage-1': [],
                 'PostProcess': [],})
 
-        #print('Model:')
-        #print(self)
+        print('Model:')
+        print(self)
 
     def forward(self, data_dict):
         if not self.training:
@@ -132,7 +136,6 @@ class PointPillarImprecise(Detector3DTemplate):
             return self.skip_noslicing_forward(data_dict)
 
     def pre_rpn_forward(self, data_dict):
-        self.measure_time_start('Pre-stage-1')
         self.measure_time_start('VFE')
         data_dict = self.vfe(data_dict) # pillar feature net
         self.measure_time_end('VFE')
@@ -145,6 +148,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
     # Can run baselines and imprecise noslice
     def noslicing_forward(self, data_dict):
+        self.measure_time_start('Pre-stage-1')
         data_dict = self.pre_rpn_forward(data_dict)
 
         self.measure_time_start('RPN-total')
@@ -197,12 +201,11 @@ class PointPillarImprecise(Detector3DTemplate):
 
     def skip_noslicing_forward(self, data_dict):
         data_dict = self.pre_rpn_forward(data_dict)
-        
-        torch.cuda.synchronize()
+        #torch.cuda.synchronize()
         #num_layers_to_run = self.sched_stages(data_dict['abs_deadline_sec'])
-        ln = self.backbone_2d.layer_nums()
-        #
-        data_dict['layer_nums'] = ln
+        #num_layers_to_run = self.backbone_2d.layer_nums.copy()
+        num_layers_to_run = [5, 3, 3]
+        data_dict['layer_nums'] = num_layers_to_run
 
         self.measure_time_start('RPN-total')
         data_dict = self.backbone_2d(data_dict)
@@ -224,6 +227,7 @@ class PointPillarImprecise(Detector3DTemplate):
         return det_dicts, recall_dict
 
     def slicing_forward(self, data_dict):
+        self.measure_time_start('Pre-stage-1')
         data_dict = self.pre_rpn_forward(data_dict)
 
         # Calculate anchor mask
@@ -488,7 +492,10 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict = self.map_to_bev(data_dict)
         data_dict["stage0"] = data_dict["spatial_features"]
         data_dict["stages_executed"] = 0
-        for s in range(self._num_stages):
+        if  self._default_method <  self.SKIP_NOSLICE:
+            for s in range(self._num_stages):
+                data_dict = self.backbone_2d(data_dict)
+        else:
             data_dict = self.backbone_2d(data_dict)
         data_dict = self.dense_head(data_dict)
         data_dict = self.dense_head.gen_pred_boxes(data_dict)
@@ -514,6 +521,10 @@ class PointPillarImprecise(Detector3DTemplate):
 
         print('\nDense head return:\nbox_preds', self._box_preds_size)
         print('cls_preds', self._cls_preds_size)
+
+
+        if self._default_method >= self.SKIP_NOSLICE:
+            return
         
         # needed for anchor mask
         if self._sep_mhead:

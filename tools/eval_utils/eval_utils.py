@@ -113,6 +113,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     if cfg.LOCAL_RANK != 0:
         return {}
 
+    model.print_time_stats()
+
     ret_dict = {}
     if dist_test:
         for key, val in metric[0].items():
@@ -150,7 +152,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     logger.info('Result is save to %s' % result_dir)
     logger.info('****************Evaluation done.*****************')
 
-    model.print_time_stats()
     model.dump_eval_dict(ret_dict)
     model.clear_stats()
 
