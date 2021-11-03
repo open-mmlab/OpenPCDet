@@ -168,7 +168,7 @@ class PointPillarImprecise(Detector3DTemplate):
         #data_dict['score_thresh'] = 0.1
         
         if data_dict['method'] == self.IMP_NOSLICE:
-            torch.cuda.synchronize()
+            #torch.cuda.synchronize()
             num_stgs_to_run = self.sched_stages(data_dict['abs_deadline_sec'])
         else:
             num_stgs_to_run = data_dict['method']
@@ -190,12 +190,12 @@ class PointPillarImprecise(Detector3DTemplate):
             stg_seq.append(3)
             #data_dict['score_thresh'] = 0.1
 
+        self.measure_time_end('RPN-total')
         self.measure_time_start('RPN-finalize')
         #torch.cuda.nvtx.range_push('Head')
         data_dict = self.dense_head(data_dict)
         #torch.cuda.nvtx.range_pop()
         self.measure_time_end('RPN-finalize')
-        self.measure_time_end('RPN-total')
 
         self.measure_time_start("PostProcess")
         # Now do postprocess and finish
@@ -218,12 +218,12 @@ class PointPillarImprecise(Detector3DTemplate):
 
         self.measure_time_start('RPN-total')
         data_dict = self.backbone_2d(data_dict)
+        self.measure_time_end('RPN-total')
         self.measure_time_start('RPN-finalize')
         #torch.cuda.nvtx.range_push('Head')
         data_dict = self.dense_head(data_dict)
         #torch.cuda.nvtx.range_pop()
         self.measure_time_end('RPN-finalize')
-        self.measure_time_end('RPN-total')
 
         self.measure_time_start("PostProcess")
         # Now do postprocess and finish
@@ -391,6 +391,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
             stg_seq.extend([3] * len(stg3_slices))
 
+        self.measure_time_end("RPN-total")
         self.measure_time_start("RPN-finalize")
         if not data_sliced:
             # No slicing were used
@@ -459,7 +460,6 @@ class PointPillarImprecise(Detector3DTemplate):
 
             data_dict.update(preds_dict)
         self.measure_time_end("RPN-finalize")
-        self.measure_time_end("RPN-total")
 
         self.measure_time_start("PostProcess")
         data_dict = self.dense_head.gen_pred_boxes(data_dict)
