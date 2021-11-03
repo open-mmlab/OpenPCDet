@@ -97,30 +97,39 @@ class PointPillarImprecise(Detector3DTemplate):
             # Execute all stages
             losses=[]
 
-            for s in range(self._num_stages):
+            if  self._default_method <  self.SKIP_NOSLICE:
+                for s in range(self._num_stages):
+                    data_dict = self.backbone_2d(data_dict)
+                    data_dict = self.dense_head(data_dict)
+                    if self.dense_head.predict_boxes_when_training:
+                        data_dict = self.dense_head.gen_pred_boxes(data_dict)
+                    loss, tb_dict, disp_dict = self.get_training_loss()
+                    losses.append(loss)
+                # Tried to implement training method in ABC paper
+                tperc = self.dataset.cur_epochs / self.dataset.total_epochs
+                if tperc <= 0.25:
+                    weights = [0.98, 0.01, 0.01]
+                elif tperc <= 0.5:
+                    weights = [0.1, 0.8, 0.1]
+                elif tperc <= 0.75:
+                    weights = [0.1, 0.2, 0.7]
+                else:
+                    weights = [0.05, 0.15, 0.85]
+                total_loss = .0
+                for i, l in enumerate(losses):
+                    total_loss += l * weights[i]
+            else:
                 data_dict = self.backbone_2d(data_dict)
                 data_dict = self.dense_head(data_dict)
                 if self.dense_head.predict_boxes_when_training:
                     data_dict = self.dense_head.gen_pred_boxes(data_dict)
                 loss, tb_dict, disp_dict = self.get_training_loss()
-                losses.append(loss)
+                total_loss = loss
 
-            # Tried to implement training method in ABC paper
-            tperc = self.dataset.cur_epochs / self.dataset.total_epochs
-            if tperc <= 0.25:
-                weights = [0.98, 0.01, 0.01]
-            elif tperc <= 0.5:
-                weights = [0.1, 0.8, 0.1]
-            elif tperc <= 0.75:
-                weights = [0.1, 0.2, 0.7]
-            else:
-                weights = [0.05, 0.15, 0.85]
-            total_loss = .0
-            for i, l in enumerate(losses):
-                total_loss += l * weights[i]
             ret_dict = {
-                    'loss': total_loss,
-                    }
+                'loss': total_loss,
+            }
+
             return ret_dict, tb_dict, disp_dict
 
     def eval_forward(self, data_dict):
@@ -204,7 +213,7 @@ class PointPillarImprecise(Detector3DTemplate):
         #torch.cuda.synchronize()
         #num_layers_to_run = self.sched_stages(data_dict['abs_deadline_sec'])
         #num_layers_to_run = self.backbone_2d.layer_nums.copy()
-        num_layers_to_run = [5, 3, 3]
+        num_layers_to_run = [3, 5, 5]
         data_dict['layer_nums'] = num_layers_to_run
 
         self.measure_time_start('RPN-total')
