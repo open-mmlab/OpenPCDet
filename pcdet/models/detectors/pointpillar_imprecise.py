@@ -8,8 +8,6 @@ import copy
 import json
 import numpy as np
 
-#dataset:
-
 class PointPillarImprecise(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
@@ -30,6 +28,8 @@ class PointPillarImprecise(Detector3DTemplate):
         self.BASELINE3 = 3
         self.IMP_NOSLICE = 4
         self.IMP_SLICE = 5
+        self.SKIP_NOSLICE = 6
+        #self.SKIP_SLICE = 7
 
         self._default_method = int(model_cfg.METHOD)
         print('Default method is:', self._default_method)
@@ -53,8 +53,7 @@ class PointPillarImprecise(Detector3DTemplate):
         self._calibration = False
         self._num_stages = len(self.backbone_2d.num_bev_features)
 
-        #self._score_threshold= float(model_cfg.POST_PROCESSING.SCORE_THRESH)
-        self._score_threshold = 0.3  # first stage threshold
+        self._score_threshold= float(model_cfg.POST_PROCESSING.SCORE_THRESH)
 
         # Debug/plot related
         self._pc_range = dataset.point_cloud_range
@@ -125,14 +124,14 @@ class PointPillarImprecise(Detector3DTemplate):
         if 'method' not in data_dict:
             data_dict['method'] = self._default_method
 
+        if data_dict['method'] < self.IMP_SLICE:
+            return self.noslicing_forward(data_dict)
         if data_dict['method'] == self.IMP_SLICE:
             return self.slicing_forward(data_dict)
-        else:
-            return self.noslicing_forward(data_dict)
+        elif data_dict['method'] == self.SKIP_NOSLICE:
+            return self.skip_noslicing_forward(data_dict)
 
-
-    # Can run baselines and imprecise noslice
-    def noslicing_forward(self, data_dict):
+    def pre_rpn_forward(self, data_dict):
         self.measure_time_start('Pre-stage-1')
         self.measure_time_start('VFE')
         data_dict = self.vfe(data_dict) # pillar feature net
@@ -142,6 +141,11 @@ class PointPillarImprecise(Detector3DTemplate):
         self.measure_time_end('MapToBEV')
         data_dict["stage0"] = data_dict["spatial_features"]
         data_dict["stages_executed"] = 0
+        return data_dict
+
+    # Can run baselines and imprecise noslice
+    def noslicing_forward(self, data_dict):
+        data_dict = self.pre_rpn_forward(data_dict)
 
         self.measure_time_start('RPN-total')
         self.measure_time_start('RPN-stage-1')
@@ -191,16 +195,36 @@ class PointPillarImprecise(Detector3DTemplate):
         self._eval_dict['rpn_stg_exec_seqs'].append(stg_seq)
         return det_dicts, recall_dict
 
+    def skip_noslicing_forward(self, data_dict):
+        data_dict = self.pre_rpn_forward(data_dict)
+        
+        torch.cuda.synchronize()
+        #num_layers_to_run = self.sched_stages(data_dict['abs_deadline_sec'])
+        ln = self.backbone_2d.layer_nums()
+        #
+        data_dict['layer_nums'] = ln
+
+        self.measure_time_start('RPN-total')
+        data_dict = self.backbone_2d(data_dict)
+        self.measure_time_start('RPN-finalize')
+        #torch.cuda.nvtx.range_push('Head')
+        data_dict = self.dense_head(data_dict)
+        #torch.cuda.nvtx.range_pop()
+        self.measure_time_end('RPN-finalize')
+        self.measure_time_end('RPN-total')
+
+        self.measure_time_start("PostProcess")
+        # Now do postprocess and finish
+        #torch.cuda.nvtx.range_push('PostProcess')
+        data_dict = self.dense_head.gen_pred_boxes(data_dict)
+        det_dicts, recall_dict = self.post_processing(data_dict, False)
+        #torch.cuda.nvtx.range_pop()
+        self.measure_time_end("PostProcess")
+        self._eval_dict['rpn_stg_exec_seqs'].append(num_layers_to_run)
+        return det_dicts, recall_dict
+
     def slicing_forward(self, data_dict):
-        self.measure_time_start('Pre-stage-1') 
-        self.measure_time_start('VFE')
-        data_dict = self.vfe(data_dict) # pillar feature net
-        self.measure_time_end('VFE')
-        self.measure_time_start('MapToBEV')
-        data_dict = self.map_to_bev(data_dict) # pillar scatter
-        self.measure_time_end('MapToBEV')
-        data_dict["stage0"] = data_dict["spatial_features"]
-        data_dict["stages_executed"] = 0
+        data_dict = self.pre_rpn_forward(data_dict)
 
         # Calculate anchor mask
         self.measure_time_start('AnchorMask')
