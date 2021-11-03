@@ -1,5 +1,5 @@
 import numpy as np
-import spconv
+import spconv.pytorch as spconv
 import torch
 import torch.nn as nn
 
