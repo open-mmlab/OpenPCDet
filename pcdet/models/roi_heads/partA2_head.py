@@ -192,7 +192,7 @@ class PartA2FCHead(RoIHeadTemplate):
 
         part_features = pooled_part_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
         rpn_features = pooled_rpn_features[sparse_idx[:, 0], sparse_idx[:, 1], sparse_idx[:, 2], sparse_idx[:, 3]]
-        coords = sparse_idx.int()
+        coords = sparse_idx.int().contiguous()
         part_features = spconv.SparseConvTensor(part_features, coords, sparse_shape, batch_size_rcnn)
         rpn_features = spconv.SparseConvTensor(rpn_features, coords, sparse_shape, batch_size_rcnn)
 
