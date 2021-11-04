@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from packaging import version
+from packaging import version as p_version
 
 from .version import __version__
 
@@ -27,4 +27,4 @@ if script_version not in __version__:
 
 
 def v1_is_lower_than_v2(version1: str, version2: str):
-    return version.parse(version1) < version.parse(version2)
+    return p_version.parse(version1) < p_version.parse(version2)
