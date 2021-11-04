@@ -330,6 +330,7 @@ class Detector3DTemplate(nn.Module):
     def _load_state_dict(self, model_state_disk, version, *, strict=True):
         state_dict = self.state_dict()  # local cache of state_dict
 
+        version = version.split("+")[1]
         spconv_keys = find_all_spconv_keys(self)
 
         update_model_state = {}
