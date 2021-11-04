@@ -92,12 +92,13 @@ class PointPillarImprecise(Detector3DTemplate):
         else:
             data_dict = self.vfe(data_dict)
             data_dict = self.map_to_bev(data_dict)
-            data_dict["stage0"] = data_dict["spatial_features"]
-            data_dict["stages_executed"] = 0
-            # Execute all stages
-            losses=[]
 
             if  self._default_method <  self.SKIP_NOSLICE:
+                data_dict["stage0"] = data_dict["spatial_features"]
+                data_dict["stages_executed"] = 0
+                # Execute all stages
+                losses=[]
+
                 for s in range(self._num_stages):
                     data_dict = self.backbone_2d(data_dict)
                     data_dict = self.dense_head(data_dict)
