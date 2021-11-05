@@ -1,7 +1,8 @@
 from functools import partial
 
-import spconv.pytorch as spconv
 import torch.nn as nn
+
+from ...spconv_utils import replace_feature, spconv
 
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,
@@ -50,17 +51,17 @@ class SparseBasicBlock(spconv.SparseModule):
         identity = x
 
         out = self.conv1(x)
-        out = out.replace_feature(self.bn1(out.features))
-        out = out.replace_feature(self.relu(out.features))
+        out = replace_feature(out, self.bn1(out.features))
+        out = replace_feature(out, self.relu(out.features))
 
         out = self.conv2(out)
-        out = out.replace_feature(self.bn2(out.features))
+        out = replace_feature(out, self.bn2(out.features))
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out = out.replace_feature(out.features + identity.features)
-        out = out.replace_feature(self.relu(out.features))
+        out = replace_feature(out, out.features + identity.features)
+        out = replace_feature(out, self.relu(out.features))
 
         return out
 

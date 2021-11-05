@@ -1,9 +1,9 @@
 import numpy as np
-import spconv.pytorch as spconv
 import torch
 import torch.nn as nn
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
+from ...spconv_utils import spconv
 from .roi_head_template import RoIHeadTemplate
 
 
