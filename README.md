@@ -1,6 +1,6 @@
 # ONCE Benchmark
 
-This is a reproduced benchmark for 3D object detection on the [ONCE](https://arxiv.org/abs/2106.11037) (One Million Scenes) dataset. 
+This is a reproduced benchmark for 3D object detection on the [ONCE](https://once-for-auto-driving.github.io/index.html) (One Million Scenes) dataset. 
 
 The code is mainly based on [OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
 
