@@ -1,8 +1,6 @@
 import subprocess
 from pathlib import Path
 
-from packaging import version as p_version
-
 from .version import __version__
 
 __all__ = [
@@ -24,7 +22,3 @@ script_version = get_git_commit_number()
 
 if script_version not in __version__:
     __version__ = __version__ + '+py%s' % script_version
-
-
-def v1_is_lower_than_v2(version1: str, version2: str):
-    return p_version.parse(version1) < p_version.parse(version2)
