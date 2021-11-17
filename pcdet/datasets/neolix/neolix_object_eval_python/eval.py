@@ -146,6 +146,16 @@ def image_box_overlap(boxes, query_boxes, criterion=-1):
 
 
 def bev_box_overlap(boxes, qboxes, criterion=-1):
+    """
+    boxes: [x, y, l, w, theta]
+    Args:
+        boxes:
+        qboxes:
+        criterion:
+
+    Returns:
+
+    """
     riou = rotate_iou_gpu_eval(boxes, qboxes, criterion)
     return riou
 
@@ -198,6 +208,7 @@ def compute_statistics_jit(overlaps,
                            thresh=0,
                            compute_fp=False,
                            compute_aos=False,
+                           compute_ry=False,
                            fused_statistics=True,
                            class_m=0,
                            difficulty_l=0,
@@ -267,8 +278,8 @@ def compute_statistics_jit(overlaps,
         if (valid_detection == NO_DETECTION) and ignored_gt[i] == 0:
             fn += 1
             # if (not fused_statistics) & (overlap_k == 1) & (difficulty_l == 0) & (metric == 1):
-            #     with open("fn.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fn_file:
-            #         fn_file.write("pcd_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
+                # with open("fn.class_%d.overlap%d.txt" % (class_m, overlap_k), 'a') as fn_file:
+                #     fn_file.write("pcd_idx:%d, box_id:%d" % (pc_idx, i) + "\n")
         elif ((valid_detection != NO_DETECTION)
               and (ignored_gt[i] == 1 or ignored_det[det_idx] == 1)):
             assigned_detection[det_idx] = True
@@ -351,7 +362,8 @@ def fused_compute_statistics(overlaps,
                              metric,
                              min_overlap,
                              thresholds,
-                             compute_aos=False):
+                             compute_aos=False,
+                             compute_ry=False):
     gt_num = 0
     dt_num = 0
     dc_num = 0
@@ -376,7 +388,8 @@ def fused_compute_statistics(overlaps,
                 min_overlap=min_overlap,
                 thresh=thresh,
                 compute_fp=True,
-                compute_aos=compute_aos)
+                compute_aos=compute_aos,
+                compute_ry=compute_ry)
             pr[t, 0] += tp
             pr[t, 1] += fp
             pr[t, 2] += fn
@@ -428,8 +441,6 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
             rots = np.concatenate([a["rotation_y"] for a in dt_annos_part], 0)
             dt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
-            # print('gt_boxes', gt_boxes)
-            # print('dt_boxes', dt_boxes)
             overlap_part = bev_box_overlap(gt_boxes, dt_boxes).astype(
                 np.float64)
         elif metric == 2:
@@ -486,8 +497,10 @@ def _prepare_data(gt_annos, dt_annos, current_class, difficulty, det_range=None,
         total_dc_num.append(dc_bboxes.shape[0])
         dontcares.append(dc_bboxes)
         total_num_valid_gt += num_valid_gt
+        # gt_datas = np.concatenate(
+        #     [gt_annos[i]["bbox"], gt_annos[i]["alpha"][..., np.newaxis]], 1)
         gt_datas = np.concatenate(
-            [gt_annos[i]["bbox"], gt_annos[i]["alpha"][..., np.newaxis]], 1)
+            [gt_annos[i]["gt_boxes_lidar"][:, :4], gt_annos[i]["alpha"][..., np.newaxis]], 1)
         dt_datas = np.concatenate([
             dt_annos[i]["bbox"], dt_annos[i]["alpha"][..., np.newaxis],
             dt_annos[i]["score"][..., np.newaxis]
@@ -509,7 +522,8 @@ def eval_class(gt_annos,
                num_parts=100,
                det_range=None,
                save_fn_fp=False,
-               eval_cfg=None):
+               eval_cfg=None,
+               compute_ry=False):
     """Kitti eval. support 2d/bev/3d/aos eval. support 0.5:0.05:0.95 coco AP.
     Args:
         gt_annos: dict, must from get_label_annos() in kitti_common.py
@@ -629,7 +643,8 @@ def eval_class(gt_annos,
                         metric,
                         min_overlap=min_overlap,
                         thresholds=thresholds,
-                        compute_aos=compute_aos)
+                        compute_aos=compute_aos,
+                        compute_ry=compute_ry)
                     idx += num_part
                 for i in range(len(thresholds)):
                     recall[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 2])
@@ -682,13 +697,14 @@ def do_eval(gt_annos,
             compute_aos=False,
             PR_detail_dict=None,
             det_range=None,
-            eval_cfg=None):
+            eval_cfg=None,
+            compute_ry=False):
     # min_overlaps: [num_minoverlap, metric, num_class]
     difficultys = [0, 1, 2]
     # print(('*' * 60))
     # print('The recall and precision in mode bbox')
     ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0,
-                     min_overlaps, compute_aos, det_range=det_range, eval_cfg=eval_cfg)
+                     min_overlaps, compute_aos, det_range=det_range, eval_cfg=eval_cfg, compute_ry=compute_ry)
     # ret: [num_class, num_diff, num_minoverlap, num_sample_points]
     mAP_bbox = get_mAP(ret["precision"])
     mAP_bbox_R40 = get_mAP_R40(ret["precision"])
@@ -791,8 +807,10 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, det_range=None
             if anno['alpha'][0] != -10:
                 compute_aos = True
             break
+    compute_ry = True
     mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40, recall_ls, precision_ls = do_eval(
-        gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict, det_range=det_range, eval_cfg=eval_cfg)
+        gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict,
+        det_range=det_range, eval_cfg=eval_cfg, compute_ry=compute_ry)
 
     cls_num = len(recall_ls)
     f2_score_ls = []
@@ -940,3 +958,4 @@ def get_coco_eval_result(gt_annos, dt_annos, current_classes):
                                  f"{mAPaos[j, 1]:.2f}, "
                                  f"{mAPaos[j, 2]:.2f}"))
     return result
+

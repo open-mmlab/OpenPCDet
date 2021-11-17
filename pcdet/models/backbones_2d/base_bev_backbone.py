@@ -91,7 +91,6 @@ class BaseBEVBackbone(nn.Module):
         ups = []
         ret_dict = {}
         x = spatial_features
-        # print("x.shape", x.shape)
         # np.save("/nfs/neolix_data1/temp_shl/rpn_npys/rpn_input_%04d" % rpn_id, x.detach().cpu().numpy())
         # txt_content = list(x.detach().cpu().numpy())
         # print(txt_content)
@@ -114,7 +113,6 @@ class BaseBEVBackbone(nn.Module):
             x = self.deblocks[-1](x)
 
         data_dict['spatial_features_2d'] = x
-
         return data_dict
 
     # forward for export pointpillars onnx
@@ -151,5 +149,4 @@ class BaseBEVBackbone(nn.Module):
     #     # data_dict['spatial_features_2d'] = x
     #
     #     # return data_dict
-    #
     #     return x

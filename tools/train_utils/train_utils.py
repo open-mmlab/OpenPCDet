@@ -194,7 +194,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             # end add
 
 
-            # # # save trained model
+            # # save trained model
             # trained_epoch = cur_epoch + 1
             # if trained_epoch % ckpt_save_interval == 0 and rank == 0:
             #     ckpt_list = glob.glob(str(ckpt_save_dir / 'checkpoint_epoch_*.pth'))
@@ -207,6 +207,10 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
             #     save_checkpoint(
             #         checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name,
             #     )
+            #     if tb_log is not None:
+            #         tb_log.add_scalar('f2score', f2score, trained_epoch)
+            #     model.val = False
+            #     model.train()
 
 def model_state_to_cpu(model_state):
     model_state_cpu = type(model_state)()  # ordered dict

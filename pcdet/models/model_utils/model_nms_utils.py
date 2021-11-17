@@ -3,10 +3,12 @@ import torch
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
-def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None, label_preds=None):
+    # score_thresh = torch.tensor([0.25, 0.23, 0.26, 0.25, 0.25]).cuda()
+    score_thresh = torch.tensor(score_thresh).cuda()
     src_box_scores = box_scores
     if score_thresh is not None:
-        scores_mask = (box_scores >= score_thresh)
+        scores_mask = (box_scores >= score_thresh[label_preds - 1])
         box_scores = box_scores[scores_mask]
         box_preds = box_preds[scores_mask]
 
@@ -25,7 +27,7 @@ def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
     return selected, src_box_scores[selected]
 
 
-def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
+def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None, cls_score_threshold=None):
     """
     Args:
         cls_scores: (N, num_class)
@@ -39,7 +41,8 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
     pred_scores, pred_labels, pred_boxes = [], [], []
     for k in range(cls_scores.shape[1]):
         if score_thresh is not None:
-            scores_mask = (cls_scores[:, k] >= score_thresh)
+            # scores_mask = (cls_scores[:, k] >= score_thresh)
+            scores_mask = (cls_scores[:, k] >= cls_score_threshold)
             box_scores = cls_scores[scores_mask, k]
             cur_box_preds = box_preds[scores_mask]
         else:

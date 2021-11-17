@@ -55,8 +55,7 @@ class DemoDataset(DatasetTemplate):
             for p_line in raw_rs:
                 p_ls = p_line.strip().split(" ")
                 if len(p_ls) == 4:
-                    if (p_ls[0] != "nan") or (p_ls[1] != "nan") or (p_ls[2] != "nan") or (p_ls[3] != "nan"):
-                        # rs_ls.append([float(i) for i in p_ls[:3]] + [float(p_ls[3]) / 255])
+                    if (p_ls[0] != "nan") and (p_ls[1] != "nan") and (p_ls[2] != "nan") and (p_ls[3] != "nan"):
                         rs_ls.append([float(i) for i in p_line.strip().split(" ")])
             points = np.array(rs_ls)
         else:
@@ -88,7 +87,7 @@ class DemoDataset(DatasetTemplate):
 
 
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None, raw_format=None):
         """
         Args:
             batch_dict:
@@ -138,7 +137,6 @@ class DemoDataset(DatasetTemplate):
             pred_dict['score'] = pred_scores
             pred_dict['boxes_lidar'] = pred_boxes
             return pred_dict
-
         annos = []
         for index, box_dict in enumerate(pred_dicts):
             frame_id = batch_dict['frame_id'][index]
@@ -169,21 +167,52 @@ class DemoDataset(DatasetTemplate):
                                         type_name] + prob_ls)
                     np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index] + '.bin')
                 else:
-                    output_path.mkdir(parents=True,exist_ok=True)
-                    print('output', output_path)
-                    cur_det_file = output_path / (frame_id + '.txt')
-                    with open(cur_det_file, 'w') as f:
-                        print(cur_det_file)
-                        bbox = single_pred_dict['bbox']
-                        loc = single_pred_dict['location']
-                        dims = single_pred_dict['dimensions']  # lhw -> hwl
-                        for idx in range(len(bbox)):
-                            print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
-                                  % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
-                                     bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
-                                     dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
-                                     loc[idx][1], loc[idx][2]-dims[idx][1]/2, single_pred_dict['rotation_y'][idx],
-                                     single_pred_dict['score'][idx]), file=f)
+                    if raw_format is None:
+                        output_path.mkdir(parents=True,exist_ok=True)
+                        cur_det_file = output_path / (frame_id.replace('pcd', 'txt'))
+                        with open(cur_det_file, 'w') as f:
+                            bbox = single_pred_dict['bbox']
+                            loc = single_pred_dict['location']
+                            dims = single_pred_dict['dimensions']  # lhw -> hwl
+                            for idx in range(len(bbox)):
+                                print('%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                    % (single_pred_dict['name'][idx], single_pred_dict['alpha'][idx],
+                                        bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                        dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                        loc[idx][1], loc[idx][2]-dims[idx][1]/2, single_pred_dict['rotation_y'][idx],
+                                        single_pred_dict['score'][idx]), file=f)
+                    else:
+                        output_path.mkdir(parents=True, exist_ok=True)
+                        cur_det_file = output_path / (frame_id.split('_')[-1].replace('.pcd', '.txt'))
+                        with open(cur_det_file, 'w') as f:
+                            bbox = single_pred_dict['bbox']
+                            loc = single_pred_dict['location']
+                            dims = single_pred_dict['dimensions']  # lhw -> hwl
+                            content = []
+                            for idx in range(len(bbox)):
+                                box_name = single_pred_dict['name'][idx]
+                                score_ls = [0, 0, 0, 0, 0]
+                                if box_name == 'Vehicle':
+                                    score_ls = [single_pred_dict['score'][idx], 0, 0, 0, 0]
+                                elif box_name == 'Pedestrian':
+                                    score_ls = [0, single_pred_dict['score'][idx], 0, 0, 0]
+                                elif box_name == 'Cyclist':
+                                    score_ls = [0, 0, single_pred_dict['score'][idx], 0, 0]
+                                elif box_name == 'Unknown':
+                                    score_ls = [0, 0, 0, single_pred_dict['score'][idx], 0]
+                                elif box_name == 'Large_vehicle':
+                                    score_ls = [0, 0, 0, 0, single_pred_dict['score'][idx]]
+                                else:
+                                    print('error box type')
+                                    assert False
+                                content.append(
+                                    '%s -1 -1 %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f'
+                                    % (box_name, single_pred_dict['alpha'][idx],
+                                    bbox[idx][0], bbox[idx][1], bbox[idx][2], bbox[idx][3],
+                                    dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
+                                    loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
+                                    score_ls[0], score_ls[1], score_ls[2], score_ls[3], score_ls[4]))
+                            f.write("\n".join(content))
 
         return annos
 
@@ -201,6 +230,8 @@ def parse_config():
                         help='specify the point cloud data label or directory')
     parser.add_argument('--output_path', type=str, default=None,
                         help='the output path of inference')
+    parser.add_argument('--raw_format', type=str, default=None,
+                        help='use the raw label format')
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -236,7 +267,8 @@ def main():
                 pred_dicts, ret_dict = model(data_dict)
             annos = demo_dataset.generate_prediction_dicts(
                 data_dict, pred_dicts, cfg.CLASS_NAMES,
-                output_path=Path(args.output_path)
+                output_path=Path(args.output_path),
+                raw_format=args.raw_format
             )
             # V.draw_scenes(
             #     points=data_dict['points'][:, 1:], gt_boxes=data_dict['gt_boxes'][0][:, :-1], ref_boxes=pred_dicts[0]['pred_boxes'],

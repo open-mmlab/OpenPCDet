@@ -104,6 +104,8 @@ class SingleHead(BaseBEVBackbone):
     def forward(self, spatial_features_2d):
         ret_dict = {}
         spatial_features_2d = super().forward({'spatial_features': spatial_features_2d})['spatial_features_2d']
+        # forward for export pointpillars onnx
+        # spatial_features_2d = super().forward(spatial_features_2d)
 
         cls_preds = self.conv_cls(spatial_features_2d)
 
@@ -150,7 +152,7 @@ class SingleHead(BaseBEVBackbone):
 
 class AnchorHeadMulti(AnchorHeadTemplate):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range,
-                 predict_boxes_when_training=True, **kwargs):
+                 predict_boxes_when_training=True, val=False, **kwargs):
         super().__init__(
             model_cfg=model_cfg, num_class=num_class, class_names=class_names, grid_size=grid_size,
             point_cloud_range=point_cloud_range, predict_boxes_when_training=predict_boxes_when_training
@@ -170,6 +172,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             shared_conv_num_filter = input_channels
         self.rpn_heads = None
         self.make_multihead(shared_conv_num_filter)
+        self.val = val
 
     def make_multihead(self, input_channels):
         rpn_head_cfgs = self.model_cfg.RPN_HEAD_CFGS
@@ -217,7 +220,7 @@ class AnchorHeadMulti(AnchorHeadTemplate):
 
         self.forward_ret_dict.update(ret)
 
-        if self.training:
+        if self.training or self.val:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
             )
@@ -239,8 +242,29 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             data_dict['batch_cls_preds'] = batch_cls_preds
             data_dict['batch_box_preds'] = batch_box_preds
             data_dict['cls_preds_normalized'] = False
-
         return data_dict
+
+    # forward for export pointpillars onnx
+    # def forward(self, spatial_features_2d):
+    #     # spatial_features_2d = data_dict['spatial_features_2d']
+    #     if self.shared_conv is not None:
+    #         spatial_features_2d = self.shared_conv(spatial_features_2d)
+    #
+    #     ret_dicts = []
+    #     for rpn_head in self.rpn_heads:
+    #         ret_dicts.append(rpn_head(spatial_features_2d))
+    #
+    #     cls_preds = [ret_dict['cls_preds'] for ret_dict in ret_dicts]
+    #     box_preds = [ret_dict['box_preds'] for ret_dict in ret_dicts]
+    #     ret = {
+    #         'cls_preds': cls_preds if self.separate_multihead else torch.cat(cls_preds, dim=1),
+    #         'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1),
+    #     }
+    #
+    #     if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
+    #         dir_cls_preds = [ret_dict['dir_cls_preds'] for ret_dict in ret_dicts]
+    #         ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1)
+    #     return ret['cls_preds'], ret['box_preds'], ret['dir_cls_preds']
 
     def get_cls_layer_loss(self):
         loss_weights = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS

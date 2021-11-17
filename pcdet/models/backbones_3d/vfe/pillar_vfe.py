@@ -18,7 +18,6 @@ class PFNLayer(nn.Module):
         self.use_norm = use_norm
         if not self.last_vfe:
             out_channels = out_channels // 2
-
         if self.use_norm:
             self.linear = nn.Linear(in_channels, out_channels, bias=False)
             self.norm = nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01)
@@ -49,7 +48,7 @@ class PFNLayer(nn.Module):
             x_concatenated = torch.cat([x, x_repeat], dim=2)
             return x_concatenated
 
-# vfe_id = -1
+
 class PillarVFE(VFETemplate):
     def __init__(self, model_cfg, num_point_features, voxel_size, point_cloud_range):
         super().__init__(model_cfg=model_cfg)
@@ -118,7 +117,6 @@ class PillarVFE(VFETemplate):
         mask = self.get_paddings_indicator(voxel_num_points, voxel_count, axis=0)
         mask = torch.unsqueeze(mask, -1).type_as(voxel_features)
         features *= mask
-        # print("features.shape", features.shape)
         # np.save('/nfs/neolix_data1/temp_shl/vfe_npys/vfe_input_%04d' % vfe_id, features.detach().cpu().numpy())
         for pfn in self.pfn_layers:
             features = pfn(features)

@@ -228,13 +228,16 @@ class Detector3DTemplate(nn.Module):
 
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
-                for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
+                # score_thresholds = [0.25, 0.25, 0.25, 0.25, 0.25]
+                score_thresholds = post_process_cfg.SCORE_THRESH
+                for cur_cls_preds, cur_label_mapping, cls_score_threshold in zip(cls_preds, multihead_label_mapping, score_thresholds):
                     assert cur_cls_preds.shape[1] == len(cur_label_mapping)
                     cur_box_preds = box_preds[cur_start_idx: cur_start_idx + cur_cls_preds.shape[0]]
                     cur_pred_scores, cur_pred_labels, cur_pred_boxes = model_nms_utils.multi_classes_nms(
                         cls_scores=cur_cls_preds, box_preds=cur_box_preds,
                         nms_config=post_process_cfg.NMS_CONFIG,
-                        score_thresh=post_process_cfg.SCORE_THRESH
+                        score_thresh=post_process_cfg.SCORE_THRESH,
+                        cls_score_threshold=cls_score_threshold
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
                     pred_scores.append(cur_pred_scores)
@@ -255,7 +258,8 @@ class Detector3DTemplate(nn.Module):
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
-                    score_thresh=post_process_cfg.SCORE_THRESH
+                    score_thresh=post_process_cfg.SCORE_THRESH,
+                    label_preds=label_preds
                 )
 
                 if post_process_cfg.OUTPUT_RAW_SCORE:

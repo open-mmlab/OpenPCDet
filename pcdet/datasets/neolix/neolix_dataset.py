@@ -10,10 +10,6 @@ from ...utils import box_utils, calibration_neolix, common_utils, object3d_neoli
 from ..dataset import DatasetTemplate
 
 
-data_id = -1
-write_data_id = -1
-
-
 class NeolixDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, val=False, root_path=None, logger=None):
         """
@@ -195,7 +191,6 @@ class NeolixDataset(DatasetTemplate):
             return info
 
         sample_id_list = sample_id_list if sample_id_list is not None else self.sample_id_list
-        print(sample_id_list)
         with futures.ThreadPoolExecutor(num_workers) as executor:
             infos = executor.map(process_single_scene, sample_id_list)
         return list(infos)
@@ -336,7 +331,7 @@ class NeolixDataset(DatasetTemplate):
                                             type_name] + prob_ls)
                         np.array(content).astype(np.float32).tofile(label_path + batch_dict['frame_id'][index]+'.bin')
                     else:
-                        with open(label_path + batch_dict['frame_id'][index] + '.txt', 'w') as f:
+                        with open(label_path + batch_dict['frame_id'][index].replace('.pcd', '.txt'), 'w') as f:
                             bbox = single_pred_dict['bbox']
                             loc = single_pred_dict['location']
                             dims = single_pred_dict['dimensions']  # lhw -> hwl
@@ -444,11 +439,11 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
 
     print('---------------Start to generate data infos---------------')
 
-    # dataset.set_split(train_split)
-    # neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
-    # with open(train_filename, 'wb') as f:
-    #     pickle.dump(neolix_infos_train, f)
-    # print('Neolix info train file is saved to %s' % train_filename)
+    dataset.set_split(train_split)
+    neolix_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    with open(train_filename, 'wb') as f:
+        pickle.dump(neolix_infos_train, f)
+    print('Neolix info train file is saved to %s' % train_filename)
 
     dataset.set_split(val_split)
     neolix_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
@@ -456,21 +451,21 @@ def create_neolix_infos(dataset_cfg, class_names, data_path, save_path, workers=
         pickle.dump(neolix_infos_val, f)
     print('Neolix info val file is saved to %s' % val_filename)
 
-    # with open(trainval_filename, 'wb') as f:
-    #     pickle.dump(neolix_infos_train + neolix_infos_val, f)
-    # print('Neolix info trainval file is saved to %s' % trainval_filename)
-    #
-    # dataset.set_split('test')
-    # neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
-    # with open(test_filename, 'wb') as f:
-    #     pickle.dump(neolix_infos_test, f)
-    # print('Neolix info test file is saved to %s' % test_filename)
-    #
-    # print('---------------Start create groundtruth database for data augmentation---------------')
-    # dataset.set_split(train_split)
-    # dataset.create_groundtruth_database(train_filename, split=train_split)
-    #
-    # print('---------------Data preparation Done---------------')
+    with open(trainval_filename, 'wb') as f:
+        pickle.dump(neolix_infos_train + neolix_infos_val, f)
+    print('Neolix info trainval file is saved to %s' % trainval_filename)
+
+    dataset.set_split('test')
+    neolix_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
+    with open(test_filename, 'wb') as f:
+        pickle.dump(neolix_infos_test, f)
+    print('Neolix info test file is saved to %s' % test_filename)
+
+    print('---------------Start create groundtruth database for data augmentation---------------')
+    dataset.set_split(train_split)
+    dataset.create_groundtruth_database(train_filename, split=train_split)
+
+    print('---------------Data preparation Done---------------')
 
 
 if __name__ == '__main__':

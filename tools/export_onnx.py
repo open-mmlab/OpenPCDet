@@ -71,8 +71,7 @@ def parse_config():
 
 def export_onnx(model):
     print('-------------- network readable visiual --------------')
-    # print(model.module_list[0].pfn_layers[0])
-    vfe_input = torch.ones([12000, 32, 10], dtype=torch.float32, device='cuda')
+    vfe_input = torch.ones([20000, 32, 10], dtype=torch.float32, device='cuda')
     torch.onnx.export(model.module_list[0].pfn_layers[0], vfe_input, "vfe.onnx", verbose=False, input_names=['features'],
                       output_names=['pillar_features'])
     print('vfe.onnx transfer success ...')

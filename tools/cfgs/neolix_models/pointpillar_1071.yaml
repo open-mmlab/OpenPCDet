@@ -1,9 +1,9 @@
-CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown']
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist', 'Unknown', 'Large_vehicle']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/neolix_dataset.yaml
     # POINT_CLOUD_RANGE: [-23.04, -23.04, -1.5, 23.04, 23.04, 2.5]
-    POINT_CLOUD_RANGE: [-20.48, -71.68, -1.5, 20.48, 71.68, 2.5]
+    POINT_CLOUD_RANGE: [-20, -40, -1, 20, 70.4, 3]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -15,7 +15,7 @@ DATA_CONFIG:
           }
 
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.16, 0.16, 4]
+          VOXEL_SIZE: [0.1, 0.1, 4]
           MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
             'train': 16000,
@@ -24,20 +24,20 @@ DATA_CONFIG:
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
-            - NAME: gt_sampling
-              USE_ROAD_PLANE: False
-              DB_INFO_PATH:
-                  - neolix_dbinfos_train.pkl
-              PREPARE: {
-                 filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5'],
-                 filter_by_difficulty: [-1],
-              }
-
-              SAMPLE_GROUPS: ['Vehicle:15','Pedestrian:15', 'Cyclist:15', 'Unknown:10']
-              NUM_POINT_FEATURES: 4
-              DATABASE_WITH_FAKELIDAR: False
-              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-              LIMIT_WHOLE_SCENE: False
+#            - NAME: gt_sampling
+#              USE_ROAD_PLANE: False
+#              DB_INFO_PATH:
+#                  - neolix_dbinfos_train.pkl
+#              PREPARE: {
+#                 filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5', 'Unknown:5', 'Large_vehicle:10'],
+#                 filter_by_difficulty: [-1],
+#              }
+#
+#              SAMPLE_GROUPS: ['Vehicle:10','Pedestrian:10', 'Cyclist:15', 'Unknown:5', 'Large_vehicle:20']
+#              NUM_POINT_FEATURES: 4
+#              DATABASE_WITH_FAKELIDAR: False
+#              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+#              LIMIT_WHOLE_SCENE: False
 
             - NAME: random_world_flip
               ALONG_AXIS_LIST: ['y']
@@ -71,7 +71,7 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
-        NAME: AnchorHeadSingle
+        NAME: AnchorHeadMulti
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
@@ -79,10 +79,12 @@ MODEL:
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
 
+        USE_MULTIHEAD: True
+        SEPARATE_MULTIHEAD: True
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Vehicle',
-                'anchor_sizes': [[1.86, 4.51, 1.66]],
+                'anchor_sizes': [[1.85, 4.47, 1.65]],  # w, l, h
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -102,7 +104,7 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[0.77, 1.90, 1.73]],
+                'anchor_sizes': [[0.76, 1.86, 1.73]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.3],
                 'align_center': False,
@@ -119,9 +121,38 @@ MODEL:
                 'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': 'Large_vehicle',
+                'anchor_sizes': [[2.61, 8.68, 2.83]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.3],
+                'align_center': False,
+                'feature_map_stride': 4,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
             }
         ]
 
+        SHARED_CONV_NUM_FILTER: 64
+
+        RPN_HEAD_CFGS: [
+            {
+                'HEAD_CLS_NAME': ['Vehicle'],
+            },
+            {
+                'HEAD_CLS_NAME': ['Pedestrian'],
+            },
+            {
+                'HEAD_CLS_NAME': ['Cyclist'],
+            },
+            {
+                'HEAD_CLS_NAME': ['Unknown'],
+            },
+            {
+                'HEAD_CLS_NAME': ['Large_vehicle'],
+            }
+        ]
         TARGET_ASSIGNER_CONFIG:
             NAME: AxisAlignedTargetAssigner
             POS_FRACTION: -1.0
@@ -140,13 +171,14 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        MULTI_CLASSES_NMS: True
+        SCORE_THRESH: [0.25, 0.1, 0.1, 0.1, 0.25] # 0.25
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
 
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: False
+            MULTI_CLASSES_NMS: True
             NMS_TYPE: nms_gpu
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
@@ -154,11 +186,11 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 160
+    BATCH_SIZE_PER_GPU: 2
+    NUM_EPOCHS: 100
 
     OPTIMIZER: adam_onecycle
-    LR: 0.003
+    LR: 0.012
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 
