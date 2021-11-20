@@ -5,6 +5,8 @@ import numpy as np
 import math
 import random
 from skimage import io
+import json
+
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
@@ -30,9 +32,15 @@ class KittiDataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+<<<<<<< HEAD
         self.original_size = 0  # size of the original dataset pre-augmentation
         self.cur_frame = 0      # current frame being processed
         self.augment_factor = dataset_cfg.DATA_AUGMENTOR.EXTEND_FACTOR
+=======
+        self.original_size = len(self.sample_id_list)  # size of the original dataset pre-augmentation
+        self.augment_factor = dataset_cfg.DATA_AUGMENTOR.EXTEND_FACTOR
+        self.keep_raw_samples = dataset_cfg.DATA_AUGMENTOR.KEEP_RAW_SAMPLES
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
@@ -53,6 +61,7 @@ class KittiDataset(DatasetTemplate):
         # store the size of the original dataset
         self.original_size = len(kitti_infos)
 
+<<<<<<< HEAD
         if self.augment_factor > 0:
             # make copies of original KIITI data to be augmented
             for i in range(math.ceil(self.augment_factor)):
@@ -60,6 +69,22 @@ class KittiDataset(DatasetTemplate):
                 if i >= math.ceil(self.augment_factor)-1 and aug_frac != 0:  # on the last iteration check if the factor has a decimal part
                     random.shuffle(kitti_infos)   # shuffles to randomize the combination of chosen frames
                     self.kitti_infos.extend(kitti_infos[: int(self.original_size * aug_frac)])  # copy only part of the frames
+=======
+        if self.augment_factor > 0 and self.training == True:
+            # make copies of original KIITI data to be augmented
+            for i in range(math.ceil(self.augment_factor)):
+                aug_frac = math.modf(self.augment_factor)[0]
+                aug_infos = copy.deepcopy(kitti_infos)
+                if i >= 1:
+                    for info in aug_infos:
+                        info['point_cloud']['lidar_idx'] = ('%06d' % (int(info['point_cloud']['lidar_idx']) + i*100000))
+                    if i >= math.ceil(self.augment_factor)-1 and aug_frac != 0:  # on the last iteration check if the factor has a decimal part
+                        random.shuffle(kitti_infos)   # shuffles to randomize the combination of chosen frames
+                        self.kitti_infos.extend(aug_infos[: int(self.original_size * aug_frac)])  # copy only part of the frames
+                    else:
+                        self.kitti_infos.extend(aug_infos)
+
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
                 else:
                     self.kitti_infos.extend(kitti_infos)
         else:
@@ -368,6 +393,14 @@ class KittiDataset(DatasetTemplate):
         info = copy.deepcopy(self.kitti_infos[index])
 
         sample_idx = info['point_cloud']['lidar_idx']
+        if self.keep_raw_samples:
+            enable_augment = int(sample_idx) >= 100000 
+        else:
+            enable_augment = True
+        augmented_sample_idx = info['point_cloud']['lidar_idx']
+
+        if enable_augment:
+            sample_idx = '%06d' % (int(info['point_cloud']['lidar_idx']) % 100000)
 
         points = self.get_lidar(sample_idx)
         calib = self.get_calib(sample_idx)
@@ -384,6 +417,11 @@ class KittiDataset(DatasetTemplate):
             'calib': calib,
         }
 
+        if enable_augment:
+            input_dict.update({
+                'frame_id': augmented_sample_idx,
+            })
+
         if 'annos' in info:
             annos = info['annos']
             annos = common_utils.drop_info_with_name(annos, name='DontCare')
@@ -395,16 +433,20 @@ class KittiDataset(DatasetTemplate):
             input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar,
+<<<<<<< HEAD
                 #'truncated': annos['truncated'].astype(np.float32),
                 #'occluded': annos['occluded'].astype(np.int32),
                 #'alpha': annos['alpha'].astype(np.float32),
                 #'misc': annos
+=======
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
             })
             road_plane = self.get_road_plane(sample_idx)
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
         # PREFORM AUGMENTATIONS
+<<<<<<< HEAD
         if self.augment_factor < 0:
             data_dict = self.prepare_data(data_dict=input_dict, augment=True)
         else:
@@ -412,6 +454,26 @@ class KittiDataset(DatasetTemplate):
 
         data_dict['image_shape'] = img_shape
         self.cur_frame += 1
+=======
+        if self.augment_factor <= 0:
+            data_dict = self.prepare_data(data_dict=input_dict, augment=True)
+        else:
+            if enable_augment:
+                data_dict = self.prepare_data(data_dict=input_dict, augment=True)
+            else:
+                data_dict = self.prepare_data(data_dict=input_dict, augment=False)
+
+        data_dict['image_shape'] = img_shape
+
+        # save each frame's augmentation details in a json file
+        if self.logger is not None:
+            if 'augmentations' not in data_dict:
+                self.logger.debug(f'Sample {sample_idx} is the same as the original input')
+            else:
+                aug_dict = json.dumps(data_dict['augmentations'], indent=2)
+                self.logger.debug(f'Sample {augmented_sample_idx} was created from frame {sample_idx} with the following augmentations: {aug_dict}')
+        
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
         return data_dict
 
 

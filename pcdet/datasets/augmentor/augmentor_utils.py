@@ -19,7 +19,7 @@ def random_flip_along_x(gt_boxes, points):
         if gt_boxes.shape[1] > 7:
             gt_boxes[:, 8] = -gt_boxes[:, 8]
 
-    return gt_boxes, points
+    return gt_boxes, points, enable
 
 
 def random_flip_along_y(gt_boxes, points):
@@ -38,7 +38,7 @@ def random_flip_along_y(gt_boxes, points):
         if gt_boxes.shape[1] > 7:
             gt_boxes[:, 7] = -gt_boxes[:, 7]
 
-    return gt_boxes, points
+    return gt_boxes, points, enable
 
 
 def global_rotation(gt_boxes, points, rot_range):
@@ -59,7 +59,7 @@ def global_rotation(gt_boxes, points, rot_range):
             np.array([noise_rotation])
         )[0][:, 0:2]
 
-    return gt_boxes, points
+    return gt_boxes, points, noise_rotation
 
 
 def global_scaling(gt_boxes, points, scale_range):
@@ -75,8 +75,145 @@ def global_scaling(gt_boxes, points, scale_range):
     noise_scale = np.random.uniform(scale_range[0], scale_range[1])
     points[:, :3] *= noise_scale
     gt_boxes[:, :6] *= noise_scale
+    return gt_boxes, points, noise_scale
+
+
+def random_translation_along_x(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    offset = np.random.uniform(offset_range[0], offset_range[1])
+
+    points[:, 0] += offset
+    gt_boxes[:, 0] += offset
+
+    if gt_boxes.shape[1] > 7:
+        gt_boxes[:, 7] += offset
+
+    return gt_boxes, points, offset
+
+
+def random_translation_along_y(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    offset = np.random.uniform(offset_range[0], offset_range[1])
+
+    points[:, 1] += offset
+    gt_boxes[:, 1] += offset
+
+    if gt_boxes.shape[1] > 8:
+        gt_boxes[:, 8] += offset
+
+    return gt_boxes, points, offset
+
+
+def random_translation_along_z(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    offset = np.random.uniform(offset_range[0], offset_range[1])
+
+    points[:, 2] += offset
+    gt_boxes[:, 2] += offset
+
+    return gt_boxes, points, offset
+
+
+def random_local_translation_along_x(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    augs = {}
+    for idx, box in enumerate(gt_boxes):
+        offset = np.random.uniform(offset_range[0], offset_range[1])
+        augs[f'object_{idx}'] = offset
+        points_in_box, mask = get_points_in_box(points, box)
+        points[mask, 0] += offset
+
+        gt_boxes[idx, 0] += offset
+
+        if gt_boxes.shape[1] > 7:
+            gt_boxes[idx, 7] += offset
+
+    return gt_boxes, points, augs
+
+
+def random_local_translation_along_y(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    augs = {}
+    for idx, box in enumerate(gt_boxes):
+        offset = np.random.uniform(offset_range[0], offset_range[1])
+        augs[f'object_{idx}'] = offset
+        points_in_box, mask = get_points_in_box(points, box)
+        points[mask, 1] += offset
+
+        gt_boxes[idx, 1] += offset
+
+        if gt_boxes.shape[1] > 8:
+            gt_boxes[idx, 8] += offset
+
+    return gt_boxes, points, augs
+
+
+def random_local_translation_along_z(gt_boxes, points, offset_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        offset_range: [min max]]
+    Returns:
+    """
+    augs = {}
+    for idx, box in enumerate(gt_boxes):
+        offset = np.random.uniform(offset_range[0], offset_range[1])
+        augs[f'object_{idx}'] = offset
+        points_in_box, mask = get_points_in_box(points, box)
+        points[mask, 2] += offset
+
+        gt_boxes[idx, 2] += offset
+
+    return gt_boxes, points, augs
+
+def global_frustum_dropout_top(gt_boxes, points, intensity_range):
+    """
+    Args:
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]],
+        points: (M, 3 + C),
+        intensity: [min, max]
+    Returns:
+    """
+    intensity = np.random.uniform(intensity_range[0], intensity_range[1])
+
+    threshold = np.max(points[:, 2]) - intensity * (np.max(points[:, 2]) - np.min(points[:, 2]))
+    points = points[points[:,2] < threshold]
+    gt_boxes = gt_boxes[gt_boxes[:,2] < threshold]
+
     return gt_boxes, points
 
+<<<<<<< HEAD
 
 def random_translation_along_x(gt_boxes, points, offset_range):
     """
@@ -207,6 +344,8 @@ def global_frustum_dropout_top(gt_boxes, points, intensity_range):
 
     return gt_boxes, points
 
+=======
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 def global_frustum_dropout_bottom(gt_boxes, points, intensity_range):
     """
     Args:
@@ -221,7 +360,11 @@ def global_frustum_dropout_bottom(gt_boxes, points, intensity_range):
     points = points[points[:,2] > threshold]
     gt_boxes = gt_boxes[gt_boxes[:,2] > threshold]
 
+<<<<<<< HEAD
     return gt_boxes, points
+=======
+    return gt_boxes, points, intensity
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
 def global_frustum_dropout_left(gt_boxes, points, intensity_range):
     """
@@ -237,7 +380,11 @@ def global_frustum_dropout_left(gt_boxes, points, intensity_range):
     points = points[points[:,1] < threshold]
     gt_boxes = gt_boxes[gt_boxes[:,1] < threshold]
 
+<<<<<<< HEAD
     return gt_boxes, points
+=======
+    return gt_boxes, points, intensity
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
 def global_frustum_dropout_right(gt_boxes, points, intensity_range):
     """
@@ -253,7 +400,11 @@ def global_frustum_dropout_right(gt_boxes, points, intensity_range):
     points = points[points[:,1] > threshold]
     gt_boxes = gt_boxes[gt_boxes[:,1] > threshold]
 
+<<<<<<< HEAD
     return gt_boxes, points
+=======
+    return gt_boxes, points, intensity
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
 def local_scaling(gt_boxes, points, scale_range):
     """
@@ -266,8 +417,15 @@ def local_scaling(gt_boxes, points, scale_range):
     if scale_range[1] - scale_range[0] < 1e-3:
         return gt_boxes, points
 
+<<<<<<< HEAD
     for idx, box in enumerate(gt_boxes):
         noise_scale = np.random.uniform(scale_range[0], scale_range[1])
+=======
+    augs = {}
+    for idx, box in enumerate(gt_boxes):
+        noise_scale = np.random.uniform(scale_range[0], scale_range[1])
+        augs[f'object_{idx}'] = noise_scale
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
         points_in_box, mask = get_points_in_box(points, box)
         
         # tranlation to axis center
@@ -284,7 +442,11 @@ def local_scaling(gt_boxes, points, scale_range):
         points[mask, 2] += box[2]
 
         gt_boxes[idx, 3:6] *= noise_scale
+<<<<<<< HEAD
     return gt_boxes, points
+=======
+    return gt_boxes, points, augs
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
 
 def local_rotation(gt_boxes, points, rot_range):
@@ -295,9 +457,16 @@ def local_rotation(gt_boxes, points, rot_range):
         rot_range: [min, max]
     Returns:
     """
+<<<<<<< HEAD
     
     for idx, box in enumerate(gt_boxes):
         noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
+=======
+    augs = {}
+    for idx, box in enumerate(gt_boxes):
+        noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
+        augs[f'object_{idx}'] = noise_rotation
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
         points_in_box, mask = get_points_in_box(points, box)
         
         centroid_x = box[0]
@@ -331,7 +500,11 @@ def local_rotation(gt_boxes, points, rot_range):
                 np.array([noise_rotation])
             )[0][:, 0:2]
 
+<<<<<<< HEAD
     return gt_boxes, points
+=======
+    return gt_boxes, points, augs
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
 def local_frustum_dropout_top(gt_boxes, points, intensity_range):
     """

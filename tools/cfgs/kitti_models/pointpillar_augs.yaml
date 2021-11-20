@@ -1,7 +1,11 @@
 CLASS_NAMES: ['Car']
 
 DATA_CONFIG: 
+<<<<<<< HEAD
     _BASE_CONFIG_: tools/cfgs/dataset_configs/kitti_dataset.yaml
+=======
+    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
     POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
@@ -22,7 +26,12 @@ DATA_CONFIG:
           }
     DATA_AUGMENTOR:
         EXTEND_FACTOR: 0
+<<<<<<< HEAD
         DISABLE_AUG_LIST: ['random_world_frustum_dropout, random_local_frustum_dropout']
+=======
+        KEEP_RAW_DATA: True
+        DISABLE_AUG_LIST: ['random_local_scaling', 'random_world_frustum_dropout', random_local_frustum_dropout, random_local_translation]
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               USE_ROAD_PLANE: False
@@ -40,7 +49,11 @@ DATA_CONFIG:
               LIMIT_WHOLE_SCENE: False
 
             - NAME: random_local_rotation
+<<<<<<< HEAD
               LOCAL_ROT_ANGLE: [-0.78539816, 0.78539816]
+=======
+              LOCAL_ROT_ANGLE: [-0.15707963267, 0.15707963267]
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
             - NAME: random_local_scaling
               LOCAL_SCALE_RANGE: [0.95, 1.05]
@@ -55,12 +68,21 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
             - NAME: random_world_translation
+<<<<<<< HEAD
               WORLD_TRANSLATION_RANGE: [ -1.05, 1.05 ]
               ALONG_AXIS_LIST: ['y']
 
             - NAME: random_local_translation
               LOCAL_TRANSLATION_RANGE: [ -1.05, 1.05 ]
               ALONG_AXIS_LIST: ['y']
+=======
+              WORLD_TRANSLATION_RANGE: [ -0.2, 0.2 ]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
+
+            - NAME: random_local_translation
+              LOCAL_TRANSLATION_RANGE: [0.95, 1.05]
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
             - NAME: random_world_frustum_dropout
               INTENSITY_RANGE: [ 0, 0.2 ]
@@ -147,7 +169,11 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
+<<<<<<< HEAD
     NUM_EPOCHS: 80
+=======
+    NUM_EPOCHS: 160
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
     OPTIMIZER: adam_onecycle
     LR: 0.003

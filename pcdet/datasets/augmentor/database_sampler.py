@@ -177,6 +177,7 @@ class DataBaseSampler(object):
         points = np.concatenate([obj_points, points], axis=0)
         gt_names = np.concatenate([gt_names, sampled_gt_names], axis=0)
         gt_boxes = np.concatenate([gt_boxes, sampled_gt_boxes], axis=0)
+<<<<<<< HEAD
         #truncated = np.concatenate([truncated, sampled_truncated], axis=0)
         #occluded = np.concatenate([occluded, sampled_occluded], axis=0)
         #alpha = np.concatenate([alpha, sampled_alpha], axis=0)
@@ -195,15 +196,20 @@ class DataBaseSampler(object):
                 misc[k] = sampled_misc[k]
         '''
         #TODO
+=======
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['gt_names'] = gt_names
         data_dict['points'] = points
+<<<<<<< HEAD
         #data_dict['truncated'] = truncated
         #data_dict['occluded'] = occluded
         #data_dict['alpha'] = alpha
         #data_dict['misc'] = d
         #TODO
+=======
+>>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
         return data_dict
 
@@ -247,6 +253,8 @@ class DataBaseSampler(object):
         sampled_gt_boxes = existed_boxes[gt_boxes.shape[0]:, :]
         if total_valid_sampled_dict.__len__() > 0:
             data_dict = self.add_sampled_boxes_to_scene(data_dict, sampled_gt_boxes, total_valid_sampled_dict)
+            for object in total_valid_sampled_dict:
+                self.logger.debug('Added %s_%d from frame %s to frame %s' % (object['name'], object['gt_idx'], object['image_idx'], data_dict['frame_id']))
 
         data_dict.pop('gt_boxes_mask')
         return data_dict
