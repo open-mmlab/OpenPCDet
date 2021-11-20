@@ -1,4 +1,4 @@
-CLASS_NAMES: ['Car']
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
@@ -21,25 +21,25 @@ DATA_CONFIG:
             'test': 40000
           }
     DATA_AUGMENTOR:
-        DISABLE_AUG_LIST: ['random_world_frustum_dropout, random_local_frustum_dropout']
+        DISABLE_AUG_LIST: ['placeholder']
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               USE_ROAD_PLANE: False
               DB_INFO_PATH:
                   - kitti_dbinfos_train.pkl
               PREPARE: {
-                 filter_by_min_points: ['Car:5'],
+                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
                  filter_by_difficulty: [-1],
               }
 
-              SAMPLE_GROUPS: ['Car:15']
+              SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15']
               NUM_POINT_FEATURES: 4
               DATABASE_WITH_FAKELIDAR: False
               REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
               LIMIT_WHOLE_SCENE: False
 
             - NAME: random_local_rotation
-              LOCAL_ROT_ANGLE: [-0.78539816, 0.78539816]
+              LOCAL_ROT_ANGLE: [-0.15707963267, 0.15707963267]
 
             - NAME: random_local_scaling
               LOCAL_SCALE_RANGE: [0.95, 1.05]
@@ -110,6 +110,26 @@ MODEL:
                 'feature_map_stride': 2,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
+            },
+            {
+                'class_name': 'Pedestrian',
+                'anchor_sizes': [[0.8, 0.6, 1.73]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],
+                'align_center': False,
+                'feature_map_stride': 2,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': 'Cyclist',
+                'anchor_sizes': [[1.76, 0.6, 1.73]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],
+                'align_center': False,
+                'feature_map_stride': 2,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
             }
         ]
 
@@ -146,11 +166,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-<<<<<<< HEAD
-    NUM_EPOCHS: 80
-=======
     NUM_EPOCHS: 160
->>>>>>> 6c85734ba23a5e36dc9a143101acbce5c83976b9
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
