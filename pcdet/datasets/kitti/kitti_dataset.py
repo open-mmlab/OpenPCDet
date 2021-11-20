@@ -2,6 +2,8 @@ import copy
 import pickle
 
 import numpy as np
+import math
+import random
 from skimage import io
 
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -28,6 +30,10 @@ class KittiDataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
+        self.original_size = 0  # size of the original dataset pre-augmentation
+        self.cur_frame = 0      # current frame being processed
+        self.augment_factor = dataset_cfg.DATA_AUGMENTOR.EXTEND_FACTOR
+
         self.kitti_infos = []
         self.include_kitti_data(self.mode)
 
@@ -44,7 +50,20 @@ class KittiDataset(DatasetTemplate):
                 infos = pickle.load(f)
                 kitti_infos.extend(infos)
 
-        self.kitti_infos.extend(kitti_infos)
+        # store the size of the original dataset
+        self.original_size = len(kitti_infos)
+
+        if self.augment_factor > 0:
+            # make copies of original KIITI data to be augmented
+            for i in range(math.ceil(self.augment_factor)):
+                aug_frac = math.modf(self.augment_factor)[0]
+                if i >= math.ceil(self.augment_factor)-1 and aug_frac != 0:  # on the last iteration check if the factor has a decimal part
+                    random.shuffle(kitti_infos)   # shuffles to randomize the combination of chosen frames
+                    self.kitti_infos.extend(kitti_infos[: int(self.original_size * aug_frac)])  # copy only part of the frames
+                else:
+                    self.kitti_infos.extend(kitti_infos)
+        else:
+            self.kitti_infos.extend(kitti_infos)
 
         if self.logger is not None:
             self.logger.info('Total samples for KITTI dataset: %d' % (len(kitti_infos)))
@@ -209,9 +228,13 @@ class KittiDataset(DatasetTemplate):
             points = self.get_lidar(sample_idx)
             annos = info['annos']
             names = annos['name']
-            difficulty = annos['difficulty']
             bbox = annos['bbox']
+            difficulty = annos['difficulty']
             gt_boxes = annos['gt_boxes_lidar']
+            #truncated = annos['truncated']
+            #occluded = annos['occluded']
+            #alpha = annos['alpha']
+            #dimensions = annos['dimensions']
 
             num_obj = gt_boxes.shape[0]
             point_indices = roiaware_pool3d_utils.points_in_boxes_cpu(
@@ -371,15 +394,24 @@ class KittiDataset(DatasetTemplate):
 
             input_dict.update({
                 'gt_names': gt_names,
-                'gt_boxes': gt_boxes_lidar
+                'gt_boxes': gt_boxes_lidar,
+                #'truncated': annos['truncated'].astype(np.float32),
+                #'occluded': annos['occluded'].astype(np.int32),
+                #'alpha': annos['alpha'].astype(np.float32),
+                #'misc': annos
             })
             road_plane = self.get_road_plane(sample_idx)
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
-        data_dict = self.prepare_data(data_dict=input_dict)
+        # PREFORM AUGMENTATIONS
+        if self.augment_factor < 0:
+            data_dict = self.prepare_data(data_dict=input_dict, augment=True)
+        else:
+            data_dict = self.prepare_data(data_dict=input_dict, augment=self.cur_frame >= self.original_size)
 
         data_dict['image_shape'] = img_shape
+        self.cur_frame += 1
         return data_dict
 
 

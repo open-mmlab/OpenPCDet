@@ -7,9 +7,11 @@ data/
 venv/
 *.idea/
 *.so
-*.yaml
 *.sh 
 *.pth
 *.pkl
 *.zip
 *.bin
+figs/
+3d_renders/
+data_aumentation.ipynb
