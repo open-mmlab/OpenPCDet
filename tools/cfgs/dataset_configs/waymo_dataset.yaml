@@ -24,11 +24,10 @@ DATA_AUGMENTOR:
           USE_ROAD_PLANE: False
           DB_INFO_PATH:
               - waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1.pkl
-              # - waymo_processed_data_v0_3_1_waymo_dbinfos_train_sampled_1_global.pkl
 
           USE_SHARED_MEMORY: False
-          DB_DATA_PATH:  # this file should be generated along with the above DB_INFO_PATH by setting USE_SHARED_MEMORY=True
-              - waymo_processed_data_v0_3_1_gt_database_train_sampled_1_global.npy
+          DB_DATA_PATH:
+              - waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global.npy
 
           PREPARE: {
              filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5'],

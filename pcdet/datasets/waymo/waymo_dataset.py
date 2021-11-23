@@ -315,13 +315,14 @@ class WaymoDataset(DatasetTemplate):
                                     processed_data_tag=None):
         database_save_path = save_path / ('%s_gt_database_%s_sampled_%d' % (processed_data_tag, split, sampled_interval))
         db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d.pkl' % (processed_data_tag, split, sampled_interval))
-
+        db_data_save_path = save_path / ('%s_gt_database_%s_sampled_%d_global.npy' % (processed_data_tag, split, sampled_interval))
         database_save_path.mkdir(parents=True, exist_ok=True)
         all_db_infos = {}
-
         with open(info_path, 'rb') as f:
             infos = pickle.load(f)
 
+        point_offset_cnt = 0
+        stacked_gt_points = []
         for k in range(0, len(infos), sampled_interval):
             print('gt_database sample: %d/%d' % (k + 1, len(infos)))
             info = infos[k]
@@ -371,6 +372,12 @@ class WaymoDataset(DatasetTemplate):
                     db_info = {'name': names[i], 'path': db_path, 'sequence_name': sequence_name,
                                'sample_idx': sample_idx, 'gt_idx': i, 'box3d_lidar': gt_boxes[i],
                                'num_points_in_gt': gt_points.shape[0], 'difficulty': difficulty[i]}
+
+                    # it will be used if you choose to use shared memory for gt sampling
+                    stacked_gt_points.append(gt_points)
+                    db_info['global_data_offset'] = [point_offset_cnt, point_offset_cnt + gt_points.shape[0]]
+                    point_offset_cnt += gt_points.shape[0]
+
                     if names[i] in all_db_infos:
                         all_db_infos[names[i]].append(db_info)
                     else:
@@ -380,6 +387,10 @@ class WaymoDataset(DatasetTemplate):
 
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
+
+        # it will be used if you choose to use shared memory for gt sampling
+        stacked_gt_points = np.concatenate(stacked_gt_points, axis=0)
+        np.save(db_data_save_path, stacked_gt_points)
 
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
@@ -394,6 +405,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     train_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, train_split))
     val_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, val_split))
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     print('---------------Start to generate data infos---------------')
 
     dataset.set_split(train_split)
@@ -417,6 +429,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     dataset.set_split(train_split)
     dataset.create_groundtruth_database(
         info_path=train_filename, save_path=save_path, split='train', sampled_interval=1,
@@ -437,7 +450,11 @@ if __name__ == '__main__':
     if args.func == 'create_waymo_infos':
         import yaml
         from easydict import EasyDict
-        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
+        try:
+            yaml_config = yaml.load(open(args.cfg_file), Loader=yaml.FullLoader)
+        except:
+            yaml_config = yaml.load(open(args.cfg_file))
+        dataset_cfg = EasyDict(yaml_config)
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
         create_waymo_infos(
