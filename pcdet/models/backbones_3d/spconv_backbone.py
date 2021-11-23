@@ -2,7 +2,7 @@ from functools import partial
 
 import torch.nn as nn
 
-from ...spconv_utils import replace_feature, spconv
+from ...utils.spconv_utils import replace_feature, spconv
 
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,

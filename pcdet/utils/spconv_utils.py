@@ -16,7 +16,7 @@ def find_all_spconv_keys(model: nn.Module, prefix="") -> Set[str]:
     for name, child in model.named_children():
         new_prefix = f"{prefix}.{name}" if prefix != "" else name
 
-        if isinstance(child, (spconv.SubMConv3d, spconv.SparseConv3d, spconv.SparseInverseConv3d)):
+        if isinstance(child, spconv.conv.SparseConvolution):
             new_prefix = f"{new_prefix}.weight"
             found_keys.add(new_prefix)
 
