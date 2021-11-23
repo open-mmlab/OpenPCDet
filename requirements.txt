@@ -8,3 +8,4 @@ scikit-image
 tqdm
 kornia
 torchvision
+SharedArray
