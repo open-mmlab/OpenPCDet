@@ -212,6 +212,10 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
         info['point_cloud'] = pc_info
 
         info['frame_id'] = sequence_name + ('_%03d' % cnt)
+        info['metadata'] = {
+            'context_name': frame.context.name,
+            'timestamp_micros': frame.timestamp_micros
+        }
         image_info = {}
         for j in range(5):
             width = frame.context.camera_calibrations[j].width
