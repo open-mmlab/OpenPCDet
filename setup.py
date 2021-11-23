@@ -40,7 +40,7 @@ class PostInstallation(install):
 
 
 if __name__ == '__main__':
-    version = '0.3.0+%s' % get_git_commit_number()
+    version = '0.4.0+%s' % get_git_commit_number()
     write_version_to_file(version, 'pcdet/version.py')
 
     setup(
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         install_requires=[
             'numpy',
             'torch>=1.1',
-            'spconv',
+            # 'spconv',  # spconv has different names depending on the cuda version
             'numba',
             'tensorboardX',
             'easydict',

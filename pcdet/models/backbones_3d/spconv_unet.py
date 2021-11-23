@@ -1,9 +1,9 @@
 from functools import partial
 
-import spconv
 import torch
 import torch.nn as nn
 
+from ...utils.spconv_utils import replace_feature, spconv
 from ...utils import common_utils
 from .spconv_backbone import post_act_block
 
@@ -31,17 +31,17 @@ class SparseBasicBlock(spconv.SparseModule):
         assert x.features.dim() == 2, 'x.features.dim()=%d' % x.features.dim()
 
         out = self.conv1(x)
-        out.features = self.bn1(out.features)
-        out.features = self.relu(out.features)
+        out = replace_feature(out, self.bn1(out.features))
+        out = replace_feature(out, self.relu(out.features))
 
         out = self.conv2(out)
-        out.features = self.bn2(out.features)
+        out = replace_feature(out, self.bn2(out.features))
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out.features += identity
-        out.features = self.relu(out.features)
+        out = replace_feature(out, out.features + identity)
+        out = replace_feature(out, self.relu(out.features))
 
         return out
 
@@ -52,6 +52,7 @@ class UNetV2(nn.Module):
     Reference Paper: https://arxiv.org/abs/1907.03670 (Shaoshuai Shi, et. al)
     From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network
     """
+
     def __init__(self, model_cfg, input_channels, grid_size, voxel_size, point_cloud_range, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg
@@ -134,10 +135,10 @@ class UNetV2(nn.Module):
     def UR_block_forward(self, x_lateral, x_bottom, conv_t, conv_m, conv_inv):
         x_trans = conv_t(x_lateral)
         x = x_trans
-        x.features = torch.cat((x_bottom.features, x_trans.features), dim=1)
+        x = replace_feature(x, torch.cat((x_bottom.features, x_trans.features), dim=1))
         x_m = conv_m(x)
         x = self.channel_reduction(x, x_m.features.shape[1])
-        x.features = x_m.features + x.features
+        x = replace_feature(x, x_m.features + x.features)
         x = conv_inv(x)
         return x
 
@@ -155,7 +156,7 @@ class UNetV2(nn.Module):
         n, in_channels = features.shape
         assert (in_channels % out_channels == 0) and (in_channels >= out_channels)
 
-        x.features = features.view(n, out_channels, -1).sum(dim=2)
+        x = replace_feature(x, features.view(n, out_channels, -1).sum(dim=2))
         return x
 
     def forward(self, batch_dict):

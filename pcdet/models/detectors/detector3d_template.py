@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from ...ops.iou3d_nms import iou3d_nms_utils
+from ...utils.spconv_utils import find_all_spconv_keys
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
@@ -325,6 +326,37 @@ class Detector3DTemplate(nn.Module):
             gt_iou = box_preds.new_zeros(box_preds.shape[0])
         return recall_dict
 
+    def _load_state_dict(self, model_state_disk, *, strict=True):
+        state_dict = self.state_dict()  # local cache of state_dict
+
+        spconv_keys = find_all_spconv_keys(self)
+
+        update_model_state = {}
+        for key, val in model_state_disk.items():
+            if key in spconv_keys and key in state_dict and state_dict[key].shape != val.shape:
+                # with different spconv versions, we need to adapt weight shapes for spconv blocks
+                # adapt spconv weights from version 1.x to version 2.x if you used weights from spconv 1.x
+
+                val_native = val.transpose(-1, -2)  # (k1, k2, k3, c_in, c_out) to (k1, k2, k3, c_out, c_in)
+                if val_native.shape == state_dict[key].shape:
+                    val = val_native.contiguous()
+                else:
+                    assert val.shape.__len__() == 5, 'currently only spconv 3D is supported'
+                    val_implicit = val.permute(4, 0, 1, 2, 3)  # (k1, k2, k3, c_in, c_out) to (c_out, k1, k2, k3, c_in)
+                    if val_implicit.shape == state_dict[key].shape:
+                        val = val_implicit.contiguous()
+
+            if key in state_dict and state_dict[key].shape == val.shape:
+                update_model_state[key] = val
+                # logger.info('Update weight %s: %s' % (key, str(val.shape)))
+
+        if strict:
+            self.load_state_dict(update_model_state)
+        else:
+            state_dict.update(update_model_state)
+            self.load_state_dict(state_dict)
+        return state_dict, update_model_state
+
     def load_params_from_file(self, filename, logger, to_cpu=False):
         if not os.path.isfile(filename):
             raise FileNotFoundError
@@ -334,24 +366,17 @@ class Detector3DTemplate(nn.Module):
         checkpoint = torch.load(filename, map_location=loc_type)
         model_state_disk = checkpoint['model_state']
 
-        if 'version' in checkpoint:
-            logger.info('==> Checkpoint trained from version: %s' % checkpoint['version'])
+        version = checkpoint.get("version", None)
+        if version is not None:
+            logger.info('==> Checkpoint trained from version: %s' % version)
 
-        update_model_state = {}
-        for key, val in model_state_disk.items():
-            if key in self.state_dict() and self.state_dict()[key].shape == model_state_disk[key].shape:
-                update_model_state[key] = val
-                # logger.info('Update weight %s: %s' % (key, str(val.shape)))
-
-        state_dict = self.state_dict()
-        state_dict.update(update_model_state)
-        self.load_state_dict(state_dict)
+        state_dict, update_model_state = self._load_state_dict(model_state_disk, strict=False)
 
         for key in state_dict:
             if key not in update_model_state:
                 logger.info('Not updated weight %s: %s' % (key, str(state_dict[key].shape)))
 
-        logger.info('==> Done (loaded %d/%d)' % (len(update_model_state), len(self.state_dict())))
+        logger.info('==> Done (loaded %d/%d)' % (len(update_model_state), len(state_dict)))
 
     def load_params_with_optimizer(self, filename, to_cpu=False, optimizer=None, logger=None):
         if not os.path.isfile(filename):
@@ -363,7 +388,7 @@ class Detector3DTemplate(nn.Module):
         epoch = checkpoint.get('epoch', -1)
         it = checkpoint.get('it', 0.0)
 
-        self.load_state_dict(checkpoint['model_state'])
+        self._load_state_dict(checkpoint['model_state'], strict=True)
 
         if optimizer is not None:
             if 'optimizer_state' in checkpoint and checkpoint['optimizer_state'] is not None:
