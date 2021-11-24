@@ -11,8 +11,11 @@ DATA_SPLIT: {
 
 SAMPLED_INTERVAL: {
     'train': 5,
-    'test': 5
+    'test': 1
 }
+
+FILTER_EMPTY_BOXES_FOR_TRAIN: True
+DISABLE_NLZ_FLAG_ON_POINTS: True
 
 USE_SHARED_MEMORY: False
 SHARED_MEMORY_FILE_LIMIT: 35000  # set it based on the size of your shared memory

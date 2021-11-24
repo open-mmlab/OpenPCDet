@@ -161,7 +161,8 @@ class WaymoDataset(DatasetTemplate):
         point_features = np.load(lidar_file)  # (N, 7): [x, y, z, intensity, elongation, NLZ_flag]
 
         points_all, NLZ_flag = point_features[:, 0:5], point_features[:, 5]
-        points_all = points_all[NLZ_flag == -1]
+        if not self.dataset_cfg.get('DISABLE_NLZ_FLAG_ON_POINTS', False):
+            points_all = points_all[NLZ_flag == -1]
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
@@ -199,6 +200,12 @@ class WaymoDataset(DatasetTemplate):
                 gt_boxes_lidar = box_utils.boxes3d_kitti_fakelidar_to_lidar(annos['gt_boxes_lidar'])
             else:
                 gt_boxes_lidar = annos['gt_boxes_lidar']
+
+            if self.training and self.dataset_cfg.get('FILTER_EMPTY_BOXES_FOR_TRAIN', False):
+                mask = (annos['num_points_in_gt'] > 0)  # filter empty boxes
+                annos['name'] = annos['name'][mask]
+                gt_boxes_lidar = gt_boxes_lidar[mask]
+                annos['num_points_in_gt'] = annos['num_points_in_gt'][mask]
 
             input_dict.update({
                 'gt_names': annos['name'],
