@@ -201,16 +201,16 @@ class CenterHead(nn.Module):
                     gt_boxes_single_head = torch.cat(gt_boxes_single_head, dim=0)
 
                 heatmap, ret_boxes, inds, mask = self.assign_target_of_single_head(
-                    num_classes=len(cur_class_names), gt_boxes=gt_boxes_single_head,
+                    num_classes=len(cur_class_names), gt_boxes=gt_boxes_single_head.cpu(),
                     feature_map_size=feature_map_size, feature_map_stride=target_assigner_cfg.FEATURE_MAP_STRIDE,
                     num_max_objs=target_assigner_cfg.NUM_MAX_OBJS,
                     gaussian_overlap=target_assigner_cfg.GAUSSIAN_OVERLAP,
                     min_radius=target_assigner_cfg.MIN_RADIUS,
                 )
-                heatmap_list.append(heatmap)
-                target_boxes_list.append(ret_boxes)
-                inds_list.append(inds)
-                masks_list.append(mask)
+                heatmap_list.append(heatmap.to(gt_boxes_single_head.device))
+                target_boxes_list.append(ret_boxes.to(gt_boxes_single_head.device))
+                inds_list.append(inds.to(gt_boxes_single_head.device))
+                masks_list.append(mask.to(gt_boxes_single_head.device))
 
             ret_dict['heatmaps'].append(torch.stack(heatmap_list, dim=0))
             ret_dict['target_boxes'].append(torch.stack(target_boxes_list, dim=0))
