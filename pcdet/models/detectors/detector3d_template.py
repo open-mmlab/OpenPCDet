@@ -34,7 +34,7 @@ class Detector3DTemplate(nn.Module):
         self.update_time_dict(dict())
 
         self._eval_dict = {}
-        if 'DEADLINE_SEC' in dir(model_cfg):
+        if self.model_cfg.get('DEADLINE_SEC', None) is not None:
             self._default_deadline_sec = float(model_cfg.DEADLINE_SEC)
             self._eval_dict['deadline_sec'] = self._default_deadline_sec
         else:
@@ -223,6 +223,7 @@ class Detector3DTemplate(nn.Module):
         self._eval_dict['deadline_diffs'].append(tdiff)
 
         dl_missed = (True if tdiff > 0 else False)
+
         if dl_missed:
             self._eval_dict['deadlines_missed'] += 1
             if self._use_empty_det_dict_for_eval:
@@ -552,6 +553,10 @@ class Detector3DTemplate(nn.Module):
         self._eval_dict['exec_times'] = self.get_time_dict()
         self._eval_dict['exec_time_stats'] = self.get_time_dict_stats()
         self._eval_dict['eval_results_dict'] = eval_result_dict
+        self._eval_dict['dataset'] = self.dataset.dataset_cfg.DATASET
+
+        if self.model_cfg.get('METHOD', None) is not None:
+            self._eval_dict['method'] = self.model_cfg.METHOD
 
         print('Dumping evaluation dictionary file')
         current_date_time = datetime.datetime.today()
@@ -561,11 +566,11 @@ class Detector3DTemplate(nn.Module):
 
     def init_empty_det_dict(self, det_dict_example):
         self._det_dict_copy = {
-            "pred_boxes": torch.zeros([0, det_dict_example["pred_boxes"].size()[1]],
+            "pred_boxes": torch.zeros([1, det_dict_example["pred_boxes"].size()[1]],
             dtype=det_dict_example["pred_boxes"].dtype, device=det_dict_example["pred_boxes"].device),
-            "pred_scores": torch.zeros([0], dtype=det_dict_example["pred_scores"].dtype,
+            "pred_scores": torch.zeros([1], dtype=det_dict_example["pred_scores"].dtype,
             device=det_dict_example["pred_scores"].device),
-            "pred_labels": torch.zeros([0], dtype=det_dict_example["pred_labels"].dtype,
+            "pred_labels": torch.zeros([1], dtype=det_dict_example["pred_labels"].dtype,
             device=det_dict_example["pred_labels"].device),
         }
         self._use_empty_det_dict_for_eval = True
@@ -575,3 +580,52 @@ class Detector3DTemplate(nn.Module):
         for k,v in self._det_dict_copy.items():
             det_dict[k] = v.clone().detach()
         return det_dict
+
+    def print_dict(self, d):
+        for k, v in d.items():
+            print(k, ':', end=' ')
+            if torch.is_tensor(v):
+                print(v.size())
+            elif isinstance(v, list) and torch.is_tensor(v[0]):
+                for e in v:
+                    print(e.size(), end=' ')
+                print()
+            else:
+                print(v)
+
+    def calibrate(self):
+        data_dict = self.load_data_with_ds_index(0)
+        print('\ndata_dict:')
+        self.print_dict(data_dict)
+
+        # just do a regular forward first
+        data_dict["abs_deadline_sec"] = time.time () + 10.0
+        pred_dicts, recall_dict = self(data_dict) # this calls forward!
+        torch.cuda.synchronize()
+
+        #Print full tensor sizes
+        print('\ndata_dict after forward:')
+        self.print_dict(data_dict)
+
+        print('\nDetections:')
+        for pd in pred_dicts:
+            self.print_dict(pd)
+
+        print('\nRecall dict:')
+        self.print_dict(recall_dict)
+
+        if isinstance(data_dict['box_preds'], list):
+            self._box_preds_size = data_dict['box_preds'][0].size()
+            self._cls_preds_size = data_dict['cls_preds'][0].size()
+        else:
+            self._box_preds_size = data_dict['box_preds'].size()
+            self._cls_preds_size = data_dict['cls_preds'].size()
+
+        print('\nDense head return:\nbox_preds', self._box_preds_size)
+        print('cls_preds', self._cls_preds_size)
+
+        if isinstance(pred_dicts, list):
+            det = pred_dicts[0]
+        else:
+            det = pred_dicts
+        self.init_empty_det_dict(det)

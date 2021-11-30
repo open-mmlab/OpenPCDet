@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import time
 
 from ..backbones_2d import BaseBEVBackbone
 from .anchor_head_template import AnchorHeadTemplate
-
 
 class SingleHead(BaseBEVBackbone):
     def __init__(self, model_cfg, input_channels, num_class, num_anchors_per_location, code_size, rpn_head_cfg=None,
@@ -17,6 +17,7 @@ class SingleHead(BaseBEVBackbone):
         self.model_cfg = model_cfg
         self.separate_reg_config = separate_reg_config
         self.register_buffer('head_label_indices', head_label_indices)
+        self.class_names = rpn_head_cfg['HEAD_CLS_NAME']
 
         if self.separate_reg_config is not None:
             code_size_cnt = 0
@@ -102,10 +103,37 @@ class SingleHead(BaseBEVBackbone):
             nn.init.constant_(self.conv_cls[-1].bias, -np.log((1 - pi) / pi))
 
     def forward(self, spatial_features_2d):
+        ret_dict = self.forward_cls_preds(spatial_features_2d)
+        ret_dict = self.forward_remaining_preds(ret['sp2d'])
+        return ret_dict
+
+    def forward_cls_preds(self, spatial_features_2d):
         ret_dict = {}
         spatial_features_2d = super().forward({'spatial_features': spatial_features_2d})['spatial_features_2d']
+        ret_dict['sp2d'] = spatial_features_2d
 
         cls_preds = self.conv_cls(spatial_features_2d)
+
+        if not self.use_multihead:
+            cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()
+        else:
+            H, W = cls_preds.shape[2:]
+            batch_size = cls_preds.shape[0]
+            cls_preds = cls_preds.view(-1, self.num_anchors_per_location,
+                                       self.num_class, H, W).permute(0, 1, 3, 4, 2).contiguous()
+
+            # EXPLANATION 1
+            # Commented this part to be compatible with imprecise computation
+            # fix views is later used to fix this
+            #cls_preds = cls_preds.view(batch_size, -1, self.num_class)
+
+        ret_dict['cls_preds'] = cls_preds
+
+        return ret_dict
+
+
+    def forward_remaining_preds(self, spatial_features_2d):
+        ret_dict = {}
 
         if self.separate_reg_config is None:
             box_preds = self.conv_box(spatial_features_2d)
@@ -117,16 +145,13 @@ class SingleHead(BaseBEVBackbone):
 
         if not self.use_multihead:
             box_preds = box_preds.permute(0, 2, 3, 1).contiguous()
-            cls_preds = cls_preds.permute(0, 2, 3, 1).contiguous()
         else:
             H, W = box_preds.shape[2:]
             batch_size = box_preds.shape[0]
             box_preds = box_preds.view(-1, self.num_anchors_per_location,
                                        self.code_size, H, W).permute(0, 1, 3, 4, 2).contiguous()
-            cls_preds = cls_preds.view(-1, self.num_anchors_per_location,
-                                       self.num_class, H, W).permute(0, 1, 3, 4, 2).contiguous()
-            box_preds = box_preds.view(batch_size, -1, self.code_size)
-            cls_preds = cls_preds.view(batch_size, -1, self.num_class)
+            # Please check EXPLANATION 1
+            #box_preds = box_preds.view(batch_size, -1, self.code_size)
 
         if self.conv_dir_cls is not None:
             dir_cls_preds = self.conv_dir_cls(spatial_features_2d)
@@ -134,19 +159,29 @@ class SingleHead(BaseBEVBackbone):
                 dir_cls_preds = dir_cls_preds.view(
                     -1, self.num_anchors_per_location, self.model_cfg.NUM_DIR_BINS, H, W).permute(0, 1, 3, 4,
                                                                                                   2).contiguous()
-                dir_cls_preds = dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
+                # Please check EXPLANATION 1
+                #dir_cls_preds = dir_cls_preds.view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
             else:
                 dir_cls_preds = dir_cls_preds.permute(0, 2, 3, 1).contiguous()
 
         else:
             dir_cls_preds = None
 
-        ret_dict['cls_preds'] = cls_preds
         ret_dict['box_preds'] = box_preds
         ret_dict['dir_cls_preds'] = dir_cls_preds
 
         return ret_dict
 
+    def fix_views(self, pred_dict):
+        if self.use_multihead:
+            batch_size = pred_dict['cls_preds'].shape[0]
+            pred_dict['cls_preds'] = pred_dict['cls_preds'].view(batch_size, -1, self.num_class)
+            pred_dict['box_preds'] = pred_dict['box_preds'].view(batch_size, -1, self.code_size)
+            if 'dir_cls_preds' in pred_dict:
+                pred_dict['dir_cls_preds'] = \
+                        pred_dict['dir_cls_preds'].view(batch_size, -1, self.model_cfg.NUM_DIR_BINS)
+
+        return pred_dict
 
 class AnchorHeadMultiImprecise(AnchorHeadTemplate):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range,
@@ -173,9 +208,18 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
         else:
             self.shared_conv_alternatives = None
             shared_conv_num_filter = input_channels
-        self.rpn_heads = None
         self.make_multihead(shared_conv_num_filter)
 
+        #TODO, I took these from the anchor sizes in the configuration file
+        # of multi head point pillars nuscenes. This process can be automated.
+        self.anchor_area_coeffs = [
+            [4.63 * 1.97],               # car
+            [6.93 * 2.51, 6.37  * 2.85], # truck, construction_vehicle
+            [10.5 * 2.94, 12.29 * 2.90], # bus, trailer
+            [0.50 * 2.53],               # barrier
+            [2.11 * 0.77, 1.70 * 0.60],  # motocycle, bicycle
+            [0.73 * 0.67, 0.41 * 0.41],  # pedestrian, traffic_cone
+        ]
 
     def make_multihead(self, input_channels):
         self.rpn_head_alternatives = nn.ModuleList()
@@ -202,18 +246,14 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
                 rpn_heads.append(rpn_head)
             # I hope this nested list will work fine
             self.rpn_head_alternatives.append(nn.ModuleList(rpn_heads))
+        self.num_heads = len(self.rpn_head_alternatives[0])
     
         #self.cuda_streams = [ torch.cuda.Stream() for r in rpn_head_cfgs]
 
-    # Seperating class and box (+dir) forwarding would require high effort
-    # as they are merged in the SingleHead class, so I will just ignore that overhead
-    # Actually, I might be able to use the shared convolution to acquire class scores,
-    # and then do slicing accordingly. Need to check the output of shared convolution.
     def forward(self, data_dict):
         return self.forward_remaining_preds(self.forward_cls_preds(data_dict))
 
     def forward_cls_preds(self, data_dict):
-        # for now, just forward everything here
         cur_stg = data_dict["stages_executed"]
 
         if f'spatial_features_2d_{cur_stg}' not in data_dict:
@@ -228,21 +268,45 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             spatial_features_2d = self.shared_conv_alternatives[cur_stg-1](spatial_features_2d)
 
         ret_dicts = []
-        #for cs, rpn_head in zip(self.cuda_streams, self.rpn_head_alternatives[cur_stg-1]):
-        for rpn_head in self.rpn_head_alternatives[cur_stg-1]:
-            #with torch.cuda.stream(cs):
-            ret_dicts.append(rpn_head(spatial_features_2d))
-
-        #torch.cuda.synchronize()
+        if 'heads_to_run' not in data_dict:
+            for rpn_head in self.rpn_head_alternatives[cur_stg-1]:
+                #with torch.cuda.stream(cs):
+                ret_dicts.append(rpn_head.forward_cls_preds(spatial_features_2d))
+        else:
+            for h in data_dict['heads_to_run']:
+                rpn_head = self.rpn_head_alternatives[cur_stg-1][h]
+                ret_dicts.append(rpn_head.forward_cls_preds(spatial_features_2d))
 
         cls_preds = [ret_dict['cls_preds'] for ret_dict in ret_dicts]
-        box_preds = [ret_dict['box_preds'] for ret_dict in ret_dicts]
         ret = {
             'cls_preds': cls_preds if self.separate_multihead else torch.cat(cls_preds, dim=1),
+        }
+        data_dict['cls_preds'] = ret['cls_preds']
+
+        sp2d = [ret_dict['sp2d'] for ret_dict in ret_dicts]
+        data_dict[f'sp2d_{cur_stg}'] = sp2d
+        self.forward_ret_dict.update(ret)
+
+        return data_dict
+
+    def forward_remaining_preds(self, data_dict):
+        cur_stg = data_dict["stages_executed"]
+
+        if 'heads_to_run' not in data_dict:
+            data_dict['heads_to_run'] = \
+                    torch.arange(0, self.num_heads, dtype=torch.uint8, device='cpu')
+
+        # Each rem forward takes 5.3 ms
+        ret_dicts = []
+        for i, h in enumerate(data_dict['heads_to_run']):
+            rpn_head = self.rpn_head_alternatives[cur_stg-1][h]
+            ret_dicts.append(rpn_head.forward_remaining_preds(data_dict[f'sp2d_{cur_stg}'][i]))
+
+        box_preds = [ret_dict['box_preds'] for ret_dict in ret_dicts]
+        ret = {
             'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1),
         }
 
-        data_dict['cls_preds'] = ret['cls_preds']
         data_dict['box_preds'] = ret['box_preds']
 
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
@@ -251,11 +315,6 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             data_dict['dir_cls_preds'] = ret['dir_cls_preds']
 
         self.forward_ret_dict.update(ret)
-
-        return data_dict
-
-    def forward_remaining_preds(self, data_dict):
-        # already done box and dir in forward_cls_preds
 
         if self.training and data_dict["stages_executed"] == 1:
             targets_dict = self.assign_targets(
@@ -268,7 +327,39 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
 
         return data_dict
 
+    def fix_views(self, data_dict):
+        cur_stg = data_dict["stages_executed"]
+
+        for i, h in enumerate(data_dict['heads_to_run']):
+            rpn_head = self.rpn_head_alternatives[cur_stg-1][h]
+            pd = {}
+            for k in ['cls_preds', 'box_preds', 'dir_cls_preds']:
+                if k in data_dict.keys():
+                    pd[k] = data_dict[k][i]
+
+            pd = rpn_head.fix_views(pd)
+            for k,v in pd.items():
+                data_dict[k][i] = v
+
+        return data_dict
+
     def gen_pred_boxes(self, data_dict):
+        if self.separate_multihead:
+            data_dict = self.fix_views(data_dict)
+
+        # backup self.anchors, modify them accordingly, and then restore afterward
+        anchors_bkp = self.anchors.copy()  # shallow copy, which we want
+        # the index 0 below can be 1 or 2 as well
+        num_classes = [len(rh.head_label_indices) for rh in self.rpn_head_alternatives[0]]
+
+        anchors_tmp = []
+        for i in data_dict['heads_to_run']:
+            shift = sum(num_classes[:i])
+            numc = len(self.rpn_head_alternatives[0][i].head_label_indices)
+            anchors_tmp.extend(self.anchors[shift:(shift+numc)])
+
+        self.anchors = anchors_tmp
+
         batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
             batch_size=data_dict['batch_size'],
             cls_preds=data_dict['cls_preds'], 
@@ -276,18 +367,21 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             dir_cls_preds=data_dict.get('dir_cls_preds', None)
         )
 
+        self.anchors = anchors_bkp  # restore
+
         if isinstance(batch_cls_preds, list):
             multihead_label_mapping = []
-            for idx in range(len(batch_cls_preds)):
+            for idx in data_dict['heads_to_run']:
                 multihead_label_mapping.append(self.rpn_head_alternatives[0][idx].head_label_indices)
 
             data_dict['multihead_label_mapping'] = multihead_label_mapping
 
         data_dict['batch_cls_preds'] = batch_cls_preds
         data_dict['batch_box_preds'] = batch_box_preds
-        data_dict['cls_preds_normalized'] = False
-        return data_dict
+        if 'cls_preds_normalized' not in data_dict:
+            data_dict['cls_preds_normalized'] = False
 
+        return data_dict
 
     def get_cls_layer_loss(self):
         loss_weights = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS
