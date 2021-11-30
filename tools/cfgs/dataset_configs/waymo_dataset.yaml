@@ -17,7 +17,7 @@ SAMPLED_INTERVAL: {
 FILTER_EMPTY_BOXES_FOR_TRAIN: True
 DISABLE_NLZ_FLAG_ON_POINTS: True
 
-USE_SHARED_MEMORY: False
+USE_SHARED_MEMORY: False  # it will load the data to shared memory to speed up (DO NOT USE IT IF YOU DO NOT FULLY UNDERSTAND WHAT WILL HAPPEN)
 SHARED_MEMORY_FILE_LIMIT: 35000  # set it based on the size of your shared memory
 
 DATA_AUGMENTOR:
@@ -28,7 +28,7 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1.pkl
 
-          USE_SHARED_MEMORY: False
+          USE_SHARED_MEMORY: False  # set it to True to speed up (it costs about 15GB shared memory)
           DB_DATA_PATH:
               - waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global.npy
 
