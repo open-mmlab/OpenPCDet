@@ -61,6 +61,9 @@ class RoIHeadTemplate(nn.Module):
                 roi_labels: (B, num_rois)
 
         """
+        if batch_dict.get('rois', None) is not None:
+            return batch_dict
+            
         batch_size = batch_dict['batch_size']
         batch_box_preds = batch_dict['batch_box_preds']
         batch_cls_preds = batch_dict['batch_cls_preds']

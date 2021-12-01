@@ -71,11 +71,14 @@ OpenPCDet
 │   │   │── raw_data
 │   │   │   │── segment-xxxxxxxx.tfrecord
 |   |   |   |── ...
-|   |   |── waymo_processed_data
+|   |   |── waymo_processed_data_v0_5_0
 │   │   │   │── segment-xxxxxxxx/
 |   |   |   |── ...
-│   │   │── pcdet_gt_database_train_sampled_xx/
-│   │   │── pcdet_waymo_dbinfos_train_sampled_xx.pkl   
+│   │   │── waymo_processed_data_v0_5_0_gt_database_train_sampled_1/
+│   │   │── waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1.pkl
+│   │   │── waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global.npy (optional)
+│   │   │── waymo_processed_data_v0_5_0_infos_train.pkl (optional)
+│   │   │── waymo_processed_data_v0_5_0_infos_val.pkl (optional)
 ├── pcdet
 ├── tools
 ```
@@ -87,7 +90,7 @@ pip3 install waymo-open-dataset-tf-2-0-0==1.2.0 --user
 ```
 
 * Extract point cloud data from tfrecord and generate data infos by running the following command (it takes several hours, 
-and you could refer to `data/waymo/waymo_processed_data` to see how many records that have been processed): 
+and you could refer to `data/waymo/waymo_processed_data_v0_5_0` to see how many records that have been processed): 
 ```python 
 python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
     --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
@@ -96,7 +99,7 @@ python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
 
 ## Pretrained Models
-If you would like to train [CaDDN](../tools/cfgs/kitti_models/CaDDN.yaml), download the pretrained [DeepLabV3 model](https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth) and place within the `checkpoints` directory
+If you would like to train [CaDDN](../tools/cfgs/kitti_models/CaDDN.yaml), download the pretrained [DeepLabV3 model](https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth) and place within the `checkpoints` directory. Please make sure the [kornia](https://github.com/kornia/kornia) is installed since it is needed for `CaDDN`.
 ```
 OpenPCDet
 ├── checkpoints

@@ -6,8 +6,11 @@ We suppose you already followed the [INSTALL.md](INSTALL.md) to install the `Ope
 
 1. Download the provided pretrained models as shown in the [README.md](../README.md). 
 
-2. Make sure you have already installed the `mayavi` visualization tools. If not, you could install it as follows:
+2. Make sure you have already installed the [`Open3D`](https://github.com/isl-org/Open3D) (faster) or `mayavi` visualization tools. 
+If not, you could install it as follows:
    ```
+   pip install open3d
+   # or 
    pip install mayavi
    ```
 

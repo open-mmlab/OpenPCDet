@@ -236,7 +236,7 @@ def main():
         gt_infos_dst.append(cur_info)
 
     waymo_AP = eval.waymo_evaluation(
-        pred_infos, gt_infos_dst, class_name=args.class_names, distance_thresh=1000, fake_gt_infos=True
+        pred_infos, gt_infos_dst, class_name=args.class_names, distance_thresh=1000, fake_gt_infos=False
     )
 
     print(waymo_AP)

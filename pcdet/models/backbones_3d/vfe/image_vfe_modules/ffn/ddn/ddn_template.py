@@ -2,11 +2,9 @@ from collections import OrderedDict
 from pathlib import Path
 from torch import hub
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
 
 try:
     from kornia.enhance.normalize import normalize

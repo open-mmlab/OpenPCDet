@@ -9,6 +9,8 @@ import copy
 import numpy as np
 import torch
 import multiprocessing
+import SharedArray
+import torch.distributed as dist
 from tqdm import tqdm
 from pathlib import Path
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
@@ -28,6 +30,11 @@ class WaymoDataset(DatasetTemplate):
 
         self.infos = []
         self.include_waymo_data(self.mode)
+
+        self.use_shared_memory = self.dataset_cfg.get('USE_SHARED_MEMORY', False) and self.training
+        if self.use_shared_memory:
+            self.shared_memory_file_limit = self.dataset_cfg.get('SHARED_MEMORY_FILE_LIMIT', 0x7FFFFFFF)
+            self.load_data_to_shared_memory()
 
     def set_split(self, split):
         super().__init__(
@@ -67,17 +74,67 @@ class WaymoDataset(DatasetTemplate):
             self.infos = sampled_waymo_infos
             self.logger.info('Total sampled samples for Waymo dataset: %d' % len(self.infos))
 
+    def load_data_to_shared_memory(self):
+        self.logger.info(f'Loading training data to shared memory (file limit={self.shared_memory_file_limit})')
+
+        cur_rank, num_gpus = common_utils.get_dist_info()
+        all_infos = self.infos[:self.shared_memory_file_limit] \
+            if self.shared_memory_file_limit < len(self.infos) else self.infos
+        cur_infos = all_infos[cur_rank::num_gpus]
+        for info in cur_infos:
+            pc_info = info['point_cloud']
+            sequence_name = pc_info['lidar_sequence']
+            sample_idx = pc_info['sample_idx']
+
+            sa_key = f'{sequence_name}___{sample_idx}'
+            if os.path.exists(f"/dev/shm/{sa_key}"):
+                continue
+
+            points = self.get_lidar(sequence_name, sample_idx)
+            common_utils.sa_create(f"shm://{sa_key}", points)
+
+        dist.barrier()
+        self.logger.info('Training data has been saved to shared memory')
+
+    def clean_shared_memory(self):
+        self.logger.info(f'Clean training data from shared memory (file limit={self.shared_memory_file_limit})')
+
+        cur_rank, num_gpus = common_utils.get_dist_info()
+        all_infos = self.infos[:self.shared_memory_file_limit] \
+            if self.shared_memory_file_limit < len(self.infos) else self.infos
+        cur_infos = all_infos[cur_rank::num_gpus]
+        for info in cur_infos:
+            pc_info = info['point_cloud']
+            sequence_name = pc_info['lidar_sequence']
+            sample_idx = pc_info['sample_idx']
+
+            sa_key = f'{sequence_name}___{sample_idx}'
+            if not os.path.exists(f"/dev/shm/{sa_key}"):
+                continue
+
+            SharedArray.delete(f"shm://{sa_key}")
+
+        if num_gpus > 1:
+            dist.barrier()
+        self.logger.info('Training data has been deleted from shared memory')
+
     @staticmethod
     def check_sequence_name_with_all_version(sequence_file):
-        if '_with_camera_labels' not in str(sequence_file) and not sequence_file.exists():
-            sequence_file = Path(str(sequence_file)[:-9] + '_with_camera_labels.tfrecord')
-        if '_with_camera_labels' in str(sequence_file) and not sequence_file.exists():
-            sequence_file = Path(str(sequence_file).replace('_with_camera_labels', ''))
-
+        if not sequence_file.exists():
+            found_sequence_file = sequence_file
+            for pre_text in ['training', 'validation', 'testing']:
+                if not sequence_file.exists():
+                    temp_sequence_file = Path(str(sequence_file).replace('segment', pre_text + '_segment'))
+                    if temp_sequence_file.exists():
+                        found_sequence_file = temp_sequence_file
+                        break
+            if not found_sequence_file.exists():
+                found_sequence_file = Path(str(sequence_file).replace('_with_camera_labels', ''))
+            if found_sequence_file.exists():
+                sequence_file = found_sequence_file
         return sequence_file
 
     def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True, sampled_interval=1):
-        import concurrent.futures as futures
         from functools import partial
         from . import waymo_utils
         print('---------------The waymo sample interval is %d, total sequecnes is %d-----------------'
@@ -92,10 +149,10 @@ class WaymoDataset(DatasetTemplate):
             for sequence_file in self.sample_sequence_list
         ]
 
-        # process_single_sequence(sample_sequence_file_list[0])
-        with futures.ThreadPoolExecutor(num_workers) as executor:
-            sequence_infos = list(tqdm(executor.map(process_single_sequence, sample_sequence_file_list),
+        with multiprocessing.Pool(num_workers) as p:
+            sequence_infos = list(tqdm(p.imap(process_single_sequence, sample_sequence_file_list),
                                        total=len(sample_sequence_file_list)))
+
         all_sequences_infos = [item for infos in sequence_infos for item in infos]
         return all_sequences_infos
 
@@ -104,7 +161,8 @@ class WaymoDataset(DatasetTemplate):
         point_features = np.load(lidar_file)  # (N, 7): [x, y, z, intensity, elongation, NLZ_flag]
 
         points_all, NLZ_flag = point_features[:, 0:5], point_features[:, 5]
-        points_all = points_all[NLZ_flag == -1]
+        if not self.dataset_cfg.get('DISABLE_NLZ_FLAG_ON_POINTS', False):
+            points_all = points_all[NLZ_flag == -1]
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
@@ -122,7 +180,12 @@ class WaymoDataset(DatasetTemplate):
         pc_info = info['point_cloud']
         sequence_name = pc_info['lidar_sequence']
         sample_idx = pc_info['sample_idx']
-        points = self.get_lidar(sequence_name, sample_idx)
+
+        if self.use_shared_memory and index < self.shared_memory_file_limit:
+            sa_key = f'{sequence_name}___{sample_idx}'
+            points = SharedArray.attach(f"shm://{sa_key}").copy()
+        else:
+            points = self.get_lidar(sequence_name, sample_idx)
 
         input_dict = {
             'points': points,
@@ -137,6 +200,12 @@ class WaymoDataset(DatasetTemplate):
                 gt_boxes_lidar = box_utils.boxes3d_kitti_fakelidar_to_lidar(annos['gt_boxes_lidar'])
             else:
                 gt_boxes_lidar = annos['gt_boxes_lidar']
+
+            if self.training and self.dataset_cfg.get('FILTER_EMPTY_BOXES_FOR_TRAIN', False):
+                mask = (annos['num_points_in_gt'] > 0)  # filter empty boxes
+                annos['name'] = annos['name'][mask]
+                gt_boxes_lidar = gt_boxes_lidar[mask]
+                annos['num_points_in_gt'] = annos['num_points_in_gt'][mask]
 
             input_dict.update({
                 'gt_names': annos['name'],
@@ -251,15 +320,16 @@ class WaymoDataset(DatasetTemplate):
 
     def create_groundtruth_database(self, info_path, save_path, used_classes=None, split='train', sampled_interval=10,
                                     processed_data_tag=None):
-        database_save_path = save_path / ('pcdet_gt_database_%s_sampled_%d' % (split, sampled_interval))
-        db_info_save_path = save_path / ('pcdet_waymo_dbinfos_%s_sampled_%d.pkl' % (split, sampled_interval))
-
+        database_save_path = save_path / ('%s_gt_database_%s_sampled_%d' % (processed_data_tag, split, sampled_interval))
+        db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d.pkl' % (processed_data_tag, split, sampled_interval))
+        db_data_save_path = save_path / ('%s_gt_database_%s_sampled_%d_global.npy' % (processed_data_tag, split, sampled_interval))
         database_save_path.mkdir(parents=True, exist_ok=True)
         all_db_infos = {}
-
         with open(info_path, 'rb') as f:
             infos = pickle.load(f)
 
+        point_offset_cnt = 0
+        stacked_gt_points = []
         for k in range(0, len(infos), sampled_interval):
             print('gt_database sample: %d/%d' % (k + 1, len(infos)))
             info = infos[k]
@@ -274,7 +344,21 @@ class WaymoDataset(DatasetTemplate):
             difficulty = annos['difficulty']
             gt_boxes = annos['gt_boxes_lidar']
 
+            if k % 4 != 0 and len(names) > 0:
+                mask = (names == 'Vehicle')
+                names = names[~mask]
+                difficulty = difficulty[~mask]
+                gt_boxes = gt_boxes[~mask]
+
+            if k % 2 != 0 and len(names) > 0:
+                mask = (names == 'Pedestrian')
+                names = names[~mask]
+                difficulty = difficulty[~mask]
+                gt_boxes = gt_boxes[~mask]
+
             num_obj = gt_boxes.shape[0]
+            if num_obj == 0:
+                continue
 
             box_idxs_of_pts = roiaware_pool3d_utils.points_in_boxes_gpu(
                 torch.from_numpy(points[:, 0:3]).unsqueeze(dim=0).float().cuda(),
@@ -295,6 +379,12 @@ class WaymoDataset(DatasetTemplate):
                     db_info = {'name': names[i], 'path': db_path, 'sequence_name': sequence_name,
                                'sample_idx': sample_idx, 'gt_idx': i, 'box3d_lidar': gt_boxes[i],
                                'num_points_in_gt': gt_points.shape[0], 'difficulty': difficulty[i]}
+
+                    # it will be used if you choose to use shared memory for gt sampling
+                    stacked_gt_points.append(gt_points)
+                    db_info['global_data_offset'] = [point_offset_cnt, point_offset_cnt + gt_points.shape[0]]
+                    point_offset_cnt += gt_points.shape[0]
+
                     if names[i] in all_db_infos:
                         all_db_infos[names[i]].append(db_info)
                     else:
@@ -305,19 +395,24 @@ class WaymoDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
+        # it will be used if you choose to use shared memory for gt sampling
+        stacked_gt_points = np.concatenate(stacked_gt_points, axis=0)
+        np.save(db_data_save_path, stacked_gt_points)
+
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
-                       workers=multiprocessing.cpu_count()):
+                       workers=min(16, multiprocessing.cpu_count())):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
         training=False, logger=common_utils.create_logger()
     )
     train_split, val_split = 'train', 'val'
 
-    train_filename = save_path / ('waymo_infos_%s.pkl' % train_split)
-    val_filename = save_path / ('waymo_infos_%s.pkl' % val_split)
+    train_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, train_split))
+    val_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, val_split))
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     print('---------------Start to generate data infos---------------')
 
     dataset.set_split(train_split)
@@ -341,10 +436,11 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
 
     print('---------------Start create groundtruth database for data augmentation---------------')
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     dataset.set_split(train_split)
     dataset.create_groundtruth_database(
-        info_path=train_filename, save_path=save_path, split='train', sampled_interval=10,
-        used_classes=['Vehicle', 'Pedestrian', 'Cyclist']
+        info_path=train_filename, save_path=save_path, split='train', sampled_interval=1,
+        used_classes=['Vehicle', 'Pedestrian', 'Cyclist'], processed_data_tag=processed_data_tag
     )
     print('---------------Data preparation Done---------------')
 
@@ -355,18 +451,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    parser.add_argument('--processed_data_tag', type=str, default='waymo_processed_data_v0_5_0', help='')
     args = parser.parse_args()
 
     if args.func == 'create_waymo_infos':
         import yaml
         from easydict import EasyDict
-        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
+        try:
+            yaml_config = yaml.load(open(args.cfg_file), Loader=yaml.FullLoader)
+        except:
+            yaml_config = yaml.load(open(args.cfg_file))
+        dataset_cfg = EasyDict(yaml_config)
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
             class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
             data_path=ROOT_DIR / 'data' / 'waymo',
             save_path=ROOT_DIR / 'data' / 'waymo',
             raw_data_tag='raw_data',
-            processed_data_tag=dataset_cfg.PROCESSED_DATA_TAG
+            processed_data_tag=args.processed_data_tag
         )
