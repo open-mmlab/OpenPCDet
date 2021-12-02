@@ -230,10 +230,13 @@ class PointPillarImprecise(Detector3DTemplate):
             cls_score_sums.append(torch.sum(cls_scores_filtered, \
                     [0, 1, 2, 3], keepdim=False))
 
+        if self._calibrating_now:
+            # I hope this gpu to cpu transfer is not going to affect calibration
+            calib_prios = data_dict['gt_counts'].cpu()[0].argsort(descending=True)
+
         # Here it will sync
         cutoff_scores = cutoff_scores.cpu()
         cls_score_sums = [css.cpu() for css in cls_score_sums]
-
 
         self.measure_time_end('Pre-stage-1')
         self.measure_time_start('Post-stage-1')
@@ -246,11 +249,14 @@ class PointPillarImprecise(Detector3DTemplate):
         # has some corresponding objects, we will call them king classes
         prio_scores = (cutoff_scores * 100.0) + prio_scores
         prios = prio_scores.argsort(descending=True)
+        #print('prios', prios)
+        #print('gtc  ', data_dict['gt_counts'].argsort(descending=True))
 
         rem_ms = (data_dict['abs_deadline_sec'] - time.time()) * 1000.0
 
         if self._calibrating_now:
             num_stages, num_heads = self._cur_calib_tuple
+            prios = calib_prios
         else:
             # First, check if we can finish the line with executing no more rpn
             # If we can't, we need to decrease the head count until
@@ -302,16 +308,17 @@ class PointPillarImprecise(Detector3DTemplate):
     def calibrate(self):
         super().calibrate()
         
-        # generate 80 random indexes to use for calibration
-        samples = np.random.randint(0, len(self.dataset)-1, 80)
+        # generate 1000 random indexes to use for calibration
+        #samples = np.random.randint(0, len(self.dataset)-1, 1000)
+        #samples.sort()
 
-        fname = f"calib_dict_wcet_{self.dataset.dataset_cfg.DATASET}.json"
+        fname = f"calib_dict_{self.dataset.dataset_cfg.DATASET}.json"
         try:
             with open(fname, 'r') as handle:
                 calib_dict = json.load(handle)
         except FileNotFoundError:
             print(f'Calibration file {fname} not found, running calibration') 
-            calib_dict = self.do_calibration(fname, samples)
+            calib_dict = self.do_calibration(fname) #, samples)
         # Use 99 percentile Post-stage-1 times
         #m = np.finfo(np.single).max
         stat_dict = calib_dict['stats']
@@ -324,23 +331,36 @@ class PointPillarImprecise(Detector3DTemplate):
         for row in self.post_sync_time_table_ms:
             print(row)
 
-    def do_calibration(self, fname, sample_indexes):
+    def do_calibration(self, fname): #, sample_indexes):
         self._calibrating_now = True
         self._cur_calib_tuple = None  # (num_stages, num_heads)
         self._calib_test_cases=[]
-        calib_dict = {"data":{}, "stats":{}}
+        calib_dict = {"data":{}, "stats":{}, "eval":{}}
         for i in range(1, self._num_stages+1):
             for j in range(1, self.dense_head.num_heads+1):
                 self._calib_test_cases.append((i,j))
 
         gc.disable()
+
         for cur_calib_conf in self._calib_test_cases:
             print('Calibrating test case', cur_calib_conf)
             self._cur_calib_tuple = cur_calib_conf
 
-            for i in sample_indexes:  #range(len(self.dataset)):
-                self.load_and_infer(i, {'method': self.IMPRECISE })
-
+            det_annos = []
+            #for i in sample_indexes:
+            for i in range(len(self.dataset)):
+                with torch.no_grad():
+                    batch_dict, pred_dicts, ret_dict = self.load_and_infer(i,
+                            {'method': self.IMPRECISE })
+                #if i not in sample_indexes:
+                #    pred_dicts = [ self.get_empty_det_dict() for p in pred_dicts ]
+                annos = self.dataset.generate_prediction_dicts(
+                    batch_dict, pred_dicts, self.dataset.class_names,
+                    output_path='./temp_results'
+                )
+                det_annos += annos
+                if i % (len(self.dataset)//10) == 0:
+                    print(i, '/', len(self.dataset), ' done')
             calib_dict["data"][str(cur_calib_conf)]  = copy.deepcopy(self.get_time_dict())
             stats = self.get_time_dict_stats()
             calib_dict["stats"][str(cur_calib_conf)] = stats
@@ -348,7 +368,18 @@ class PointPillarImprecise(Detector3DTemplate):
             self.clear_stats()
             gc.collect()
             torch.cuda.empty_cache()
+
+            result_str, result_dict = self.dataset.evaluation(
+                det_annos, self.dataset.class_names,
+                eval_metric=self.model_cfg.POST_PROCESSING.EVAL_METRIC,
+                output_path='./temp_results'
+            )
+            calib_dict['eval'][str(cur_calib_conf)]  = result_dict # mAP or NDS will be enough
+            gc.collect()
+            torch.cuda.empty_cache()
         gc.enable()
+
+        #calib_dict['sample_indexes'] = sample_indexes.tolist()
 
         with open(fname, 'w') as handle:
             json.dump(calib_dict, handle, indent=4)

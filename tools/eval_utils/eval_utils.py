@@ -80,8 +80,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i in range(len(dataset)):
         with torch.no_grad():
             batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
-        disp_dict = {}
 
+        disp_dict = {}
         statistics_info(cfg, ret_dict, metric, disp_dict)
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
@@ -145,6 +145,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 
     logger.info(result_str)
     ret_dict.update(result_dict)
+    ret_dict['result_str'] = result_str
 
     logger.info('Result is save to %s' % result_dir)
     logger.info('****************Evaluation done.*****************')

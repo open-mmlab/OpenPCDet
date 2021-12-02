@@ -139,7 +139,19 @@ class DatasetTemplate(torch_data.Dataset):
             new_index = np.random.randint(self.__len__())
             return self.__getitem__(new_index)
 
-        data_dict.pop('gt_names', None)
+        #data_dict.pop('gt_names', None)
+
+        # BEWARE! This code is specific to multihead point pillars
+        gt_names = data_dict.pop('gt_names', None)
+        classes = [['car'], ['truck', 'construction_vehicle'], ['bus', 'trailer'], \
+                ['barrier'], ['motorcycle', 'bicycle'], ['pedestrian', 'traffic_cone']]
+        gt_counts = np.zeros(len(classes))
+        for name in gt_names:
+            for i, cls in enumerate(classes):
+                if name in cls:
+                    gt_counts[i] += 1
+                    break
+        data_dict['gt_counts'] = gt_counts
 
         return data_dict
 
