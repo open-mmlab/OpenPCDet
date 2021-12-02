@@ -566,11 +566,12 @@ class Detector3DTemplate(nn.Module):
 
     def init_empty_det_dict(self, det_dict_example):
         self._det_dict_copy = {
-            "pred_boxes": torch.zeros([1, det_dict_example["pred_boxes"].size()[1]],
-            dtype=det_dict_example["pred_boxes"].dtype, device=det_dict_example["pred_boxes"].device),
-            "pred_scores": torch.zeros([1], dtype=det_dict_example["pred_scores"].dtype,
+            "pred_boxes": torch.zeros([0, det_dict_example["pred_boxes"].size()[1]],
+            dtype=det_dict_example["pred_boxes"].dtype,
+            device=det_dict_example["pred_boxes"].device),
+            "pred_scores": torch.zeros([0], dtype=det_dict_example["pred_scores"].dtype,
             device=det_dict_example["pred_scores"].device),
-            "pred_labels": torch.zeros([1], dtype=det_dict_example["pred_labels"].dtype,
+            "pred_labels": torch.zeros([0], dtype=det_dict_example["pred_labels"].dtype,
             device=det_dict_example["pred_labels"].device),
         }
         self._use_empty_det_dict_for_eval = True

@@ -19,13 +19,30 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
     disp_dict['recall_%s' % str(min_thresh)] = \
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
-def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None):
+def dataset_eval_from_file(saved_dets, dataset, cfg, logger, result_dir):
+    with open(saved_dets, 'rb') as f:
+        det_annos = pickle.load(f)
 
+    result_str, result_dict = dataset.evaluation(
+        det_annos, dataset.class_names,
+        eval_metric=cfg.MODEL.POST_PROCESSING.EVAL_METRIC,
+        output_path=result_dir
+    )
+
+    logger.info(result_str)
+    print(result_str)
+
+def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None, saved_dets=None):
     result_dir.mkdir(parents=True, exist_ok=True)
 
     final_output_dir = result_dir / 'final_result' / 'data'
     if save_to_file:
         final_output_dir.mkdir(parents=True, exist_ok=True)
+
+    if saved_dets is not None:
+        dataset_eval_from_file(saved_dets, dataloader.dataset, cfg,
+                logger, final_output_dir)
+        return
 
     metric = {
         'gt_num': 0,
@@ -53,32 +70,12 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     if 'calibrate' in dir(model):
         with torch.no_grad():
             model.calibrate()
-#        use_dataloader = False
-#    else:
-#        use_dataloader = True
 
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
 
     start_time = time.time()
     gc.disable()
-#    if use_dataloader:
-#        for i, batch_dict in enumerate(dataloader):
-#            load_data_to_gpu(batch_dict)
-#            with torch.no_grad():
-#                pred_dicts, ret_dict = model(batch_dict)
-#            disp_dict = {}
-#
-#            statistics_info(cfg, ret_dict, metric, disp_dict)
-#            annos = dataset.generate_prediction_dicts(
-#                batch_dict, pred_dicts, class_names,
-#                output_path=final_output_dir if save_to_file else None
-#            )
-#            det_annos += annos
-#            if cfg.LOCAL_RANK == 0:
-#                progress_bar.set_postfix(disp_dict)
-#                progress_bar.update()
-#    else:
     # Currently, batch size of 1 is supported only
     for i in range(len(dataset)):
         with torch.no_grad():
