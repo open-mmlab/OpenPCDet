@@ -430,13 +430,19 @@ def local_frustum_dropout_right(gt_boxes, points, intensity_range):
     return gt_boxes, points
 
 def get_points_in_box(points, gt_box):
-    x, y, z, dx, dy, dz = gt_box[0], gt_box[1], gt_box[2], gt_box[3], gt_box[4], gt_box[5]
+    x, y, z = points[:,0], points[:,1], points[:,2]
+    cx, cy, cz = gt_box[0], gt_box[1], gt_box[2]
+    dx, dy, dz, rz = gt_box[3], gt_box[4], gt_box[5], gt_box[6]
+    shift_x, shift_y, shift_z = x - cx, y - cy, z - cz
 
-    mask = np.logical_and(points[:,0] <= x + dx/2, \
-         np.logical_and(points[:,0] >= x - dx/2, \
-             np.logical_and(points[:,1] <= y + dy/2, \
-                 np.logical_and(points[:,1] >= y - dy/2, \
-                     np.logical_and(points[:,2] <= z + dz/2, points[:,2] >= z - dz/2)))))
+    MARGIN = 1e-2
+    cosa, sina = math.cos(-rz), math.sin(-rz)
+    local_x = shift_x * cosa + shift_y * (-sina)
+    local_y = shift_x * sina + shift_y * cosa
+
+    mask = np.logical_and(abs(shift_z) <= dz / 2.0, \
+             np.logical_and(abs(local_x) <= dx / 2.0 + MARGIN, \
+                 abs(local_y) <= dy / 2.0 + MARGIN ))
 
     points = points[mask]
 
