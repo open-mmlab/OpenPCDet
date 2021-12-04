@@ -8,9 +8,17 @@ from .second_net_iou import SECONDNetIoU
 from .caddn import CaDDN
 from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
+from .pyramid_rcnn_p import PyramidPoint
+from .pyramid_rcnn_v import PyramidVoxel
+from .pyramid_rcnn_pv import PyramidPointVoxel, PyramidPointVoxelPlus
+
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
+    'PyramidPoint': PyramidPoint,
+    'PyramidVoxel': PyramidVoxel,
+    'PyramidPointVoxel': PyramidPointVoxel,
+    'PyramidPointVoxelPlus': PyramidPointVoxelPlus,
     'SECONDNet': SECONDNet,
     'PartA2Net': PartA2Net,
     'PVRCNN': PVRCNN,

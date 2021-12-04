@@ -9,6 +9,19 @@ from ...utils import common_utils
 from . import iou3d_nms_cuda
 
 
+def boxes_dist_torch(src, tgt):
+    """
+    Args:
+        src: (M, 7)
+        tgt: (N, 7)
+    Returns:
+        cdist: (M, N) distance of src and tgt centers
+    """
+    src_center = src[:, 0:3].clone()
+    tgt_center = tgt[:, 0:3].clone()
+    cdist = torch.sqrt(((src_center.unsqueeze(1) - tgt_center.unsqueeze(0)) ** 2).sum(2))
+    return cdist
+
 def boxes_bev_iou_cpu(boxes_a, boxes_b):
     """
     Args:

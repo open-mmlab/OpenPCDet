@@ -6,6 +6,9 @@ import os
 from pathlib import Path
 from test import repeat_eval_ckpt
 
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
@@ -147,9 +150,15 @@ def main():
         last_epoch=last_epoch, optim_cfg=cfg.OPTIMIZATION
     )
 
+    total_num = sum(p.numel() for p in model.parameters())
+    trainable_num = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logger.info('Total parameter number: ' + str(total_num / 1e6) + 'M , '
+                'Trainable parameter number: ' + str(trainable_num / 1e6) + 'M ')
+
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
     train_model(
         model,
         optimizer,

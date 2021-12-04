@@ -35,6 +35,19 @@ __device__ inline int check_pt_in_box3d(const float *pt, const float *box3d, flo
     return in_flag;
 }
 
+__device__ inline int check_pt_in_box_bev(const float *pt, const float *box3d, float &local_x, float &local_y){
+    // param pt: (x, y)
+    // param box3d: [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+
+    const float MARGIN = 1e-5;
+    float x = pt[0], y = pt[1];
+    float cx = box3d[0], cy = box3d[1];
+    float dx = box3d[3], dy = box3d[4], rz = box3d[6];
+
+    lidar_to_local_coords(x - cx, y - cy, rz, local_x, local_y);
+    float in_flag = (fabs(local_x) < dx / 2.0 + MARGIN) & (fabs(local_y) < dy / 2.0 + MARGIN);
+    return in_flag;
+}
 
 __global__ void generate_pts_mask_for_box3d(int boxes_num, int pts_num, int out_x, int out_y, int out_z,
     const float *rois, const float *pts, int *pts_mask){
@@ -346,6 +359,135 @@ void points_in_boxes_launcher(int batch_size, int boxes_num, int pts_num, const 
     dim3 blocks(DIVUP(pts_num, THREADS_PER_BLOCK), batch_size);
     dim3 threads(THREADS_PER_BLOCK);
     points_in_boxes_kernel<<<blocks, threads>>>(batch_size, boxes_num, pts_num, boxes, pts, box_idx_of_points);
+
+    err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "CUDA kernel failed : %s\n", cudaGetErrorString(err));
+        exit(-1);
+    }
+
+#ifdef DEBUG
+    cudaDeviceSynchronize();  // for using printf in kernel function
+#endif
+}
+
+
+__global__ void points_in_boxes_bev_kernel(int batch_size, int boxes_num, int pts_num, const float *boxes,
+    const float *pts, int *box_idx_of_points){
+    // params boxes: (B, N, 7) [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+    // params pts: (B, npoints, 2) [x, y] in LiDAR coordinate
+    // params boxes_idx_of_points: (B, npoints), default -1
+
+    int bs_idx = blockIdx.y;
+    int pt_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (bs_idx >= batch_size || pt_idx >= pts_num) return;
+
+    boxes += bs_idx * boxes_num * 7;
+    pts += bs_idx * pts_num * 2 + pt_idx * 2;
+    box_idx_of_points += bs_idx * pts_num + pt_idx;
+
+    float local_x = 0, local_y = 0;
+    int cur_in_flag = 0;
+    for (int k = 0; k < boxes_num; k++){
+        cur_in_flag = check_pt_in_box_bev(pts, boxes + k * 7, local_x, local_y);
+        if (cur_in_flag){
+            box_idx_of_points[0] = k;
+            break;
+        }
+    }
+}
+
+
+void points_in_boxes_bev_launcher(int batch_size, int boxes_num, int pts_num, const float *boxes,
+    const float *pts, int *box_idx_of_points){
+    // params boxes: (B, N, 7) [x, y, z, dx, dy, dz, heading] (x, y, z) is the box center
+    // params pts: (B, npoints, 3) [x, y, z]
+    // params boxes_idx_of_points: (B, npoints), default -1
+    cudaError_t err;
+
+    dim3 blocks(DIVUP(pts_num, THREADS_PER_BLOCK), batch_size);
+    dim3 threads(THREADS_PER_BLOCK);
+    points_in_boxes_bev_kernel<<<blocks, threads>>>(batch_size, boxes_num, pts_num, boxes, pts, box_idx_of_points);
+
+    err = cudaGetLastError();
+    if (cudaSuccess != err) {
+        fprintf(stderr, "CUDA kernel failed : %s\n", cudaGetErrorString(err));
+        exit(-1);
+    }
+
+#ifdef DEBUG
+    cudaDeviceSynchronize();  // for using printf in kernel function
+#endif
+}
+
+__global__ void bev_in_boxes_kernel(float x_min, float x_max, float y_min, float y_max,
+                                     int boxes_num, int batch_size, int x_inds_length, int y_inds_length,
+                                     const float *boxes, const float *bev_coords, int *bev_indices){
+    /*
+    Args:
+        boxes: [B, N, 7]
+        bev_coords: [X, Y, 2]
+        bev_indices: [B, X, Y]
+    */
+
+    int bs_idx = blockIdx.x;
+    int box_idx = threadIdx.x;
+    if (bs_idx >= batch_size || box_idx >= boxes_num) return;
+
+    boxes += bs_idx * boxes_num * 7;
+    bev_indices += bs_idx * x_inds_length * y_inds_length;
+
+    float cx = boxes[box_idx * 7 + 0];
+    float cy = boxes[box_idx * 7 + 1];
+    float dx = boxes[box_idx * 7 + 3];
+    float dy = boxes[box_idx * 7 + 4];
+    float rz = boxes[box_idx * 7 + 6];
+    if (dx == 0 || dy == 0) return;
+
+    const float MARGIN = 0.001;
+    float x_length = x_max - x_min;
+    float y_length = y_max - y_min;
+
+    float r = dx * 0.5 + dy * 0.5;
+    float cosa = cos(-rz), sina = sin(-rz);
+
+    int search_x_min = floor(x_inds_length * ((cx - r - x_min) / x_length));
+    if (search_x_min < 0) search_x_min = 0;
+    if (search_x_min >= x_inds_length) search_x_min = x_inds_length - 1;
+    int search_x_max = ceil(x_inds_length * ((cx + r - x_min) / x_length));
+    if (search_x_max < 0) search_x_max = 0;
+    if (search_x_max >= x_inds_length) search_x_max = x_inds_length - 1;
+
+    int search_y_min = floor(y_inds_length * ((cy - r - y_min) / y_length));
+    if (search_y_min < 0) search_y_min = 0;
+    if (search_y_min >= y_inds_length) search_y_min = y_inds_length - 1;
+    int search_y_max = ceil(y_inds_length * ((cy + r - y_min) / y_length));
+    if (search_y_max < 0) search_y_max = 0;
+    if (search_y_max >= y_inds_length) search_y_max = y_inds_length - 1;
+
+    for (int xi = search_x_min; xi <= search_x_max; ++xi){
+        for (int yi = search_y_min; yi <= search_y_max; ++yi){
+            float x_coords = bev_coords[xi * y_inds_length * 2 + yi * 2 + 0];
+            float y_coords = bev_coords[xi * y_inds_length * 2 + yi * 2 + 1];
+            float local_x = (x_coords - cx) * cosa + (y_coords - cy) * (-sina);
+            float local_y = (x_coords - cx) * sina + (y_coords - cy) * cosa;
+            float in_flag = (fabs(local_x) < dx / 2.0 + MARGIN) & (fabs(local_y) < dy / 2.0 + MARGIN);
+            if (in_flag) bev_indices[xi * y_inds_length + yi] = box_idx;
+        }
+    }
+
+}
+
+void bev_in_boxes_launcher(float x_min, float x_max, float y_min, float y_max,
+                            int boxes_num, int batch_size, int x_inds_length, int y_inds_length,
+                            const float *boxes, const float *bev_coords, int *bev_indices){
+    cudaError_t err;
+
+    dim3 blocks(batch_size);
+    dim3 threads(THREADS_PER_BLOCK);
+    bev_in_boxes_kernel<<<blocks, threads>>>(x_min, x_max, y_min, y_max,
+        boxes_num, batch_size, x_inds_length, y_inds_length,
+        boxes, bev_coords, bev_indices);
 
     err = cudaGetLastError();
     if (cudaSuccess != err) {

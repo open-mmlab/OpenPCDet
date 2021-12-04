@@ -40,6 +40,61 @@ def points_in_boxes_gpu(points, boxes):
 
     return box_idxs_of_pts
 
+def bev_in_boxes_cpu(bev_coords, boxes, bev_range):
+    """
+    Args:
+        bev_coords: [X, Y, 2] lidar bev coords
+        boxes: [N, 7] [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center, each box DO NOT overlaps
+    Returns:
+        bev_indices: [X, Y]
+    """
+    assert boxes.shape[1] == 7
+    assert bev_coords.shape[2] == 2
+    bev_coords, is_numpy = common_utils.check_numpy_to_torch(bev_coords)
+    boxes, is_numpy = common_utils.check_numpy_to_torch(boxes)
+
+    x_min, y_min, _, x_max, y_max, _ = bev_range
+
+    bev_indices = bev_coords.new_full((bev_coords.shape[0], bev_coords.shape[1]), -1, dtype=torch.int)
+    roiaware_pool3d_cuda.bev_in_boxes_cpu(boxes.float().contiguous(), bev_indices, bev_coords.float().contiguous(),
+                                            x_min, x_max, y_min, y_max)
+
+    return bev_indices.numpy() if is_numpy else bev_indices
+
+def bev_in_boxes_gpu(bev_coords, boxes, bev_range):
+    """
+    Args:
+        bev_coords: [X, Y, 2] lidar bev coords
+        boxes: [B, N, 7] [x, y, z, dx, dy, dz, heading], (x, y, z) is the box center, each box DO NOT overlaps
+    Returns:
+        bev_indices: [B, X, Y]
+    """
+    assert boxes.shape[2] == 7
+    assert bev_coords.shape[2] == 2
+
+    x_min, y_min, _, x_max, y_max, _ = bev_range
+
+    bev_indices = bev_coords.new_full((boxes.shape[0], bev_coords.shape[0], bev_coords.shape[1]), -1, dtype=torch.int)
+
+    roiaware_pool3d_cuda.bev_in_boxes_gpu(boxes.float().contiguous(), bev_coords.float().contiguous(), bev_indices,
+                                            x_min, x_max, y_min, y_max)
+
+    return bev_indices
+
+def points_in_boxes_bev_gpu(points, boxes):
+    """
+    :param points: (B, M, 2)
+    :param boxes: (B, T, 7), num_valid_boxes <= T
+    :return box_idxs_of_pts: (B, M), default background = -1
+    """
+    assert boxes.shape[0] == points.shape[0]
+    assert boxes.shape[2] == 7 and points.shape[2] == 2
+    batch_size, num_points, _ = points.shape
+
+    box_idxs_of_pts = points.new_zeros((batch_size, num_points), dtype=torch.int).fill_(-1)
+    roiaware_pool3d_cuda.points_in_boxes_bev_gpu(boxes.contiguous(), points.contiguous(), box_idxs_of_pts)
+
+    return box_idxs_of_pts
 
 class RoIAwarePool3d(nn.Module):
     def __init__(self, out_size, max_pts_each_voxel=128):
