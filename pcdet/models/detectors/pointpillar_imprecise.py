@@ -69,12 +69,17 @@ class PointPillarImprecise(Detector3DTemplate):
 
         if self._sep_mhead:
             # Times below include postprocess
-            # This table is overwritten by the calibration
+            # These tables are overwritten by the calibration
             self.post_sync_time_table_ms = [
             # heads    1    2    3    4    5    6
                     [ 10., 20., 30., 40., 50., 60.], # no more rpn stage
                     [ 25., 35., 45., 55., 65., 75.], # 1  more rpn stage
                     [ 40., 50., 60., 70., 80., 90.], # 2  more rpn stages
+            ]
+            self.cfg_to_NDS = [
+                    [.2] * 6,
+                    [.3] * 6,
+                    [.4] * 6,
             ]
 
         #print('Model:')
@@ -195,7 +200,6 @@ class PointPillarImprecise(Detector3DTemplate):
         return data_dict
 
     def sched_stages_and_heads(self, data_dict):
-
         stg0_sum = torch.sum(data_dict['spatial_features'], 1, keepdim=True)
         sum_mask = torch.nn.functional.max_pool2d(stg0_sum, 19,
                 stride=4, padding=9).unsqueeze(-1)
@@ -230,9 +234,9 @@ class PointPillarImprecise(Detector3DTemplate):
             cls_score_sums.append(torch.sum(cls_scores_filtered, \
                     [0, 1, 2, 3], keepdim=False))
 
-        if self._calibrating_now:
-            # I hope this gpu to cpu transfer is not going to affect calibration
-            calib_prios = data_dict['gt_counts'].cpu()[0].argsort(descending=True)
+        #if self._calibrating_now:
+            # I hope this gpu to cpu transfer is not going to affect calibration significantly
+            #calib_prios = data_dict['gt_counts'].cpu()[0].argsort(descending=True)
 
         # Here it will sync
         cutoff_scores = cutoff_scores.cpu()
@@ -255,37 +259,22 @@ class PointPillarImprecise(Detector3DTemplate):
         rem_ms = (data_dict['abs_deadline_sec'] - time.time()) * 1000.0
 
         if self._calibrating_now:
-            num_stages, num_heads = self._cur_calib_tuple
-            prios = calib_prios
+            selected_cfg = self._cur_calib_tuple
+            #prios = calib_prios
         else:
-            # First, check if we can finish the line with executing no more rpn
-            # If we can't, we need to decrease the head count until
-            # we meet the deadline
-            num_stages = 1
-            num_heads = max(torch.count_nonzero(cutoff_scores), 1)
-            if rem_ms < self.post_sync_time_table_ms[0][num_heads-1]:
-                # Oh no, we can't meet the deadline, gotta decrase the number 
-                # of heads
-                while num_heads > 1 and \
-                        rem_ms < self.post_sync_time_table_ms[0][num_heads-1]:
-                    num_heads -= 1
-            else:
-                # Second, increase the number of rpn stages by one if possible
-                if rem_ms > self.post_sync_time_table_ms[1][num_heads-1]:
-                    num_stages += 1
+            # Traverse the table and find the config which will meet the
+            # deadline and would give the highest NDS
+            selected_cfg = (1, 1)
+            best_NDS = self.cfg_to_NDS[0][0]
+            for i in range(len(self.post_sync_time_table_ms)):
+                for j in range(len(self.post_sync_time_table_ms[0])):
+                    if self.post_sync_time_table_ms[i][j] <= rem_ms and \
+                            self.cfg_to_NDS[i][j] > best_NDS:
+                        best_NDS = self.cfg_to_NDS[i][j]
+                        selected_cfg = (i+1,j+1)
 
-                # Third,increase the number of heads if there is time remaining
-                while num_heads < len(self.post_sync_time_table_ms[1]) and \
-                        rem_ms > self.post_sync_time_table_ms[num_stages-1][num_heads]:
-                    num_heads += 1
-
-                # Fourth, add more rpn stages if there is time remaining
-                while num_stages < len(self.post_sync_time_table_ms) and \
-                        rem_ms > self.post_sync_time_table_ms[num_stages][num_heads-1]:
-                    num_stages += 1
-
-        data_dict['num_stgs_to_run'] = num_stages
-        data_dict['heads_to_run'] = prios[:num_heads]
+        data_dict['num_stgs_to_run'] = selected_cfg[0]
+        data_dict['heads_to_run'] = prios[:selected_cfg[1]]
 
         #print('num_stages:', num_stages, 
         #        'heads_to_run:', data_dict['heads_to_run'],
@@ -294,13 +283,13 @@ class PointPillarImprecise(Detector3DTemplate):
         # utilize precomputed class scores if we are gonna run a single rpn stage
         new_cls_preds = []
         for h in data_dict['heads_to_run']:
-            if num_stages == 1:
+            if selected_cfg[0] == 1:
                 new_cls_preds.append(cls_scores[h])
             else:
                 new_cls_preds.append(data_dict['cls_preds'][h])
         data_dict['cls_preds'] = new_cls_preds
 
-        if num_stages == 1:
+        if selected_cfg[0] == 1:
             data_dict['cls_preds_normalized'] = True
 
         return data_dict
@@ -308,10 +297,6 @@ class PointPillarImprecise(Detector3DTemplate):
     def calibrate(self):
         super().calibrate()
         
-        # generate 1000 random indexes to use for calibration
-        #samples = np.random.randint(0, len(self.dataset)-1, 1000)
-        #samples.sort()
-
         fname = f"calib_dict_{self.dataset.dataset_cfg.DATASET}.json"
         try:
             with open(fname, 'r') as handle:
@@ -321,14 +306,30 @@ class PointPillarImprecise(Detector3DTemplate):
             calib_dict = self.do_calibration(fname) #, samples)
         # Use 99 percentile Post-stage-1 times
         #m = np.finfo(np.single).max
-        stat_dict = calib_dict['stats']
-        for k, v in stat_dict.items():
+        def get_rc(k):
             r,c = k.replace('(', '').replace(')', '').replace(',', '').split()
             r,c = int(r), int(c)
+            return r,c
+
+        for k, v in calib_dict['stats'].items():
+            r,c = get_rc(k)
             self.post_sync_time_table_ms[r-1][c-1] = v['Post-stage-1'][3]
+
+        for k, v in calib_dict['eval'].items():
+            r,c = get_rc(k)
+            self.cfg_to_NDS[r-1][c-1] = round(v['NDS'], 3)
+
+        for i in range(len(self.cfg_to_NDS)):
+            for j in range(1, len(self.cfg_to_NDS[0])):
+                if self.cfg_to_NDS[i][j-1] >= self.cfg_to_NDS[i][j]:
+                    self.cfg_to_NDS[i][j] = self.cfg_to_NDS[i][j-1] + 0.001
 
         print('Post stage 1 wcet table:')
         for row in self.post_sync_time_table_ms:
+            print(row)
+
+        print('Stage/Head configuration to NDS table:')
+        for row in self.cfg_to_NDS:
             print(row)
 
     def do_calibration(self, fname): #, sample_indexes):

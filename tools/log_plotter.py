@@ -31,26 +31,66 @@ proto_exec_time_dict = {
     'PostProcess': [],
 }
 
-proto_AP_types_dict = {
-    "aos": [],
-    "3d": [],
-    "bev": [],
-    "image": [],
-}
+proto_AP_types_dict = None
+proto_AP_dict = None
+proto_mAP_dict = None
+dataset = None
 
-# Rows will be aos image bev 3d, cols will be easy medium hard
-proto_AP_dict = {
-    'Car': copy.deepcopy(proto_AP_types_dict),
-    'Pedestrian': copy.deepcopy(proto_AP_types_dict),
-    'Cyclist': copy.deepcopy(proto_AP_types_dict),
-}
+def init_dicts(dataset_name):
+    global proto_AP_types_dict
+    global proto_AP_dict
+    global proto_mAP_dict
+    global dataset
 
-proto_mAP_dict = {
-    "aos":0.0,
-    '3d': 0.0,
-    'bev': 0.0,
-    'image': 0.0,
-}
+    if dataset_name == 'KittiDataset':
+        proto_AP_types_dict = {
+            "aos": [],
+            "3d": [],
+            "bev": [],
+            "image": [],
+        }
+
+        # Rows will be aos image bev 3d, cols will be easy medium hard
+        proto_AP_dict = {
+            'Car': copy.deepcopy(proto_AP_types_dict),
+            'Pedestrian': copy.deepcopy(proto_AP_types_dict),
+            'Cyclist': copy.deepcopy(proto_AP_types_dict),
+        }
+
+        proto_mAP_dict = {
+            "aos":0.0,
+            '3d': 0.0,
+            'bev': 0.0,
+            'image': 0.0,
+        }
+
+    elif dataset_name == 'NuScenesDataset':
+        proto_AP_types_dict = {
+            "AP": [], # 0.5, 1.0, 2.0, 4.0
+        }
+
+        proto_AP_dict = {
+            'car': copy.deepcopy(proto_AP_types_dict),
+            'pedestrian': copy.deepcopy(proto_AP_types_dict),
+            'traffic_cone': copy.deepcopy(proto_AP_types_dict),
+            'motorcycle': copy.deepcopy(proto_AP_types_dict),
+            'bicycle': copy.deepcopy(proto_AP_types_dict),
+            'bus': copy.deepcopy(proto_AP_types_dict),
+            'trailer': copy.deepcopy(proto_AP_types_dict),
+            'truck': copy.deepcopy(proto_AP_types_dict),
+            'construction_vehicle': copy.deepcopy(proto_AP_types_dict),
+            'barrier': copy.deepcopy(proto_AP_types_dict),
+        }
+
+        proto_mAP_dict = {
+            'NDS': 0.0,
+            'mAP': 0.0,
+        }
+    else:
+        print('Unknown dataset')
+        return
+    dataset = dataset_name
+
 
 proto_eval_dict = {
     'method': 1,  # VAL
@@ -65,6 +105,7 @@ proto_eval_dict = {
     'exec_time_stats': proto_exec_time_dict,  # DICT
     "AP": proto_AP_dict,
     "mAP": proto_mAP_dict,
+    "dataset": 'KittiDataset',
 }
 
 # method number to method name
@@ -92,6 +133,12 @@ def merge_eval_dicts(eval_dicts):
 
 inp_dir = sys.argv[1]
 
+for path in glob.glob(inp_dir + "/eval_dict_*"):
+    with open(path, 'r') as handle:
+        eval_d = json.load(handle)
+        init_dicts(eval_d.get('dataset','KittiDataset'))
+    break
+
 # each experiment has multiple eval dicts
 def load_eval_dict(path):
     print('Loading', path)
@@ -99,31 +146,48 @@ def load_eval_dict(path):
         eval_d = json.load(handle)
     eval_d['deadline_msec'] = int(eval_d['deadline_sec'] * 1000)
 
+    dataset = eval_d.get('dataset','KittiDataset')
     # Copy AP dict with removing threshold info, like @0.70
     AP_dict_json = eval_d["eval_results_dict"]
     AP_dict = copy.deepcopy(proto_AP_dict)
-    for cls_metric, AP in AP_dict_json.items():
-        cls_metric, difficulty = cls_metric.split('/')
-        if cls_metric == 'recall':
-            continue
-        cls, metric = cls_metric.split('_')
-        AP_dict[cls][metric].append(AP)
-    for v in AP_dict.values():
-        for v2 in v.values():
-            v2.sort() # sort according to difficulty
-    eval_d["AP"] = AP_dict
+    if dataset == 'KittiDataset':
+        for cls_metric, AP in AP_dict_json.items():
+            cls_metric, difficulty = cls_metric.split('/')
+            if cls_metric == 'recall':
+                continue
+            cls, metric = cls_metric.split('_')
+            AP_dict[cls][metric].append(AP)
+        for v in AP_dict.values():
+            for v2 in v.values():
+                v2.sort() # sort according to difficulty
 
-    # Calculate mAP values
-    eval_d["mAP"] = copy.deepcopy(proto_mAP_dict)
-    for metric in eval_d["mAP"].keys():
-        mAP, cnt = 0.0, 0
-        for v in eval_d["AP"].values():
-            mAP += sum(v[metric])  # hard medium easy
-            cnt += len(v[metric])  # 3
-        if cnt > 0:
-            eval_d["mAP"][metric] = mAP / cnt
+        eval_d["AP"] = AP_dict
+
+        # Calculate mAP values
+        eval_d["mAP"] = copy.deepcopy(proto_mAP_dict)
+        for metric in eval_d["mAP"].keys():
+            mAP, cnt = 0.0, 0
+            for v in eval_d["AP"].values():
+                mAP += sum(v[metric])  # hard medium easy
+                cnt += len(v[metric])  # 3
+            if cnt > 0:
+                eval_d["mAP"][metric] = mAP / cnt
+    elif dataset == 'NuScenesDataset':
+        results = AP_dict_json['result_str'].split('\n')
+        for i, r in enumerate(results):
+            for cls in proto_AP_dict.keys():
+                if cls in r:
+                    AP_scores = results[i+1].split('|')[1].split(',')
+                    AP_scores = [float(a.strip()) for a in AP_scores]
+                    AP_dict[cls]['AP'] = AP_scores
+
+        eval_d["AP"] = AP_dict
+        # Get mAP values
+        eval_d["mAP"] = copy.deepcopy(proto_mAP_dict)
+        eval_d['mAP']['NDS'] = AP_dict_json['NDS']
+        eval_d['mAP']['mAP'] = AP_dict_json['mAP']
+
     return eval_d
-
 
 exps_dict = {}
 # load eval dicts
@@ -144,9 +208,15 @@ for exp, evals in exps_dict.items():
     evals.sort(key=lambda e: e['deadline_msec'])
     print(exp)
     for e in evals:
-        mAP_image, mAP_bev, mAP_3d = e["mAP"]['image'], e["mAP"]['bev'], e["mAP"]['3d']
-        print('\tdeadline:', e['deadline_sec'], "\tmissed:", e['deadlines_missed'],
-              f"\tmAP (image, bev, 3d):\t{mAP_image:.2f},\t{mAP_bev:.2f},\t{mAP_3d:.2f}")
+        if dataset == 'KittiDataset':
+            mAP_image, mAP_bev, mAP_3d = e["mAP"]['image'], e["mAP"]['bev'], e["mAP"]['3d']
+            print('\tdeadline:', e['deadline_sec'], "\tmissed:", e['deadlines_missed'],
+                  f"\tmAP (image, bev, 3d):\t{mAP_image:.2f},\t{mAP_bev:.2f},\t{mAP_3d:.2f}")
+        elif dataset == 'NusCenesDataset':
+            mAP, NDS = e["mAP"]['mAP'], e["mAP"]['NDS']
+            print('\tdeadline:', e['deadline_sec'], "\tmissed:", e['deadlines_missed'],
+                  f"\tmAP, NDS:\t{mAP:.2f},\t{NDS:.2f}")
+
 
 merged_exps_dict = {}
 for k, v in exps_dict.items():
@@ -247,11 +317,11 @@ plot_dict = {}
 exec_keys_to_plot = [
     'PreProcess', 'RPN-stage-1', 'RPN-stage-2', 'RPN-stage-3',
     'RPN-finalize', 'PostProcess', 'End-to-end']
-#    'RPN-finalize', 'RPN-total', 'Predict', 'End-to-end']
-fill_plot_dict(plot_dict, merged_exps_dict, exec_keys_to_plot, ['exec_times'])
-procs.append(Process(target=plot_func_hist, args=(plot_dict,  "ALL_", )))
-procs[-1].start()
-plot_dict.clear()
+
+#fill_plot_dict(plot_dict, merged_exps_dict, exec_keys_to_plot, ['exec_times'])
+#procs.append(Process(target=plot_func_hist, args=(plot_dict,  "ALL_", )))
+#procs[-1].start()
+#plot_dict.clear()
 
 #exec_keys_to_plot = ['PFE', 'PillarGen', 'PillarPrep',
 #                     'PillarFeatureNet', 'PillarScatter']
@@ -304,31 +374,44 @@ def plot_func_sorted(plot_dict, x_key, filename_prefix):
 #procs.append(Process(target=plot_func_sorted, args=(plot_dict, 'num_voxels', "", )))
 #procs[-1].start()
 
-# compare averaged AP of car bus pedestrian classes over changing deadlines
+# compare averaged AP of all classes seperately changing deadlines
 def plot_avg_AP(merged_exps_dict):
-    for cls in proto_AP_dict.keys():
-        fig, axs = plt.subplots(4, 1, figsize=(12, 15), constrained_layout=True)
-        for ax, eval_type in zip(axs, proto_AP_types_dict.keys()):
+    cls_per_file = 5
+    cls_names = list(proto_AP_dict.keys())
+    num_classes = len(cls_names)
+    num_files = num_classes // cls_per_file + (num_classes % cls_per_file != 0)
+    for filenum in range(num_files):
+        if filenum == num_files-1:
+            plot_num_classes = num_classes - (num_files-1) * cls_per_file
+        else:
+            plot_num_classes = cls_per_file
+        fig, axs = plt.subplots(plot_num_classes, 1, \
+                figsize=(12, 3*plot_num_classes), constrained_layout=True)
+        cur_cls_names = cls_names[filenum*cls_per_file:filenum*cls_per_file+plot_num_classes]
+        for ax, cls in zip(axs, cur_cls_names):
             for exp_name, evals in merged_exps_dict.items():
                 x = evals['deadline_msec']
-                y = evals['AP'][cls][eval_type]
+                y = evals['AP'][cls]['AP'] # for now, use AP as the only eval type as in nuscenes data
                 y = [sum(e) / len(e) if len(e) > 0 else .0 for e in y ]
                 l2d = ax.plot(x, y, label=exp_name)
                 ax.scatter(x, y, color=l2d[0].get_c())
             ax.invert_xaxis()
             ax.legend(fontsize='medium')
-            ax.set_ylabel(eval_type + ' AP', fontsize='large')
+            ax.set_ylabel(cls + ' AP', fontsize='large')
             ax.set_xlabel('Deadline (msec)', fontsize='large')
             ax.grid('True', ls='--')
-        fig.suptitle(cls + " class, average precision over different deadlines", fontsize=16)
-        plt.savefig(f"exp_plots/{cls}_AP_deadlines.jpg")
+        cur_cls_names_str = ""
+        for s in cur_cls_names:
+            cur_cls_names_str += s + ' '
+        fig.suptitle(cur_cls_names_str + " classes, average precision over different deadlines", fontsize=16)
+        plt.savefig(f"exp_plots/AP_deadlines_{filenum}.jpg")
 
 procs.append(Process(target=plot_avg_AP, \
                      args=(merged_exps_dict,)))
 procs[-1].start()
 
 # compare mAP for all types
-fig, axs = plt.subplots(4, 1, figsize=(12, 15), constrained_layout=True)
+fig, axs = plt.subplots(2, 1, figsize=(12, 8), constrained_layout=True)
 for ax, eval_type in zip(axs, proto_mAP_dict.keys()):
     for exp_name, evals in merged_exps_dict.items():
         x = evals['deadline_msec']
