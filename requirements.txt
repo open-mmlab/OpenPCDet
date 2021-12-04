@@ -4,7 +4,7 @@ numba
 torch>=1.1
 tensorboardX
 easydict
-pyyaml<5.4
+pyyaml
 scikit-image
 tqdm
 torchvision
