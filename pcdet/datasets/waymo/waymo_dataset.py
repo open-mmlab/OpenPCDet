@@ -458,9 +458,9 @@ if __name__ == '__main__':
         import yaml
         from easydict import EasyDict
         try:
-            yaml_config = yaml.load(open(args.cfg_file), Loader=yaml.FullLoader)
+            yaml_config = yaml.safe_load(open(args.cfg_file), Loader=yaml.FullLoader)
         except:
-            yaml_config = yaml.load(open(args.cfg_file))
+            yaml_config = yaml.safe_load(open(args.cfg_file))
         dataset_cfg = EasyDict(yaml_config)
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
