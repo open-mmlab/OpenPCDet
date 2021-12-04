@@ -11,5 +11,6 @@ venv/
 *.pkl
 *.zip
 *.bin
+*.json
 output
 version.py
