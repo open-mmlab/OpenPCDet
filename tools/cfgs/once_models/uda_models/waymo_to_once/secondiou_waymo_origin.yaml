@@ -10,7 +10,7 @@ DATA_CONFIG_TAR:
     TARGET: True
     FOV_POINTS_ONLY: False
     CLASS_NAMES: ['Car']
-    SHIFT_COOR: [0.0, 0.0, 0.0] # [0.0, 0.0, 1.6]
+    SHIFT_COOR: [0.0, 0.0, 1.6]
 
 MODEL:
     NAME: SECONDNetIoU
