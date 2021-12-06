@@ -95,6 +95,7 @@ def create_logger(log_file=None, rank=0, log_level=logging.INFO):
         file_handler.setLevel(log_level if rank == 0 else 'ERROR')
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+    logger.propagate = False
     return logger
 
 
