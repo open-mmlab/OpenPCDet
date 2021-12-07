@@ -356,7 +356,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.func == 'create_nuscenes_infos':
-        dataset_cfg = EasyDict(yaml.load(open(args.cfg_file)))
+        dataset_cfg = EasyDict(yaml.safe_load(open(args.cfg_file)))
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.VERSION = args.version
         create_nuscenes_info(

@@ -1,6 +1,9 @@
-import torchvision
-
 from .ddn_template import DDNTemplate
+
+try:
+    import torchvision
+except:
+    pass
 
 
 class DDNDeepLabV3(DDNTemplate):
