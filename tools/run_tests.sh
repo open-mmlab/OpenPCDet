@@ -46,8 +46,8 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/ch
 #TASKSET=""
 TASKSET="taskset 0xc0"
 
-DATASET="nuscenes_dataset.yaml"
-#DATASET="nuscenes_mini_dataset.yaml"
+#DATASET="nuscenes_dataset.yaml"
+DATASET="nuscenes_mini_dataset.yaml"
 ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 sed -i "$ARG" $CFG_FILE
@@ -83,9 +83,9 @@ elif [ $1 == 'methods2' ]; then
 	mv -f eval_dict_* backup
 	OUT_DIR=exp_data_nsc
 	mkdir -p $OUT_DIR
-	m=4
+	m=1
 	prfx="cbgs_pp_multihead_"
-	for model in 'imprecise'  # "1br" "2br" "3br" "imprecise"
+	for model in "1br" "2br" "3br" "imprecise"
 	do
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
@@ -95,7 +95,7 @@ elif [ $1 == 'methods2' ]; then
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 		sed -i "$ARG" $CFG_FILE
-		for s in 0.060  #$(seq 0.140 -0.020 0.060)
+		for s in $(seq 0.140 -0.010 0.060)
 		do
 			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json
 			if [ -f $OUT_FILE ]; then

@@ -8,8 +8,8 @@ SET_NAN_VELOCITY_TO_ZEROS: True
 FILTER_MIN_POINTS_IN_GT: 1
 
 DATA_SPLIT: {
-    'train': train,
-    'test': val
+    'train': mini_train,
+    'test': mini_val
 }
 
 INFO_PATH: {

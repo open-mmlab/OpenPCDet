@@ -82,8 +82,8 @@ class PointPillarImprecise(Detector3DTemplate):
                     [.4] * 6,
             ]
 
-        #print('Model:')
-        #print(self)
+        print('Model:')
+        print(self)
 
         self.scores_that_zeros_list=[]
         self.total_missed_classes=0
@@ -138,9 +138,6 @@ class PointPillarImprecise(Detector3DTemplate):
         stg_seq=[1]
         data_dict['score_thresh'] = self._score_threshold
         if data_dict['method'] == self.IMPRECISE:
-            self.measure_time_start('Forward-cls')
-            data_dict = self.dense_head.forward_cls_preds(data_dict)
-            self.measure_time_end('Forward-cls')
             self.measure_time_start('Sched')
             data_dict = self.sched_stages_and_heads(data_dict)
             self.measure_time_end('Sched')
@@ -165,7 +162,8 @@ class PointPillarImprecise(Detector3DTemplate):
         self.measure_time_end('RPN-total')
         self.measure_time_start('RPN-finalize')
         #torch.cuda.nvtx.range_push('Head')
-        if num_stgs_to_run > 1:
+        if num_stgs_to_run > 1 or data_dict['heads_to_run'].size()[0] == \
+                len(self.post_sync_time_table_ms[0]):
             data_dict = self.dense_head(data_dict)
         else:
             data_dict = self.dense_head.forward_remaining_preds(data_dict)
@@ -200,6 +198,37 @@ class PointPillarImprecise(Detector3DTemplate):
         return data_dict
 
     def sched_stages_and_heads(self, data_dict):
+        torch.cuda.synchronize()
+
+        self.measure_time_end('Pre-stage-1')
+        self.measure_time_start('Post-stage-1')
+
+        rem_ms = (data_dict['abs_deadline_sec'] - time.time()) * 1000.0
+
+        if self._calibrating_now:
+            selected_cfg = self._cur_calib_tuple
+            #prios = calib_prios
+        else:
+            # Traverse the table and find the config which will meet the
+            # deadline and would give the highest NDS
+            selected_cfg = (1, 1)
+            best_NDS = self.cfg_to_NDS[0][0]
+            for i in range(len(self.post_sync_time_table_ms)):
+                for j in range(len(self.post_sync_time_table_ms[0])):
+                    if self.post_sync_time_table_ms[i][j] <= rem_ms and \
+                            self.cfg_to_NDS[i][j] > best_NDS:
+                        best_NDS = self.cfg_to_NDS[i][j]
+                        selected_cfg = (i+1,j+1)
+
+        if selected_cfg[1] == len(self.post_sync_time_table_ms[0]): # max num heads
+            data_dict['num_stgs_to_run'] = selected_cfg[0]
+            data_dict['heads_to_run'] = torch.arange(selected_cfg[1])
+            return data_dict
+
+        self.measure_time_start('Forward-cls')
+        data_dict = self.dense_head.forward_cls_preds(data_dict)
+        self.measure_time_end('Forward-cls')
+
         stg0_sum = torch.sum(data_dict['spatial_features'], 1, keepdim=True)
         sum_mask = torch.nn.functional.max_pool2d(stg0_sum, 19,
                 stride=4, padding=9).unsqueeze(-1)
@@ -242,9 +271,6 @@ class PointPillarImprecise(Detector3DTemplate):
         cutoff_scores = cutoff_scores.cpu()
         cls_score_sums = [css.cpu() for css in cls_score_sums]
 
-        self.measure_time_end('Pre-stage-1')
-        self.measure_time_start('Post-stage-1')
-
         for i, s in enumerate(cls_score_sums):
             for j, c in enumerate(s):
                 prio_scores[i] += c / self.dense_head.anchor_area_coeffs[i][j]
@@ -255,23 +281,6 @@ class PointPillarImprecise(Detector3DTemplate):
         prios = prio_scores.argsort(descending=True)
         #print('prios', prios)
         #print('gtc  ', data_dict['gt_counts'].argsort(descending=True))
-
-        rem_ms = (data_dict['abs_deadline_sec'] - time.time()) * 1000.0
-
-        if self._calibrating_now:
-            selected_cfg = self._cur_calib_tuple
-            #prios = calib_prios
-        else:
-            # Traverse the table and find the config which will meet the
-            # deadline and would give the highest NDS
-            selected_cfg = (1, 1)
-            best_NDS = self.cfg_to_NDS[0][0]
-            for i in range(len(self.post_sync_time_table_ms)):
-                for j in range(len(self.post_sync_time_table_ms[0])):
-                    if self.post_sync_time_table_ms[i][j] <= rem_ms and \
-                            self.cfg_to_NDS[i][j] > best_NDS:
-                        best_NDS = self.cfg_to_NDS[i][j]
-                        selected_cfg = (i+1,j+1)
 
         data_dict['num_stgs_to_run'] = selected_cfg[0]
         data_dict['heads_to_run'] = prios[:selected_cfg[1]]
@@ -305,7 +314,6 @@ class PointPillarImprecise(Detector3DTemplate):
             print(f'Calibration file {fname} not found, running calibration') 
             calib_dict = self.do_calibration(fname) #, samples)
         # Use 99 percentile Post-stage-1 times
-        #m = np.finfo(np.single).max
         def get_rc(k):
             r,c = k.replace('(', '').replace(')', '').replace(',', '').split()
             r,c = int(r), int(c)

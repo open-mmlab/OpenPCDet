@@ -420,7 +420,7 @@ for ax, eval_type in zip(axs, proto_mAP_dict.keys()):
         ax.scatter(x, y, color=l2d[0].get_c())
     ax.invert_xaxis()
     ax.legend(fontsize='medium')
-    ax.set_ylabel(eval_type + ' mAP', fontsize='large')
+    ax.set_ylabel(eval_type, fontsize='large')
     ax.set_xlabel('Deadline (msec)', fontsize='large')
     ax.grid('True', ls='--')
 fig.suptitle("mean Average Precision over different deadlines", fontsize=16)
