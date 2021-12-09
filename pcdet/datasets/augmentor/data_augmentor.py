@@ -79,6 +79,25 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
 
+    def random_image_flip(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.random_image_flip, config=config)
+        images = data_dict["images"]
+        depth_maps = data_dict["depth_maps"]
+        gt_boxes = data_dict['gt_boxes']
+        gt_boxes2d = data_dict["gt_boxes2d"]
+        calib = data_dict["calib"]
+        for cur_axis in config['ALONG_AXIS_LIST']:
+            assert cur_axis in ['horizontal']
+            images, depth_maps, gt_boxes = getattr(augmentor_utils, 'random_image_flip_%s' % cur_axis)(
+                images, depth_maps, gt_boxes, calib,
+            )
+
+        data_dict['images'] = images
+        data_dict['depth_maps'] = depth_maps
+        data_dict['gt_boxes'] = gt_boxes
+        return data_dict
+
     def random_world_translation(self, data_dict=None, config=None):
         """
         Please check the correctness of it before using.
@@ -209,5 +228,8 @@ class DataAugmentor(object):
             gt_boxes_mask = data_dict['gt_boxes_mask']
             data_dict['gt_boxes'] = data_dict['gt_boxes'][gt_boxes_mask]
             data_dict['gt_names'] = data_dict['gt_names'][gt_boxes_mask]
+            if 'gt_boxes2d' in data_dict:
+                data_dict['gt_boxes2d'] = data_dict['gt_boxes2d'][gt_boxes_mask]
+
             data_dict.pop('gt_boxes_mask')
         return data_dict
