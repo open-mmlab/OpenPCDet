@@ -417,7 +417,7 @@ def get_points_in_box(points, gt_box):
     dx, dy, dz, rz = gt_box[3], gt_box[4], gt_box[5], gt_box[6]
     shift_x, shift_y, shift_z = x - cx, y - cy, z - cz
 
-    MARGIN = 1e-2
+    MARGIN = 1e-1
     cosa, sina = math.cos(-rz), math.sin(-rz)
     local_x = shift_x * cosa + shift_y * (-sina)
     local_y = shift_x * sina + shift_y * cosa
