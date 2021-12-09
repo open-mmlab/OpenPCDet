@@ -89,8 +89,8 @@ def random_translation_along_x(gt_boxes, points, offset_range):
     points[:, 0] += offset
     gt_boxes[:, 0] += offset
 
-    if gt_boxes.shape[1] > 7:
-        gt_boxes[:, 7] += offset
+    # if gt_boxes.shape[1] > 7:
+    #     gt_boxes[:, 7] += offset
 
     return gt_boxes, points
 
@@ -107,8 +107,8 @@ def random_translation_along_y(gt_boxes, points, offset_range):
     points[:, 1] += offset
     gt_boxes[:, 1] += offset
 
-    if gt_boxes.shape[1] > 8:
-        gt_boxes[:, 8] += offset
+    # if gt_boxes.shape[1] > 8:
+    #     gt_boxes[:, 8] += offset
 
     return gt_boxes, points
 
@@ -135,17 +135,17 @@ def random_local_translation_along_x(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    augs = {}
+    # augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs[f'object_{idx}'] = offset
+        # augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 0] += offset
 
         gt_boxes[idx, 0] += offset
 
-        if gt_boxes.shape[1] > 7:
-            gt_boxes[idx, 7] += offset
+        # if gt_boxes.shape[1] > 7:
+        #     gt_boxes[idx, 7] += offset
 
     return gt_boxes, points
 
@@ -157,17 +157,17 @@ def random_local_translation_along_y(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    augs = {}
+    # augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs[f'object_{idx}'] = offset
+        # augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 1] += offset
 
         gt_boxes[idx, 1] += offset
 
-        if gt_boxes.shape[1] > 8:
-            gt_boxes[idx, 8] += offset
+        # if gt_boxes.shape[1] > 8:
+        #     gt_boxes[idx, 8] += offset
 
     return gt_boxes, points
 
@@ -179,10 +179,10 @@ def random_local_translation_along_z(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    augs = {}
+    # augs = {}
     for idx, box in enumerate(gt_boxes):
         offset = np.random.uniform(offset_range[0], offset_range[1])
-        augs[f'object_{idx}'] = offset
+        # augs[f'object_{idx}'] = offset
         points_in_box, mask = get_points_in_box(points, box)
         points[mask, 2] += offset
 
@@ -265,10 +265,10 @@ def local_scaling(gt_boxes, points, scale_range):
     if scale_range[1] - scale_range[0] < 1e-3:
         return gt_boxes, points
 
-    augs = {}
+    # augs = {}
     for idx, box in enumerate(gt_boxes):
         noise_scale = np.random.uniform(scale_range[0], scale_range[1])
-        augs[f'object_{idx}'] = noise_scale
+        # augs[f'object_{idx}'] = noise_scale
         points_in_box, mask = get_points_in_box(points, box)
         
         # tranlation to axis center
@@ -296,10 +296,10 @@ def local_rotation(gt_boxes, points, rot_range):
         rot_range: [min, max]
     Returns:
     """
-    augs = {}
+    # augs = {}
     for idx, box in enumerate(gt_boxes):
         noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
-        augs[f'object_{idx}'] = noise_rotation
+        # augs[f'object_{idx}'] = noise_rotation
         points_in_box, mask = get_points_in_box(points, box)
         
         centroid_x = box[0]

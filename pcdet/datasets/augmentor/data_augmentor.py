@@ -80,6 +80,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_world_translation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_world_translation, config=config)
         offset_range = config['WORLD_TRANSLATION_RANGE']
@@ -95,6 +98,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_local_translation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_local_translation, config=config)
         offset_range = config['LOCAL_TRANSLATION_RANGE']
@@ -110,6 +116,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_local_rotation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_local_rotation, config=config)
         rot_range = config['LOCAL_ROT_ANGLE']
@@ -124,6 +133,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_local_scaling(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_local_scaling, config=config)
         gt_boxes, points = augmentor_utils.local_scaling(
@@ -135,6 +147,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_world_frustum_dropout(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_world_frustum_dropout, config=config)
 
@@ -151,6 +166,9 @@ class DataAugmentor(object):
         return data_dict
 
     def random_local_frustum_dropout(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
         if data_dict is None:
             return partial(self.random_local_frustum_dropout, config=config)
 
