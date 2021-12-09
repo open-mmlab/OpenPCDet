@@ -39,7 +39,7 @@ class DataAugmentor(object):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-
+   
     def random_world_flip(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_flip, config=config)
@@ -74,6 +74,7 @@ class DataAugmentor(object):
         gt_boxes, points = augmentor_utils.global_scaling(
             data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE']
         )
+
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
@@ -95,6 +96,111 @@ class DataAugmentor(object):
         data_dict['images'] = images
         data_dict['depth_maps'] = depth_maps
         data_dict['gt_boxes'] = gt_boxes
+        return data_dict
+
+    def random_world_translation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_world_translation, config=config)
+        offset_range = config['WORLD_TRANSLATION_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for cur_axis in config['ALONG_AXIS_LIST']:
+            assert cur_axis in ['x', 'y', 'z']
+            gt_boxes, points = getattr(augmentor_utils, 'random_translation_along_%s' % cur_axis)(
+                gt_boxes, points, offset_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_translation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_local_translation, config=config)
+        offset_range = config['LOCAL_TRANSLATION_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for cur_axis in config['ALONG_AXIS_LIST']:
+            assert cur_axis in ['x', 'y', 'z']
+            gt_boxes, points = getattr(augmentor_utils, 'random_local_translation_along_%s' % cur_axis)(
+                gt_boxes, points, offset_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_rotation(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_local_rotation, config=config)
+        rot_range = config['LOCAL_ROT_ANGLE']
+        if not isinstance(rot_range, list):
+            rot_range = [-rot_range, rot_range]
+        gt_boxes, points = augmentor_utils.local_rotation(
+            data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
+        )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_scaling(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_local_scaling, config=config)
+        gt_boxes, points = augmentor_utils.local_scaling(
+            data_dict['gt_boxes'], data_dict['points'], config['LOCAL_SCALE_RANGE']
+        )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_world_frustum_dropout(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_world_frustum_dropout, config=config)
+
+        intensity_range = config['INTENSITY_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for direction in config['DIRECTION']:
+            assert direction in ['top', 'bottom', 'left', 'right']
+            gt_boxes, points = getattr(augmentor_utils, 'global_frustum_dropout_%s' % direction)(
+                gt_boxes, points, intensity_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
+    def random_local_frustum_dropout(self, data_dict=None, config=None):
+        """
+        Please check the correctness of it before using.
+        """
+        if data_dict is None:
+            return partial(self.random_local_frustum_dropout, config=config)
+
+        intensity_range = config['INTENSITY_RANGE']
+        gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
+        for direction in config['DIRECTION']:
+            assert direction in ['top', 'bottom', 'left', 'right']
+            gt_boxes, points = getattr(augmentor_utils, 'local_frustum_dropout_%s' % direction)(
+                gt_boxes, points, intensity_range,
+            )
+
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
         return data_dict
 
     def forward(self, data_dict):
