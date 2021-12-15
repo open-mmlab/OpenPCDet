@@ -19,6 +19,8 @@ class DataBaseSampler(object):
         self.db_infos = {}
         for class_name in class_names:
             self.db_infos[class_name] = []
+            
+        self.use_shared_memory = sampler_cfg.get('USE_SHARED_MEMORY', False)
         
         for db_info_path in sampler_cfg.DB_INFO_PATH:
             db_info_path = self.root_path.resolve() / db_info_path
@@ -28,8 +30,7 @@ class DataBaseSampler(object):
 
         for func_name, val in sampler_cfg.PREPARE.items():
             self.db_infos = getattr(self, func_name)(self.db_infos, val)
-
-        self.use_shared_memory = sampler_cfg.get('USE_SHARED_MEMORY', False)
+        
         self.gt_database_data_key = self.load_db_to_shared_memory() if self.use_shared_memory else None
 
         self.sample_groups = {}
