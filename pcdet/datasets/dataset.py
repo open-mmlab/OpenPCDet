@@ -142,13 +142,13 @@ class DatasetTemplate(torch_data.Dataset):
             if data_dict.get('gt_boxes2d', None) is not None:
                 data_dict['gt_boxes2d'] = data_dict['gt_boxes2d'][selected]
              
-        if data_dict.get('gt_boxes', None) is not None:
-            selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
-            data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
-            data_dict['gt_names'] = data_dict['gt_names'][selected]
-            gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
-            gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
-            data_dict['gt_boxes'] = gt_boxes
+        if 'timestamp' in self.dataset_cfg.POINT_FEATURE_ENCODING.get('src_feature_list'):
+            if data_dict.get('points', None) is not None:
+                max_sweeps = self.dataset_cfg.get('MAX_SWEEPS', 1)
+                idx = self.dataset_cfg.POINT_FEATURE_ENCODING.get('src_feature_list').index('timestamp')
+                dt = np.round(data_dict['points'][:, idx], 2)
+                max_dt = sorted(np.unique(dt))[max_sweeps-1]
+                data_dict['points'] = data_dict['points'][dt <= max_dt]
 
         if data_dict.get('points', None) is not None:
             data_dict = self.point_feature_encoder.forward(data_dict)
