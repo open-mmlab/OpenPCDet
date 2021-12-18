@@ -1,0 +1,215 @@
+CLASS_NAMES: ['car','truck', 'bus', 'emergency_vehicle', 'other_vehicle',
+              'motorcycle', 'bicycle', 'pedestrian', 'animal']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/lyft_dataset.yaml
+
+
+MODEL:
+    NAME: SECONDNet
+
+    VFE:
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelResBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: AnchorHeadMulti
+        CLASS_AGNOSTIC: False
+
+        DIR_OFFSET: 0.78539
+        DIR_LIMIT_OFFSET: 0.0
+        NUM_DIR_BINS: 2
+
+        USE_MULTIHEAD: True
+        SEPARATE_MULTIHEAD: True
+        ANCHOR_GENERATOR_CONFIG: [
+            {
+                'class_name': car,
+                'anchor_sizes': [[4.75, 1.92, 1.71]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-1.07],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
+            },
+            {
+                'class_name': truck,
+                'anchor_sizes': [[10.24, 2.84, 3.44]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.30],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.55,
+                'unmatched_threshold': 0.4
+            },
+            {
+                'class_name': bus,
+                'anchor_sizes': [[12.70, 2.92, 3.42]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.35],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.55,
+                'unmatched_threshold': 0.4
+            },
+            {
+                'class_name': emergency_vehicle,
+                'anchor_sizes': [[6.52, 2.42, 2.34]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.89],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': other_vehicle,
+                'anchor_sizes': [[8.17, 2.75, 3.20]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.63],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.55,
+                'unmatched_threshold': 0.4
+            },
+            {
+                'class_name': motorcycle,
+                'anchor_sizes': [[2.35, 0.96, 1.59]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-1.32],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.3
+            },
+            {
+                'class_name': bicycle,
+                'anchor_sizes': [[1.76, 0.63, 1.44]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-1.07],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': pedestrian,
+                'anchor_sizes': [[0.80, 0.76, 1.76]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.91],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.4
+            },
+            {
+                'class_name': animal,
+                'anchor_sizes': [[0.73, 0.35, 0.5]],
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-1.80],
+                'align_center': False,
+                'feature_map_stride': 8,
+                'matched_threshold': 0.45,
+                'unmatched_threshold': 0.3
+            },
+        ]
+
+        SHARED_CONV_NUM_FILTER: 64
+        RPN_HEAD_CFGS: [
+            {
+                'HEAD_CLS_NAME': ['car'],
+            },
+            {
+                'HEAD_CLS_NAME': ['truck', 'bus'],
+            },
+            {
+                'HEAD_CLS_NAME': ['emergency_vehicle', 'other_vehicle'],
+            },
+            {
+                'HEAD_CLS_NAME': ['motorcycle', 'bicycle'],
+            },
+            {
+                'HEAD_CLS_NAME': ['pedestrian', 'animal'],
+            },
+        ]
+
+        SEPARATE_REG_CONFIG: 
+            NUM_MIDDLE_CONV: 1
+            NUM_MIDDLE_FILTER: 64
+            REG_LIST: ['reg:2', 'height:1', 'size:3', 'angle:2']
+
+        TARGET_ASSIGNER_CONFIG:
+            NAME: AxisAlignedTargetAssigner
+            POS_FRACTION: -1.0
+            SAMPLE_SIZE: 512
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False
+            BOX_CODER: ResidualCoder
+            BOX_CODER_CONFIG: {
+                'code_size': 7,
+                'encode_angle_by_sincos': True
+            }
+
+
+        LOSS_CONFIG:
+            REG_LOSS_TYPE: WeightedL1Loss
+            LOSS_WEIGHTS: {
+                'pos_cls_weight': 1.0,
+                'neg_cls_weight': 2.0,
+                'cls_weight': 1.0,
+                'loc_weight': 0.25,
+                'dir_weight': 0.2,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+
+        EVAL_METRIC: lyft
+
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: True
+            NMS_TYPE: nms_gpu
+            NMS_THRESH: 0.2
+            NMS_PRE_MAXSIZE: 1000
+            NMS_POST_MAXSIZE: 83
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 3
+    NUM_EPOCHS: 50
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.003
+    WEIGHT_DECAY: 0.01
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10

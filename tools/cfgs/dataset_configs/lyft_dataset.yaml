@@ -1,0 +1,78 @@
+DATASET: 'LyftDataset'
+DATA_PATH: '../data/lyft'
+
+VERSION: 'trainval'
+SET_NAN_VELOCITY_TO_ZEROS: True
+FILTER_MIN_POINTS_IN_GT: 1
+MAX_SWEEPS: 5
+EVAL_LYFT_IOU_LIST: [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+INFO_PATH: {
+    'train': [lyft_infos_train.pkl],
+    'test': [lyft_infos_val.pkl],
+}
+
+POINT_CLOUD_RANGE: [-80.0, -80.0, -5.0, 80.0, 80.0, 3.0]
+
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+        - NAME: gt_sampling
+          DB_INFO_PATH:
+              - lyft_dbinfos_10sweeps.pkl
+          PREPARE: {
+             filter_by_min_points: [
+                 'car:5','pedestrian:5', 'motorcycle:5', 'bicycle:5', 'other_vehicle:5',
+                 'bus:5', 'truck:5', 'emergency_vehicle:5', 'animal:5'
+             ],
+          }
+
+          SAMPLE_GROUPS: [
+              'car:3','pedestrian:3', 'motorcycle:6', 'bicycle:6', 'other_vehicle:4',
+              'bus:4', 'truck:3', 'emergency_vehicle:7', 'animal:3'
+          ]
+
+          NUM_POINT_FEATURES: 5
+          DATABASE_WITH_FAKELIDAR: False
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+          LIMIT_WHOLE_SCENE: True
+
+        - NAME: random_world_flip
+          ALONG_AXIS_LIST: ['x', 'y']
+
+        - NAME: random_world_rotation
+          WORLD_ROT_ANGLE: [-0.3925, 0.3925]
+
+        - NAME: random_world_scaling
+          WORLD_SCALE_RANGE: [0.95, 1.05]
+
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+    src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'],
+}
+
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
+
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: {
+        'train': True,
+        'test': True
+      }
+
+    - NAME: transform_points_to_voxels
+      VOXEL_SIZE: [0.1, 0.1, 0.2]
+      MAX_POINTS_PER_VOXEL: 10
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 80000,
+        'test': 80000
+      }
