@@ -98,6 +98,35 @@ python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
 
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
 
+
+### Lyft Dataset
+* Please download the official [Lyft Level5 perception dataset](https://level-5.global/data/perception) and 
+organize the downloaded files as follows: 
+```
+OpenPCDet
+├── data
+│   ├── lyft
+│   │   │── ImageSets
+│   │   │── trainval
+│   │   │   │── data & maps & images & lidar & train_lidar
+├── pcdet
+├── tools
+```
+
+* Install the `lyft-dataset-sdk` with version `0.0.8` by running the following command: 
+```shell script
+pip install -U lyft_dataset_sdk==0.0.8
+```
+
+* Generate the data infos by running the following command (it may take several hours): 
+```python 
+python -m pcdet.datasets.lyft.lyft_dataset --func create_lyft_infos \
+    --cfg_file tools/cfgs/dataset_configs/lyft_dataset.yaml
+```
+
+* You need to check carefully since we don't provide a benchmark for it.
+
+
 ## Pretrained Models
 If you would like to train [CaDDN](../tools/cfgs/kitti_models/CaDDN.yaml), download the pretrained [DeepLabV3 model](https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth) and place within the `checkpoints` directory. Please make sure the [kornia](https://github.com/kornia/kornia) is installed since it is needed for `CaDDN`.
 ```
