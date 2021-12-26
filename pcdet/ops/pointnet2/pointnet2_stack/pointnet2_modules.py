@@ -215,7 +215,7 @@ class VectorPoolLocalInterpolateModule(nn.Module):
                 self.max_neighbour_distance, self.nsample, self.neighbor_type,
                 self.num_avg_length_of_neighbor_idxs, self.num_total_grids, self.neighbor_distance_multiplier
             )
-        self.num_avg_length_of_neighbor_idxs = max(self.num_avg_length_of_neighbor_idxs, num_avg_length_of_neighbor_idxs.item())
+        self.num_avg_length_of_neighbor_idxs = max(self.num_avg_length_of_neighbor_idxs, num_avg_length_of_neighbor_idxs)
 
         dist_recip = 1.0 / (dist + 1e-8)
         norm = torch.sum(dist_recip, dim=-1, keepdim=True)

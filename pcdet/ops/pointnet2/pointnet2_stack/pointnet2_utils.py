@@ -337,7 +337,7 @@ class ThreeNNForVectorPoolByTwoStep(Function):
                 avg_length_of_neighbor_idxs, max_neighbour_distance * neighbor_distance_multiplier,
                 nsample, neighbor_type
             )
-            avg_length_of_neighbor_idxs = cumsum[0] // num_new_xyz + int(cumsum[0] % num_new_xyz > 0)
+            avg_length_of_neighbor_idxs = cumsum[0].item() // num_new_xyz + int(cumsum[0].item() % num_new_xyz > 0)
 
             if cumsum[0] <= num_max_sum_points:
                 break
