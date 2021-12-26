@@ -184,6 +184,43 @@ class FarthestPointSampling(Function):
 farthest_point_sample = furthest_point_sample = FarthestPointSampling.apply
 
 
+class StackFarthestPointSampling(Function):
+    @staticmethod
+    def forward(ctx, xyz, xyz_batch_cnt, npoint):
+        """
+        Args:
+            ctx:
+            xyz: (N1 + N2 + ..., 3) where N > npoint
+            xyz_batch_cnt: [N1, N2, ...]
+            npoint: int, number of features in the sampled set
+
+        Returns:
+            output: (npoint.sum()) tensor containing the set,
+            npoint: (M1, M2, ...)
+        """
+        assert xyz.is_contiguous() and xyz.shape[1] == 3
+
+        batch_size = xyz_batch_cnt.__len__()
+        if not isinstance(npoint, torch.Tensor):
+            if not isinstance(npoint, list):
+                npoint = [npoint for i in range(batch_size)]
+            npoint = torch.tensor(npoint, device=xyz.device).int()
+
+        N, _ = xyz.size()
+        temp = torch.cuda.FloatTensor(N).fill_(1e10)
+        output = torch.cuda.IntTensor(npoint.sum().item())
+
+        pointnet2.stack_farthest_point_sampling_wrapper(xyz, temp, xyz_batch_cnt, output, npoint)
+        return output
+
+    @staticmethod
+    def backward(xyz, a=None):
+        return None, None
+
+
+stack_farthest_point_sample = StackFarthestPointSampling.apply
+
+
 class ThreeNN(Function):
     @staticmethod
     def forward(ctx, unknown, unknown_batch_cnt, known, known_batch_cnt):

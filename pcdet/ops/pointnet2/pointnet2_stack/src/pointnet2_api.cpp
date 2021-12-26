@@ -13,6 +13,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("voxel_query_wrapper", &voxel_query_wrapper_stack, "voxel_query_wrapper_stack");
 
     m.def("farthest_point_sampling_wrapper", &farthest_point_sampling_wrapper, "farthest_point_sampling_wrapper");
+    m.def("stack_farthest_point_sampling_wrapper", &stack_farthest_point_sampling_wrapper, "stack_farthest_point_sampling_wrapper");
 
     m.def("group_points_wrapper", &group_points_wrapper_stack, "group_points_wrapper_stack");
     m.def("group_points_grad_wrapper", &group_points_grad_wrapper_stack, "group_points_grad_wrapper_stack");
