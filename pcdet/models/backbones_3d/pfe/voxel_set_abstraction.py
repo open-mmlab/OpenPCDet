@@ -136,7 +136,7 @@ class VoxelSetAbstraction(nn.Module):
             bs_mask = (batch_indices == bs_idx)
             sampled_points = src_points[bs_mask].unsqueeze(dim=0)  # (1, N, 3)
             if self.model_cfg.SAMPLE_METHOD == 'FPS':
-                cur_pt_idxs = pointnet2_stack_utils.furthest_point_sample(
+                cur_pt_idxs = pointnet2_stack_utils.farthest_point_sample(
                     sampled_points[:, :, 0:3].contiguous(), self.model_cfg.NUM_KEYPOINTS
                 ).long()
 

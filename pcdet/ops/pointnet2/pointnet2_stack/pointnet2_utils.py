@@ -155,7 +155,7 @@ class QueryAndGroup(nn.Module):
         return new_features, idx
 
 
-class FurthestPointSampling(Function):
+class FarthestPointSampling(Function):
     @staticmethod
     def forward(ctx, xyz: torch.Tensor, npoint: int):
         """
@@ -173,7 +173,7 @@ class FurthestPointSampling(Function):
         output = torch.cuda.IntTensor(B, npoint)
         temp = torch.cuda.FloatTensor(B, N).fill_(1e10)
 
-        pointnet2.furthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output)
+        pointnet2.farthest_point_sampling_wrapper(B, N, npoint, xyz, temp, output)
         return output
 
     @staticmethod
@@ -181,7 +181,7 @@ class FurthestPointSampling(Function):
         return None, None
 
 
-furthest_point_sample = FurthestPointSampling.apply
+farthest_point_sample = furthest_point_sample = FarthestPointSampling.apply
 
 
 class ThreeNN(Function):

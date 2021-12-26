@@ -31,7 +31,7 @@ class _PointnetSAModuleBase(nn.Module):
         if new_xyz is None:
             new_xyz = pointnet2_utils.gather_operation(
                 xyz_flipped,
-                pointnet2_utils.furthest_point_sample(xyz, self.npoint)
+                pointnet2_utils.farthest_point_sample(xyz, self.npoint)
             ).transpose(1, 2).contiguous() if self.npoint is not None else None
 
         for i in range(len(self.groupers)):
