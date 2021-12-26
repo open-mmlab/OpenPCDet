@@ -139,38 +139,31 @@ class VoxelSetAbstraction(nn.Module):
             if src_name in ['bev', 'raw_points']:
                 continue
             self.downsample_times_map[src_name] = SA_cfg[src_name].DOWNSAMPLE_FACTOR
-            mlps = SA_cfg[src_name].MLPS
-            for k in range(len(mlps)):
-                mlps[k] = [mlps[k][0]] + mlps[k]
-            cur_layer = pointnet2_stack_modules.StackSAModuleMSG(
-                radii=SA_cfg[src_name].POOL_RADIUS,
-                nsamples=SA_cfg[src_name].NSAMPLE,
-                mlps=mlps,
-                use_xyz=True,
-                pool_method='max_pool',
+
+            if SA_cfg[src_name].get('INPUT_CHANNELS', None) is None:
+                input_channels = SA_cfg[src_name].MLPS[0][0] \
+                    if isinstance(SA_cfg[src_name].MLPS[0], list) else SA_cfg[src_name].MLPS[0]
+            else:
+                input_channels = SA_cfg[src_name]['INPUT_CHANNELS']
+
+            cur_layer, cur_num_c_out = pointnet2_stack_modules.build_local_aggregation_module(
+                input_channels=input_channels, config=SA_cfg[src_name]
             )
             self.SA_layers.append(cur_layer)
             self.SA_layer_names.append(src_name)
 
-            c_in += sum([x[-1] for x in mlps])
+            c_in += cur_num_c_out
 
         if 'bev' in self.model_cfg.FEATURES_SOURCE:
             c_bev = num_bev_features
             c_in += c_bev
 
         if 'raw_points' in self.model_cfg.FEATURES_SOURCE:
-            mlps = SA_cfg['raw_points'].MLPS
-            for k in range(len(mlps)):
-                mlps[k] = [num_rawpoint_features - 3] + mlps[k]
-
-            self.SA_rawpoints = pointnet2_stack_modules.StackSAModuleMSG(
-                radii=SA_cfg['raw_points'].POOL_RADIUS,
-                nsamples=SA_cfg['raw_points'].NSAMPLE,
-                mlps=mlps,
-                use_xyz=True,
-                pool_method='max_pool'
+            self.SA_rawpoints, cur_num_c_out = pointnet2_stack_modules.build_local_aggregation_module(
+                input_channels=num_rawpoint_features - 3, config=SA_cfg['raw_points']
             )
-            c_in += sum([x[-1] for x in mlps])
+
+            c_in += cur_num_c_out
 
         self.vsa_point_feature_fusion = nn.Sequential(
             nn.Linear(c_in, self.model_cfg.NUM_OUTPUT_FEATURES, bias=False),
