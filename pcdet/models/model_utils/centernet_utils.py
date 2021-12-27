@@ -139,11 +139,11 @@ def _topk(scores, K=40):
     topk_scores, topk_inds = torch.topk(scores.flatten(2, 3), K)
 
     topk_inds = topk_inds % (height * width)
-    topk_ys = torch.div(topk_inds, width, rounding_mode='floor').float()
+    topk_ys = (topk_inds // width).float()
     topk_xs = (topk_inds % width).int().float()
 
     topk_score, topk_ind = torch.topk(topk_scores.view(batch, -1), K)
-    topk_classes = torch.div(topk_ind, K, rounding_mode='floor').int()
+    topk_classes = (topk_ind // K).int()
     topk_inds = _gather_feat(topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_ys = _gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_xs = _gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)

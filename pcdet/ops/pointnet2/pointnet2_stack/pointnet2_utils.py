@@ -348,7 +348,7 @@ class ThreeNNForVectorPoolByTwoStep(Function):
             stack_neighbor_idxs, start_len, num_new_xyz, num_total_grids
         )
 
-        return torch.sqrt(new_xyz_grid_dist2), new_xyz_grid_idxs, avg_length_of_neighbor_idxs
+        return torch.sqrt(new_xyz_grid_dist2), new_xyz_grid_idxs, torch.tensor(avg_length_of_neighbor_idxs)
 
 
 three_nn_for_vector_pool_by_two_step = ThreeNNForVectorPoolByTwoStep.apply

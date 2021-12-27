@@ -215,7 +215,7 @@ class VectorPoolLocalInterpolateModule(nn.Module):
                 self.max_neighbour_distance, self.nsample, self.neighbor_type,
                 self.num_avg_length_of_neighbor_idxs, self.num_total_grids, self.neighbor_distance_multiplier
             )
-        self.num_avg_length_of_neighbor_idxs = max(self.num_avg_length_of_neighbor_idxs, num_avg_length_of_neighbor_idxs)
+        self.num_avg_length_of_neighbor_idxs = max(self.num_avg_length_of_neighbor_idxs, num_avg_length_of_neighbor_idxs.item())
 
         dist_recip = 1.0 / (dist + 1e-8)
         norm = torch.sum(dist_recip, dim=-1, keepdim=True)
@@ -349,7 +349,7 @@ class VectorPoolAggregationModule(nn.Module):
         x_grids = torch.arange(-R + R / num_voxels[0], R - R / num_voxels[0] + 1e-5, 2 * R / num_voxels[0], device=device)
         y_grids = torch.arange(-R + R / num_voxels[1], R - R / num_voxels[1] + 1e-5, 2 * R / num_voxels[1], device=device)
         z_grids = torch.arange(-R + R / num_voxels[2], R - R / num_voxels[2] + 1e-5, 2 * R / num_voxels[2], device=device)
-        x_offset, y_offset, z_offset = torch.meshgrid(x_grids, y_grids, z_grids, indexing='ij')  # shape: [num_x, num_y, num_z]
+        x_offset, y_offset, z_offset = torch.meshgrid(x_grids, y_grids, z_grids)  # shape: [num_x, num_y, num_z]
         xyz_offset = torch.cat((
             x_offset.contiguous().view(-1, 1),
             y_offset.contiguous().view(-1, 1),
