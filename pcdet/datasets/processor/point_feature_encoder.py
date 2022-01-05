@@ -30,6 +30,14 @@ class PointFeatureEncoder(object):
             data_dict['points']
         )
         data_dict['use_lead_xyz'] = use_lead_xyz
+        
+        if self.point_encoding_config.get('FILTER_SWEEPS', False) and 'timestamp' in self.src_feature_list:
+            max_sweeps = self.point_encoding_config.MAX_SWEEPS
+            idx = self.src_feature_list.index('timestamp')
+            dt = np.round(data_dict['points'][:, idx], 2)
+            max_dt = sorted(np.unique(dt))[min(len(np.unique(dt))-1, max_sweeps-1)]
+            data_dict['points'] = data_dict['points'][dt <= max_dt]
+        
         return data_dict
 
     def absolute_coordinates_encoding(self, points=None):
@@ -44,4 +52,5 @@ class PointFeatureEncoder(object):
             idx = self.src_feature_list.index(x)
             point_feature_list.append(points[:, idx:idx+1])
         point_features = np.concatenate(point_feature_list, axis=1)
+        
         return point_features, True
