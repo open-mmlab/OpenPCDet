@@ -21,7 +21,7 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
-[2021-01-05] **NEW:** Update `OpenPCDet` to v0.5.2:
+[2022-01-05] **NEW:** Update `OpenPCDet` to v0.5.2:
 * The code of [PV-RCNN++](https://arxiv.org/abs/2102.00463) has been released to this repo, with higher performance, faster training/inference speed and less memory consumption than PV-RCNN.
 * Add performance of several models trained with full training set of [Waymo Open Dataset](#waymo-open-dataset-baselines).
 * Support Lyft dataset, see the pull request [here](https://github.com/open-mmlab/OpenPCDet/pull/720).
