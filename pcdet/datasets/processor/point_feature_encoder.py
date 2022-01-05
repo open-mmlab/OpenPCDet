@@ -31,8 +31,13 @@ class PointFeatureEncoder(object):
         )
         data_dict['use_lead_xyz'] = use_lead_xyz
         
+<<<<<<< HEAD
         if self.point_encoding_config.get('FILTER_SWEEPS', False) and 'timestamp' in self.src_feature_list:
             max_sweeps = self.point_encoding_config.MAX_SWEEPS
+=======
+        if self.point_encoding_config.get('filter_sweeps', False) and 'timestamp' in self.src_feature_list:
+            max_sweeps = self.point_encoding_config.max_sweeps
+>>>>>>> dev_v0.5
             idx = self.src_feature_list.index('timestamp')
             dt = np.round(data_dict['points'][:, idx], 2)
             max_dt = sorted(np.unique(dt))[min(len(np.unique(dt))-1, max_sweeps-1)]
