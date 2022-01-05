@@ -20,10 +20,10 @@ void gather_points_grad_kernel_launcher_fast(int b, int c, int n, int npoints,
     const float *grad_out, const int *idx, float *grad_points);
 
 
-int furthest_point_sampling_wrapper(int b, int n, int m, 
+int farthest_point_sampling_wrapper(int b, int n, int m,
     at::Tensor points_tensor, at::Tensor temp_tensor, at::Tensor idx_tensor);
 
-void furthest_point_sampling_kernel_launcher(int b, int n, int m, 
+void farthest_point_sampling_kernel_launcher(int b, int n, int m,
     const float *dataset, float *temp, int *idxs);
 
 #endif

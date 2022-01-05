@@ -30,7 +30,7 @@ class PointFeatureEncoder(object):
             data_dict['points']
         )
         data_dict['use_lead_xyz'] = use_lead_xyz
-        
+       
         if self.point_encoding_config.get('filter_sweeps', False) and 'timestamp' in self.src_feature_list:
             max_sweeps = self.point_encoding_config.max_sweeps
             idx = self.src_feature_list.index('timestamp')

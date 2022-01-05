@@ -10,21 +10,12 @@ class PVRCNNHead(RoIHeadTemplate):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
 
-        mlps = self.model_cfg.ROI_GRID_POOL.MLPS
-        for k in range(len(mlps)):
-            mlps[k] = [input_channels] + mlps[k]
-
-        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-            radii=self.model_cfg.ROI_GRID_POOL.POOL_RADIUS,
-            nsamples=self.model_cfg.ROI_GRID_POOL.NSAMPLE,
-            mlps=mlps,
-            use_xyz=True,
-            pool_method=self.model_cfg.ROI_GRID_POOL.POOL_METHOD,
+        self.roi_grid_pool_layer, num_c_out = pointnet2_stack_modules.build_local_aggregation_module(
+            input_channels=input_channels, config=self.model_cfg.ROI_GRID_POOL
         )
 
         GRID_SIZE = self.model_cfg.ROI_GRID_POOL.GRID_SIZE
-        c_out = sum([x[-1] for x in mlps])
-        pre_channel = GRID_SIZE * GRID_SIZE * GRID_SIZE * c_out
+        pre_channel = GRID_SIZE * GRID_SIZE * GRID_SIZE * num_c_out
 
         shared_fc_list = []
         for k in range(0, self.model_cfg.SHARED_FC.__len__()):
@@ -150,9 +141,11 @@ class PVRCNNHead(RoIHeadTemplate):
             batch_dict, nms_config=self.model_cfg.NMS_CONFIG['TRAIN' if self.training else 'TEST']
         )
         if self.training:
-            targets_dict = self.assign_targets(batch_dict)
-            batch_dict['rois'] = targets_dict['rois']
-            batch_dict['roi_labels'] = targets_dict['roi_labels']
+            targets_dict = batch_dict.get('roi_targets_dict', None)
+            if targets_dict is None:
+                targets_dict = self.assign_targets(batch_dict)
+                batch_dict['rois'] = targets_dict['rois']
+                batch_dict['roi_labels'] = targets_dict['roi_labels']
 
         # RoI aware pooling
         pooled_features = self.roi_grid_pool(batch_dict)  # (BxN, 6x6x6, C)
