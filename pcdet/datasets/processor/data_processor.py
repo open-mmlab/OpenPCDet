@@ -102,6 +102,16 @@ class DataProcessor(object):
 
         return data_dict
 
+    def transform_points_to_voxels_placeholder(self, data_dict=None, config=None):
+        # just calculate grid size
+        if data_dict is None:
+            grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
+            self.grid_size = np.round(grid_size).astype(np.int64)
+            self.voxel_size = config.VOXEL_SIZE
+            return partial(self.transform_points_to_voxels_placeholder, config=config)
+        
+        return data_dict
+        
     def transform_points_to_voxels(self, data_dict=None, config=None):
         if data_dict is None:
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)
