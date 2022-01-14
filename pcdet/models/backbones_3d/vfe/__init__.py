@@ -9,5 +9,5 @@ __all__ = {
     'MeanVFE': MeanVFE,
     'PillarVFE': PillarVFE,
     'ImageVFE': ImageVFE,
-    'DynamicPillarVFE': DynamicPillarVFE
+    'DynPillarVFE': DynamicPillarVFE
 }
