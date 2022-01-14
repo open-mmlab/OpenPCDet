@@ -1,7 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch_scatter
+
+try:
+    import torch_scatter
+except Exception as e:
+    # Incase someone doesn't want to use dynamic pillar vfe and hasn't installed torch_scatter
+    pass
 
 from .vfe_template import VFETemplate
 
