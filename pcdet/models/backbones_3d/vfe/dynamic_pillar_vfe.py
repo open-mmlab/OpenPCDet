@@ -6,7 +6,7 @@ import torch_scatter
 from .vfe_template import VFETemplate
 
 
-class PFNLayer(nn.Module):
+class PFNLayerV2(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -24,29 +24,20 @@ class PFNLayer(nn.Module):
             self.norm = nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.01)
         else:
             self.linear = nn.Linear(in_channels, out_channels, bias=True)
+        
+        self.relu = nn.ReLU()
 
-        self.part = 50000
+    def forward(self, inputs, unq_inv):
 
-    def forward(self, inputs):
-        if inputs.shape[0] > self.part:
-            # nn.Linear performs randomly when batch size is too large
-            num_parts = inputs.shape[0] // self.part
-            part_linear_out = [self.linear(inputs[num_part*self.part:(num_part+1)*self.part])
-                               for num_part in range(num_parts+1)]
-            x = torch.cat(part_linear_out, dim=0)
-        else:
-            x = self.linear(inputs)
-        torch.backends.cudnn.enabled = False
-        x = self.norm(x.permute(0, 2, 1)).permute(0, 2, 1) if self.use_norm else x
-        torch.backends.cudnn.enabled = True
-        x = F.relu(x)
-        x_max = torch.max(x, dim=1, keepdim=True)[0]
+        x = self.linear(inputs)
+        x = self.norm(x) if self.use_norm else x
+        x = self.relu(x)
+        x_max = torch_scatter.scatter_max(x, unq_inv, dim=0)[0]
 
         if self.last_vfe:
             return x_max
         else:
-            x_repeat = x_max.repeat(1, inputs.shape[1], 1)
-            x_concatenated = torch.cat([x, x_repeat], dim=2)
+            x_concatenated = torch.cat([x, x_max[unq_inv, :]], dim=1)
             return x_concatenated
 
 
@@ -61,20 +52,18 @@ class DynamicPillarVFE(VFETemplate):
         if self.with_distance:
             num_point_features += 1
 
-        assert len(self.model_cfg.NUM_FILTERS) == 1
-        self.num_filters = self.model_cfg.NUM_FILTERS[0]
+        self.num_filters = self.model_cfg.NUM_FILTERS
+        assert len(self.num_filters) > 0
+        num_filters = [num_point_features] + list(self.num_filters)
 
-        self.linear1 = nn.Sequential(
-            nn.Linear(num_point_features, self.num_filters//2, bias=False),
-            nn.BatchNorm1d(self.num_filters//2, eps=1e-3, momentum=0.01),
-            nn.ReLU()
-        )
-
-        self.linear2 = nn.Sequential(
-            nn.Linear(self.num_filters, self.num_filters, bias=False),
-            nn.BatchNorm1d(self.num_filters, eps=1e-3, momentum=0.01),
-            nn.ReLU()
-        ) 
+        pfn_layers = []
+        for i in range(len(num_filters) - 1):
+            in_filters = num_filters[i]
+            out_filters = num_filters[i + 1]
+            pfn_layers.append(
+                PFNLayerV2(in_filters, out_filters, self.use_norm, last_layer=(i >= len(num_filters) - 2))
+            )
+        self.pfn_layers = nn.ModuleList(pfn_layers)
 
         self.voxel_x = voxel_size[0]
         self.voxel_y = voxel_size[1]
@@ -89,7 +78,7 @@ class DynamicPillarVFE(VFETemplate):
 
 
     def get_output_feature_dim(self):
-        return self.num_filters
+        return self.num_filters[-1]
 
     def forward(self, batch_dict, **kwargs):
         batch_size = batch_dict['batch_size']
@@ -128,11 +117,13 @@ class DynamicPillarVFE(VFETemplate):
             features.append(points_dist)
         features = torch.cat(features, dim=-1)
         
-        features = self.linear1(features)
-        features_max = torch_scatter.scatter_max(features, unq_inv, dim=0)[0]
-        features = torch.cat([features, features_max[unq_inv, :]], dim=1)
-        features = self.linear2(features)
-        features = torch_scatter.scatter_max(features, unq_inv, dim=0)[0]
+        for pfn in self.pfn_layers:
+            features = pfn(features, unq_inv)
+        # features = self.linear1(features)
+        # features_max = torch_scatter.scatter_max(features, unq_inv, dim=0)[0]
+        # features = torch.cat([features, features_max[unq_inv, :]], dim=1)
+        # features = self.linear2(features)
+        # features = torch_scatter.scatter_max(features, unq_inv, dim=0)[0]
         
         # generate voxel coordinates
         unq_coords = unq_coords.int()
