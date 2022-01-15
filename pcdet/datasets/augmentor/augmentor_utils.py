@@ -14,7 +14,7 @@ def random_flip_along_x(gt_boxes, points):
     """
     enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
     if enable:
-        gt_boxes[:, 1] = -gt_boxes[:, 1]  # x y z l w h heading
+        gt_boxes[:, 1] = -gt_boxes[:, 1]
         gt_boxes[:, 6] = -gt_boxes[:, 6]
         points[:, 1] = -points[:, 1]
         
@@ -36,10 +36,10 @@ def random_flip_along_y(gt_boxes, points):
         gt_boxes[:, 0] = -gt_boxes[:, 0]
         gt_boxes[:, 6] = -(gt_boxes[:, 6] + np.pi)
         points[:, 0] = -points[:, 0]
-        
+
         if gt_boxes.shape[1] > 7:
             gt_boxes[:, 7] = -gt_boxes[:, 7]
-    
+
     return gt_boxes, points
 
 
@@ -60,7 +60,7 @@ def global_rotation(gt_boxes, points, rot_range):
             np.hstack((gt_boxes[:, 7:9], np.zeros((gt_boxes.shape[0], 1))))[np.newaxis, :, :],
             np.array([noise_rotation])
         )[0][:, 0:2]
-    
+
     return gt_boxes, points
 
 
@@ -77,7 +77,7 @@ def global_scaling(gt_boxes, points, scale_range):
     noise_scale = np.random.uniform(scale_range[0], scale_range[1])
     points[:, :3] *= noise_scale
     gt_boxes[:, :6] *= noise_scale
-    
+
     return gt_boxes, points
 
 
@@ -96,7 +96,7 @@ def random_image_flip_horizontal(image, depth_map, gt_boxes, calib):
     """
     # Randomly augment with 50% chance
     enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
-    
+
     if enable:
         # Flip images
         aug_image = np.fliplr(image)
@@ -112,12 +112,12 @@ def random_image_flip_horizontal(image, depth_map, gt_boxes, calib):
         pts_lidar = calib.rect_to_lidar(pts_rect)
         aug_gt_boxes[:, :3] = pts_lidar
         aug_gt_boxes[:, 6] = -1 * aug_gt_boxes[:, 6]
-    
+
     else:
         aug_image = image
         aug_depth_map = depth_map
         aug_gt_boxes = gt_boxes
-    
+
     return aug_image, aug_depth_map, aug_gt_boxes
 
 
@@ -130,7 +130,7 @@ def random_translation_along_x(gt_boxes, points, offset_range):
     Returns:
     """
     offset = np.random.uniform(offset_range[0], offset_range[1])
-    
+
     points[:, 0] += offset
     gt_boxes[:, 0] += offset
     
@@ -149,7 +149,7 @@ def random_translation_along_y(gt_boxes, points, offset_range):
     Returns:
     """
     offset = np.random.uniform(offset_range[0], offset_range[1])
-    
+
     points[:, 1] += offset
     gt_boxes[:, 1] += offset
     
@@ -171,7 +171,7 @@ def random_translation_along_z(gt_boxes, points, offset_range):
     
     points[:, 2] += offset
     gt_boxes[:, 2] += offset
-    
+
     return gt_boxes, points
 
 
@@ -192,8 +192,8 @@ def random_local_translation_along_x(gt_boxes, points, offset_range):
         
         gt_boxes[idx, 0] += offset
     
-    # if gt_boxes.shape[1] > 7:
-    #     gt_boxes[idx, 7] += offset
+        # if gt_boxes.shape[1] > 7:
+        #     gt_boxes[idx, 7] += offset
     
     return gt_boxes, points
 
@@ -215,8 +215,8 @@ def random_local_translation_along_y(gt_boxes, points, offset_range):
         
         gt_boxes[idx, 1] += offset
     
-    # if gt_boxes.shape[1] > 8:
-    #     gt_boxes[idx, 8] += offset
+        # if gt_boxes.shape[1] > 8:
+        #     gt_boxes[idx, 8] += offset
     
     return gt_boxes, points
 
@@ -252,7 +252,7 @@ def global_frustum_dropout_top(gt_boxes, points, intensity_range):
     intensity = np.random.uniform(intensity_range[0], intensity_range[1])
     # threshold = max - length * uniform(0 ~ 0.2)
     threshold = np.max(points[:, 2]) - intensity * (np.max(points[:, 2]) - np.min(points[:, 2]))
-    # 删去高于阈值的部分，即从顶部切除
+    
     points = points[points[:, 2] < threshold]
     gt_boxes = gt_boxes[gt_boxes[:, 2] < threshold]
     return gt_boxes, points
@@ -371,8 +371,7 @@ def local_rotation(gt_boxes, points, rot_range):
         
         # apply rotation
         points[mask, :] = common_utils.rotate_points_along_z(points[np.newaxis, mask, :], np.array([noise_rotation]))[0]
-        box[0:3] = common_utils.rotate_points_along_z(box[np.newaxis, np.newaxis, 0:3], np.array([noise_rotation]))[0][
-            0]
+        box[0:3] = common_utils.rotate_points_along_z(box[np.newaxis, np.newaxis, 0:3], np.array([noise_rotation]))[0][0]
         
         # tranlation back to original position
         points[mask, 0] += centroid_x
@@ -483,8 +482,8 @@ def get_points_in_box(points, gt_box):
     local_x = shift_x * cosa + shift_y * (-sina)
     local_y = shift_x * sina + shift_y * cosa
     
-    mask = np.logical_and(abs(shift_z) <= dz / 2.0, \
-                          np.logical_and(abs(local_x) <= dx / 2.0 + MARGIN, \
+    mask = np.logical_and(abs(shift_z) <= dz / 2.0, 
+                          np.logical_and(abs(local_x) <= dx / 2.0 + MARGIN, 
                                          abs(local_y) <= dy / 2.0 + MARGIN))
     
     points = points[mask]
@@ -586,8 +585,7 @@ def local_pyramid_sparsify(gt_boxes, points, prob, max_num_pts, pyramids=None):
 def local_pyramid_swap(gt_boxes, points, prob, max_num_pts, pyramids=None):
     def get_points_ratio(points, pyramid):
         surface_center = (pyramid[3:6] + pyramid[6:9] + pyramid[9:12] + pyramid[12:]) / 4.0
-        vector_0, vector_1, vector_2 = pyramid[6:9] - pyramid[3:6], pyramid[12:] - pyramid[3:6], pyramid[
-                                                                                                 0:3] - surface_center
+        vector_0, vector_1, vector_2 = pyramid[6:9] - pyramid[3:6], pyramid[12:] - pyramid[3:6], pyramid[0:3] - surface_center
         alphas = ((points[:, 0:3] - pyramid[3:6]) * vector_0).sum(-1) / np.power(vector_0, 2).sum()
         betas = ((points[:, 0:3] - pyramid[3:6]) * vector_1).sum(-1) / np.power(vector_1, 2).sum()
         gammas = ((points[:, 0:3] - surface_center) * vector_2).sum(-1) / np.power(vector_2, 2).sum()
@@ -596,8 +594,7 @@ def local_pyramid_swap(gt_boxes, points, prob, max_num_pts, pyramids=None):
     def recover_points_by_ratio(points_ratio, pyramid):
         alphas, betas, gammas = points_ratio
         surface_center = (pyramid[3:6] + pyramid[6:9] + pyramid[9:12] + pyramid[12:]) / 4.0
-        vector_0, vector_1, vector_2 = pyramid[6:9] - pyramid[3:6], pyramid[12:] - pyramid[3:6], pyramid[
-                                                                                                 0:3] - surface_center
+        vector_0, vector_1, vector_2 = pyramid[6:9] - pyramid[3:6], pyramid[12:] - pyramid[3:6], pyramid[0:3] - surface_center
         points = (alphas[:, None] * vector_0 + betas[:, None] * vector_1) + pyramid[3:6] + gammas[:, None] * vector_2
         return points
     
