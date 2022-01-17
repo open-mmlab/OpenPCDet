@@ -281,4 +281,13 @@ class VoxelResBackBone8x(nn.Module):
             }
         })
 
+        batch_dict.update({
+            'multi_scale_3d_strides': {
+                'x_conv1': 1,
+                'x_conv2': 2,
+                'x_conv3': 4,
+                'x_conv4': 8,
+            }
+        })
+        
         return batch_dict
