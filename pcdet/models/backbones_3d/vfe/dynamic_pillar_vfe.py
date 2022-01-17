@@ -77,26 +77,24 @@ class DynamicPillarVFE(VFETemplate):
         self.y_offset = self.voxel_y / 2 + point_cloud_range[1]
         self.z_offset = self.voxel_z / 2 + point_cloud_range[2]
 
-        self.point_cloud_range = point_cloud_range
         self.scale_xy = grid_size[0] * grid_size[1]
         self.scale_y = grid_size[1]
-
+        
+        self.grid_size = torch.tensor(grid_size).cuda()
+        self.voxel_size = torch.tensor(voxel_size).cuda()
+        self.point_cloud_range = torch.tensor(point_cloud_range).cuda()
 
     def get_output_feature_dim(self):
         return self.num_filters[-1]
 
     def forward(self, batch_dict, **kwargs):
-        batch_size = batch_dict['batch_size']
         points = batch_dict['points'] # (batch_idx, x, y, z, i, e)
 
-        points_xyz = points[:, [1,2,3]].contiguous()
-        # points_coords = (points_xyz[:, [0,1]] - self.point_cloud_range[[0,1]]) / self.voxel_size[[0,1]]
-        points_coords_x = (points_xyz[:, 0] - self.point_cloud_range[0]) / self.voxel_x
-        points_coords_y = (points_xyz[:, 1] - self.point_cloud_range[1]) / self.voxel_y
-
-        points_coords_x = points_coords_x.floor()
-        points_coords_y = points_coords_y.floor()
-        points_coords = torch.stack([points_coords_x, points_coords_y], dim=-1)
+        points_coords = torch.floor((points[:, [1,2]] - self.point_cloud_range[[0,1]]) / self.voxel_size[[0,1]]).int()
+        mask = ((points_coords >= 0) & (points_coords < self.grid_size[[0,1]])).all(dim=1)
+        points = points[mask]
+        points_coords = points_coords[mask]
+        points_xyz = points[:, [1, 2, 3]].contiguous()
 
         merge_coords = points[:, 0].int() * self.scale_xy + \
                        points_coords[:, 0] * self.scale_y + \
