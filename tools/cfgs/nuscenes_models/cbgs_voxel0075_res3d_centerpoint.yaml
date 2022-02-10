@@ -37,9 +37,10 @@ DATA_CONFIG:
             - NAME: random_world_scaling
               WORLD_SCALE_RANGE: [0.9, 1.1]
             
-            - NAME: random_world_translation_v2
+            - NAME: random_world_translation
               NOISE_TRANSLATE_STD: 0.5
-              
+              ALONG_AXIS_LIST: ['x', 'y', 'z']
+
 
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range

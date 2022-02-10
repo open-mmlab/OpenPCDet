@@ -129,7 +129,7 @@ def random_translation_along_x(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    offset = np.random.uniform(offset_range[0], offset_range[1])
+    offset = np.random.normal(0, noise_translate_std[0], 1)
 
     points[:, 0] += offset
     gt_boxes[:, 0] += offset
@@ -148,7 +148,7 @@ def random_translation_along_y(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    offset = np.random.uniform(offset_range[0], offset_range[1])
+    offset = np.random.normal(0, noise_translate_std[0], 1)
 
     points[:, 1] += offset
     gt_boxes[:, 1] += offset
@@ -167,7 +167,7 @@ def random_translation_along_z(gt_boxes, points, offset_range):
         offset_range: [min max]]
     Returns:
     """
-    offset = np.random.uniform(offset_range[0], offset_range[1])
+    offset = np.random.normal(0, noise_translate_std[0], 1)
     
     points[:, 2] += offset
     gt_boxes[:, 2] += offset
