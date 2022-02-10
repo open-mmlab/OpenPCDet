@@ -116,6 +116,37 @@ class DataAugmentor(object):
         data_dict['points'] = points
         return data_dict
     
+    def random_world_translation_v2(self, data_dict=None, config=None):
+        """
+        Modified from CenterPoint (https://github.com/tianweiy/CenterPoint)
+        """
+        if data_dict is None:
+            return partial(self.random_world_translation_v2, config=config)
+        noise_translate_std = config['NOISE_TRANSLATE_STD']
+        if not isinstance(noise_translate_std, (list, tuple, np.ndarray)):
+            noise_translate_std = np.array(
+                [noise_translate_std, noise_translate_std, noise_translate_std]
+            )
+        else:
+            assert len(noise_translate_std) == 3
+        if all([e == 0 for e in noise_translate_std]):
+            return data_dict
+        gt_boxes = data_dict['gt_boxes']
+        points = data_dict['points']
+        noise_translate = np.array(
+            [
+                np.random.normal(0, noise_translate_std[0], 1),
+                np.random.normal(0, noise_translate_std[1], 1),
+                np.random.normal(0, noise_translate_std[0], 1),
+            ]
+        ).T
+
+        gt_boxes[:, :3] += noise_translate
+        points[:, :3] += noise_translate
+        data_dict['gt_boxes'] = gt_boxes
+        data_dict['points'] = points
+        return data_dict
+
     def random_local_translation(self, data_dict=None, config=None):
         """
         Please check the correctness of it before using.
