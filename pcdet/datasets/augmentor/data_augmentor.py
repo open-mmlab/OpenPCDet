@@ -99,23 +99,22 @@ class DataAugmentor(object):
         return data_dict
     
     def random_world_translation(self, data_dict=None, config=None):
-        """
-        Please check the correctness of it before using.
-        """
         if data_dict is None:
-            return partial(self.random_world_translation, config=config)
-        offset_range = config['WORLD_TRANSLATION_RANGE']
+            return partial(self.random_world_translation_v2, config=config)
+        noise_translate_std = config['NOISE_TRANSLATE_STD']
+        if noise_translate_std == 0:
+            return data_dict
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y', 'z']
             gt_boxes, points = getattr(augmentor_utils, 'random_translation_along_%s' % cur_axis)(
-                gt_boxes, points, offset_range,
+                gt_boxes, points, noise_translate_std,
             )
-        
+
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
-    
+
     def random_local_translation(self, data_dict=None, config=None):
         """
         Please check the correctness of it before using.
