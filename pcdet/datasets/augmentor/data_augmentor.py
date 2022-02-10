@@ -100,7 +100,7 @@ class DataAugmentor(object):
     
     def random_world_translation(self, data_dict=None, config=None):
         if data_dict is None:
-            return partial(self.random_world_translation_v2, config=config)
+            return partial(self.random_world_translation, config=config)
         noise_translate_std = config['NOISE_TRANSLATE_STD']
         if noise_translate_std == 0:
             return data_dict
