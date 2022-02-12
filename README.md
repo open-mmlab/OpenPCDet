@@ -22,6 +22,8 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 ## Changelog
 
+[2022-02-12] Added support for using docker. Please refer to the guidance in [./docker](./docker).
+
 [2022-02-07] Added support for Centerpoint models on Nuscenes Dataset.
 
 [2022-01-14] Added support for dynamic pillar voxelization, following the implementation proposed in [H^23D R-CNN](https://arxiv.org/abs/2107.14391) with unique operation and [`torch_scatter`](https://github.com/rusty1s/pytorch_scatter) package.
