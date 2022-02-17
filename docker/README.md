@@ -21,5 +21,5 @@ pip install *.whl
 ## Pull From Dockerhub
 Run the following script to pull the docker image:
 ```shell script
-docker pull djiajun1206/pcdet:pytorch.16
+docker pull djiajun1206/pcdet:pytorch1.6
 ```
