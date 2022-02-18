@@ -1,0 +1,110 @@
+DATASET: 'PandasetDataset'
+DATA_PATH: '../data/pandaset'
+
+POINT_CLOUD_RANGE: [-70, -40, -3, 70, 40, 1] # xmin, ymin, zmin, xmax, ymax, zmax
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+SEQUENCES: {
+    'train': ['014', '050', '079', '048', '093', '091', '063', '104', '100', '092', '012', '047', '018', '006', '099', '085', '035', '041', '052', '105', '030', '113', '002', '084', '028', '119', '044', '005', '102', '034', '077', '064', '067', '058', '019', '015', '037', '095', '120', '066', '023', '071', '117', '098', '139', '038', '116', '046', '088', '089', '040', '033', '016', '024', '122', '039', '158', '069', '124', '123', '106'], # ~60% of the sequences, randomly chosen
+    'val': ['045', '059', '055', '051', '020', '097', '073', '043', '003', '101', '027', '056', '011', '078', '080', '109', '042', '021', '094', '057'], # ~20% of the sequences, randomly chosen
+    'test': ['074', '004', '086', '062', '068', '008', '001', '110', '053', '115', '054', '065', '017', '103', '072', '013', '029', '090', '112', '149', '070', '032'] # ~20% of the sequences, randomly chosen
+}
+
+# Acquisition device to consider when loading the data
+# Pandaset contains data from:
+# - a pandar64 spinning lidar
+# - a pandarGT forward facing lidar
+# To use data from:
+# - the pandar64 lidar only (default), set LIDAR_DEVICE to 0,
+# - the pandarGT lidar onlu, set it to 1
+# - both devices, set it to -1
+LIDAR_DEVICE: 0
+
+
+INFO_PATH: {
+    'train': [pandaset_infos_train.pkl],
+    'test': [pandaset_infos_val.pkl],
+}
+
+TRAINING_CATEGORIES: {
+# This maps raw dataset categories with the corresponding categories used in training
+# This map can be incomplete. In case a category is not present, the category
+# for training is the same as the raw dataset category
+  'Car': 'Car',
+  'Pickup Truck': 'Car',
+  'Medium-sized Truck': 'Truck',
+  'Semi-truck': 'Truck',
+  'Towed Object': 'Other Vehicle',
+  'Motorcycle': 'Motorcycle',
+  'Other Vehicle - Construction Vehicle': 'Other Vehicle',
+  'Other Vehicle - Uncommon': 'Other Vehicle',
+  'Other Vehicle - Pedicab': 'Other Vehicle',
+  'Emergency Vehicle': 'Other Vehicle',
+  'Bus': 'Bus',
+  'Bicycle': 'Bicycle',
+  'Pedestrian': 'Pedestrian',
+  'Pedestrian with Object': 'Pedestrian',
+  'Animals - Other': 'Animal'
+}
+
+
+FOV_POINTS_ONLY: False
+
+
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+# gt sampling not working at the moment
+        - NAME: gt_sampling
+          USE_ROAD_PLANE: False
+          DB_INFO_PATH:
+              - pandaset_dbinfos_train.pkl
+          PREPARE: {
+             filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Bicycle:5'],
+             filter_by_difficulty: [-1],
+          }
+
+          SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Bicycle:15']
+          NUM_POINT_FEATURES: 4
+          DATABASE_WITH_FAKELIDAR: False
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+          LIMIT_WHOLE_SCENE: True
+
+        - NAME: random_world_flip
+          ALONG_AXIS_LIST: ['x', 'y']
+
+        - NAME: random_world_rotation
+          WORLD_ROT_ANGLE: [-3.14159265, 3.114159265]
+
+        - NAME: random_world_scaling
+          WORLD_SCALE_RANGE: [0.95, 1.05]
+
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'intensity'],
+    src_feature_list: ['x', 'y', 'z', 'intensity'],
+}
+
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
+
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: {
+        'train': True,
+        'test': False
+      }
+
+    - NAME: transform_points_to_voxels
+      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      MAX_POINTS_PER_VOXEL: 5
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 16000,
+        'test': 40000
+      }

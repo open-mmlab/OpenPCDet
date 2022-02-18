@@ -174,7 +174,7 @@ class PointNet2Backbone(nn.Module):
                 else:
                     last_num_points = self.num_points_each_layer[i - 1]
                     cur_xyz = l_xyz[-1][k * last_num_points: (k + 1) * last_num_points]
-                cur_pt_idxs = pointnet2_utils_stack.furthest_point_sample(
+                cur_pt_idxs = pointnet2_utils_stack.farthest_point_sample(
                     cur_xyz[None, :, :].contiguous(), self.num_points_each_layer[i]
                 ).long()[0]
                 if cur_xyz.shape[0] < self.num_points_each_layer[i]:

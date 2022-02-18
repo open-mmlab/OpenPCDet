@@ -1,0 +1,277 @@
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+
+
+MODEL:
+    NAME: PVRCNNPlusPlus
+
+    VFE:
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelResBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: CenterHead
+        CLASS_AGNOSTIC: False
+
+        CLASS_NAMES_EACH_HEAD: [
+            [ 'Vehicle', 'Pedestrian', 'Cyclist' ]
+        ]
+
+        SHARED_CONV_CHANNEL: 64
+        USE_BIAS_BEFORE_NORM: True
+        NUM_HM_CONV: 2
+        SEPARATE_HEAD_CFG:
+            HEAD_ORDER: [ 'center', 'center_z', 'dim', 'rot' ]
+            HEAD_DICT: {
+                'center': { 'out_channels': 2, 'num_conv': 2 },
+                'center_z': { 'out_channels': 1, 'num_conv': 2 },
+                'dim': { 'out_channels': 3, 'num_conv': 2 },
+                'rot': { 'out_channels': 2, 'num_conv': 2 },
+            }
+
+        TARGET_ASSIGNER_CONFIG:
+            FEATURE_MAP_STRIDE: 8
+            NUM_MAX_OBJS: 500
+            GAUSSIAN_OVERLAP: 0.1
+            MIN_RADIUS: 2
+
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 2.0,
+                'code_weights': [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+            }
+
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [ -75.2, -75.2, -2, 75.2, 75.2, 4 ]
+            MAX_OBJ_PER_SAMPLE: 500
+            NMS_CONFIG:
+                NMS_TYPE: nms_gpu
+                NMS_THRESH: 0.7
+                NMS_PRE_MAXSIZE: 4096
+                NMS_POST_MAXSIZE: 500
+
+    PFE:
+        NAME: VoxelSetAbstraction
+        POINT_SOURCE: raw_points
+        NUM_KEYPOINTS: 4096
+        NUM_OUTPUT_FEATURES: 90
+        SAMPLE_METHOD: SPC
+        SPC_SAMPLING:
+            NUM_SECTORS: 6
+            SAMPLE_RADIUS_WITH_ROI: 1.6
+
+        FEATURES_SOURCE: ['bev', 'x_conv3', 'x_conv4', 'raw_points']
+        SA_LAYER:
+            raw_points:
+                NAME: VectorPoolAggregationModuleMSG
+                NUM_GROUPS: 2
+                LOCAL_AGGREGATION_TYPE: local_interpolation
+                NUM_REDUCED_CHANNELS: 2
+                NUM_CHANNELS_OF_LOCAL_AGGREGATION: 32
+                MSG_POST_MLPS: [ 32 ]
+                FILTER_NEIGHBOR_WITH_ROI: True
+                RADIUS_OF_NEIGHBOR_WITH_ROI: 2.4
+
+                GROUP_CFG_0:
+                    NUM_LOCAL_VOXEL: [ 2, 2, 2 ]
+                    MAX_NEIGHBOR_DISTANCE: 0.2
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [ 32, 32 ]
+                GROUP_CFG_1:
+                    NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                    MAX_NEIGHBOR_DISTANCE: 0.4
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [ 32, 32 ]
+
+            x_conv3:
+                DOWNSAMPLE_FACTOR: 4
+                INPUT_CHANNELS: 64
+
+                NAME: VectorPoolAggregationModuleMSG
+                NUM_GROUPS: 2
+                LOCAL_AGGREGATION_TYPE: local_interpolation
+                NUM_REDUCED_CHANNELS: 32
+                NUM_CHANNELS_OF_LOCAL_AGGREGATION: 32
+                MSG_POST_MLPS: [128]
+                FILTER_NEIGHBOR_WITH_ROI: True
+                RADIUS_OF_NEIGHBOR_WITH_ROI: 4.0
+
+                GROUP_CFG_0:
+                    NUM_LOCAL_VOXEL: [3, 3, 3]
+                    MAX_NEIGHBOR_DISTANCE: 1.2
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [64, 64]
+                GROUP_CFG_1:
+                    NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                    MAX_NEIGHBOR_DISTANCE: 2.4
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [ 64, 64 ]
+
+            x_conv4:
+                DOWNSAMPLE_FACTOR: 8
+                INPUT_CHANNELS: 64
+
+                NAME: VectorPoolAggregationModuleMSG
+                NUM_GROUPS: 2
+                LOCAL_AGGREGATION_TYPE: local_interpolation
+                NUM_REDUCED_CHANNELS: 32
+                NUM_CHANNELS_OF_LOCAL_AGGREGATION: 32
+                MSG_POST_MLPS: [ 128 ]
+                FILTER_NEIGHBOR_WITH_ROI: True
+                RADIUS_OF_NEIGHBOR_WITH_ROI: 6.4
+
+                GROUP_CFG_0:
+                    NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                    MAX_NEIGHBOR_DISTANCE: 2.4
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [ 64, 64 ]
+                GROUP_CFG_1:
+                    NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                    MAX_NEIGHBOR_DISTANCE: 4.8
+                    NEIGHBOR_NSAMPLE: -1
+                    POST_MLPS: [ 64, 64 ]
+
+
+    POINT_HEAD:
+        NAME: PointHeadSimple
+        CLS_FC: [256, 256]
+        CLASS_AGNOSTIC: True
+        USE_POINT_FEATURES_BEFORE_FUSION: True
+        TARGET_CONFIG:
+            GT_EXTRA_WIDTH: [0.2, 0.2, 0.2]
+        LOSS_CONFIG:
+            LOSS_REG: smooth-l1
+            LOSS_WEIGHTS: {
+                'point_cls_weight': 1.0,
+            }
+
+    ROI_HEAD:
+        NAME: PVRCNNHead
+        CLASS_AGNOSTIC: True
+
+        SHARED_FC: [256, 256]
+        CLS_FC: [256, 256]
+        REG_FC: [256, 256]
+        DP_RATIO: 0.3
+
+        NMS_CONFIG:
+            TRAIN:
+                NMS_TYPE: nms_gpu
+                MULTI_CLASSES_NMS: False
+                NMS_PRE_MAXSIZE: 9000
+                NMS_POST_MAXSIZE: 512
+                NMS_THRESH: 0.8
+            TEST:
+                NMS_TYPE: nms_gpu
+                MULTI_CLASSES_NMS: False
+                NMS_PRE_MAXSIZE: 1024
+                NMS_POST_MAXSIZE: 100
+                NMS_THRESH: 0.7
+                SCORE_THRESH: 0.1
+
+#                NMS_PRE_MAXSIZE: 4096
+#                NMS_POST_MAXSIZE: 500
+#                NMS_THRESH: 0.85
+
+
+        ROI_GRID_POOL:
+            GRID_SIZE: 6
+
+            NAME: VectorPoolAggregationModuleMSG
+            NUM_GROUPS: 2
+            LOCAL_AGGREGATION_TYPE: voxel_random_choice
+            NUM_REDUCED_CHANNELS: 30
+            NUM_CHANNELS_OF_LOCAL_AGGREGATION: 32
+            MSG_POST_MLPS: [ 128 ]
+
+            GROUP_CFG_0:
+                NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                MAX_NEIGHBOR_DISTANCE: 0.8
+                NEIGHBOR_NSAMPLE: 32
+                POST_MLPS: [ 64, 64 ]
+            GROUP_CFG_1:
+                NUM_LOCAL_VOXEL: [ 3, 3, 3 ]
+                MAX_NEIGHBOR_DISTANCE: 1.6
+                NEIGHBOR_NSAMPLE: 32
+                POST_MLPS: [ 64, 64 ]
+
+        TARGET_CONFIG:
+            BOX_CODER: ResidualCoder
+            ROI_PER_IMAGE: 128
+            FG_RATIO: 0.5
+
+            SAMPLE_ROI_BY_EACH_CLASS: True
+            CLS_SCORE_TYPE: roi_iou
+
+            CLS_FG_THRESH: 0.75
+            CLS_BG_THRESH: 0.25
+            CLS_BG_THRESH_LO: 0.1
+            HARD_BG_RATIO: 0.8
+
+            REG_FG_THRESH: 0.55
+
+        LOSS_CONFIG:
+            CLS_LOSS: BinaryCrossEntropy
+            REG_LOSS: smooth-l1
+            CORNER_LOSS_REGULARIZATION: True
+            LOSS_WEIGHTS: {
+                'rcnn_cls_weight': 1.0,
+                'rcnn_reg_weight': 1.0,
+                'rcnn_corner_weight': 1.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+
+        EVAL_METRIC: waymo
+
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: False
+            NMS_TYPE: nms_gpu
+            NMS_THRESH: 0.7
+            NMS_PRE_MAXSIZE: 4096
+            NMS_POST_MAXSIZE: 500
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 2
+    NUM_EPOCHS: 30
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.01
+    WEIGHT_DECAY: 0.001
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10
