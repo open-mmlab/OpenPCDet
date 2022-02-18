@@ -33,7 +33,7 @@ class Detector3DTemplate(nn.Module):
                 'PreProcess' : [],}
         self.update_time_dict(dict())
 
-        self._eval_dict = {}
+        self._eval_dict = {'gt_counts':[]}
         if self.model_cfg.get('DEADLINE_SEC', None) is not None:
             self._default_deadline_sec = float(model_cfg.DEADLINE_SEC)
             self._eval_dict['deadline_sec'] = self._default_deadline_sec
@@ -221,6 +221,9 @@ class Detector3DTemplate(nn.Module):
 
         tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
         self._eval_dict['deadline_diffs'].append(tdiff)
+
+        if 'gt_counts' in data_dict:
+            self._eval_dict['gt_counts'].append(data_dict['gt_counts'].cpu()[0].tolist())
 
         dl_missed = (True if tdiff > 0 else False)
 
@@ -535,6 +538,7 @@ class Detector3DTemplate(nn.Module):
             ]
             new_events[0].record()
             self._cuda_event_dict[event_name_str].append(new_events)
+            return new_events
         else:
             self._time_dict[event_name_str].append(time.time())
 

@@ -97,7 +97,8 @@ proto_eval_dict = {
     'slice_size_perc': 100,  # VAL
     'min_slice_overlap_perc': 2,  # VAL
     'num_slices': 1,  # VAL
-    'rpn_stg_exec_seqs': [],  # 2D_LIST
+    'rpn_stg_exec_seqs': [],
+    'gt_counts': [],  # 2D_LIST
     'deadline_sec': 0.1,  # VAL
     'deadlines_missed': 0,  # VAL
     'deadlines_diffs': [],  # 1D_LIST
@@ -109,9 +110,10 @@ proto_eval_dict = {
 }
 
 # method number to method name
+# NANP: No aging no prediction
 method_num_to_str = ['Baseline-1', 'Baseline-2', 'Baseline-3',
-                     'Imprecise-no-slice', 'Imprecise-slice']
-
+                     'Imprecise-A-P', 'Imprecise-NA-NP',
+                     'Imprecise-A-NP', 'Imprecise-NA-P']
 
 def merge_eval_dicts(eval_dicts):
     merged_ed = copy.deepcopy(eval_dicts[0])
@@ -129,7 +131,6 @@ def merge_eval_dicts(eval_dicts):
                 [e['AP'][cls][eval_type] for e in eval_dicts]
 
     return merged_ed
-
 
 inp_dir = sys.argv[1]
 
@@ -217,7 +218,6 @@ for exp, evals in exps_dict.items():
             print('\tdeadline:', e['deadline_sec'], "\tmissed:", e['deadlines_missed'],
                   f"\tmAP, NDS:\t{mAP:.2f},\t{NDS:.2f}")
 
-
 merged_exps_dict = {}
 for k, v in exps_dict.items():
     merged_exps_dict[k] = merge_eval_dicts(v)
@@ -225,7 +225,6 @@ for k, v in exps_dict.items():
 # for plotting
 colors = ['green', 'red', 'blue']
 procs = []
-
 
 # compare deadlines misses
 def plot_func_dm(exps_dict):
@@ -409,6 +408,69 @@ def plot_avg_AP(merged_exps_dict):
 procs.append(Process(target=plot_avg_AP, \
                      args=(merged_exps_dict,)))
 procs[-1].start()
+
+#def plot_gt_miss(imp_merged_evals, method):
+#    if 'gt_counts' not in imp_merged_evals:
+#        print('Skipping head/miss analysis')
+#        return
+#
+#    #calculate misses due to skipping heads
+#    misses = []
+#    for exp_gt_counts, exp_seqs in zip(imp_merged_evals['gt_counts'], \
+#            imp_merged_evals['rpn_stg_exec_seqs']):
+#        misses.append([0] * len(exp_gt_counts[0]))
+#        for gt_count, seq in zip(exp_gt_counts, exp_seqs):
+#            for s in seq[1]:
+#                gt_count[s] = 0
+#            for i, g in enumerate(gt_count):
+#                misses[-1][i] += 1 if g else 0
+#    misses = np.transpose(misses)
+#    fig, ax = plt.subplots(1, 1, figsize=(12, 4), constrained_layout=True)
+#
+#    x = imp_merged_evals['deadline_msec']
+#    for i, y in enumerate(misses):
+#        l2d = ax.plot(x, y, label=f'head {i+1}')
+#        ax.scatter(x, y, color=l2d[0].get_c())
+#        ax.invert_xaxis()
+#    ax.legend(fontsize='medium')
+#    ax.set_ylabel('Misses', fontsize='large')
+#    ax.set_xlabel('Deadline (msec)', fontsize='large')
+#    ax.grid('True', ls='--')
+#
+#    fig.suptitle("Objects missed due to skipping heads", fontsize=16)
+#    plt.savefig(f"exp_plots/gtmiss_deadlines_{method}.jpg")
+#
+#procs.append(Process(target=plot_gt_miss, \
+#                     args=(merged_exps_dict['Imprecise'],'Imprecise',)))
+#procs[-1].start()
+#procs.append(Process(target=plot_gt_miss, \
+#                     args=(merged_exps_dict['Imprecise-NANP'],'Imprecise-NANP',)))
+#procs[-1].start()
+
+def plot_stage_and_head_usage(imp_merged_evals, method):
+    fig, axes = plt.subplots(2, 1, figsize=(12, 4), constrained_layout=True)
+    # axes[0] for num stages, axes[1] for heads, bar graph all, x axis deadlines
+    #calculate misses due to skipping heads
+    for exp_seqs in imp_merged_evals['rpn_stg_exec_seqs']:
+        x = imp_merged_evals['deadline_msec']
+    for i, y in enumerate(misses):
+        l2d = ax.plot(x, y, label=f'head {i+1}')
+        ax.scatter(x, y, color=l2d[0].get_c())
+        ax.invert_xaxis()
+    ax.legend(fontsize='medium')
+    ax.set_ylabel('Misses', fontsize='large')
+    ax.set_xlabel('Deadline (msec)', fontsize='large')
+    ax.grid('True', ls='--')
+
+    fig.suptitle("Objects missed due to skipping heads", fontsize=16)
+    plt.savefig(f"exp_plots/gtmiss_deadlines_{method}.jpg")
+
+#procs.append(Process(target=plot_stage_and_head_usage, \
+#                     args=(merged_exps_dict['Imprecise'],'Imprecise',)))
+#procs[-1].start()
+#procs.append(Process(target=plot_stage_and_head_usage, \
+#                     args=(merged_exps_dict['Imprecise-NANP'],'Imprecise-NANP',)))
+#procs[-1].start()
 
 # compare mAP for all types
 fig, axs = plt.subplots(2, 1, figsize=(12, 8), constrained_layout=True)

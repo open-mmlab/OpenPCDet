@@ -64,28 +64,9 @@ elif [ $1 == 'methods' ]; then
 	mv -f eval_dict_* backup
 	OUT_DIR=exp_data_nsc
 	mkdir -p $OUT_DIR
-	for m in $(seq 5) # baseline 1 2 3 imp-nosclice imp-slice
-	do
-		#for s in $(seq 0.085 -0.005 0.045)
-		for s in 0.045
-		do
-			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json
-			if [ -f $OUT_FILE ]; then
-				printf "Skipping $OUT_FILE test.\n"
-			else
-				$CMD --set "MODEL.DEADLINE_SEC" $s "MODEL.METHOD" $m
-				# rename the output and move the corresponding directory
-				mv -f eval_dict_*.json $OUT_DIR/eval_dict_m"$m"_d"$s".json
-			fi
-		done
-	done
-elif [ $1 == 'methods2' ]; then
-	mv -f eval_dict_* backup
-	OUT_DIR=exp_data_nsc
-	mkdir -p $OUT_DIR
 	m=1
 	prfx="cbgs_pp_multihead_"
-	for model in "1br" "2br" "3br" "imprecise"
+	for model in "1br" "2br" "3br" "imprecise" "imprecise" "imprecise" "imprecise"
 	do
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
@@ -95,7 +76,7 @@ elif [ $1 == 'methods2' ]; then
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 		sed -i "$ARG" $CFG_FILE
-		for s in $(seq 0.140 -0.010 0.060)
+		for s in $(seq 0.140 -0.010 0.100)
 		do
 			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json
 			if [ -f $OUT_FILE ]; then
@@ -108,8 +89,6 @@ elif [ $1 == 'methods2' ]; then
 		done
 		m=$((m+1))
 	done
-elif [ $1 == 'single_slc' ]; then
-        $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" 5
-elif [ $1 == 'single_noslc' ]; then
-        $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" $2
+elif [ $1 == 'single' ]; then
+        $CMD --set "MODEL.DEADLINE_SEC" 0.100 "MODEL.METHOD" $2
 fi

@@ -212,14 +212,14 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
 
         #TODO, I took these from the anchor sizes in the configuration file
         # of multi head point pillars nuscenes. This process can be automated.
-        self.anchor_area_coeffs = [
-            [4.63 * 1.97],               # car
+        self.anchor_area_coeffs = torch.Tensor([
+            [4.63 * 1.97, 1.],           # car, none
             [6.93 * 2.51, 6.37  * 2.85], # truck, construction_vehicle
             [10.5 * 2.94, 12.29 * 2.90], # bus, trailer
-            [0.50 * 2.53],               # barrier
+            [0.50 * 2.53, 1.],           # barrier, none
             [2.11 * 0.77, 1.70 * 0.60],  # motocycle, bicycle
             [0.73 * 0.67, 0.41 * 0.41],  # pedestrian, traffic_cone
-        ]
+        ])
 
     def make_multihead(self, input_channels):
         self.rpn_head_alternatives = nn.ModuleList()
@@ -236,6 +236,7 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
                 head_label_indices = torch.from_numpy(np.array([
                     self.class_names.index(cur_name) + 1 for cur_name in rpn_head_cfg['HEAD_CLS_NAME']
                 ]))
+
                 rpn_head = SingleHead(
                     self.model_cfg, sum(input_channels[:(i+1)]),
                     len(rpn_head_cfg['HEAD_CLS_NAME']) if self.separate_multihead else self.num_class,
@@ -247,7 +248,8 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             # I hope this nested list will work fine
             self.rpn_head_alternatives.append(nn.ModuleList(rpn_heads))
         self.num_heads = len(self.rpn_head_alternatives[0])
-    
+
+        self.head_to_labels = [rh.head_label_indices.tolist() for rh in self.rpn_head_alternatives[0]]
         #self.cuda_streams = [ torch.cuda.Stream() for r in rpn_head_cfgs]
 
     def forward(self, data_dict):
