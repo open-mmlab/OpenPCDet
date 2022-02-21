@@ -283,10 +283,10 @@ class PointPillarImprecise(Detector3DTemplate):
                 sample_data['ego_pose_token']))
 
         for pb in pred_boxes:
-            # This Quaternion needs to be fixed, how to use atan2?
             # The order of whl might be wrong (pb[3:6]), but its fine for now
             box = Box(pb[:3].numpy(), pb[3:6].numpy(),
-                    Quaternion([0,0,0,0]), velocity=np.append(pb[7:].numpy(), .0))
+                    Quaternion([np.cos(pb[6]/2.), 0., 0., np.sin(pb[6]/2.)]),
+                    velocity=np.append(pb[7:].numpy(), .0))
             #print('previous sensor coordinate:', box.center)
             # Move from sensor coordinate to global
             box.rotate(Quaternion(cs_records[0]['rotation']))
