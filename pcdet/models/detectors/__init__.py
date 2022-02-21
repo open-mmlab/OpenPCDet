@@ -3,7 +3,7 @@ from .PartA2_net import PartA2Net
 from .point_rcnn import PointRCNN
 from .pointpillar import PointPillar
 from .pointpillar_imprecise import PointPillarImprecise
-from .pointpillar_slice import PointPillarSlice
+#from .pointpillar_slice import PointPillarSlice
 from .pv_rcnn import PVRCNN
 from .second_net import SECONDNet
 from .second_net_iou import SECONDNetIoU

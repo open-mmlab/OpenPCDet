@@ -8,6 +8,10 @@ import copy
 import json
 import numpy as np
 
+from nuscenes.nuscenes import NuScenes
+from nuscenes.utils.data_classes import Box
+from pyquaternion import Quaternion
+
 class PointPillarImprecise(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
@@ -27,6 +31,8 @@ class PointPillarImprecise(Detector3DTemplate):
         self.IMPRECISE_NA_NP = 5
         self.IMPRECISE_A_NP  = 6
         self.IMPRECISE_NA_P  = 7
+        self.IMPRECISE_PTEST  = 8
+        self.alternator = 5
 
         self._default_method = int(model_cfg.METHOD)
         print('Default method is:', self._default_method)
@@ -84,35 +90,30 @@ class PointPillarImprecise(Detector3DTemplate):
                     [.3] * 6,
                     [.4] * 6,
             ]
-            self.cur_scene_str = ''
+            self.cur_scene_token = ''
             #self._eval_dict['gt_counts'] = []
 
         #print('Model:')
         #print(self)
 
-        self.latest_timestamp = None
+        self.latest_token = None
         self.last_skipped_heads= []
         self.det_hist_queue = [] # list of (timestamp, last_skipped_heads, det_dicts)
         self.max_queue_size = 5
         self.dets_to_migrate = []
 
-        # from ego pose json file, create ts_to_egopose dictionary
-        self.ts_to_egopose={}
-        print('Reading timestamp to egopose dictionary')
-        fname = f"ts_to_egopose.json"
-        try:
-            with open(fname, 'r') as handle:
-                self.ts_to_egopose = json.load(handle)
-        except FileNotFoundError:
-            print(f'Couldnt open file {fname}')
-
+        self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
+        self.nusc.list_scenes()
 
     def forward(self, data_dict):
         if not self.training:
+            self.latest_token = data_dict['metadata'][0]['token']
+            self.dets_to_migrate = []
+
             # det_dicts length is equal to batch size
             det_dicts, recall_dict = self.eval_forward(data_dict)
 
-            self.det_hist_queue.append((self.latest_timestamp, \
+            self.det_hist_queue.append((self.latest_token, \
                     self.last_skipped_heads.copy(), det_dicts))
 
             if len(self.det_hist_queue) > self.max_queue_size:
@@ -123,7 +124,6 @@ class PointPillarImprecise(Detector3DTemplate):
                     for k in dd.keys():
                         dd[k] = torch.cat([dd[k]] + [dtm[k] \
                                 for dtm in self.dets_to_migrate])
-                self.dets_to_migrate = []
 
             return det_dicts, recall_dict
         else:
@@ -241,6 +241,8 @@ class PointPillarImprecise(Detector3DTemplate):
         if self._calibrating_now:
             selected_cfg = self._cur_calib_tuple
             #prios = calib_prios
+        elif data_dict['method'] == self.IMPRECISE_PTEST:
+            selected_cfg = (3, 1)
         else:
             # Traverse the table and find the config which will meet the
             # deadline and would give the highest NDS
@@ -269,14 +271,85 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict['num_stgs_to_run'] = selected_cfg[0]
         return data_dict
 
+    def predict_boxes(self, prev_token, cur_token, pred_boxes):
+        pose_records, cs_records = [], []
+        for tkn in [prev_token, cur_token]:
+            sample = self.nusc.get('sample', tkn)
+            sample_data = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+
+            cs_records.append(self.nusc.get('calibrated_sensor',
+                    sample_data['calibrated_sensor_token']))
+            pose_records.append(self.nusc.get('ego_pose',
+                sample_data['ego_pose_token']))
+
+        for pb in pred_boxes:
+            # This Quaternion needs to be fixed, how to use atan2?
+            # The order of whl might be wrong (pb[3:6]), but its fine for now
+            box = Box(pb[:3].numpy(), pb[3:6].numpy(),
+                    Quaternion([0,0,0,0]), velocity=np.append(pb[7:].numpy(), .0))
+            #print('previous sensor coordinate:', box.center)
+            # Move from sensor coordinate to global
+            box.rotate(Quaternion(cs_records[0]['rotation']))
+            box.translate(np.array(cs_records[0]['translation']))
+            box.rotate(Quaternion(pose_records[0]['rotation']))
+            box.translate(np.array(pose_records[0]['translation']))
+            #print('global coordinate:', box.center)
+            #t2 = np.array(pose_records[1]['translation'])
+            #t1 = np.array(pose_records[0]['translation'])
+            #print('car position difference:', t2-t1)
+            #box.translate(t1-t2)
+            #box.center[0] += box.velocity[0] * 0.5
+            #box.center[1] += box.velocity[1] * 0.5
+            # Move to predicted sensor coordinate
+            box.translate(-np.array(pose_records[1]['translation']))
+            box.rotate(Quaternion(pose_records[1]['rotation']).inverse)
+            box.translate(-np.array(cs_records[1]['translation']))
+            box.rotate(Quaternion(cs_records[1]['rotation']).inverse)
+            #print('predicted sensor coordinate:', box.center)
+
+            pb[:3] = torch.from_numpy(box.center)
+            #TODO use velocity correctly to make a better calculation
+            # Maybe it is correct?
+
+        return pred_boxes
+
+    def make_predictions(self):
+        for h in self.last_skipped_heads:
+            for token, hs, det_dicts in reversed(self.det_hist_queue):
+                if h not in hs:
+                    # get the corresponding detections if they exist
+                    skipped_labels = self.dense_head.head_to_labels[h]
+                    for dd in det_dicts:
+                        prev_det_labels = dd['pred_labels'].cpu().tolist()
+                        prev_det_scores = dd['pred_scores'].cpu().tolist()
+                        indexes_to_migrate = []
+                        i = 0
+                        for lbl, score in zip(prev_det_labels, prev_det_scores):
+                            if score >= 0.2 and lbl in skipped_labels:  # migrate confident ones
+                                indexes_to_migrate.append(i)
+                            i += 1
+
+                        if indexes_to_migrate:
+                            pred_boxes = dd['pred_boxes'][indexes_to_migrate].cpu()
+                            pred_boxes = self.predict_boxes(token, self.latest_token,
+                                    pred_boxes)
+                            self.dets_to_migrate.append({
+                                'pred_boxes': pred_boxes.cuda(),
+                                'pred_scores': dd['pred_scores'][indexes_to_migrate],
+                                'pred_labels': dd['pred_labels'][indexes_to_migrate],
+                            })
+
+                            #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
+                            #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
+                    break
+        return
+
+
     def prioritize_heads(self, data_dict):
-        ##n015-2018-07-24-10-42-41+0800__LIDAR_TOP__1532400184198068.pcd
-        frame_id = data_dict['frame_id'][0].split('_')
-        self.latest_timestamp = int(frame_id[5].split('.')[0])
-        scene_str = frame_id[0]
-        if scene_str != self.cur_scene_str:
+        scene_token = self.nusc.get('sample', self.latest_token)['scene_token']
+        if scene_token != self.cur_scene_token:
             self.det_hist_queue = [] # reset queue
-            self.cur_scene_str = scene_str
+            self.cur_scene_token = scene_token
 
         selected_cfg = data_dict['sh_config']
 
@@ -347,82 +420,28 @@ class PointPillarImprecise(Detector3DTemplate):
                 prio_scores[i] *= pb
 
         prio_scores = (cutoff_scores * 50.0) + prio_scores
-        #print('prio_boost', prio_boost)
-        #print('prio_scores', prio_scores)
         # this operation boosts the priority of the classes that definetely
         # has some corresponding objects
         prios = prio_scores.argsort(descending=True)
-        #print('prios', prios)
-        #print('gtc  ', data_dict['gt_counts'].argsort(descending=True))
 
         data_dict['heads_to_run'] = prios[:selected_cfg[1]]
-
         self.last_skipped_heads = prios[selected_cfg[1]:].tolist()
-        skipped_labels=[]
-        for h in self.last_skipped_heads:
-            skipped_labels.extend(self.dense_head.head_to_labels[h])
 
-        #print('Skipped labels:', skipped_labels)
+        if data_dict['method'] == self.IMPRECISE_PTEST:
+            # Alternate between car and pedestrian
+            if self.alternator == 5:
+                self.alternator = 0
+                self.last_skipped_heads = [1,2,3,4,5]
+            else:
+                self.alternator = 5
+                self.last_skipped_heads = [0,1,2,3,4]
+            data_dict['heads_to_run'] = torch.tensor([self.alternator], dtype=torch.int)
+
         # migrate detections from previous frame if possible
-
         if data_dict['method'] == self.IMPRECISE_A_P or \
-                data_dict['method'] == self.IMPRECISE_NA_P:
-            for h in self.last_skipped_heads:
-                for ts, hs, det_dicts in reversed(self.det_hist_queue):
-                    if h not in hs:
-                        # get the corresponding detections if they exist
-                        skipped_labels = self.dense_head.head_to_labels[h]
-                        for dd in det_dicts:
-                            prev_det_labels = dd['pred_labels'].cpu().tolist()
-                            prev_det_scores = dd['pred_scores'].cpu().tolist()
-                            indexes_to_migrate = []
-                            i = 0
-                            for lbl, score in zip(prev_det_labels, prev_det_scores):
-                                if score >= 0.3 and lbl in skipped_labels:  # migrate confident ones
-                                    indexes_to_migrate.append(i)
-                                i += 1
-
-                            if indexes_to_migrate:
-
-                                # We need the velocity of the car to calculate the global
-                                # speeds of the detected objects, IF THEY ARE NOT GLOBAL
-                                past_egopose = self.ts_to_egopose[str(ts)]
-                                cur_egopose = self.ts_to_egopose[str(self.latest_timestamp)]
-                                tdiff = (self.latest_timestamp - ts) / 1000000.0 # convert it to second
-                                #egov_x_vel = (cur_egopose[0] - past_egopose[0]) / tdiff
-                                #egov_y_vel = (cur_egopose[1] - past_egopose[1]) / tdiff
-
-                                #print('tdiff:', tdiff)
-                                #print('Ego vehicle velocity:', egov_x_vel, egov_y_vel)
-
-                                pred_boxes = dd['pred_boxes'][indexes_to_migrate]
-                                #print('pred_boxes size', pred_boxes.size())
-                                # 0:x 1:y z dx dy dz ori 7:velx 8:vely
-                                # I am assuming the network output velocity as meters/second
-                                world_x = pred_boxes[:, 0] + past_egopose[0]
-                                #world_x += (egov_x_vel + pred_boxes[:, 7]) * tdiff
-                                world_x += pred_boxes[:, 7] * tdiff
-                                pred_boxes[:, 0] = world_x - cur_egopose[0]
-
-                                world_y = pred_boxes[:, 1] + past_egopose[1]
-                                #world_y += (egov_y_vel + pred_boxes[:, 8]) * tdiff
-                                world_y += pred_boxes[:, 8] * tdiff
-                                pred_boxes[:, 1] = world_y - cur_egopose[1]
-
-                                self.dets_to_migrate.append({
-                                    'pred_boxes': pred_boxes,
-                                    'pred_scores': dd['pred_scores'][indexes_to_migrate],
-                                    'pred_labels': dd['pred_labels'][indexes_to_migrate],
-                                })
-
-                                #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
-                                #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
-                        break
-
-        #print('num_stages:', num_stages, 
-        #        'heads_to_run:', data_dict['heads_to_run'],
-        #        'gt:', data_dict['gt_counts'][0].cpu())
-
+                data_dict['method'] == self.IMPRECISE_NA_P or \
+                data_dict['method'] == self.IMPRECISE_PTEST:
+            self.make_predictions()
         new_cls_preds = []
         for h in data_dict['heads_to_run']:
             new_cls_preds.append(cls_scores[h])
@@ -435,6 +454,9 @@ class PointPillarImprecise(Detector3DTemplate):
 
     def calibrate(self):
         super().calibrate()
+
+        if self._default_method == self.IMPRECISE_PTEST:
+            return
         
         fname = f"calib_dict_{self.dataset.dataset_cfg.DATASET}" \
                 f"_m{self._default_method}.json"
@@ -484,7 +506,6 @@ class PointPillarImprecise(Detector3DTemplate):
         for i in range(1, self._num_stages+1):
             for j in range(1, self.dense_head.num_heads+1):
                 self._calib_test_cases.append((i,j))
-
 
         gc.disable()
 

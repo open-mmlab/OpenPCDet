@@ -9,6 +9,12 @@ import gc
 from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
+visualize=False
+if visualize:
+    import open3d
+    from visual_utils import open3d_vis_utils as V
+    OPEN3D_FLAG = True
+
 
 def statistics_info(cfg, ret_dict, metric, disp_dict):
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
@@ -33,6 +39,7 @@ def dataset_eval_from_file(saved_dets, dataset, cfg, logger, result_dir):
     print(result_str)
 
 def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None, saved_dets=None):
+    global visualize
     result_dir.mkdir(parents=True, exist_ok=True)
 
     final_output_dir = result_dir / 'final_result' / 'data'
@@ -80,6 +87,14 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i in range(len(dataset)):
         with torch.no_grad():
             batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
+
+        if visualize:
+            #print('labels:', pred_dicts[0]['pred_labels'])
+            #print('boxes:', pred_dicts[0]['pred_boxes'])
+            V.draw_scenes(
+                points=batch_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+            )
 
         disp_dict = {}
         statistics_info(cfg, ret_dict, metric, disp_dict)
