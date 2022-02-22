@@ -216,7 +216,7 @@ class Detector3DTemplate(nn.Module):
         data_dict.update(extra_data)  # deadline, method, etc.
         self.measure_time_end('PreProcess')
         pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        torch.cuda.synchronize()
+        #torch.cuda.synchronize()
         finish_time = time.time()
         self.measure_time_end('End-to-end')
         torch.cuda.nvtx.range_pop()
@@ -247,7 +247,7 @@ class Detector3DTemplate(nn.Module):
 
                 src_box_preds = data_dict['batch_box_preds'][batch_mask]
 
-                recall_dict = self.generate_recall_record(box_preds=pred_dicts[index]['pred_boxes'] \
+                recall_dict = self.generate_recall_record(box_preds=pred_dicts[index]['pred_boxes'].cuda() \
                     if 'rois' not in data_dict else src_box_preds,
                     recall_dict=recall_dict, batch_index=index, data_dict=data_dict,
                     thresh_list=self.model_cfg.POST_PROCESSING.RECALL_THRESH_LIST

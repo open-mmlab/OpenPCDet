@@ -68,6 +68,8 @@ class PointPillarImprecise(Detector3DTemplate):
                 'RPN-stage-1': [],
                 #'Forward-cls': [],
                 'Sched': [],
+                'Predict': [],
+                'Quaternion': [],
                 'RPN-stage-2': [],
                 'RPN-stage-3': [],
                 'RPN-finalize': [],
@@ -112,6 +114,10 @@ class PointPillarImprecise(Detector3DTemplate):
 
             # det_dicts length is equal to batch size
             det_dicts, recall_dict = self.eval_forward(data_dict)
+
+            for dd in det_dicts:
+                for k,v in dd.items():
+                    dd[k] = v.cpu()
 
             self.det_hist_queue.append((self.latest_token, \
                     self.last_skipped_heads.copy(), det_dicts))
@@ -282,6 +288,7 @@ class PointPillarImprecise(Detector3DTemplate):
             pose_records.append(self.nusc.get('ego_pose',
                 sample_data['ego_pose_token']))
 
+        self.measure_time_start('Quaternion', False)
         for pb in pred_boxes:
             # The order of whl might be wrong (pb[3:6]), but its fine for now
             box = Box(pb[:3].numpy(), pb[3:6].numpy(),
@@ -293,13 +300,6 @@ class PointPillarImprecise(Detector3DTemplate):
             box.translate(np.array(cs_records[0]['translation']))
             box.rotate(Quaternion(pose_records[0]['rotation']))
             box.translate(np.array(pose_records[0]['translation']))
-            #print('global coordinate:', box.center)
-            #t2 = np.array(pose_records[1]['translation'])
-            #t1 = np.array(pose_records[0]['translation'])
-            #print('car position difference:', t2-t1)
-            #box.translate(t1-t2)
-            #box.center[0] += box.velocity[0] * 0.5
-            #box.center[1] += box.velocity[1] * 0.5
             # Move to predicted sensor coordinate
             box.translate(-np.array(pose_records[1]['translation']))
             box.rotate(Quaternion(pose_records[1]['rotation']).inverse)
@@ -309,7 +309,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
             pb[:3] = torch.from_numpy(box.center)
             #TODO use velocity correctly to make a better calculation
-            # Maybe it is correct?
+        self.measure_time_end('Quaternion', False)
 
         return pred_boxes
 
@@ -320,21 +320,22 @@ class PointPillarImprecise(Detector3DTemplate):
                     # get the corresponding detections if they exist
                     skipped_labels = self.dense_head.head_to_labels[h]
                     for dd in det_dicts:
-                        prev_det_labels = dd['pred_labels'].cpu().tolist()
-                        prev_det_scores = dd['pred_scores'].cpu().tolist()
+                        prev_det_labels = dd['pred_labels'].tolist()
+                        prev_det_scores = dd['pred_scores'].tolist()
                         indexes_to_migrate = []
                         i = 0
                         for lbl, score in zip(prev_det_labels, prev_det_scores):
-                            if score >= 0.2 and lbl in skipped_labels:  # migrate confident ones
+                            # migrate confident ones
+                            if score >= 0.3 and lbl in skipped_labels:
                                 indexes_to_migrate.append(i)
                             i += 1
 
                         if indexes_to_migrate:
-                            pred_boxes = dd['pred_boxes'][indexes_to_migrate].cpu()
+                            pred_boxes = dd['pred_boxes'][indexes_to_migrate]
                             pred_boxes = self.predict_boxes(token, self.latest_token,
                                     pred_boxes)
                             self.dets_to_migrate.append({
-                                'pred_boxes': pred_boxes.cuda(),
+                                'pred_boxes': pred_boxes,
                                 'pred_scores': dd['pred_scores'][indexes_to_migrate],
                                 'pred_labels': dd['pred_labels'][indexes_to_migrate],
                             })
@@ -342,7 +343,6 @@ class PointPillarImprecise(Detector3DTemplate):
                             #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
                             #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
                     break
-        return
 
 
     def prioritize_heads(self, data_dict):
@@ -441,7 +441,9 @@ class PointPillarImprecise(Detector3DTemplate):
         if data_dict['method'] == self.IMPRECISE_A_P or \
                 data_dict['method'] == self.IMPRECISE_NA_P or \
                 data_dict['method'] == self.IMPRECISE_PTEST:
+            self.measure_time_start('Predict', False)
             self.make_predictions()
+            self.measure_time_end('Predict', False)
         new_cls_preds = []
         for h in data_dict['heads_to_run']:
             new_cls_preds.append(cls_scores[h])
@@ -524,7 +526,6 @@ class PointPillarImprecise(Detector3DTemplate):
                 with torch.no_grad():
                     batch_dict, pred_dicts, ret_dict = self.load_and_infer(i,
                             {'method': self._default_method})
-                #if i not in sample_indexes:
                 #    pred_dicts = [ self.get_empty_det_dict() for p in pred_dicts ]
                 annos = self.dataset.generate_prediction_dicts(
                     batch_dict, pred_dicts, self.dataset.class_names,
@@ -544,7 +545,7 @@ class PointPillarImprecise(Detector3DTemplate):
             result_str, result_dict = self.dataset.evaluation(
                 det_annos, self.dataset.class_names,
                 eval_metric=self.model_cfg.POST_PROCESSING.EVAL_METRIC,
-                output_path='./temp_results'
+                output_path='./temp_results', nusc=self.nusc
             )
             calib_dict['eval'][str(cur_calib_conf)]  = result_dict # mAP or NDS will be enough
             gc.collect()

@@ -208,7 +208,10 @@ class NuScenesDataset(DatasetTemplate):
         import json
         from nuscenes.nuscenes import NuScenes
         from . import nuscenes_utils
-        nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
+        if 'nusc' in kwargs:
+            nusc = kwargs['nusc']
+        else:
+            nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
         nusc_annos = nuscenes_utils.transform_det_annos_to_nusc_annos(det_annos, nusc)
         nusc_annos['meta'] = {
             'use_camera': False,
@@ -331,7 +334,66 @@ def create_nuscenes_info(version, data_path, save_path, max_sweeps=10):
     train_scenes = list(filter(lambda x: x in available_scene_names, train_scenes))
     val_scenes = list(filter(lambda x: x in available_scene_names, val_scenes))
     train_scenes = set([available_scenes[available_scene_names.index(s)]['token'] for s in train_scenes])
+
+#    # PLAY
+#    val_scenes_play = [available_scenes[available_scene_names.index(s)] for s in val_scenes]
+#    print('\nScene info:')
+#    scene_to_cato = {}
+#    for vs in val_scenes_play:
+#        print(vs['name'], vs['description'])
+#        catos = []
+#        sample_token = vs['first_sample_token']
+#        while sample_token != vs['last_sample_token']:
+#            sample = nusc.get('sample', sample_token)
+#            anno_tokens = sample['anns']
+#            for at in anno_tokens:
+#                label = nusc.get('sample_annotation', at)['category_name']
+#                catos.append(label)
+#            sample_token = sample['next']
+#
+#        catos_dict = {c : 0 for c in set(catos)}
+#        for c in catos:
+#            catos_dict[c] += 1
+#        scene_to_cato[vs['name']] = catos_dict
+#        for k,v in catos_dict.items():
+#            print(k, v)
+#        print()
+#
+#    all_catos = set()
+#    for d in scene_to_cato.values():
+#        all_catos.update(d.keys())
+#    print('All categories:', all_catos)
+#
+#    all_scenes = set([s for s in scene_to_cato.keys()])
+#
+#    while all_scenes:
+#        catos_so_far = set()
+#        selected_scenes = []
+#        for s, d in scene_to_cato.items():
+#            if s in all_scenes:
+#                cts = set(d.keys())
+#                if not catos_so_far.issuperset(cts):
+#                    selected_scenes.append(s)
+#                    catos_so_far = catos_so_far.union(cts)
+#                if catos_so_far == all_catos:
+#                    break
+#        
+#        print('\n\nSelected', len(selected_scenes),'scenes:', selected_scenes)
+#        # merge
+#        merged_dict = {c:0 for c in catos_so_far}
+#        for s in selected_scenes:
+#            for cato, count in scene_to_cato[s].items():
+#                merged_dict[cato] += count
+#
+#        merged_dict = dict(sorted(merged_dict.items()))
+#        for k,v in merged_dict.items():
+#            print(k, v)
+#
+#        all_scenes.difference_update(selected_scenes)
+#    # PLAY
+
     val_scenes = set([available_scenes[available_scene_names.index(s)]['token'] for s in val_scenes])
+
 
     print('%s: train scene(%d), val scene(%d)' % (version, len(train_scenes), len(val_scenes)))
 
