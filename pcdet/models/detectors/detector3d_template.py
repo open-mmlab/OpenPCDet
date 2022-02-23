@@ -216,7 +216,7 @@ class Detector3DTemplate(nn.Module):
         data_dict.update(extra_data)  # deadline, method, etc.
         self.measure_time_end('PreProcess')
         pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        #torch.cuda.synchronize()
+        torch.cuda.synchronize()
         finish_time = time.time()
         self.measure_time_end('End-to-end')
         torch.cuda.nvtx.range_pop()

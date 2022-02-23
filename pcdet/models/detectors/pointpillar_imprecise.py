@@ -8,9 +8,34 @@ import copy
 import json
 import numpy as np
 
-from nuscenes.nuscenes import NuScenes
+#from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import Box
 from pyquaternion import Quaternion
+
+from multiprocessing import Pool
+
+def calcCurPose(pb_np, cs_rotations, cs_translations, ep_rotations, ep_translations):
+    box = Box(pb_np[:3], pb_np[3:6],
+            Quaternion([np.cos(pb_np[6]/2.), 0., 0., np.sin(pb_np[6]/2.)]),
+            velocity=np.append(pb_np[7:], .0))
+    # Move from sensor coordinate to global
+    box.rotate(cs_rotations[0])
+    box.translate(cs_translations[0])
+    box.rotate(ep_rotations[0])
+    box.translate(ep_translations[0])
+    # Move to predicted sensor coordinate
+    box.translate(-ep_translations[1])
+    box.rotate(ep_rotations[1].inverse)
+    box.translate(-cs_translations[1])
+    box.rotate(cs_rotations[1].inverse)
+
+    pb_np[:3] = box.center
+    r, i, j, k = box.orientation.elements
+    pb_np[6] = 2. * math.atan2(math.sqrt(i*i+j*j+k*k),r)
+    pb_np[7:] = box.velocity[:2]
+
+    return pb_np
+
 
 class PointPillarImprecise(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -32,7 +57,7 @@ class PointPillarImprecise(Detector3DTemplate):
         self.IMPRECISE_A_NP  = 6
         self.IMPRECISE_NA_P  = 7
         self.IMPRECISE_PTEST  = 8
-        self.alternator = 5
+        self.ptest_alternator = 5
 
         self._default_method = int(model_cfg.METHOD)
         print('Default method is:', self._default_method)
@@ -69,7 +94,9 @@ class PointPillarImprecise(Detector3DTemplate):
                 #'Forward-cls': [],
                 'Sched': [],
                 'Predict': [],
-                'Quaternion': [],
+                #'Quaternion': [],
+                'PrePrediction': [],
+                'PostPrediction': [],
                 'RPN-stage-2': [],
                 'RPN-stage-3': [],
                 'RPN-finalize': [],
@@ -104,8 +131,12 @@ class PointPillarImprecise(Detector3DTemplate):
         self.max_queue_size = 5
         self.dets_to_migrate = []
 
-        self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
-        self.nusc.list_scenes()
+        self.pred_box_pool = Pool(6)
+
+        with open('token_to_pos.json', 'r') as handle:
+            self.token_to_pos = json.load(handle)
+
+        #self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
 
     def forward(self, data_dict):
         if not self.training:
@@ -277,43 +308,34 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict['num_stgs_to_run'] = selected_cfg[0]
         return data_dict
 
+
     def predict_boxes(self, prev_token, cur_token, pred_boxes):
-        pose_records, cs_records = [], []
+        timestamps, cs_translations, cs_rotations, ep_translations, ep_rotations = \
+                [], [], [], [], []
         for tkn in [prev_token, cur_token]:
-            sample = self.nusc.get('sample', tkn)
-            sample_data = self.nusc.get('sample_data', sample['data']['LIDAR_TOP'])
+            pose = self.token_to_pos[tkn]
 
-            cs_records.append(self.nusc.get('calibrated_sensor',
-                    sample_data['calibrated_sensor_token']))
-            pose_records.append(self.nusc.get('ego_pose',
-                sample_data['ego_pose_token']))
+            timestamps.append(int(pose['timestamp']))
+            cs_translations.append(np.array(pose['cs_translation']))
+            cs_rotations.append(Quaternion(pose['cs_rotation']))
+            ep_translations.append(np.array(pose['ep_translation']))
+            ep_rotations.append(Quaternion(pose['ep_rotation']))
 
-        self.measure_time_start('Quaternion', False)
-        for pb in pred_boxes:
-            # The order of whl might be wrong (pb[3:6]), but its fine for now
-            box = Box(pb[:3].numpy(), pb[3:6].numpy(),
-                    Quaternion([np.cos(pb[6]/2.), 0., 0., np.sin(pb[6]/2.)]),
-                    velocity=np.append(pb[7:].numpy(), .0))
-            #print('previous sensor coordinate:', box.center)
-            # Move from sensor coordinate to global
-            box.rotate(Quaternion(cs_records[0]['rotation']))
-            box.translate(np.array(cs_records[0]['translation']))
-            box.rotate(Quaternion(pose_records[0]['rotation']))
-            box.translate(np.array(pose_records[0]['translation']))
-            # Move to predicted sensor coordinate
-            box.translate(-np.array(pose_records[1]['translation']))
-            box.rotate(Quaternion(pose_records[1]['rotation']).inverse)
-            box.translate(-np.array(cs_records[1]['translation']))
-            box.rotate(Quaternion(cs_records[1]['rotation']).inverse)
-            #print('predicted sensor coordinate:', box.center)
-
-            pb[:3] = torch.from_numpy(box.center)
-            #TODO use velocity correctly to make a better calculation
-        self.measure_time_end('Quaternion', False)
-
-        return pred_boxes
+        # Migrating a single box takes 1.44 ms
+        # Use multiprocessing to make it faster! IT WORKS!
+        async_results = []
+        for i in range(pred_boxes.size()[0]):
+            #pb_np = calcCurPose(pred_boxes[i].numpy(), cs_rotations, cs_translations, \
+            #        ep_rotations, ep_translations)
+            ar = self.pred_box_pool.apply_async(calcCurPose, (pred_boxes[i].numpy(), \
+                    cs_rotations, cs_translations, ep_rotations, ep_translations,))
+            async_results.append(ar)
+        return async_results
 
     def make_predictions(self):
+        # This part taskes less than a millisecond
+        self.measure_time_start('PrePrediction', False)
+        chosen_det_dicts, prev_tokens, indexes = [], [], []
         for h in self.last_skipped_heads:
             for token, hs, det_dicts in reversed(self.det_hist_queue):
                 if h not in hs:
@@ -331,22 +353,42 @@ class PointPillarImprecise(Detector3DTemplate):
                             i += 1
 
                         if indexes_to_migrate:
-                            pred_boxes = dd['pred_boxes'][indexes_to_migrate]
-                            pred_boxes = self.predict_boxes(token, self.latest_token,
-                                    pred_boxes)
-                            self.dets_to_migrate.append({
-                                'pred_boxes': pred_boxes,
-                                'pred_scores': dd['pred_scores'][indexes_to_migrate],
-                                'pred_labels': dd['pred_labels'][indexes_to_migrate],
-                            })
+                            chosen_det_dicts.append(dd)
+                            prev_tokens.append(token)
+                            indexes.append(indexes_to_migrate)
 
-                            #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
-                            #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
+                        #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
+                        #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
                     break
+        self.measure_time_end('PrePrediction', False)
+
+        # This is where the overhead is
+        self.measure_time_start('PostPrediction', False)
+        all_async_results = []
+        all_pred_boxes = []
+        for dd, token, indexes_to_migrate in zip(chosen_det_dicts, prev_tokens, indexes):
+            pred_boxes = dd['pred_boxes'][indexes_to_migrate]
+            all_pred_boxes.append(pred_boxes)
+            all_async_results.append(self.predict_boxes(token, self.latest_token, \
+                    pred_boxes))
+
+        for pred_boxes, async_results in zip(all_pred_boxes, all_async_results):
+            for i, ar in enumerate(async_results):
+                pred_boxes[i] = torch.from_numpy(ar.get()) # works?
+
+        for dd, pred_boxes, indexes_to_migrate in zip(chosen_det_dicts, \
+                all_pred_boxes, indexes):
+            self.dets_to_migrate.append({
+                'pred_boxes': pred_boxes,
+                'pred_scores': dd['pred_scores'][indexes_to_migrate],
+                'pred_labels': dd['pred_labels'][indexes_to_migrate],
+            })
+        self.measure_time_end('PostPrediction', False)
 
 
     def prioritize_heads(self, data_dict):
-        scene_token = self.nusc.get('sample', self.latest_token)['scene_token']
+        #scene_token = self.nusc.get('sample', self.latest_token)['scene_token']
+        scene_token = self.token_to_pos[self.latest_token]['scene']
         if scene_token != self.cur_scene_token:
             self.det_hist_queue = [] # reset queue
             self.cur_scene_token = scene_token
@@ -429,13 +471,14 @@ class PointPillarImprecise(Detector3DTemplate):
 
         if data_dict['method'] == self.IMPRECISE_PTEST:
             # Alternate between car and pedestrian
-            if self.alternator == 5:
-                self.alternator = 0
+            if self.ptest_alternator == 5:
+                self.ptest_alternator = 0
                 self.last_skipped_heads = [1,2,3,4,5]
             else:
-                self.alternator = 5
+                self.ptest_alternator = 5
                 self.last_skipped_heads = [0,1,2,3,4]
-            data_dict['heads_to_run'] = torch.tensor([self.alternator], dtype=torch.int)
+            data_dict['heads_to_run'] = torch.tensor([self.ptest_alternator],
+                    dtype=torch.int)
 
         # migrate detections from previous frame if possible
         if data_dict['method'] == self.IMPRECISE_A_P or \
@@ -532,7 +575,7 @@ class PointPillarImprecise(Detector3DTemplate):
                     output_path='./temp_results'
                 )
                 det_annos += annos
-                if i % (len(self.dataset)//10) == 0:
+                if i % (len(self.dataset)//4) == 0:
                     print(i, '/', len(self.dataset), ' done')
             calib_dict["data"][str(cur_calib_conf)]  = copy.deepcopy(self.get_time_dict())
             stats = self.get_time_dict_stats()
@@ -545,7 +588,7 @@ class PointPillarImprecise(Detector3DTemplate):
             result_str, result_dict = self.dataset.evaluation(
                 det_annos, self.dataset.class_names,
                 eval_metric=self.model_cfg.POST_PROCESSING.EVAL_METRIC,
-                output_path='./temp_results', nusc=self.nusc
+                output_path='./temp_results'#, nusc=self.nusc
             )
             calib_dict['eval'][str(cur_calib_conf)]  = result_dict # mAP or NDS will be enough
             gc.collect()
