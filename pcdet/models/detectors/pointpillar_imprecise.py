@@ -30,7 +30,7 @@ def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
         box.translate(pose['cst'])
         box.rotate(pose['epr'])
         box.translate(pose['ept'])
-        # Move to predicted sensor coordinate
+        # Move from global to predicted sensor coordinate
         box.translate(cur_pose_inv['ept_neg'])
         box.rotate(cur_pose_inv['epr_inv'])
         box.translate(cur_pose_inv['cst_neg'])
@@ -144,6 +144,9 @@ class PointPillarImprecise(Detector3DTemplate):
         with open('token_to_pos.json', 'r') as handle:
             self.token_to_pos = json.load(handle)
 
+        self.use_oracle = True
+        with open('token_to_anns.json', 'r') as handle:
+            self.token_to_anns= json.load(handle)
         #self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
 
     def forward(self, data_dict):
@@ -166,6 +169,13 @@ class PointPillarImprecise(Detector3DTemplate):
                 for k,v in dd.items():
                     dd[k] = v.cpu()
 
+            if self.use_oracle:
+                oracle_dd = self.token_to_anns[self.latest_token]
+                for k, v in oracle_dd.items():
+                    oracle_dd[k] = torch.tensor(v)
+                det_dicts = [oracle_dd] * len(det_dicts)
+
+            # On PTEST, replace det_dicts with ground truth
             self.det_hist_queue.append((pose_dict, \
                     self.last_skipped_heads.copy(), det_dicts))
 
@@ -379,20 +389,7 @@ class PointPillarImprecise(Detector3DTemplate):
         # Create a 2D numpy array for all boxes to be predicted
         # 9 is a single pred box size
         all_pred_boxes = torch.zeros((total_num_of_migrations, 9))
-        #print('all_pred_boxes initial size:', all_pred_boxes.size())
-#
-#        hist_token_to_pos = {}
-#        for hist_tuple in self.det_hist_queue:
-#            token = hist_tuple[0]
-#            pose = self.token_to_pos[token]
-#            pose_dict = { 'ts' : int(pose['timestamp']),
-#                'cst' : np.array(pose['cs_translation']),
-#                'csr' : Quaternion(pose['cs_rotation']),
-#                'ept' : np.array(pose['ep_translation']),
-#                'epr' : Quaternion(pose['ep_rotation'])
-#            }
-#            hist_token_to_pos[token] = pose_dict
-#
+        
         # Generate the dicts for index to cst csr ept epr
         idx_to_pose = {}
         i = 0
@@ -400,7 +397,6 @@ class PointPillarImprecise(Detector3DTemplate):
                 self.chosen_det_dicts, self.all_indexes):
             all_pred_boxes[i:i+len(indexes_to_migrate)] = \
                     dd['pred_boxes'][indexes_to_migrate]
-#            pose_dict = hist_token_to_pos[token]
             for j in range(i, i+len(indexes_to_migrate)):
                 idx_to_pose[j] = pose_dict
             i += len(indexes_to_migrate)
