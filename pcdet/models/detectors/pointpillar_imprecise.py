@@ -14,28 +14,34 @@ from pyquaternion import Quaternion
 
 from multiprocessing import Pool
 
-def calcCurPose(pb_np, cs_rotations, cs_translations, ep_rotations, ep_translations):
-    box = Box(pb_np[:3], pb_np[3:6],
-            Quaternion([np.cos(pb_np[6]/2.), 0., 0., np.sin(pb_np[6]/2.)]),
-            velocity=np.append(pb_np[7:], .0))
-    # Move from sensor coordinate to global
-    box.rotate(cs_rotations[0])
-    box.translate(cs_translations[0])
-    box.rotate(ep_rotations[0])
-    box.translate(ep_translations[0])
-    # Move to predicted sensor coordinate
-    box.translate(-ep_translations[1])
-    box.rotate(ep_rotations[1].inverse)
-    box.translate(-cs_translations[1])
-    box.rotate(cs_rotations[1].inverse)
+# pbs_np is 2D, other inputs are 3D
 
-    pb_np[:3] = box.center
-    r, i, j, k = box.orientation.elements
-    pb_np[6] = 2. * math.atan2(math.sqrt(i*i+j*j+k*k),r)
-    pb_np[7:] = box.velocity[:2]
+# make cs ep stuff as dictionaries, key is pbs_np index, value is csr cst epr ept
+def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
+    for i in range(pbs_np.shape[0]):
+        pb_np = pbs_np[i]
+        box = Box(pb_np[:3], pb_np[3:6],
+                Quaternion([np.cos(pb_np[6]/2.), 0., 0., np.sin(pb_np[6]/2.)]),
+                velocity=np.append(pb_np[7:], .0))
+        # Move from sensor coordinate to global
+        pose = idx_to_pose[pose_idx_start]
+        pose_idx_start += 1
+        box.rotate(pose['csr'])
+        box.translate(pose['cst'])
+        box.rotate(pose['epr'])
+        box.translate(pose['ept'])
+        # Move to predicted sensor coordinate
+        box.translate(cur_pose_inv['ept_neg'])
+        box.rotate(cur_pose_inv['epr_inv'])
+        box.translate(cur_pose_inv['cst_neg'])
+        box.rotate(cur_pose_inv['csr_inv'])
 
-    return pb_np
+        pb_np[:3] = box.center
+        r, i, j, k = box.orientation.elements
+        pb_np[6] = 2. * math.atan2(math.sqrt(i*i+j*j+k*k),r)
+        pb_np[7:] = box.velocity[:2]
 
+    return pbs_np
 
 class PointPillarImprecise(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -57,7 +63,6 @@ class PointPillarImprecise(Detector3DTemplate):
         self.IMPRECISE_A_NP  = 6
         self.IMPRECISE_NA_P  = 7
         self.IMPRECISE_PTEST  = 8
-        self.ptest_alternator = 5
 
         self._default_method = int(model_cfg.METHOD)
         print('Default method is:', self._default_method)
@@ -93,8 +98,6 @@ class PointPillarImprecise(Detector3DTemplate):
                 'RPN-stage-1': [],
                 #'Forward-cls': [],
                 'Sched': [],
-                'Predict': [],
-                #'Quaternion': [],
                 'PrePrediction': [],
                 'PostPrediction': [],
                 'RPN-stage-2': [],
@@ -127,11 +130,16 @@ class PointPillarImprecise(Detector3DTemplate):
 
         self.latest_token = None
         self.last_skipped_heads= []
-        self.det_hist_queue = [] # list of (timestamp, last_skipped_heads, det_dicts)
+        self.det_hist_queue = [] # list of (pose_dict, last_skipped_heads, det_dicts)
         self.max_queue_size = 5
-        self.dets_to_migrate = []
 
-        self.pred_box_pool = Pool(6)
+        # prediction
+        self.migrate_scr_thres = 0.  # calibrate this as well
+        self.pool_size = 6  # 6 appears to give best results on jetson-agx
+        self.pred_box_pool = Pool(self.pool_size)
+        self.prediction_timing = {}
+        self.chosen_det_dicts, self.all_indexes = [], []
+        self.all_async_results = []
 
         with open('token_to_pos.json', 'r') as handle:
             self.token_to_pos = json.load(handle)
@@ -141,26 +149,50 @@ class PointPillarImprecise(Detector3DTemplate):
     def forward(self, data_dict):
         if not self.training:
             self.latest_token = data_dict['metadata'][0]['token']
-            self.dets_to_migrate = []
+            self.all_async_results = []
 
             # det_dicts length is equal to batch size
             det_dicts, recall_dict = self.eval_forward(data_dict)
+
+            pose = self.token_to_pos[self.latest_token]
+            pose_dict = { 'ts' : int(pose['timestamp']),
+                'cst' : np.array(pose['cs_translation']),
+                'csr' : Quaternion(pose['cs_rotation']),
+                'ept' : np.array(pose['ep_translation']),
+                'epr' : Quaternion(pose['ep_rotation'])
+            }
 
             for dd in det_dicts:
                 for k,v in dd.items():
                     dd[k] = v.cpu()
 
-            self.det_hist_queue.append((self.latest_token, \
+            self.det_hist_queue.append((pose_dict, \
                     self.last_skipped_heads.copy(), det_dicts))
 
             if len(self.det_hist_queue) > self.max_queue_size:
                 self.det_hist_queue.pop(0)
 
-            if self.dets_to_migrate:
-                for dd in det_dicts:
-                    for k in dd.keys():
-                        dd[k] = torch.cat([dd[k]] + [dtm[k] \
-                                for dtm in self.dets_to_migrate])
+            # Now, collect the predictions calculated in the background
+            if self.all_async_results:
+                self.measure_time_start('PostPrediction', False)
+                all_pred_boxes = torch.from_numpy(np.concatenate( \
+                        [ar.get() for ar in self.all_async_results]))
+                if all_pred_boxes.size()[0] > 0:
+                    det_to_migrate = {'pred_boxes': all_pred_boxes}
+                    #print('all_pred_boxes final   size:', all_pred_boxes.size())
+                    for k in ['pred_scores', 'pred_labels']:
+                        det_to_migrate[k]= torch.cat( \
+                                [dd[k][i] for dd, i in zip( \
+                                self.chosen_det_dicts, self.all_indexes)])
+                    
+                    if data_dict['method'] == self.IMPRECISE_PTEST:
+                        det_dicts = [det_to_migrate] * len(det_dicts)
+                    else:
+                        for dd in det_dicts:
+                            for k in dd.keys():
+                                dd[k] = torch.cat([dd[k], det_to_migrate[k]])
+                self.measure_time_end('PostPrediction', False)
+            self.measure_time_end("Post-PFE")
 
             return det_dicts, recall_dict
         else:
@@ -240,6 +272,13 @@ class PointPillarImprecise(Detector3DTemplate):
             data_dict = self.prioritize_heads(data_dict)
             self.measure_time_end('Sched')
             data_dict = self.dense_head.forward_remaining_preds(data_dict)
+            # migrate detections from previous frame if possible
+            # while detection head is running
+            if data_dict['method'] == self.IMPRECISE_A_P or \
+                    data_dict['method'] == self.IMPRECISE_NA_P or \
+                    data_dict['method'] == self.IMPRECISE_PTEST:
+                self.make_predictions()
+
         else:
             data_dict = self.dense_head.forward(data_dict)
         #torch.cuda.nvtx.range_pop()
@@ -252,7 +291,6 @@ class PointPillarImprecise(Detector3DTemplate):
         det_dicts, recall_dict = self.post_processing(data_dict, False)
         #torch.cuda.nvtx.range_pop()
         self.measure_time_end("PostProcess")
-        self.measure_time_end("Post-PFE")
         if data_dict['method'] >= self.IMPRECISE_A_P:
             self._eval_dict['rpn_stg_exec_seqs'].append((stg_seq, data_dict['heads_to_run'].tolist()))
         else:
@@ -279,7 +317,7 @@ class PointPillarImprecise(Detector3DTemplate):
             selected_cfg = self._cur_calib_tuple
             #prios = calib_prios
         elif data_dict['method'] == self.IMPRECISE_PTEST:
-            selected_cfg = (3, 1)
+            selected_cfg = (3, 6)
         else:
             # Traverse the table and find the config which will meet the
             # deadline and would give the highest NDS
@@ -308,37 +346,14 @@ class PointPillarImprecise(Detector3DTemplate):
         data_dict['num_stgs_to_run'] = selected_cfg[0]
         return data_dict
 
-
-    def predict_boxes(self, prev_token, cur_token, pred_boxes):
-        timestamps, cs_translations, cs_rotations, ep_translations, ep_rotations = \
-                [], [], [], [], []
-        for tkn in [prev_token, cur_token]:
-            pose = self.token_to_pos[tkn]
-
-            timestamps.append(int(pose['timestamp']))
-            cs_translations.append(np.array(pose['cs_translation']))
-            cs_rotations.append(Quaternion(pose['cs_rotation']))
-            ep_translations.append(np.array(pose['ep_translation']))
-            ep_rotations.append(Quaternion(pose['ep_rotation']))
-
-        # Migrating a single box takes 1.44 ms
-        # Use multiprocessing to make it faster! IT WORKS!
-        async_results = []
-        for i in range(pred_boxes.size()[0]):
-            #pb_np = calcCurPose(pred_boxes[i].numpy(), cs_rotations, cs_translations, \
-            #        ep_rotations, ep_translations)
-            ar = self.pred_box_pool.apply_async(calcCurPose, (pred_boxes[i].numpy(), \
-                    cs_rotations, cs_translations, ep_rotations, ep_translations,))
-            async_results.append(ar)
-        return async_results
-
     def make_predictions(self):
         # This part taskes less than a millisecond
         self.measure_time_start('PrePrediction', False)
-        chosen_det_dicts, prev_tokens, indexes = [], [], []
+        self.chosen_det_dicts, prev_pose_dicts, self.all_indexes = [], [], []
+        total_num_of_migrations = 0
         for h in self.last_skipped_heads:
-            for token, hs, det_dicts in reversed(self.det_hist_queue):
-                if h not in hs:
+            for pose_dict, hs, det_dicts in reversed(self.det_hist_queue):
+                if h not in hs or self._default_method == self.IMPRECISE_PTEST:
                     # get the corresponding detections if they exist
                     skipped_labels = self.dense_head.head_to_labels[h]
                     for dd in det_dicts:
@@ -348,43 +363,71 @@ class PointPillarImprecise(Detector3DTemplate):
                         i = 0
                         for lbl, score in zip(prev_det_labels, prev_det_scores):
                             # migrate confident ones
-                            if score >= 0.3 and lbl in skipped_labels:
+                            if score >= self.migrate_scr_thres and lbl in skipped_labels:
+                            #if lbl in skipped_labels:
                                 indexes_to_migrate.append(i)
                             i += 1
 
                         if indexes_to_migrate:
-                            chosen_det_dicts.append(dd)
-                            prev_tokens.append(token)
-                            indexes.append(indexes_to_migrate)
-
-                        #print('Labels:', self.dets_to_migrate[-1]['pred_labels'])
-                        #print('Velocity:',  self.dets_to_migrate[-1]['pred_boxes'][:,7:])
+                            self.chosen_det_dicts.append(dd)
+                            prev_pose_dicts.append(pose_dict)
+                            self.all_indexes.append(indexes_to_migrate)
+                            total_num_of_migrations += len(indexes_to_migrate)
                     break
+
+        # This is where the overhead is, 
+        # Create a 2D numpy array for all boxes to be predicted
+        # 9 is a single pred box size
+        all_pred_boxes = torch.zeros((total_num_of_migrations, 9))
+        #print('all_pred_boxes initial size:', all_pred_boxes.size())
+#
+#        hist_token_to_pos = {}
+#        for hist_tuple in self.det_hist_queue:
+#            token = hist_tuple[0]
+#            pose = self.token_to_pos[token]
+#            pose_dict = { 'ts' : int(pose['timestamp']),
+#                'cst' : np.array(pose['cs_translation']),
+#                'csr' : Quaternion(pose['cs_rotation']),
+#                'ept' : np.array(pose['ep_translation']),
+#                'epr' : Quaternion(pose['ep_rotation'])
+#            }
+#            hist_token_to_pos[token] = pose_dict
+#
+        # Generate the dicts for index to cst csr ept epr
+        idx_to_pose = {}
+        i = 0
+        for pose_dict, dd, indexes_to_migrate in zip(prev_pose_dicts, \
+                self.chosen_det_dicts, self.all_indexes):
+            all_pred_boxes[i:i+len(indexes_to_migrate)] = \
+                    dd['pred_boxes'][indexes_to_migrate]
+#            pose_dict = hist_token_to_pos[token]
+            for j in range(i, i+len(indexes_to_migrate)):
+                idx_to_pose[j] = pose_dict
+            i += len(indexes_to_migrate)
+
+        pose = self.token_to_pos[self.latest_token]
+        cur_pose_inv = { 'ts' : int(pose['timestamp']),
+            'cst_neg' : -np.array(pose['cs_translation']),
+            'csr_inv' : Quaternion(pose['cs_rotation']).inverse,
+            'ept_neg' : -np.array(pose['ep_translation']),
+            'epr_inv' : Quaternion(pose['ep_rotation']).inverse,
+        }
+
+        pred_boxes_chunks = np.array_split(all_pred_boxes.numpy(), \
+                self.pool_size)
+        pose_idx_start = 0
+        for pred_boxes_chunk in pred_boxes_chunks:
+            ar = self.pred_box_pool.apply_async(calcCurPose, \
+                    (pred_boxes_chunk, \
+                    pose_idx_start, idx_to_pose, cur_pose_inv))
+            self.all_async_results.append(ar)
+            pose_idx_start += pred_boxes_chunk.shape[0]
+
         self.measure_time_end('PrePrediction', False)
 
-        # This is where the overhead is
-        self.measure_time_start('PostPrediction', False)
-        all_async_results = []
-        all_pred_boxes = []
-        for dd, token, indexes_to_migrate in zip(chosen_det_dicts, prev_tokens, indexes):
-            pred_boxes = dd['pred_boxes'][indexes_to_migrate]
-            all_pred_boxes.append(pred_boxes)
-            all_async_results.append(self.predict_boxes(token, self.latest_token, \
-                    pred_boxes))
-
-        for pred_boxes, async_results in zip(all_pred_boxes, all_async_results):
-            for i, ar in enumerate(async_results):
-                pred_boxes[i] = torch.from_numpy(ar.get()) # works?
-
-        for dd, pred_boxes, indexes_to_migrate in zip(chosen_det_dicts, \
-                all_pred_boxes, indexes):
-            self.dets_to_migrate.append({
-                'pred_boxes': pred_boxes,
-                'pred_scores': dd['pred_scores'][indexes_to_migrate],
-                'pred_labels': dd['pred_labels'][indexes_to_migrate],
-            })
-        self.measure_time_end('PostPrediction', False)
-
+        #if num_boxes_predicted not in self.prediction_timing:
+        #    self.prediction_timing[num_boxes_predicted] = []
+        #self.prediction_timing[num_boxes_predicted].append(elapsed_time)
 
     def prioritize_heads(self, data_dict):
         #scene_token = self.nusc.get('sample', self.latest_token)['scene_token']
@@ -395,7 +438,8 @@ class PointPillarImprecise(Detector3DTemplate):
 
         selected_cfg = data_dict['sh_config']
 
-        if selected_cfg[1] == len(self.post_sync_time_table_ms[0]): # max num heads
+        if selected_cfg[1] == len(self.post_sync_time_table_ms[0]) and \
+                data_dict['method'] != self.IMPRECISE_PTEST:
             self.last_skipped_heads= []
             data_dict['heads_to_run'] = torch.arange(selected_cfg[1])
             return data_dict
@@ -445,8 +489,9 @@ class PointPillarImprecise(Detector3DTemplate):
             for j, c in enumerate(s):
                 prio_scores[i] += c / self.dense_head.anchor_area_coeffs[i][j]
 
-        if data_dict['method'] == self.IMPRECISE_A_P or \
-                data_dict['method'] == self.IMPRECISE_A_NP:
+        if (data_dict['method'] == self.IMPRECISE_A_P or \
+                data_dict['method'] == self.IMPRECISE_A_NP) and \
+                data_dict['method'] != self.IMPRECISE_PTEST:
             # priority boost using history, most skipped will be most boosted
             prio_boost = [1.] * self.dense_head.num_heads
             head_skips = [dh[1] for dh in self.det_hist_queue]
@@ -466,27 +511,15 @@ class PointPillarImprecise(Detector3DTemplate):
         # has some corresponding objects
         prios = prio_scores.argsort(descending=True)
 
-        data_dict['heads_to_run'] = prios[:selected_cfg[1]]
-        self.last_skipped_heads = prios[selected_cfg[1]:].tolist()
 
         if data_dict['method'] == self.IMPRECISE_PTEST:
-            # Alternate between car and pedestrian
-            if self.ptest_alternator == 5:
-                self.ptest_alternator = 0
-                self.last_skipped_heads = [1,2,3,4,5]
-            else:
-                self.ptest_alternator = 5
-                self.last_skipped_heads = [0,1,2,3,4]
-            data_dict['heads_to_run'] = torch.tensor([self.ptest_alternator],
+            self.last_skipped_heads = [0,1,2,3,4,5]
+            data_dict['heads_to_run'] = torch.tensor([0,1,2,3,4,5],
                     dtype=torch.int)
+        else:
+            data_dict['heads_to_run'] = prios[:selected_cfg[1]]
+            self.last_skipped_heads = prios[selected_cfg[1]:].tolist()
 
-        # migrate detections from previous frame if possible
-        if data_dict['method'] == self.IMPRECISE_A_P or \
-                data_dict['method'] == self.IMPRECISE_NA_P or \
-                data_dict['method'] == self.IMPRECISE_PTEST:
-            self.measure_time_start('Predict', False)
-            self.make_predictions()
-            self.measure_time_end('Predict', False)
         new_cls_preds = []
         for h in data_dict['heads_to_run']:
             new_cls_preds.append(cls_scores[h])
@@ -561,7 +594,6 @@ class PointPillarImprecise(Detector3DTemplate):
             self.last_skipped_heads= []
             self.det_hist_queue = [] # list of (timestamp, last_skipped_heads, det_dicts)
             self.max_queue_size = 5
-            self.dets_to_migrate = []
 
             det_annos = []
             #for i in sample_indexes:
@@ -618,3 +650,10 @@ class PointPillarImprecise(Detector3DTemplate):
     def clear_stats(self):
         super().clear_stats()
         self._eval_dict['rpn_stg_exec_seqs'] = []
+
+
+    def post_eval(self):
+        keys = sorted(self.prediction_timing.keys())
+        print('Prediction times:')
+        for k in keys:
+            print(k, ':', self.prediction_timing[k])

@@ -107,6 +107,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             progress_bar.set_postfix(disp_dict)
             progress_bar.update()
 
+    if 'post_eval' in dir(model):
+        model.post_eval()
+
     #    gc.collect()
     gc.collect()
     gc.enable()

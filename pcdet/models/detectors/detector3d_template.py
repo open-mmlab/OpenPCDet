@@ -571,9 +571,12 @@ class Detector3DTemplate(nn.Module):
     def measure_time_end(self, event_name_str, cuda_event=True):
         if cuda_event:
             self._cuda_event_dict[event_name_str][-1][1].record()
+            return None
         else:
             time_elapsed = round((time.time() - self._time_dict[event_name_str][-1]) * 1000, 3)
-            self._time_dict[event_name_str][-1] = round(time_elapsed,3)
+            time_elapsed = round(time_elapsed,3)
+            self._time_dict[event_name_str][-1] = time_elapsed
+            return time_elapsed
 
     def update_time_dict(self, dict_to_aggragate):
         self._time_dict.update(dict_to_aggragate)
