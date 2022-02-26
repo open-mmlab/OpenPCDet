@@ -171,9 +171,13 @@ class PointPillarImprecise(Detector3DTemplate):
 
             if self.use_oracle:
                 oracle_dd = self.token_to_anns[self.latest_token]
-                for k, v in oracle_dd.items():
-                    oracle_dd[k] = torch.tensor(v)
-                det_dicts = [oracle_dd] * len(det_dicts)
+                oracle_dd['pred_boxes'] = \
+                        torch.as_tensor(oracle_dd['pred_boxes'])
+                oracle_dd['pred_scores'] = \
+                        torch.as_tensor(oracle_dd['pred_scores'])
+                oracle_dd['pred_labels'] = \
+                        torch.as_tensor(oracle_dd['pred_labels'])
+                det_dicts = [oracle_dd] * data_dict['batch_size']
 
             # On PTEST, replace det_dicts with ground truth
             self.det_hist_queue.append((pose_dict, \
