@@ -14,14 +14,16 @@ from pyquaternion import Quaternion
 
 from multiprocessing import Pool
 
-# pbs_np is 2D, other inputs are 3D
 
-# make cs ep stuff as dictionaries, key is pbs_np index, value is csr cst epr ept
 def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
+    #ts_cur = cur_pose_inv['ts']
     for i in range(pbs_np.shape[0]):
         pb_np = pbs_np[i]
+        # The velocities output by the network are wrt ego vehicle coordinate frame,
+        # but they appear to be global velocities.
         box = Box(pb_np[:3], pb_np[3:6],
-                Quaternion([np.cos(pb_np[6]/2.), 0., 0., np.sin(pb_np[6]/2.)]),
+                #Quaternion([np.cos(pb_np[6]/2.), 0., 0., np.sin(pb_np[6]/2.)]),
+                Quaternion(axis=[0, 0, 1], radians=pb_np[6]),
                 velocity=np.append(pb_np[7:], .0))
         # Move from sensor coordinate to global
         pose = idx_to_pose[pose_idx_start]
@@ -30,6 +32,12 @@ def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
         box.translate(pose['cst'])
         box.rotate(pose['epr'])
         box.translate(pose['ept'])
+
+        #elapsed_sec = (ts_cur - pose['ts']) / 1000000.
+        #pose_diff = box.velocity * elapsed_sec
+        #if not np.any(np.isnan(pose_diff)):
+        #    box.translate(pose_diff)
+
         # Move from global to predicted sensor coordinate
         box.translate(cur_pose_inv['ept_neg'])
         box.rotate(cur_pose_inv['epr_inv'])
@@ -144,7 +152,7 @@ class PointPillarImprecise(Detector3DTemplate):
         with open('token_to_pos.json', 'r') as handle:
             self.token_to_pos = json.load(handle)
 
-        self.use_oracle = True
+        self.use_oracle = False
         with open('token_to_anns.json', 'r') as handle:
             self.token_to_anns= json.load(handle)
         #self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
@@ -389,6 +397,9 @@ class PointPillarImprecise(Detector3DTemplate):
                             total_num_of_migrations += len(indexes_to_migrate)
                     break
 
+        if total_num_of_migrations == 0:
+            return
+
         # This is where the overhead is, 
         # Create a 2D numpy array for all boxes to be predicted
         # 9 is a single pred box size
@@ -412,6 +423,16 @@ class PointPillarImprecise(Detector3DTemplate):
             'ept_neg' : -np.array(pose['ep_translation']),
             'epr_inv' : Quaternion(pose['ep_rotation']).inverse,
         }
+
+        # ego velocity calculation, appears to be not needed since the
+        # network outputs the global velocity
+#        ego_vel = np.zeros(3)
+#        prev_pose = self.det_hist_queue[-1][0]
+#        dist_diff = (-cur_pose_inv['ept_neg']) - \
+#                np.array(prev_pose['ept'])
+#        time_diff = (cur_pose_inv['ts'] - prev_pose['ts']) / 1000000.
+#        if time_diff > 0:
+#            ego_vel = dist_diff / time_diff
 
         pred_boxes_chunks = np.array_split(all_pred_boxes.numpy(), \
                 self.pool_size)
