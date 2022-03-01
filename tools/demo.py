@@ -46,8 +46,12 @@ class DemoDataset(DatasetTemplate):
         return len(self.sample_file_list)
 
     def __getitem__(self, index):
-        if self.ext == '.bin':
+        if self.dataset_cfg.DATASET == 'LyftDataset' or self.dataset_cfg.DATASET == 'NuScenesDataset':
+            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 5)[:, :4]
+        elif self.dataset_cfg.DATASET == 'KittiDataset':
             points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
+        elif self.dataset_cfg.DATASET ==  'PandasetDataset':
+             points = np.load(self.sample_file_list[index])
         elif self.ext == '.npy':
             points = np.load(self.sample_file_list[index])
         else:
@@ -104,6 +108,8 @@ def main():
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
+            
+          #  print(pred_dicts[0]['pred_boxes'])
 
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
