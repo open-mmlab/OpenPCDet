@@ -24,7 +24,7 @@ def load_data_to_gpu(batch_dict):
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue
-        elif key in ['frame_id', 'metadata', 'calib']:
+        elif key in ['frame_id', 'frame_name' ,'metadata', 'calib']:
             continue
         elif key in ['images']:
             batch_dict[key] = kornia.image_to_tensor(val).float().cuda().contiguous()

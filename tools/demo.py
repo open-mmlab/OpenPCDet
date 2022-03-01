@@ -1,6 +1,7 @@
 import argparse
 import glob
 from pathlib import Path
+import os
 
 try:
     import open3d
@@ -17,6 +18,7 @@ import torch
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
+from pcdet.datasets import build_dataloader
 from pcdet.utils import common_utils
 
 
@@ -54,8 +56,9 @@ class DemoDataset(DatasetTemplate):
         input_dict = {
             'points': points,
             'frame_id': index,
+            'frame_name' : self.sample_file_list[index].split('/')[-1],
         }
-
+        
         data_dict = self.prepare_data(data_dict=input_dict)
         return data_dict
 
@@ -68,6 +71,9 @@ def parse_config():
                         help='specify the point cloud data file or directory')
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
+    parser.add_argument('--out_folder', type=str, default=None, help='save demo results to the output folder')
+    parser.add_argument('--create_annotation', type=bool, default=None, help='save demo results as annotation files')
+    
 
     args = parser.parse_args()
 
@@ -84,22 +90,25 @@ def main():
         dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
         root_path=Path(args.data_path), ext=args.ext, logger=logger
     )
+    
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
     model.cuda()
     model.eval()
+
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
-            logger.info(f'Visualized sample index: \t{idx + 1}')
+            logger.info('Visualized sample name %s: \t' , demo_dataset[idx]["frame_name"])
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
             V.draw_scenes(
                 points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels'],
+                save_outputs = args.out_folder, filename=demo_dataset[idx]["frame_name"]
             )
 
             if not OPEN3D_FLAG:
@@ -109,4 +118,6 @@ def main():
 
 
 if __name__ == '__main__':
+    
+    print("open3DFlag", OPEN3D_FLAG)
     main()

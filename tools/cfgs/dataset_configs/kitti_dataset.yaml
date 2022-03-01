@@ -1,7 +1,7 @@
 DATASET: 'KittiDataset'
 DATA_PATH: '../data/kitti'
 
-POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1]
+POINT_CLOUD_RANGE:  [0, -40, -3, 70.4, 40, 1] 
 
 DATA_SPLIT: {
     'train': train,
@@ -10,7 +10,7 @@ DATA_SPLIT: {
 
 INFO_PATH: {
     'train': [kitti_infos_train.pkl],
-    'test': [kitti_infos_val.pkl],
+    'test': [kitti_infos_test.pkl],
 }
 
 GET_ITEM_LIST: ["points"]
@@ -62,7 +62,7 @@ DATA_PROCESSOR:
       }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      VOXEL_SIZE: [ 0.05, 0.05, 0.1]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
         'train': 16000,

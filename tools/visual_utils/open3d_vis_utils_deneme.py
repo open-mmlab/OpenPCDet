@@ -4,11 +4,12 @@ Written by Jihan YANG
 All rights preserved from 2021 - present.
 """
 import open3d
+from PIL import Image, ImageFont, ImageDraw
+#from pyquaternion import Quaternion
 import torch
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 
 box_colormap = [
     [1, 1, 1],
@@ -37,7 +38,7 @@ def get_coor_colors(obj_labels):
     return label_rgba
 
 
-def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True, save_outputs=False, filename=None):
+def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True, class_names = None, save_outputs=False, filename=None):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
     if isinstance(gt_boxes, torch.Tensor):
@@ -54,7 +55,7 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
     vis.get_render_option().point_size = 1.0
     vis.get_render_option().background_color = np.zeros(3)
     
-  
+    
     # draw origin
     if draw_origin:
         axis_pcd = open3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0, origin=[0, 0, 0])
@@ -62,6 +63,8 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
 
     pts = open3d.geometry.PointCloud()
     pts.points = open3d.utility.Vector3dVector(points[:, :3])
+
+    print("POINTS SHAPE",points.shape)
 
     vis.add_geometry(pts)
       
@@ -72,24 +75,23 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
 
     if gt_boxes is not None:
         print("gt boxes are drawing")        
-        vis = draw_box(vis, gt_boxes, (0, 0, 1))
+        vis = draw_box(vis, gt_boxes, (0, 0, 1), class_names=class_names)
         
 
     if ref_boxes is not None:
         print("ref boxes are drawing")
-        vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)
+        vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores,class_names=class_names)
+        
+        
+        
+        
+        
 
     if not save_outputs: 
         vis.run()
         vis.destroy_window()
     else:
-        if not os.path.exists(save_outputs):
-            os.makedirs(save_outputs)
-        
-        if not os.path.exists(save_outputs + "/images/" ):
-            os.makedirs(save_outputs + "/images/" )
-            
-        savename = save_outputs + "/images/" + filename.split(".")[0] + ".jpg"
+        savename = save_outputs + filename.split(".")[0] + ".jpg"
         depth = vis.capture_depth_float_buffer(True) 
         plt.imsave(savename,np.asarray(depth))
         # img = vis.capture_screen_float_buffer(True) 
@@ -123,16 +125,68 @@ def translate_boxes_to_open3d_instance(gt_boxes):
 
     return line_set, box3d
 
+def text_3d(text, pos, direction=None, degree=0.0, font="/usr/share/fonts/truetype/freefont/FreeMono.ttf", font_size=10, density=50000):
+    """
+    Generate a 3D text point cloud used for visualization.
+    :param text: content of the text
+    :param pos: 3D xyz position of the text upper left corner
+    :param direction: 3D normalized direction of where the text faces
+    :param degree: in plane rotation of text
+    :param font: Name of the font - change it according to your system
+    :param font_size: size of the font
+    :return: open3d.geoemtry.PointCloud object
+    """
+    if direction is None:
+        direction = (0., 0., 1.)
 
-def draw_box(vis, gt_boxes, color=(0, 1, 0), ref_labels=None, score=None):
-    for i in range(gt_boxes.shape[0]):
-        line_set, box3d = translate_boxes_to_open3d_instance(gt_boxes[i])
+    from PIL import Image, ImageFont, ImageDraw
+    from pyquaternion import Quaternion
+
+    font_obj = ImageFont.truetype(font, font_size * density)
+    font_dim = font_obj.getsize(text)
+    
+    print("font_dim", font_dim)
+
+    img = Image.new('RGB', font_dim, color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.text((0, 0), text, font=font_obj, fill=(0, 0, 0))
+   
+    img.save('pil_text.png')
+
+    im = open3d.io.read_image("./pil_text.png")
+    
+    return im
+
+def draw_box(vis, boxes, color=(0, 1, 0), ref_labels=None, score=None, class_names=None):
+    for i in range(boxes.shape[0]):
+        line_set, box3d = translate_boxes_to_open3d_instance(boxes[i])
+        
+        print(class_names[ref_labels[i].item()-1])
+        print("center points", boxes[i][0:3])
+        print("3d box center points", box3d.extent)
+        
         if ref_labels is None:
             line_set.paint_uniform_color(color)
         else:
             line_set.paint_uniform_color(box_colormap[ref_labels[i]])
 
         vis.add_geometry(line_set)
+        
+        
+        text = class_names[ref_labels[i].item()-1]
+        x,y,z = box3d.extent[0:3]
+        
+        pcd_10 = text_3d(text, pos=(z,y,x), font_size=10, density=10)
+        vis.add_geometry(pcd_10)
+        
+        # img = Image.new('RGB', font_dim, color=(255, 255, 255))
+        # draw = ImageDraw.Draw(img)
+        # draw.text((0, 0), text, font=font_obj, fill=(0, 0, 0))
+        # img = np.asarray(img)
+        # img_mask = img[:, :, 0] < 128
+        # indices = np.indices([*img.shape[0:2], 1])[:, img_mask, 0].reshape(3, -1).T
+                
+        
 
         # if score is not None:
         #     corners = box3d.get_box_points()
