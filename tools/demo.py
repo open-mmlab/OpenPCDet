@@ -101,6 +101,8 @@ def main():
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
     model.cuda()
     model.eval()
+    
+    print("GRID SIZE",  ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[3] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[0]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][0]), ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[4] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[1]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][1]), ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[5] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[2]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][2])) 
 
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):

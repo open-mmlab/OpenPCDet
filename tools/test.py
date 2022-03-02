@@ -187,6 +187,10 @@ def main():
         batch_size=args.batch_size,
         dist=dist_test, workers=args.workers, logger=logger, training=False
     )
+    
+    print("GRID SIZE",  ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[3] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[0]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][0]), ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[4] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[1]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][1]), ((cfg.DATA_CONFIG.POINT_CLOUD_RANGE[5] - cfg.DATA_CONFIG.POINT_CLOUD_RANGE[2]) / cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'][2])) 
+
+    
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
     with torch.no_grad():
