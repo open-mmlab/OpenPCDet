@@ -8,7 +8,7 @@ import copy
 import json
 import numpy as np
 
-#from nuscenes.nuscenes import NuScenes
+from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import Box
 from pyquaternion import Quaternion
 
@@ -142,7 +142,7 @@ class PointPillarImprecise(Detector3DTemplate):
         self.max_queue_size = 5
 
         # prediction
-        self.migrate_scr_thres = 0.  # calibrate this as well
+        self.migrate_scr_thres = 0.2  # calibrate this as well
         self.pool_size = 6  # 6 appears to give best results on jetson-agx
         self.pred_box_pool = Pool(self.pool_size)
         self.prediction_timing = {}
@@ -153,9 +153,9 @@ class PointPillarImprecise(Detector3DTemplate):
             self.token_to_pos = json.load(handle)
 
         self.use_oracle = False
-        with open('token_to_anns.json', 'r') as handle:
-            self.token_to_anns= json.load(handle)
-        #self.nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
+        if self.use_oracle:
+            with open('token_to_anns.json', 'r') as handle:
+                self.token_to_anns= json.load(handle)
 
     def forward(self, data_dict):
         if not self.training:
@@ -398,6 +398,7 @@ class PointPillarImprecise(Detector3DTemplate):
                     break
 
         if total_num_of_migrations == 0:
+            self.measure_time_end('PrePrediction', False)
             return
 
         # This is where the overhead is, 
@@ -606,6 +607,7 @@ class PointPillarImprecise(Detector3DTemplate):
             for j in range(1, self.dense_head.num_heads+1):
                 self._calib_test_cases.append((i,j))
 
+        nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
         gc.disable()
 
         for cur_calib_conf in self._calib_test_cases:
@@ -641,11 +643,12 @@ class PointPillarImprecise(Detector3DTemplate):
             result_str, result_dict = self.dataset.evaluation(
                 det_annos, self.dataset.class_names,
                 eval_metric=self.model_cfg.POST_PROCESSING.EVAL_METRIC,
-                output_path='./temp_results'#, nusc=self.nusc
+                output_path='./temp_results', nusc=nusc
             )
             calib_dict['eval'][str(cur_calib_conf)]  = result_dict # mAP or NDS will be enough
             gc.collect()
             torch.cuda.empty_cache()
+        del nusc
         gc.enable()
 
         #calib_dict['sample_indexes'] = sample_indexes.tolist()
@@ -678,3 +681,5 @@ class PointPillarImprecise(Detector3DTemplate):
         print('Prediction times:')
         for k in keys:
             print(k, ':', self.prediction_timing[k])
+        self.pred_box_pool.close()
+        self.pred_box_pool.join()
