@@ -3,10 +3,18 @@ import torch
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
-def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+def class_agnostic_nms(labels, box_scores, box_preds, nms_config, score_thresh=None):
     src_box_scores = box_scores
-    if score_thresh is not None:
-        scores_mask = (box_scores >= score_thresh)
+    boxes_counts = len(box_scores)
+   # print("LENS",len(labels), boxes_counts)
+    scores_mask = torch.zeros(boxes_counts, dtype=torch.bool) 
+    
+    
+    if score_thresh is not None: 
+        for i in range(boxes_counts):    
+            scores_mask[i] = (box_scores[i] >= score_thresh[labels[i]-1])
+    
+       # print(scores_mask)
         box_scores = box_scores[scores_mask]
         box_preds = box_preds[scores_mask]
 

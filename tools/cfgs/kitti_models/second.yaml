@@ -111,7 +111,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.5
+        SCORE_THRESH: [0.5, 0.55, 0.57] #car pedestrian cyclist
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
