@@ -196,6 +196,19 @@ class Detector3DTemplate(nn.Module):
         batch_size = batch_dict['batch_size']
         recall_dict = {}
         pred_dicts = []
+        thresholds = []
+        
+        try:
+            for i in range(len(post_process_cfg.SCORE_THRESH)): #multiple thresholds for each class
+                thresholds.append(post_process_cfg.SCORE_THRESH[i])
+        except:
+            try:
+                for i in range(self.num_class): # if only one threshold is given for all the classes
+                    thresholds.append(post_process_cfg.SCORE_THRESH)
+            except:
+                raise ValueError("Score threshold size and class number incompatible. Give 1 for each class separately or 1 for all as global threshold")
+       
+        
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
@@ -249,23 +262,14 @@ class Detector3DTemplate(nn.Module):
                 final_boxes = torch.cat(pred_boxes, dim=0)
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
+               
                 if batch_dict.get('has_class_labels', False):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
-                else:
                     
+                else:
                     label_preds = label_preds + 1
-                    thresholds = []
-                    try:
-                        for i in range(len(post_process_cfg.SCORE_THRESH)): #multiple thresholds for each class
-                            thresholds.append(post_process_cfg.SCORE_THRESH[i])
-                    except:
-                        try:
-                            for i in range(self.num_class): # if only one threshold is given for all the classes
-                                thresholds.append(post_process_cfg.SCORE_THRESH)
-                        except:
-                            raise ValueError("Score threshold size and class number incompatible. Give 1 for each class separately or 1 for all as global threshold")
-                   # print("label_preds", label_preds)
+                    
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(labels=label_preds,
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,

@@ -6,17 +6,21 @@ from ...ops.iou3d_nms import iou3d_nms_utils
 def class_agnostic_nms(labels, box_scores, box_preds, nms_config, score_thresh=None):
     src_box_scores = box_scores
     boxes_counts = len(box_scores)
+    threshold_map = {0 : score_thresh[0], 1 : score_thresh[1], 2 : score_thresh[2]}
    # print("LENS",len(labels), boxes_counts)
     scores_mask = torch.zeros(boxes_counts, dtype=torch.bool) 
+   
+    # if score_thresh is not None: 
+    #     for i in range(boxes_counts):    
+    #         scores_mask[i] = (box_scores[i] >= score_thresh[labels[i]-1])
+    thresh = torch.as_tensor([score_thresh[i-1] for i in labels],device='cuda:0')
     
+  #  print(thresh)
     
-    if score_thresh is not None: 
-        for i in range(boxes_counts):    
-            scores_mask[i] = (box_scores[i] >= score_thresh[labels[i]-1])
-    
-       # print(scores_mask)
-        box_scores = box_scores[scores_mask]
-        box_preds = box_preds[scores_mask]
+    scores_mask = (box_scores >= thresh)
+    # print(scores_mask)
+    box_scores = box_scores[scores_mask]
+    box_preds = box_preds[scores_mask]
 
     selected = []
     if box_scores.shape[0] > 0:
