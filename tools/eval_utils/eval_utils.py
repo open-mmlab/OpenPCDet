@@ -59,7 +59,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         disp_dict = {}
 
 
-        print(dataset)
+     #   print(dataset)
 
         statistics_info(cfg, ret_dict, metric, disp_dict)
         annos = dataset.generate_prediction_dicts(

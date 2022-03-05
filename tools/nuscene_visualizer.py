@@ -11,6 +11,8 @@ Created on Wed Mar  2 15:35:37 2022
 
 http://sayef.tech/post/introduction-to-nuscenes-dataset-for-autonomous-driving/ 
 
+https://scale.com/open-datasets/nuscenes/tutorial
+
 """
 
 

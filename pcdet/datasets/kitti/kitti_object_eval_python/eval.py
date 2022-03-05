@@ -183,8 +183,6 @@ def compute_statistics_jit(overlaps,
                 ignored_threshold[i] = True
     NO_DETECTION = -10000000
     tp, fp, fn, similarity = 0, 0, 0, 0
-    # thresholds = [0.0]
-    # delta = [0.0]
     thresholds = np.zeros((gt_size, ))
     thresh_idx = 0
     delta = np.zeros((gt_size, ))
@@ -449,7 +447,7 @@ def eval_class(gt_annos,
                dt_annos,
                current_classes,
                difficultys,
-               metric,
+               metric, # 0 : 2d bbox, 1 : bev , 2 : 3d
                min_overlaps,
                compute_aos=False,
                num_parts=100):
@@ -469,6 +467,8 @@ def eval_class(gt_annos,
     assert len(gt_annos) == len(dt_annos)
     num_examples = len(gt_annos)
     split_parts = get_split_parts(num_examples, num_parts)
+    
+  #  print("METRIC", metric)
 
     rets = calculate_iou_partly(dt_annos, gt_annos, metric, num_parts)
     overlaps, parted_overlaps, total_dt_num, total_gt_num = rets
@@ -480,6 +480,9 @@ def eval_class(gt_annos,
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     recall = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    TP = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    FP = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    FN = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     aos = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     for m, current_class in enumerate(current_classes):
         for l, difficulty in enumerate(difficultys):
@@ -504,6 +507,7 @@ def eval_class(gt_annos,
                     thresholdss += thresholds.tolist()
                 thresholdss = np.array(thresholdss)
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt)
+           
                 thresholds = np.array(thresholds)
                 pr = np.zeros([len(thresholds), 4])
                 idx = 0
@@ -534,15 +538,22 @@ def eval_class(gt_annos,
                         thresholds=thresholds,
                         compute_aos=compute_aos)
                     idx += num_part
-                for i in range(len(thresholds)):
+                for i in range(len(thresholds)): #pr[i,0] : TP pr[i, 1] : FP pr[i, 2] : FN
                     recall[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 2])
+                    TP[m, l, k, i] = pr[i, 0]
+                    FP[m, l, k, i] = pr[i, 1]
+                    FN[m, l, k, i] = pr[i, 2]
                     precision[m, l, k, i] = pr[i, 0] / (pr[i, 0] + pr[i, 1])
                     if compute_aos:
                         aos[m, l, k, i] = pr[i, 3] / (pr[i, 0] + pr[i, 1])
                 for i in range(len(thresholds)):
-                    precision[m, l, k, i] = np.max(
-                        precision[m, l, k, i:], axis=-1)
+                    precision[m, l, k, i] = np.max(precision[m, l, k, i:], axis=-1)
+                 #   print("PRECISION",precision)
                     recall[m, l, k, i] = np.max(recall[m, l, k, i:], axis=-1)
+                    TP[m, l, k, i] = np.max(TP[m, l, k, i:], axis=-1)
+                #    print("TP",TP)
+                    FP[m, l, k, i] = np.max(FP[m, l, k, i:], axis=-1)
+                    FN[m, l, k, i] = np.max(FN[m, l, k, i:], axis=-1)
                     if compute_aos:
                         aos[m, l, k, i] = np.max(aos[m, l, k, i:], axis=-1)
     ret_dict = {
@@ -550,7 +561,7 @@ def eval_class(gt_annos,
         "precision": precision,
         "orientation": aos,
     }
-    return ret_dict
+    return ret_dict, TP, FP, FN
 
 
 def get_mAP(prec):
@@ -584,7 +595,7 @@ def do_eval(gt_annos,
             PR_detail_dict=None):
     # min_overlaps: [num_minoverlap, metric, num_class]
     difficultys = [0, 1, 2]
-    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0,
+    ret,TP, FP ,FN = eval_class(gt_annos, dt_annos, current_classes, difficultys, 0,
                      min_overlaps, compute_aos)
     # ret: [num_class, num_diff, num_minoverlap, num_sample_points]
     mAP_bbox = get_mAP(ret["precision"])
@@ -601,7 +612,7 @@ def do_eval(gt_annos,
         if PR_detail_dict is not None:
             PR_detail_dict['aos'] = ret['orientation']
 
-    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
+    ret, TP, FP ,FN = eval_class(gt_annos, dt_annos, current_classes, difficultys, 1,
                      min_overlaps)
     mAP_bev = get_mAP(ret["precision"])
     mAP_bev_R40 = get_mAP_R40(ret["precision"])
@@ -609,13 +620,13 @@ def do_eval(gt_annos,
     if PR_detail_dict is not None:
         PR_detail_dict['bev'] = ret['precision']
 
-    ret = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
+    ret, TP, FP ,FN = eval_class(gt_annos, dt_annos, current_classes, difficultys, 2,
                      min_overlaps)
     mAP_3d = get_mAP(ret["precision"])
     mAP_3d_R40 = get_mAP_R40(ret["precision"])
     if PR_detail_dict is not None:
         PR_detail_dict['3d'] = ret['precision']
-    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40
+    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40, TP, FP ,FN
 
 
 def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
@@ -644,6 +655,9 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
                              0.5, 0.5], [0.5, 0.25, 0.25, 0.5, 0.25, 0.5],
                             [0.5, 0.25, 0.25, 0.5, 0.25, 0.5]])
     min_overlaps = np.stack([overlap_0_7, overlap_0_5], axis=0)  # [2, 3, 5]
+    
+   # print("min_overlaps", min_overlaps)
+    
     class_to_name = {
         0: 'Car',
         1: 'Pedestrian',
@@ -671,9 +685,12 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
             if anno['alpha'][0] != -10:
                 compute_aos = True
             break
-    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40 = do_eval(
+    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40, TP,FP,FN = do_eval(
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict)
 
+    print( "mAPbbox", mAPbbox)
+  #  print(mAPbbox.shape)
+  #  print(TP.shape)
     ret_dict = {}
     for j, curcls in enumerate(current_classes):
         # mAP threshold array: [num_minoverlap, metric, class]
@@ -682,9 +699,28 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
             result += print_str(
                 (f"{class_to_name[curcls]} "
                  "AP@{:.2f}, {:.2f}, {:.2f}:".format(*min_overlaps[i, :, j])))
+            
+            result += print_str((f"TP :{TP[j, 0, i,0]:.0f}, "
+                                 f"{TP[j, 1, i,0]:.0f}, "
+                                 f"{TP[j, 2, i,0]:.0f},"))
+            
+            result += print_str((f"FP :{FP[j, 0, i,0]:.0f}, "
+                                 f"{FP[j, 1, i,0]:.0f}, "
+                                 f"{FP[j, 2, i,0]:.0f},"))
+            
+            result += print_str((f"FN :{FN[j, 0, i,0]:.0f}, "
+                                 f"{FN[j, 1, i,0]:.0f}, "
+                                 f"{FN[j, 2, i,0]:.0f},"))
+            
+            
             result += print_str((f"bbox AP:{mAPbbox[j, 0, i]:.4f}, "
                                  f"{mAPbbox[j, 1, i]:.4f}, "
-                                 f"{mAPbbox[j, 2, i]:.4f}"))
+                                 f"{mAPbbox[j, 2, i]:.4f},"))
+            
+            
+            
+           
+            
             result += print_str((f"bev  AP:{mAPbev[j, 0, i]:.4f}, "
                                  f"{mAPbev[j, 1, i]:.4f}, "
                                  f"{mAPbev[j, 2, i]:.4f}"))

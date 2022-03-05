@@ -196,17 +196,6 @@ class Detector3DTemplate(nn.Module):
         batch_size = batch_dict['batch_size']
         recall_dict = {}
         pred_dicts = []
-        thresholds = []
-        
-        try:
-            for i in range(len(post_process_cfg.SCORE_THRESH)): #multiple thresholds for each class
-                thresholds.append(post_process_cfg.SCORE_THRESH[i])
-        except:
-            try:
-                for i in range(self.num_class): # if only one threshold is given for all the classes
-                    thresholds.append(post_process_cfg.SCORE_THRESH)
-            except:
-                raise ValueError("Score threshold size and class number incompatible. Give 1 for each class separately or 1 for all as global threshold")
        
         
         for index in range(batch_size):
@@ -270,10 +259,9 @@ class Detector3DTemplate(nn.Module):
                 else:
                     label_preds = label_preds + 1
                     
-                selected, selected_scores = model_nms_utils.class_agnostic_nms(labels=label_preds,
-                    box_scores=cls_preds, box_preds=box_preds,
+                selected, selected_scores = model_nms_utils.class_agnostic_nms(box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
-                    score_thresh=thresholds
+                    score_thresh=post_process_cfg.SCORE_THRESH
                 )
 
                 if post_process_cfg.OUTPUT_RAW_SCORE:

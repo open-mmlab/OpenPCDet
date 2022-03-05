@@ -3,38 +3,27 @@ import torch
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
-def class_agnostic_nms(labels, box_scores, box_preds, nms_config, score_thresh=None):
-    src_box_scores = box_scores
-    boxes_counts = len(box_scores)
-    threshold_map = {0 : score_thresh[0], 1 : score_thresh[1], 2 : score_thresh[2]}
-   # print("LENS",len(labels), boxes_counts)
-    scores_mask = torch.zeros(boxes_counts, dtype=torch.bool) 
-   
-    # if score_thresh is not None: 
-    #     for i in range(boxes_counts):    
-    #         scores_mask[i] = (box_scores[i] >= score_thresh[labels[i]-1])
-    thresh = torch.as_tensor([score_thresh[i-1] for i in labels],device='cuda:0')
-    
-  #  print(thresh)
-    
-    scores_mask = (box_scores >= thresh)
-    # print(scores_mask)
-    box_scores = box_scores[scores_mask]
-    box_preds = box_preds[scores_mask]
+def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+   src_box_scores = box_scores
+   if score_thresh is not None:
+       scores_mask = (box_scores >= score_thresh)
+       box_scores = box_scores[scores_mask]
+       box_preds = box_preds[scores_mask]
 
-    selected = []
-    if box_scores.shape[0] > 0:
-        box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
-        boxes_for_nms = box_preds[indices]
-        keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
-                boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
-        )
-        selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]
+   selected = []
+   if box_scores.shape[0] > 0:
+       box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
+       boxes_for_nms = box_preds[indices]
+       keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
+               boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
+       )
+       selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]
 
-    if score_thresh is not None:
-        original_idxs = scores_mask.nonzero().view(-1)
-        selected = original_idxs[selected]
-    return selected, src_box_scores[selected]
+   if score_thresh is not None:
+       original_idxs = scores_mask.nonzero().view(-1)
+       selected = original_idxs[selected]
+   return selected, src_box_scores[selected]
+
 
 
 def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
