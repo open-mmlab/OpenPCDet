@@ -9,13 +9,15 @@ with (open("/home/yagmur/OpenPCDet/data/kitti/kitti_infos_test.pkl", "rb"))
 with (open("epoch_200/val/result.pkl", "rb")) as openfile:
      
 with (open("/home/yagmur/Downloads/PANDASET/001/lidar/00.pkl", "rb")) as openfile:  
+    
+    /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default/eval/epoch_80/val/default/result.pkl
      
 """
 
 import pickle
 
 objects = []
-with (open("/home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default/eval/epoch_80/val/default/result.pkl", "rb")) as openfile:
+with (open("/home/yagmur/Desktop/OpenPCDet/data/kitti/kitti_infos_train.pkl", "rb")) as openfile:
     while True:
         try:
             objects.append(pickle.load(openfile))

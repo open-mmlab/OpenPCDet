@@ -120,16 +120,16 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        if self.training:
-            assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
-            gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
+        # if self.training:
+        #     assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
+        #     gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
-            data_dict = self.data_augmentor.forward(
-                data_dict={
-                    **data_dict,
-                    'gt_boxes_mask': gt_boxes_mask
-                }
-            )
+        #     data_dict = self.data_augmentor.forward(
+        #         data_dict={
+        #             **data_dict,
+        #             'gt_boxes_mask': gt_boxes_mask
+        #         }
+        #     )
 
         if data_dict.get('gt_boxes', None) is not None:
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
@@ -149,9 +149,9 @@ class DatasetTemplate(torch_data.Dataset):
             data_dict=data_dict
         )
 
-        if self.training and len(data_dict['gt_boxes']) == 0:
-            new_index = np.random.randint(self.__len__())
-            return self.__getitem__(new_index)
+        # if self.training and len(data_dict['gt_boxes']) == 0:
+        #     new_index = np.random.randint(self.__len__())
+        #     return self.__getitem__(new_index)
 
         data_dict.pop('gt_names', None)
 

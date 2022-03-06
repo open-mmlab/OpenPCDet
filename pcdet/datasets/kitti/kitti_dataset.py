@@ -45,7 +45,10 @@ class KittiDataset(DatasetTemplate):
                 infos = pickle.load(f)
                 kitti_infos.extend(infos)
 
+        
         self.kitti_infos.extend(kitti_infos)
+        
+  #      print(mode,"KITTI INFOS",kitti_infos[0]) # same info for test and train there is calib for both
 
         if self.logger is not None:
             self.logger.info('Total samples for KITTI dataset: %d' % (len(kitti_infos)))
@@ -299,6 +302,8 @@ class KittiDataset(DatasetTemplate):
             }
             return ret_dict
 
+     
+        
         def generate_single_sample_dict(batch_index, box_dict):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
@@ -307,6 +312,8 @@ class KittiDataset(DatasetTemplate):
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
+          
+                
             calib = batch_dict['calib'][batch_index]
             image_shape = batch_dict['image_shape'][batch_index].cpu().numpy()
             pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
@@ -421,8 +428,11 @@ class KittiDataset(DatasetTemplate):
         if "calib_matricies" in get_item_list:
             input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] = kitti_utils.calib_to_matricies(calib)
 
+     #   print("INPUT DICT",input_dict)
+
         data_dict = self.prepare_data(data_dict=input_dict)
 
+    #    print("data DICT",data_dict)
         data_dict['image_shape'] = img_shape
         return data_dict
 
