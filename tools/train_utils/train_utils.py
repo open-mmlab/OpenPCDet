@@ -162,7 +162,7 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 save_checkpoint(checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name)
                
                 #evaluate validation dataset - calculate validation loss + accuracy
-                test_loader = None          
+            
                 if test_loader: 
                      
                     eval_output_dir = ckpt_save_dir / 'validation_accuracy' / ('checkpoint_epoch_%d' % trained_epoch) #result.pkl
@@ -174,7 +174,6 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 
                 if trainacc_loader:    
              
-                   
                     eval_output_dir = ckpt_save_dir / 'train_accuracy' / ('checkpoint_epoch_%d' % trained_epoch)
                     tb_log = SummaryWriter(log_dir=str(ckpt_save_dir / 'train_accuracy' / 'tensorboard')) 
                   
