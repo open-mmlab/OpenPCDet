@@ -11,10 +11,11 @@ from .processor.point_feature_encoder import PointFeatureEncoder
 
 
 class DatasetTemplate(torch_data.Dataset):
-    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None, train_acc=False):
         super().__init__()
         self.dataset_cfg = dataset_cfg
         self.training = training
+        self.train_acc= train_acc
         self.class_names = class_names
         self.logger = logger
         self.root_path = root_path if root_path is not None else Path(self.dataset_cfg.DATA_PATH)
@@ -120,16 +121,16 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        # if self.training:
-        #     assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
-        #     gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
+        if self.training and not self.train_acc:
+            assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
+            gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
 
-        #     data_dict = self.data_augmentor.forward(
-        #         data_dict={
-        #             **data_dict,
-        #             'gt_boxes_mask': gt_boxes_mask
-        #         }
-        #     )
+            data_dict = self.data_augmentor.forward(
+                data_dict={
+                    **data_dict,
+                    'gt_boxes_mask': gt_boxes_mask
+                }
+            )
 
         if data_dict.get('gt_boxes', None) is not None:
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
@@ -149,9 +150,11 @@ class DatasetTemplate(torch_data.Dataset):
             data_dict=data_dict
         )
 
-        # if self.training and len(data_dict['gt_boxes']) == 0:
-        #     new_index = np.random.randint(self.__len__())
-        #     return self.__getitem__(new_index)
+        
+
+        if self.training and len(data_dict['gt_boxes']) == 0 and not self.train_acc:
+            new_index = np.random.randint(self.__len__())
+            return self.__getitem__(new_index)
 
         data_dict.pop('gt_names', None)
 

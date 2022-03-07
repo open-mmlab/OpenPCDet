@@ -117,7 +117,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_cfg,
                 start_epoch, total_epochs, start_iter, rank, tb_log, ckpt_save_dir, logger, train_sampler=None,
                 lr_warmup_scheduler=None, ckpt_save_interval=1, max_ckpt_save_num=50,
-                merge_all_iters_to_one_epoch=False, test_loader=None, args=None, cfg=None):
+                merge_all_iters_to_one_epoch=False, test_loader=None, trainacc_loader=None, args=None, cfg=None):
     accumulated_iter = start_iter
     with tqdm.trange(start_epoch, total_epochs, desc='epochs', dynamic_ncols=True, leave=(rank == 0)) as tbar:
         total_it_each_epoch = len(train_loader)
@@ -161,22 +161,25 @@ def train_model(model, optimizer, train_loader, model_func, lr_scheduler, optim_
                 ckpt_name = ckpt_save_dir / ('checkpoint_epoch_%d' % trained_epoch)
                 save_checkpoint(checkpoint_state(model, optimizer, trained_epoch, accumulated_iter), filename=ckpt_name)
                
-                
                 #evaluate validation dataset - calculate validation loss + accuracy
-                tmp = str(ckpt_name) +'.pth'
-                eval_output_dir = ckpt_save_dir / 'validation_accuracy' / ('checkpoint_epoch_%d' % trained_epoch) #result.pkl
-                
-                tb_log = SummaryWriter(log_dir=str(ckpt_save_dir / 'validation_accuracy' / 'tensorboard')) 
-                eval_single_ckpt(model, test_loader, tmp, eval_output_dir, logger, trained_epoch, dist_test=False, cfg=cfg,tb_log=tb_log, val_loss=True)
-             
+                test_loader = None          
+                if test_loader: 
+                     
+                    eval_output_dir = ckpt_save_dir / 'validation_accuracy' / ('checkpoint_epoch_%d' % trained_epoch) #result.pkl
                     
+                    tb_log = SummaryWriter(log_dir=str(ckpt_save_dir / 'validation_accuracy' / 'tensorboard')) 
+                    eval_single_ckpt(model, test_loader, str(ckpt_name) +'.pth', eval_output_dir, logger, trained_epoch, dist_test=False, cfg=cfg,tb_log=tb_log, val_loss=True)
+                 
+                # evaluate train dataset - calculate train accuracy    
+                
+                if trainacc_loader:    
              
-                # evaluate train dataset - calculate train accuracy
-                eval_output_dir = ckpt_save_dir / 'train_accuracy' / ('checkpoint_epoch_%d' % trained_epoch)
-                tb_log = SummaryWriter(log_dir=str(ckpt_save_dir / 'train_accuracy' / 'tensorboard')) 
-              
-                eval_single_ckpt(model, train_loader, tmp, eval_output_dir, logger, trained_epoch, dist_test=False, cfg=cfg, tb_log=tb_log)
-              
+                   
+                    eval_output_dir = ckpt_save_dir / 'train_accuracy' / ('checkpoint_epoch_%d' % trained_epoch)
+                    tb_log = SummaryWriter(log_dir=str(ckpt_save_dir / 'train_accuracy' / 'tensorboard')) 
+                  
+                    eval_single_ckpt(model, trainacc_loader, str(ckpt_name) +'.pth', eval_output_dir, logger, trained_epoch, dist_test=False, cfg=cfg, tb_log=tb_log)
+                  
              
 
 

@@ -155,13 +155,25 @@ def main():
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
     
-    """ prepare validation set """
+    """ prepare validation and train acc set """
     
     validation_set, validation_loader, sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
         class_names=cfg.CLASS_NAMES,
         batch_size=args.batch_size,
         dist=False, workers=args.workers, logger=logger, training=False
+    )
+    
+    train_accset, train_accloader, train_accsampler = build_dataloader(
+        dataset_cfg=cfg.DATA_CONFIG,
+        class_names=cfg.CLASS_NAMES,
+        batch_size=args.batch_size,
+        dist=dist_train, workers=args.workers,
+        logger=logger,
+        training=True,
+        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
+        total_epochs=args.epochs,
+        train_acc=True,
     )
     
    
@@ -183,7 +195,7 @@ def main():
         lr_warmup_scheduler=lr_warmup_scheduler,
         ckpt_save_interval=args.ckpt_save_interval,
         max_ckpt_save_num=args.max_ckpt_save_num,
-        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,test_loader=validation_loader, args=args, cfg=cfg
+        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,test_loader=validation_loader, trainacc_loader=train_accloader, args=args, cfg=cfg
     )
 
     if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:

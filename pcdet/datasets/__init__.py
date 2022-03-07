@@ -53,10 +53,10 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
         root_path=root_path,
         training=training,
         logger=logger,
+        train_acc=train_acc,
     )
     
-  #  print("DATASET",training, dataset[0])
-
+ #   print("DATASET",training, train_acc, dataset[0]) 
     if merge_all_iters_to_one_epoch:
         assert hasattr(dataset, 'merge_all_iters_to_one_epoch')
         dataset.merge_all_iters_to_one_epoch(merge=True, epochs=total_epochs)
@@ -75,6 +75,4 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
         drop_last=False, sampler=sampler, timeout=0
     )
 
-   
- #   print("DATA LOADAR",training, dataloader)
     return dataset, dataloader, sampler
