@@ -51,7 +51,7 @@ class DemoDataset(DatasetTemplate):
 
     def __getitem__(self, index):
         if self.dataset_cfg.DATASET == 'LyftDataset' or self.dataset_cfg.DATASET == 'NuScenesDataset':
-            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 5)[:, :4]
+            points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 5) #[:, :4]
         elif self.dataset_cfg.DATASET == 'KittiDataset':
             points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
         elif self.dataset_cfg.DATASET ==  'PandasetDataset':

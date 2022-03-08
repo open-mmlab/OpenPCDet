@@ -11,13 +11,14 @@ from ..dataset import DatasetTemplate
 
 
 class NuScenesDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,train_acc=False):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
         self.infos = []
         self.include_nuscenes_data(self.mode)
+        self.train_acc = train_acc
         if self.training and self.dataset_cfg.get('BALANCED_RESAMPLING', False):
             self.infos = self.balanced_infos_resampling(self.infos)
 
@@ -223,11 +224,18 @@ class NuScenesDataset(DatasetTemplate):
         from nuscenes.eval.detection.config import config_factory
         from nuscenes.eval.detection.evaluate import NuScenesEval
 
-        eval_set_map = {
-            'v1.0-mini': 'mini_val',
-            'v1.0-trainval': 'val',
-            'v1.0-test': 'test'
-        }
+        if self.train_acc:
+            eval_set_map = {
+                'v1.0-mini': 'mini_train',
+                'v1.0-trainval': 'val',
+                'v1.0-test': 'test'
+            }
+        else:    
+            eval_set_map = {
+                'v1.0-mini': 'mini_val',
+                'v1.0-trainval': 'val',
+                'v1.0-test': 'test'
+            }
         try:
             eval_version = 'detection_cvpr_2019'
             eval_config = config_factory(eval_version)

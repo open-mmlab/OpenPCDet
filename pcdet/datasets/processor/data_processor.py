@@ -33,6 +33,7 @@ class VoxelGeneratorWrapper():
                 max_voxels=max_num_voxels
             )
         else:
+          #  print(vsize_xyz, coors_range_xyz, num_point_features, max_num_points_per_voxel, max_num_voxels)
             self._voxel_generator = VoxelGenerator(
                 vsize_xyz=vsize_xyz,
                 coors_range_xyz=coors_range_xyz,

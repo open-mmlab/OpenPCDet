@@ -44,6 +44,7 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--num_epochs_to_eval', type=int, default=0, help='number of checkpoints to be evaluated')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
+    parser.add_argument('--calculate_acc', type=bool, default=False, help='calculate train and validatino accuracy in train time')
 
     args = parser.parse_args()
 
@@ -156,25 +157,29 @@ def main():
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
     
     """ prepare validation and train acc set """
+    validation_loader = None
+    train_accloader = None
     
-    validation_set, validation_loader, sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
-        class_names=cfg.CLASS_NAMES,
-        batch_size=args.batch_size,
-        dist=False, workers=args.workers, logger=logger, training=False
-    )
-    
-    train_accset, train_accloader, train_accsampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
-        class_names=cfg.CLASS_NAMES,
-        batch_size=args.batch_size,
-        dist=dist_train, workers=args.workers,
-        logger=logger,
-        training=True,
-        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
-        total_epochs=args.epochs,
-        train_acc=True,
-    )
+    if args.calculate_acc:
+        
+        validation_set, validation_loader, sampler = build_dataloader(
+            dataset_cfg=cfg.DATA_CONFIG,
+            class_names=cfg.CLASS_NAMES,
+            batch_size=args.batch_size,
+            dist=False, workers=args.workers, logger=logger, training=False
+        )
+        
+        train_accset, train_accloader, train_accsampler = build_dataloader(
+            dataset_cfg=cfg.DATA_CONFIG,
+            class_names=cfg.CLASS_NAMES,
+            batch_size=args.batch_size,
+            dist=dist_train, workers=args.workers,
+            logger=logger,
+            training=True,
+            merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
+            total_epochs=args.epochs,
+            train_acc=True,
+        )
     
    
     train_model(

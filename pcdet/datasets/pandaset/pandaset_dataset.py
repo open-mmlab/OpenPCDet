@@ -8,7 +8,8 @@ try:
     import pandas as pd
     import pandaset as ps
 except:
-    pass 
+    pass    
+
 import numpy as np
 
 from ..dataset import DatasetTemplate

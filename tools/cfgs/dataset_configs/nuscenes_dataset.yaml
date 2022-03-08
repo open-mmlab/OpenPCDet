@@ -1,7 +1,7 @@
 DATASET: 'NuScenesDataset'
 DATA_PATH: '../data/nuscenes'
 
-VERSION: 'v1.0-trainval'
+VERSION: 'v1.0-mini'
 MAX_SWEEPS: 10
 PRED_VELOCITY: True
 SET_NAN_VELOCITY_TO_ZEROS: True
@@ -72,7 +72,7 @@ DATA_PROCESSOR:
       }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.1, 0.1, 0.2]
+      VOXEL_SIZE: [0.01, 0.1, 0.2]
       MAX_POINTS_PER_VOXEL: 10
       MAX_NUMBER_OF_VOXELS: {
         'train': 60000,
