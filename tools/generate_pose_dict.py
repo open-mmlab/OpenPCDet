@@ -208,7 +208,9 @@ def populate_annos_v2():
             # if these two are equal, this is a problem for interpolation
             assert cur_sample['token'] != next_sample['token']
             # The number 2 makes it 100 ms
-            sd_rec_indexes = np.arange(begin_kf_idx+2, end_kf_idx, 2) 
+            # 3 makes it 150 ms
+            step = 3
+            sd_rec_indexes = np.arange(begin_kf_idx+step, end_kf_idx-step+1, step)
 
             new_samples = []
             new_sample_annos = []
@@ -258,6 +260,9 @@ def populate_annos_v2():
                     all_new_sample_datas.append(new_sd_rec_cam)
 
             # link the samples
+            if not new_samples:
+                continue
+
             cur_sample['next'] = new_samples[0]['token']
             assert cur_sample['timestamp'] < new_samples[0]['timestamp']
             new_samples[0]['prev'] = cur_sample['token']
@@ -351,6 +356,6 @@ def populate_annos_v2():
     with open('new_tables/instance.json', 'w') as handle:
         json.dump(nusc.instance, handle, indent=indent_num)
 
-populate_annos_v2()
-#generate_anns_dict()
-#generate_pose_dict()
+#populate_annos_v2()
+generate_anns_dict()
+generate_pose_dict()

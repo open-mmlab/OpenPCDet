@@ -31,7 +31,10 @@ class Detector3DTemplate(nn.Module):
 
         self._time_dict = {
                 'End-to-end': [],
-                'PreProcess' : [],}
+                'PreProcess' : [],
+                'GetitemPost' : [],
+                'LoadToGPU' : [],
+                'CollateBatch' : []}
         self.update_time_dict(dict())
 
         self._eval_dict = {'gt_counts':[]}
@@ -209,9 +212,15 @@ class Detector3DTemplate(nn.Module):
         torch.cuda.nvtx.range_push('End-to-end')
         self.measure_time_start('End-to-end')
         self.measure_time_start('PreProcess')
+        self.measure_time_start('GetitemPost')
         data_dict = self.dataset.getitem_post(data_dict)
+        self.measure_time_end('GetitemPost')
+        self.measure_time_start('CollateBatch')
         data_dict = self.dataset.collate_batch([data_dict])
+        self.measure_time_end('CollateBatch')
+        self.measure_time_start('LoadToGPU')
         load_data_to_gpu(data_dict)
+        self.measure_time_end('LoadToGPU')
         data_dict['abs_deadline_sec'] = start_time + self._eval_dict['deadline_sec']
         data_dict.update(extra_data)  # deadline, method, etc.
         self.measure_time_end('PreProcess')

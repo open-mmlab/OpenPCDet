@@ -252,17 +252,18 @@ def quaternion_yaw(q: Quaternion) -> float:
 def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, max_sweeps=10):
     train_nusc_infos = []
     val_nusc_infos = []
-    progress_bar = tqdm.tqdm(total=len(nusc.sample), desc='create_info', dynamic_ncols=True)
+    progress_bar = tqdm.tqdm(total=len(nusc.scene), desc='create_info', dynamic_ncols=True)
 
     ref_chan = 'LIDAR_TOP'  # The radar channel from which we track back n sweeps to aggregate the point cloud.
     chan = 'LIDAR_TOP'  # The reference channel of the current sample_rec that the point clouds are mapped to.
 
     #for index, sample in enumerate(nusc.sample):
     for scene in nusc.scene:
+        progress_bar.update()
         sample = nusc.get('sample', scene['first_sample_token'])
+        if sample['scene_token'] not in val_scenes:
+            continue
         while True:
-            progress_bar.update()
-
             ref_sd_token = sample['data'][ref_chan]
             ref_sd_rec = nusc.get('sample_data', ref_sd_token)
             ref_cs_rec = nusc.get('calibrated_sensor', ref_sd_rec['calibrated_sensor_token'])

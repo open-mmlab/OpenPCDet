@@ -16,7 +16,9 @@ from multiprocessing import Pool
 
 
 def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
-    #ts_cur = cur_pose_inv['ts']
+    USE_VEL = True
+    if USE_VEL:
+        ts_cur = cur_pose_inv['ts']
     for i in range(pbs_np.shape[0]):
         pb_np = pbs_np[i]
         # The velocities output by the network are wrt ego vehicle coordinate frame,
@@ -33,10 +35,11 @@ def calcCurPose(pbs_np, pose_idx_start, idx_to_pose, cur_pose_inv):
         box.rotate(pose['epr'])
         box.translate(pose['ept'])
 
-        #elapsed_sec = (ts_cur - pose['ts']) / 1000000.
-        #pose_diff = box.velocity * elapsed_sec
-        #if not np.any(np.isnan(pose_diff)):
-        #    box.translate(pose_diff)
+        if USE_VEL:
+            elapsed_sec = (ts_cur - pose['ts']) / 1000000.
+            pose_diff = box.velocity * elapsed_sec
+            if not np.any(np.isnan(pose_diff)):
+                box.translate(pose_diff)
 
         # Move from global to predicted sensor coordinate
         box.translate(cur_pose_inv['ept_neg'])
@@ -140,9 +143,10 @@ class PointPillarImprecise(Detector3DTemplate):
         self.last_skipped_heads= []
         self.det_hist_queue = [] # list of (pose_dict, last_skipped_heads, det_dicts)
         self.max_queue_size = 5
+        self.hist_cnt = 1
 
         # prediction
-        self.migrate_scr_thres = 0.2  # calibrate this as well
+        self.migrate_scr_thres = 0.2  # .2 avoids overhead
         self.pool_size = 6  # 6 appears to give best results on jetson-agx
         self.pred_box_pool = Pool(self.pool_size)
         self.prediction_timing = {}
@@ -187,7 +191,6 @@ class PointPillarImprecise(Detector3DTemplate):
                         torch.as_tensor(oracle_dd['pred_labels'])
                 det_dicts = [oracle_dd] * data_dict['batch_size']
 
-            # On PTEST, replace det_dicts with ground truth
             self.det_hist_queue.append((pose_dict, \
                     self.last_skipped_heads.copy(), det_dicts))
 
@@ -373,8 +376,15 @@ class PointPillarImprecise(Detector3DTemplate):
         self.measure_time_start('PrePrediction', False)
         self.chosen_det_dicts, prev_pose_dicts, self.all_indexes = [], [], []
         total_num_of_migrations = 0
+        if self._default_method == self.IMPRECISE_PTEST:
+            dhq = self.det_hist_queue[:self.hist_cnt]
+            self.hist_cnt += 1
+            if self.hist_cnt == self.max_queue_size+1:
+                self.hist_cnt = 1
+        else:
+            dhq = self.det_hist_queue
         for h in self.last_skipped_heads:
-            for pose_dict, hs, det_dicts in reversed(self.det_hist_queue):
+            for pose_dict, hs, det_dicts in reversed(dhq):
                 if h not in hs or self._default_method == self.IMPRECISE_PTEST:
                     # get the corresponding detections if they exist
                     skipped_labels = self.dense_head.head_to_labels[h]
@@ -616,7 +626,6 @@ class PointPillarImprecise(Detector3DTemplate):
 
             self.last_skipped_heads= []
             self.det_hist_queue = [] # list of (timestamp, last_skipped_heads, det_dicts)
-            self.max_queue_size = 5
 
             det_annos = []
             #for i in sample_indexes:
