@@ -317,3 +317,47 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 # Paper Reviews
 
+## Pointnet
+
+paper : https://arxiv.org/pdf/1612.00593.pdf  
+a good video explains the paper : https://www.youtube.com/watch?v=_py5pcMfHoc
+official code :https://github.com/charlesq34/pointnet
+
+* First paper proposes to process 3D points directly, without projecting to 2D images etc
+* Challenges for processing point clouds <br>
+   1. The lidar data is unstructured so the model should be permutation invariant (if you have n points you have n! permutations of ordering and processing this data)
+
+       <img src="report/unstructured.png" width=30% height=30%>
+
+   2. Interaction of points (the relation between neighbor points (local features) and general relation (global features) should be extracted. For classification, the global features are important since the task is to decide for a global class for the whole point cloud. For segmentation,  a combination of local and global knowledge is required
+
+   3. The model should be transform(translation - rotation) invariant  (A chair is still a chair when its rotated 90 degree etc°
+
+   ### Model Architecture
+
+
+    <img src="report/pointnet.png" width=100% height=30%>
+
+   * <b> Input and Feature Transform </b>
+
+      Both using T-Net (which is an independent neural network consists of 3 convolutional, 1 max pooling and 2 fully connected layers inorde) trained to estimate different transform matrices to be applied by matrix multiplication. Input transform is applied to the first input and the feature transform to the first feature map comes after input layer.
+
+      This is the <b> solution for transform invariant </b> challenge that this paper proposes!
+
+   * <b> MLP (Multi layer perception) </b>
+
+      Nothing more than a fully connected layer. The trick here is to use this fully connected layer 1 by 1 to the points come from transform layer then to concatanate.
+
+   * <b> Max Pooling </b>
+
+      The second MLP layer gives nx1024 output and a maximul pooling layer is applied on it. In this way, the global features are obtained without depending on the points order. <b> This is the solution for unstructured data challenge </b> that the paper proposes! 
+
+   * These global features directly goes to classify the point cloud
+
+   * Local and global features are concatenated for segmentation part as an extention of the    architecture.
+
+      <img src="report/pointnet-paint.png" width=100% height=30%>
+
+   
+   PointNet architecture doesnt allow to do Object Detection alone but after this paper, various methods to realize object detection on point cloud data is started to come up.
+
