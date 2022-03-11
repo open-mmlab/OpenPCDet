@@ -82,15 +82,20 @@ The first and naturally oldest dataset.
 
    <img src="report/kitti_lidar.png" width=30% height=50%>
 
-- Object Detection annotation files contains the following information and its in .txt format
+- Object Detection annotation files contains the following information and its in .txt format 
+          
 
    <img src="report/kitti_od_format.png" width=40% height=50%>
    <img src="report/kitti_od_anno.png" width=70% height=100%>
+
+* The dataset contains 8 classes for object detection: Car, Van, Truck, Pedestrian, Person(sitting), Cyclist, Tram, Misc 
 
 - In addition to the Object Detection dataset and annotations, there is another dataset for Object Tracking having the data arranged in sequences rather than different scenes from different moments like in Object Detection dataset. For this dataset the annotation format has 2 additional info 
 
    <img src="report/kitti_tr_format.png" width=40% height=50%>
    <img src="report/kitti_tr_anno.png" width=70% height=100%>
+
+
 
 * As seen in annotation format too, <b> the ground truth annotations of the KITTI dataset has been provided in the 2D image space (in left grayscale camera frame called reference camera frame) not in 3D lidar space. </b> Therefore, to work with Lidar data, these 2D annotations should be converted to the 3D space using calibration files which gives the rotation and translation matrices between the lidar and camera sensors for each spesific frame.  <b>  Having annotations in image space is the base reason to cut the poing cloud x axis range to [0,70]. So we use only the front view but not the back view since the cameras only setup face forward (since the annotations located only in front side) . </b> 
 
@@ -164,7 +169,7 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 4. conda install mayavi -c conda-forge
 5. pip install poetry
 6. pip install importlib-resources
-7. put your data in data/object/ folder as explained in readme
+7. put your data in data/object/ folder as explained in readme <br>
    <img src="report/kitti_viz.png" width=40% height=70%>
 8. python kitti_object.py --show_lidar_with_depth --img_fov --const_box --vis
 
@@ -187,17 +192,127 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 
 <b> The setup contains: </b>
 
+* 6 RGB camera located to have 360 degree view from front to back (10 Hz)
+* 2 Lidar : Pandar64 -mechanical 360° (10 Hz, 64 channel beams, 200 m rang)) and PandarGT -forward facing (10 Hz, 150 channel beams, 300 m range)
+
+   <img src="report/panda_setup.png" width=70% height=100%>
 
 
 <b> The Lidar Coordinate System and the Ranges </b>
 
+- x-axes : left, y-axes : back, z axes : up
+
+- The point cloud range used for model training:
+
+
+   for Pandar64 [-70, -40, -3, 70, 40, 1] (xmin ymin zmin xmax ymax zmax) <br>
+   for PandarGT [0, -40, -3, 211, 40, 1] (xmin ymin zmin xmax ymax zmax) 
+
+- The intensity range [0,255]
+
+- Lidar located at ?? (missing info)
 
 
 <b>  Format </b>
 
+- Lidar data contains x, y, z, intensity, timestamp and lidar id information in .pkl format
+
+   if d = 0 : Pandar64 <br>
+   if d = 1 : PandarGT
+
+   <img src="report/panda_lidar.png" width=30% height=50%>
+
+- Annotation files in .pkl format
+
+   <img src="report/panda_annot.png" width=40% height=50%>
+
+   ```
+   Index(['uuid', 'label', 'yaw', 'stationary', 'camera_used', 'position.x',
+       'position.y', 'position.z', 'dimensions.x', 'dimensions.y',
+       'dimensions.z', 'attributes.object_motion', 'cuboids.sibling_id',
+       'cuboids.sensor_id', 'attributes.rider_status',
+       'attributes.pedestrian_behavior', 'attributes.pedestrian_age'],
+      dtype='object')
+   ```
+
+<b> Visualization </b>
+
+Didnt try
+
+<b> Links </b>
+
+* Dataset: https://scale.com/open-datasets/pandaset 
+
+* Panda Dataset Paper : https://arxiv.org/pdf/2112.12610.pdf 
+
+* Devkit : https://github.com/scaleapi/pandaset-devkit 
 
 ## Nuscene
 
+
+<b> The setup contains: </b>
+
+* 6 RGB camera located to have 360 degree view from front to back (12 Hz)
+* 1 Lidar : 32 beams, 20Hz 
+
+   <img src="report/nuscene_setup.png" width=50% height=100%>
+
+
+<b> The Lidar Coordinate System and the Ranges </b>
+
+- x-axes : right, y-axes : front, z axes : up
+
+- The point cloud range used for model training [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]  (xmin ymin zmin xmax ymax zmax) 
+- The intensity range [0,255]
+
+- Lidar located at 1.84 m
+
+
+<b>  Format </b>
+
+- Lidar data contains x, y, z, intensity, and timestamp information in .bin format
+
+   <img src="report/nuscene_lidar.png" width=30% height=50%>
+
+- Annotation files in .json format
+
+   Instead of having an individual annotation file for each lidar - image pair, it is stored in one sample_annotation.json file with scene - frame information
+
+   <img src="report/nuscene_anno.png" width=40% height=50%>
+
+
+<b> Visualization </b>
+
+Using this [repo](https://github.com/pyaf/nuscenes_viz) its pretty easy to visualize nuscene data with ground truths in 3D lidar space. 
+
+1. Clone the repo
+2. conda create -n nuscene-vis python=3.7
+3. pip install -U lyft_dataset_sdk
+4. pip install mayavi
+5. pip install psutil
+5. pip install pyqt5
+6. python lyft_viz.py -d /home/yagmur/Desktop/OpenPCDet/data/nuscenes/v1.0-mini/visualize/ --scene fcbccedd61424f1b85dcbf8f897f9754
+
+   <img src="report/nuscene-vis.png" width=50% height=50%>
+
+!! If you have an error saying  Could not load the Qt platform plugin "xcb", just go to anacondaenv->lib/python3.7/site-packages/cv2/qt/plugins and delete this plugins folder
+
+Everytime pressing enter, it is passed to the next "sample" in the "selected scene"
+
+
+<b> Links </b>
+
+* Dataset:  https://www.nuscenes.org/nuscenes 
+
+* Nuscene Dataset Paper :  https://arxiv.org/pdf/1903.11027.pdf 
+
+* Devkit : https://github.com/nutonomy/nuscenes-devkit
+
+* Visualization : https://github.com/pyaf/nuscenes_viz 
+
+## Comparison Table
+
+<img src="report/comparison_table.jpeg" width=50% height=50%>
 
 
 # Paper Reviews
