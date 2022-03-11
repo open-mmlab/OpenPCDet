@@ -63,7 +63,7 @@ The first and naturally oldest dataset.
 - 2 Grayscale camera facing forward (10 Hz)
 - 1 Velodyne Lidar Sensor (10 Hz, 64 laser beams, 100 m range)
 
-<img src="report/kitti_setup.png" width=70% height=70%>
+<img src="report/kitti_setup.png" width=50% height=70%>
 
 <b> The Lidar Coordinate System and the Ranges </b>
 
@@ -84,13 +84,13 @@ The first and naturally oldest dataset.
 
 - Object Detection annotation files contains the following information and its in .txt format
 
-   <img src="report/kitti_od_format.png" width=50% height=50%>
-   <img src="report/kitti_od_anno.png" width=100% height=100%>
+   <img src="report/kitti_od_format.png" width=40% height=50%>
+   <img src="report/kitti_od_anno.png" width=70% height=100%>
 
 - In addition to the Object Detection dataset and annotations, there is another dataset for Object Tracking having the data arranged in sequences rather than different scenes from different moments like in Object Detection dataset. For this dataset the annotation format has 2 additional info 
 
-   <img src="report/kitti_tr_format.png" width=50% height=50%>
-   <img src="report/kitti_tr_anno.png" width=100% height=100%>
+   <img src="report/kitti_tr_format.png" width=40% height=50%>
+   <img src="report/kitti_tr_anno.png" width=70% height=100%>
 
 * As seen in annotation format too, <b> the ground truth annotations of the KITTI dataset has been provided in the 2D image space (in left grayscale camera frame called reference camera frame) not in 3D lidar space. </b> Therefore, to work with Lidar data, these 2D annotations should be converted to the 3D space using calibration files which gives the rotation and translation matrices between the lidar and camera sensors for each spesific frame.  <b>  Having annotations in image space is the base reason to cut the poing cloud x axis range to [0,70]. So we use only the front view but not the back view since the cameras only setup face forward (since the annotations located only in front side) . </b> 
 
@@ -106,50 +106,52 @@ The first and naturally oldest dataset.
 
 <b> Data Transformation in Kitti </b>
 
-<img src="report/kitti_transformation.png" width=50% height=50%>
+* There are 3 steps between lidar and image plane:
 
-In general, to project bounding boxes in lidar space, we first go from lidar to image plane to eliminate the point clouds staying outside of the image borders. Then project the bounding boxes on this newly created lidar space.
+   <img src="report/kitti_transformation.png" width=50% height=50%>
 
-From Lidar to Image Plane
-```
+   In general, to project bounding boxes in lidar space, we first go from lidar to image plane to eliminate the point clouds staying outside of the image borders. Then project the bounding boxes on this newly created lidar space.
 
-proj_mat = P2 @ R0_rect @ Tr_velo_to_cam
+   From Lidar to Image Plane
+   ```
 
-```
+   proj_mat = P2 @ R0_rect @ Tr_velo_to_cam
 
-Boxes in lidar plane 
+   ```
 
-```
+   Boxes in lidar plane 
 
-R_inv = np.linalg.inv(R0_rect)
-Tr_inv = np.linalg.inv(Tr_velo_to_cam)
+   ```
 
-proj_mat = R_inv @ Tr_inv 
+   R_inv = np.linalg.inv(R0_rect)
+   Tr_inv = np.linalg.inv(Tr_velo_to_cam)
 
-```
+   proj_mat = R_inv @ Tr_inv 
 
-Bounding boxes in cropped lidar space:
+   ```
 
-<img src="report/lidar_cropped.png" width=50% height=50%>
+   Bounding boxes in cropped lidar space:
 
-Bounding boxes in not cropped lidar space:
+   <img src="report/lidar_cropped.png" width=50% height=50%>
 
-<img src="report/lidar_notcropped1.png" width=40% height=50%> 
-<img src="report/lidar_notcropped2.png" width=40% height=50%>
+   Bounding boxes in not cropped lidar space:
+
+   <img src="report/lidar_notcropped1.png" width=40% height=50%> 
+   <img src="report/lidar_notcropped2.png" width=40% height=50%>
 
 
-To visualize bounding boxes in images, a simple projection should be applied too since the bounding boxes are in reference camera frame and the RGB images are provided in the dataset. (which is better than grayscale reference camera to visualize...) 
+   To visualize bounding boxes in images, a simple projection should be applied too since the bounding boxes are in reference camera frame and the RGB images are provided in the dataset. (which is better than grayscale reference camera to visualize...) 
 
-3D Bounding Boxes In Cam2 Image Plane
+   3D Bounding Boxes In Cam2 Image Plane
 
-```
-proj_mat = P2
+   ```
+   proj_mat = P2
 
-```
+   ```
 
-<img src="report/image_w_boxes.png" width=40% height=50%>
+   <img src="report/image_w_boxes.png" width=40% height=50%>
 
-Most of the frameworks to train a model with kitti already applies these transformations as preprocess, but to visualize or process the data manually this [repo](https://github.com/darylclimb/cvml_project/tree/cb06850b9477550b9c9e3c5651d013b347cc9b1b/projections/lidar_camera_projection)  can be used. 
+   Most of the frameworks to train a model with kitti already applies these transformations as preprocess, but to visualize or process the data manually this [repo](https://github.com/darylclimb/cvml_project/tree/cb06850b9477550b9c9e3c5651d013b347cc9b1b/projections/lidar_camera_projection)  can be used. 
 
 <b> Visualization </b>
 
@@ -163,10 +165,10 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 5. pip install poetry
 6. pip install importlib-resources
 7. put your data in data/object/ folder as explained in readme
-   <img src="report/kitti_viz.png" width=70% height=70%>
+   <img src="report/kitti_viz.png" width=40% height=70%>
 8. python kitti_object.py --show_lidar_with_depth --img_fov --const_box --vis
 
-<img src="report/kitti_visual.png" width=100% height=100%>
+   <img src="report/kitti_visual.png" width=70% height=100%>
 
 
 <b> Links </b>
