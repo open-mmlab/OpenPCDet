@@ -63,7 +63,7 @@ The first and naturally oldest dataset.
 - 2 Grayscale camera facing forward (10 Hz)
 - 1 Velodyne Lidar Sensor (10 Hz, 64 laser beams, 100 m range)
 
-<img src="report/kitti_setup.png" width=30% height=70%>
+<img src="report/kitti_setup.png" width=50% height=70%>
 
 <b> The Lidar Coordinate System and the Ranges </b>
 
@@ -80,20 +80,20 @@ The first and naturally oldest dataset.
 
 - Lidar data contains x, y, z, intensity informations and its in .bin format
 
-  <img src="report/kitti_lidar.png" width=10% height=50%>
+  <img src="report/kitti_lidar.png" width=30% height=50%>
 
 - Object Detection annotation files contains the following information and its in .txt format 
           
 
    <img src="report/kitti_od_format.png" width=40% height=50%>
-   <img src="report/kitti_od_anno.png" width=40% height=100%>
+   <img src="report/kitti_od_anno.png" width=55% height=100%>
 
 * The dataset contains 8 classes for object detection: Car, Van, Truck, Pedestrian, Person(sitting), Cyclist, Tram, Misc 
 
 - In addition to the Object Detection dataset and annotations, there is another dataset for Object Tracking having the data arranged in sequences rather than different scenes from different moments like in Object Detection dataset. For this dataset the annotation format has 2 additional info 
 
    <img src="report/kitti_tr_format.png" width=40% height=50%>
-   <img src="report/kitti_tr_anno.png" width=40% height=100%>
+   <img src="report/kitti_tr_anno.png" width=55% height=100%>
 
 
 
@@ -113,7 +113,7 @@ The first and naturally oldest dataset.
 
 * There are 3 steps between lidar and image plane:
 
-   <img src="report/kitti_transformation.png" width=30% height=50%>
+   <img src="report/kitti_transformation.png" width=40% height=50%>
 
    In general, to project bounding boxes in lidar space, we first go from lidar to image plane to eliminate the point clouds staying outside of the image borders. Then project the bounding boxes on this newly created lidar space.
 
@@ -195,7 +195,7 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 * 6 RGB camera located to have 360 degree view from front to back (10 Hz)
 * 2 Lidar : Pandar64 -mechanical 360° (10 Hz, 64 channel beams, 200 m rang)) and PandarGT -forward facing (10 Hz, 150 channel beams, 300 m range)
 
-   <img src="report/panda_setup.png" width=30% height=100%>
+   <img src="report/panda_setup.png" width=50% height=100%>
 
 
 <b> The Lidar Coordinate System and the Ranges </b>
@@ -255,7 +255,7 @@ Didnt try
 * 6 RGB camera located to have 360 degree view from front to back (12 Hz)
 * 1 Lidar : 32 beams, 20Hz 
 
-   <img src="report/nuscene_setup.png" width=30% height=100%>
+   <img src="report/nuscene_setup.png" width=50% height=100%>
 
 
 <b> The Lidar Coordinate System and the Ranges </b>
