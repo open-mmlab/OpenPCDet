@@ -657,16 +657,6 @@ class Detector3DTemplate(nn.Module):
         print('\nRecall dict:')
         self.print_dict(recall_dict)
 
-        if isinstance(data_dict['box_preds'], list):
-            self._box_preds_size = data_dict['box_preds'][0].size()
-            self._cls_preds_size = data_dict['cls_preds'][0].size()
-        else:
-            self._box_preds_size = data_dict['box_preds'].size()
-            self._cls_preds_size = data_dict['cls_preds'].size()
-
-        print('\nDense head return:\nbox_preds', self._box_preds_size)
-        print('cls_preds', self._cls_preds_size)
-
         if isinstance(pred_dicts, list):
             det = pred_dicts[0]
         else:

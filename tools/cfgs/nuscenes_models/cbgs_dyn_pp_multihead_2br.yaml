@@ -12,22 +12,17 @@ DATA_CONFIG:
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
-                'test': True
+                'test': False
             }
 
-        -   NAME: transform_points_to_voxels
+        -   NAME: transform_points_to_voxels_placeholder
             VOXEL_SIZE: [0.2, 0.2, 8.0]
-            MAX_POINTS_PER_VOXEL: 20
-            MAX_NUMBER_OF_VOXELS: {
-                'train': 30000,
-                'test': 30000
-            }
 
 MODEL:
     NAME: PointPillar
 
     VFE:
-        NAME: PillarVFE
+        NAME: DynPillarVFE
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
@@ -214,7 +209,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.3
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti

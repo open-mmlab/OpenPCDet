@@ -12,22 +12,17 @@ DATA_CONFIG:
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
-                'test': True
+                'test': False
             }
 
-        -   NAME: transform_points_to_voxels
+        -   NAME: transform_points_to_voxels_placeholder
             VOXEL_SIZE: [0.2, 0.2, 8.0]
-            MAX_POINTS_PER_VOXEL: 20
-            MAX_NUMBER_OF_VOXELS: {
-                'train': 30000,
-                'test': 30000
-            }
 
 MODEL:
     NAME: PointPillar
 
     VFE:
-        NAME: PillarVFE
+        NAME: DynPillarVFE
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
@@ -39,11 +34,11 @@ MODEL:
 
     BACKBONE_2D:
         NAME: BaseBEVBackbone
-        LAYER_NUMS: [3, 5, 5]
-        LAYER_STRIDES: [2, 2, 2]
-        NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [0.5, 1, 2]
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+        LAYER_NUMS: [3]
+        LAYER_STRIDES: [2]
+        NUM_FILTERS: [64]
+        UPSAMPLE_STRIDES: [0.5]
+        NUM_UPSAMPLE_FILTERS: [128]
 
     DENSE_HEAD:
         NAME: AnchorHeadMulti
@@ -211,7 +206,7 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.3
         OUTPUT_RAW_SCORE: False
 
         EVAL_METRIC: kitti
@@ -222,7 +217,7 @@ MODEL:
             NMS_THRESH: 0.2
             NMS_PRE_MAXSIZE: 1000
             NMS_POST_MAXSIZE: 83
-    METHOD: 3
+    METHOD: 1
     DEADLINE_SEC: 10.0
 
 OPTIMIZATION:

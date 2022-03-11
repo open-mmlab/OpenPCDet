@@ -146,7 +146,7 @@ class PointPillarImprecise(Detector3DTemplate):
         self.hist_cnt = 1
 
         # prediction
-        self.migrate_scr_thres = 0.2  # .2 avoids overhead
+        self.migrate_scr_thres = 0.3  # .3 avoids overhead
         self.pool_size = 6  # 6 appears to give best results on jetson-agx
         self.pred_box_pool = Pool(self.pool_size)
         self.prediction_timing = {}
@@ -565,7 +565,7 @@ class PointPillarImprecise(Detector3DTemplate):
     def calibrate(self):
         super().calibrate()
 
-        if self._default_method == self.IMPRECISE_PTEST:
+        if self._default_method == self.IMPRECISE_PTEST or self._default_method <= self.BASELINE3:
             return
         
         fname = f"calib_dict_{self.dataset.dataset_cfg.DATASET}" \

@@ -32,8 +32,12 @@ fi
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_pp_multihead_imprecise_caronly.yaml"
 
 # Imprecise model
-CFG_FILE="./cfgs/nuscenes_models/cbgs_pp_multihead_imprecise.yaml"
+CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
 CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/checkpoint_epoch_20.pth"
+
+# Centerpoint
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_centerpoint.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_pp_centerpoint_nds6070.pth"
 
 # Baseline models
 #CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/cbgs_pp_multihead_1br.yaml"
@@ -44,7 +48,7 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/ch
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_3br/default/ckpt/checkpoint_epoch_20.pth"
 
 #TASKSET=""
-TASKSET="taskset 0xc0"
+TASKSET="taskset 0xff"
 
 #DATASET="nuscenes_dataset.yaml"
 DATASET="nuscenes_mini_dataset.yaml"
@@ -65,8 +69,8 @@ elif [ $1 == 'methods' ]; then
 	OUT_DIR=exp_data_nsc
 	mkdir -p $OUT_DIR
 	m=1
-	prfx="cbgs_pp_multihead_"
-	for model in "1br" "2br" "3br" "imprecise" "imprecise" "imprecise" "imprecise"
+	prfx="cbgs_dyn_pp_multihead_"
+	for model in "1br" "2br" "3br" "imprecise" #"imprecise" "imprecise" "imprecise"
 	do
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
@@ -76,7 +80,7 @@ elif [ $1 == 'methods' ]; then
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 		sed -i "$ARG" $CFG_FILE
-		for s in $(seq 0.140 -0.010 0.100)
+		for s in $(seq 0.150 -0.010 0.080)
 		do
 			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json
 			if [ -f $OUT_FILE ]; then
@@ -90,5 +94,5 @@ elif [ $1 == 'methods' ]; then
 		m=$((m+1))
 	done
 elif [ $1 == 'single' ]; then
-        $CMD --set "MODEL.DEADLINE_SEC" 0.100 "MODEL.METHOD" $2
+        $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" $2
 fi
