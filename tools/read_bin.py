@@ -15,17 +15,9 @@ assert os.path.isfile(lidar_file)
 lidar_data = np.fromfile(str(lidar_file), dtype=np.float32)  
 print("kitti .bin lidar data shape", lidar_data.shape)
 
-print("one kitti lidar data", lidar_data.reshape(-1,4))
+print("one kitti lidar data")
+print(lidar_data.reshape(-1,4))
 
-""" lyft """
-
-lidar_file = "/home/yagmur/Downloads/lyft/train/train_lidar/host-a004_lidar1_1232815255701410486.bin"
-assert os.path.isfile(lidar_file)
-lidar_data = np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1,5) #[:, :4]
-print("one lyft lidar data", lidar_data)
-print("lyft .bin lidar data shape", lidar_data.shape)
-
-print("lyft intensities", max(lidar_data[:,3]))
 
 
 """ nuscene """

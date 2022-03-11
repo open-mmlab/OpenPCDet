@@ -44,7 +44,8 @@ def parse_config():
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--num_epochs_to_eval', type=int, default=0, help='number of checkpoints to be evaluated')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
-    parser.add_argument('--calculate_acc', type=bool, default=False, help='calculate train and validatino accuracy in train time')
+    parser.add_argument('--train_acc', type=bool, default=False, help='calculate train  accuracy during training')
+    parser.add_argument('--val_acc', type=bool, default=False, help='calculate validatin accuracy during training')
 
     args = parser.parse_args()
 
@@ -160,7 +161,7 @@ def main():
     validation_loader = None
     train_accloader = None
     
-    if args.calculate_acc:
+    if args.val_acc:
         
         validation_set, validation_loader, sampler = build_dataloader(
             dataset_cfg=cfg.DATA_CONFIG,
@@ -168,6 +169,8 @@ def main():
             batch_size=args.batch_size,
             dist=False, workers=args.workers, logger=logger, training=False
         )
+        
+    if args.train_acc:    
         
         train_accset, train_accloader, train_accsampler = build_dataloader(
             dataset_cfg=cfg.DATA_CONFIG,

@@ -17,7 +17,7 @@ with (open("/home/yagmur/Downloads/PANDASET/001/lidar/00.pkl", "rb")) as openfil
 import pickle
 
 objects = []
-with (open("/home/yagmur/Desktop/OpenPCDet/data/kitti/kitti_infos_train.pkl", "rb")) as openfile:
+with (open("/home/yagmur/Desktop/OpenPCDet/output/nuscenes_models/cbgs_pp_multihead/default/ckpt/validation_accuracy/checkpoint_epoch_18/result.pkl", "rb")) as openfile:
     while True:
         try:
             objects.append(pickle.load(openfile))

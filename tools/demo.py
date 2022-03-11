@@ -80,7 +80,7 @@ def parse_config():
     parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
     parser.add_argument('--ext', type=str, default='.bin', help='specify the extension of your point cloud data file')
     parser.add_argument('--out_folder', type=str, default=None, help='save demo results to the output folder')
-    parser.add_argument('--create_annotation', type=bool, default=None, help='save demo results as annotation files')
+    parser.add_argument('--create_annotation', type=bool, default=None, help='save demo results as kitti annotation files')
     
 
     args = parser.parse_args()

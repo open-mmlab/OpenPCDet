@@ -38,8 +38,8 @@ def normalize_intensity(points, max_intensity, min_intensity):
 
 
 
-path = "/home/yagmur/Desktop/OpenPCDet/data/nuscene/test/"
-output_path = "/home/yagmur/Desktop/OpenPCDet/data/nuscene/uniformed/"
+path = "/home/yagmur/Desktop/OpenPCDet/data/nuscenes/test/"
+output_path = "/home/yagmur/Desktop/OpenPCDet/data/nuscenes/uniformed/"
 
 NUSCENE_MAX_INTENSITY = 255
 NUSCENE_MIN_INTENSITY = 0
