@@ -276,7 +276,7 @@ def create_lyft_info(version, data_path, save_path, split, max_sweeps=10):
         raise NotImplementedError
 
     train_scenes = [x.strip() for x in open(train_split_path).readlines()] if train_split_path.exists() else []
-    val_scenes = [x.strip() for x in open(val_split_path).readlines()] if val_split_path.exists() else []
+    val_scenes = [x.strip() for x in open(val_split_path).readlines()] if val_split_path is not None and val_split_path.exists() else []
 
     lyft = LyftDataset(json_path=data_path / 'data', data_path=data_path, verbose=True)
 
@@ -342,4 +342,6 @@ if __name__ == '__main__':
             root_path=ROOT_DIR / 'data' / 'lyft',
             logger=common_utils.create_logger(), training=True
         )
-        lyft_dataset.create_groundtruth_database(max_sweeps=dataset_cfg.MAX_SWEEPS)
+
+        if args.version != 'test':
+            lyft_dataset.create_groundtruth_database(max_sweeps=dataset_cfg.MAX_SWEEPS)
