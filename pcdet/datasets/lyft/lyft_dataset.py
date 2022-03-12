@@ -273,7 +273,7 @@ def create_lyft_info(version, data_path, save_path, split, max_sweeps=10):
         train_split_path = split_path / 'one_scene.txt'
         val_split_path = split_path / 'one_scene.txt'
     else:
-        raise NotImplementedErr
+        raise NotImplementedError
 
     train_scenes = [x.strip() for x in open(train_split_path).readlines()] if train_split_path.exists() else []
     val_scenes = [x.strip() for x in open(val_split_path).readlines()] if val_split_path is not None and val_split_path.exists() else []
