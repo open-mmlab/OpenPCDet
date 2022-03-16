@@ -23,15 +23,19 @@ This tutorial is about 3D Multi Object Detection using Lidar and includes detail
 * PV-RCNN
 * PV-RCNN++
 
-
 ## OpenPCDET Usage and Experiments
 
-* Build the Environment
-* Train Evaluate and Inference with Kitti
-* Common Errors and the Ways to Fix
-* Flow Charts of The Code
+* Building the Environment
+* Train with Kitti <br>
+  Possible Errors and Their Solutions 
+* Evaluation with Kitti
+* Inference with Kitti
+* OpenPCDet Vocabulary - Configuration File Parameters
 
 ## Fine Tuning with Kitti 
+
+TO DO:
+   Fine tuning table will be added with validation acc, train and test speed between second, pointpillar, pv rcnn and the final model chosed.
 
 # Dataset Types
 
@@ -159,6 +163,7 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 
    <img src="report/kitti_visual.png" width=50% height=100%>
 
+!! conda update ffmpeg to solve ImportError: libopenh264.so.5: cannot open shared object file: No such file or directory problem if occurs
 
 <b> Links </b>
 
@@ -301,7 +306,7 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 # Paper Reviews
 
-## Pointnet
+## Pointnet (2016)
 
 paper : https://arxiv.org/pdf/1612.00593.pdf  
 
@@ -317,7 +322,7 @@ official code : https://github.com/charlesq34/pointnet
 
    2. Interaction of points (the relation between neighbor points (local features) and general relation (global features) should be extracted. For classification, the global features are important since the task is to decide for a global class for the whole point cloud. For segmentation,  a combination of local and global knowledge is required
 
-   3. The model should be transform(translation - rotation) invariant  (A chair is still a chair when its rotated 90 degree etc°
+   3. The model should be transform(translation - rotation) invariant  (A chair is still a chair when its rotated 90 degree etc)
 
    ### Model Architecture
 
@@ -347,7 +352,7 @@ official code : https://github.com/charlesq34/pointnet
    
    PointNet architecture doesnt allow to do Object Detection alone but after this paper, various methods to realize object detection on point cloud data is started to come up.
 
-## Voxelnet
+## Voxelnet (2017)
 
 paper : https://arxiv.org/pdf/1711.06396.pdf 
 
@@ -471,7 +476,7 @@ FAKAT bu 2 anchorin rotasyon ve buyukluk boyutu nerde devreye giriyor koddan asl
 * The model is created to work with 1 class at a time. It is something which may improved but most of the frameworks or implementations  still provide single class models.
 
 
-## Second (Sparsely Embedded Convolutional Detection)
+## Second : Sparsely Embedded Convolutional Detection (2018)
 
 paper : https://pdfs.semanticscholar.org/5125/a16039cabc6320c908a4764f32596e018ad3.pdf 
 
@@ -514,7 +519,7 @@ The model architecture is very similar to the Voxelnet with only some little cha
 
       In this version, the output feature map is in the same size with input feature map and an output point becomes active only if it was active in input data map too. This is called <b> VSC (valid sparse convolution) </b> too.  
 
-      IMAGE : sublonifold output versiyonunu ekle yukardaki resmin.
+      <img src="report/submanifold.png" width=50% height=30%>
 
       The reason of this change is, for deep neural networks, the sparsity disappears too much that the performance inhancement of SC disappears too. So protecting the sparsity as it was in the input feature map may help for especially creating sparse deep neural networks.
 
@@ -537,7 +542,7 @@ Its seen that beside of the speed performance, accuracy is pretty better than Vo
 
 Even the performance and speed is far way better then Voxelnet, it still uses 3D CNN which stays as a bottleneck.
 
-## Pointpillar
+## Pointpillar (2018)
 
  paper : https://arxiv.org/abs/1812.05784
 
@@ -582,7 +587,7 @@ TO DO :
 Its seen that its x3 faster then Second and the accuracy is better in general except of Car - easy.
 
 
-## PV-RCNN (PointVoxel-RCN)
+## PV-RCNN : PointVoxel-RCN (2019)
 
 paper : https://arxiv.org/pdf/1912.13192.pdf 
 
@@ -603,7 +608,7 @@ TO DO:
 
 It seems to be best model (at least for kitti dataset) until now in the sense of accuracy. There is no information about speed performance though.
 
-## PV-RCNN++
+## PV-RCNN++ (2021)
 
 paper : https://arxiv.org/pdf/2102.00463.pdf 
 
@@ -624,16 +629,165 @@ TO DO:
 
 It has near results and kind of shares  the best accuracy performance with PV-RCNN.
 
-## Comparison Table
+# OpenPCDET Usage and Experiments
 
-<img src="report/comparison_models.jpeg" width=50% height=50%>
+## Building the Environment
+
+To prevent the version conflicts between Cuda - Pytorch Version - Spvconv librqry - Openpcdet requirements, please follow the declared versions that I found working compatible:
+
+* conda create -n openpcdet python=3.8 anaconda
+
+* conda source activate openpcdet
+
+* pip install torch==1.8.1+cu101 torchvision==0.9.1+cu101 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+
+* pip install spconv-cu102
+
+* git clone https://github.com/open-mmlab/OpenPCDet.git 
+
+* python setup.py develop (cd Desktop/OpenPCDet)
+
+* pip install open3d 
+
+* export PYTHONPATH="/home/yagmur/Desktop/OpenPCDet"
+
+
+## Train with Kitti
+
+<b> 1. Prepare the dataset </b>
+
+   The dataset should be prepared as kitti_infos_train.pkl, kitti_infos_test.pkl, kitti_infos_val.pkl, and a gt_database folder which keeps all the ground truth boxes in different point clouds.
+
+   To do that, place the dataset as following in OpenPCDet/data/kitti folder:
+
+   <img src="report/kitti_dataset_arrange.png" width=20% height=50%>
+   <img src="report/kitti_dataset_arrange2.png" width=20% height=50%>
+   <img src="report/kitti_dataset_arrange3.png" width=20% height=50%>
+
+
+   Then run the following code:
+   ```
+   python -m pcdet.datasets.kitti.kitti_dataset create_kitti_infos tools/cfgs/dataset_configs/kitti_dataset.yaml  (cd OpenPCDET)
+   ```
+
+   Which gives you the following files as output:
+
+   <img src="report/dataset_output.png" width=20% height=50%>
+
+
+<b> 2. Select a model and train </b>
+
+   There are different models' configuration files. 
+   
+   <img src="report/cfgs.png" width=20% height=50%>
+   
+   Select the model you want to train and run the following command:
+
+   ```
+   python train.py --cfg_file cfgs/kitti_models/second.yaml 
+   ```
+
+   The model configuration file contains dataset configuration file which directs the created train.pkl, val.pkl files to be used during the training. So giving the model configuration file is enogh.
+
+<b> 3. Visualize the results (train loss, learning rate evaluation) </b>
+
+   ```
+   tensorboard --logdir=/home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_05032022/tensorboard/ --host=127.0.0.1
+   ```
+   
+   <img src="report/train_chart.png" width=40% height=50%>
+
+   The process of train loss, learning rate evaluation and only the evaluation of the last checkpoint (final model) on validation dataset can be found in log.txt file too.
+
+   <img src="report/log1.png" width=40% height=50%>
+   <img src="report/log2.png" width=40% height=50%>
+
+
+<b> 4. Train with validation dataset evaluation </b>
+
+   To obtain validation dataset accuracy evaluated at the end of each epoch of training, use --val_acc True flag for example:
+
+   ```
+   python train.py --cfg_file cfgs/kitti_models/second.yaml --val_acc True
+   ```
+
+   At the end, tensorboard graphs are avaliable for evaluation.
+
+   ```
+   tensorboard --logdir=/home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_10032022/ckpt/validation_accuracy/tensorboard --host=127.0.0.1
+   ```
+
+   <img src="report/eval_graph.png" width=40% height=50%>
+
+   With this usage, all the evaluation information is written in log.txt file too in contrary of only the last one as in the previous option.
+
+<b> Possible Errors and Their Solutions </b> 
+
+* CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start
+
+   It came after a couple of training I made without turning off the computer. I turned off and open the PC it worked.
+
+* Caught KeyError in DataLoader worker process 0 KeyError: 'road_plane'
+
+   Change "USE_ROAD_PLANE: True" to "USE_ROAD_PLANE: False" in model.yaml file
+
+* CUDA out of memory 
+
+  Even if the training is finished, CUDA cache is not emptied. Therefore deactivate and activate anaconda environment after the end of the training everytime. 
+
+  If above doesnt solve, it means that even CUDA cache is empty, it doesnt have enough place to load the dataset with given batch size. Therefore the batch size should be decreased in model.yaml file
+
+* Dataloader killed signal
+
+   Decrease the batch size.
+
+
+## Evaluation with Kitti
+
+   If the model trained without --val_acc True option but you want to obtain all the evaluation progress, use the following command:
+
+   ```
+   python test.py --cfg_file  cfgs/kitti_models/second.yaml --batch_size 1 --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_05032022/ckpt --eval_all
+   ```
+   Or evaluate a spesific checkpoint :
+
+   ```
+   python test.py --cfg_file  cfgs/kitti_models/second.yaml --batch_size 1 --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_05032022/ckpt/checkpoint_epoch_60.pth 
+   ```
+
+## Test - Inference with Kitti
+
+```
+python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_15032022/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitti/testing_small/velodyne 
+```
+
+<img src="report/inference1.png" width=40% height=50%>
+
+<img src="report/inference2.png" width=40% height=50%>
+
+<img src="report/inference3.png" width=40% height=50%>
 
 
 
-TO DO : 
+The kitti visualizer explained in Datasets -> Kitti section may be used here to compare model predictions with ground truth (good to fine tune inference parameters like score threshold)
 
-- a table of pour contre (acc, speed, published date infos + my results)
-- model based fine tuning table (validation acc according to the different paraleters I applied to the second)
-- Fine tuning table with validation acc, train and test speed between second, pointpillar, pv rcnn and the final model chosed.
+<img src="report/inference_with_gt.png" width=40% height=50%>
 
+## OpenPCDet Vocabulary - Configuration File Parameters
 
+1. MultiHead - SingleHead
+
+2. Model Configuration File
+
+   *  PREPARE: 
+   {
+      filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'], 
+   }
+
+      Only include gt boxes which have at least the specified number of points
+
+   * SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15'] 
+
+      The value here indicates that the sampler will sample at least that many instances of the classes in one batch.   
+
+   *    
