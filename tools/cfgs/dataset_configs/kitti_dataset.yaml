@@ -43,13 +43,11 @@ DATA_AUGMENTOR:
         - NAME: random_world_scaling
           WORLD_SCALE_RANGE: [0.95, 1.05]
 
-
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
     used_feature_list: ['x', 'y', 'z', 'intensity'],
     src_feature_list: ['x', 'y', 'z', 'intensity'],
 }
-
 
 DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
@@ -68,3 +66,8 @@ DATA_PROCESSOR:
         'train': 16000,
         'test': 40000
       }
+
+USE_PLANES: False
+WIDTH_THRESHOLD: 0.0
+NPOINTS: 30000
+SHIFT_AUG: False

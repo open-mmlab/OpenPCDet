@@ -12,6 +12,8 @@ class AnchorHeadSingle(AnchorHeadTemplate):
             predict_boxes_when_training=predict_boxes_when_training
         )
 
+        import pdb; pdb.set_trace()
+
         self.num_anchors_per_location = sum(self.num_anchors_per_location)
 
         self.conv_cls = nn.Conv2d(
