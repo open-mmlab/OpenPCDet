@@ -311,13 +311,13 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 <b>  Format </b>
 
-- Lidar data contains x, y, z, intensity information in .bin format ((or ladouatokitti version)
+- Lidar data contains x, y, z, intensity information in .bin format (for ladouatokitti version)
 
 - No annotation file for now.
 
 ## Comparison Table
 
-<img src="report/kitware_format.jpeg" width=50% height=50%>
+<img src="report/comparison_table.jpeg" width=50% height=50%>
 
 # Paper Reviews
 
@@ -534,13 +534,13 @@ The model architecture is very similar to the Voxelnet with only some little cha
 
       In this version, the output feature map is in the same size with input feature map and an output point becomes active only if it was active in input data map too. This is called <b> VSC (valid sparse convolution) </b> too.  
 
-      <img src="report/submanifold.png" width=50% height=30%>
+      <img src="report/submanifold.png" width=30% height=30%>
 
       The reason of this change is, for deep neural networks, the sparsity disappears too much that the performance inhancement of SC disappears too. So protecting the sparsity as it was in the input feature map may help for especially creating sparse deep neural networks.
 
       Finally, the paper presents 5 mini network blocks using VSC to create sparse deep neural neutworks by combining these blocks. 
       
-      <img src="report/vsc-combinations.png" width=50% height=30%>
+      <img src="report/vsc-combinations.png" width=30% height=30%>
       
       The deep neural networks created using these mini blocks are called Submanifold Sparse Neural Networks.
 
@@ -764,28 +764,28 @@ To prevent the version conflicts between Cuda - Pytorch Version - Spvconv librqr
 * cd pandaset-devkit/python
 * pip install .
 
-!! Change requirements.txt in pandadevkit as following to solve the conflict with openpcdet environments. Otherwise Openpcdet collapse and it becomes unavailable to even train with kitti etc.
+<b> !! </b> Change requirements.txt in pandadevkit as following to solve the conflict with openpcdet environments. Otherwise Openpcdet collapse and it becomes unavailable to even train with kitti etc.
 
-gmplot>=1.2.0
-numpy>=1.18.2
-pandas>=1.0.3
-Pillow>=7.0.0
-transforms3d>=0.3.1
+gmplot>=1.2.0 <br>
+numpy>=1.18.2 <br>
+pandas>=1.0.3 <br>
+Pillow>=7.0.0 <br>
+transforms3d>=0.3.1 <br>
 
 * Place the dataset as follows
 
-  <img src="report/panda_dataset.png" width=40% height=50%>
+  <img src="report/panda_dataset.png" width=30% height=50%>
 
 
 * python -m pcdet.datasets.pandaset.pandaset_dataset create_pandaset_infos tools/cfgs/dataset_configs/pandaset_dataset.yaml
 
-!! Change pandaset_dataset.py if you dont use the whole dataset but some scenes 
+<b> !! </b> Change pandaset_dataset.py if you dont use the whole dataset but some scenes 
 
-   <img src="report/pandasetpy.png" width=40% height=50%>
+   <img src="report/pandasetpy.png" width=25% height=50%>
 
 * python train.py --cfg_file cfgs/pandaset_models/pv_rcnn.yaml 
 
-!! --val_acc True is not supported yet.
+<b> !! </b>  --val_acc True is not supported yet.
 
 
 ## Evaluation 
@@ -812,14 +812,11 @@ python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desk
 ```
 
 <img src="report/inference1.png" width=40% height=50%>
-
-<img src="report/inference2.png" width=40% height=50%>
-
 <img src="report/inference3.png" width=40% height=50%>
 
 The kitti visualizer explained in Datasets -> Kitti section may be used here to compare model predictions with ground truth (good to fine tune inference parameters like score threshold)
 
-<img src="report/inference_with_gt.png" width=40% height=50%>
+<img src="report/inference_with_gt.png" width=60% height=50%>
 
 ## Test Between Different Datasets
 
@@ -840,9 +837,6 @@ Due to the different configurations of different datasets, the prediction perfor
 * Lidar Setup Height
 
    The Z position of the lidar may effect the result. Hence its better to decrease or increase the Z position of points in the point cloud according to the train dataset's lidar height.
-
-
-
 
 ## OpenPCDet Model Configuration File
 
