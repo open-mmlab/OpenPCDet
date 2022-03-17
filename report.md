@@ -318,7 +318,7 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 ## Comparison Table
 
-<img src="report/comparison-table.png" width=50% height=50%>
+<img src="report/comparison-table.png" width=70% height=50%>
 
 # Paper Reviews
 
@@ -888,9 +888,9 @@ Due to the different configurations of different datasets, the prediction perfor
 
 ## Fine Tuning with Kitti 
 
-Comparison Table to come
+----Comparison Table to come
 
-Beside of Train time fine tuning, applying test time fine tuning by mostly arranging score threshold or nms parameters is very effective:
+Beside of train time fine tuning, applying test time fine tuning by mostly arranging score threshold or nms parameters is very effective:
 
 Before test time fine tuning:
 
