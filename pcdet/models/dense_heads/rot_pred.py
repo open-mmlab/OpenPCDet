@@ -68,7 +68,6 @@ class RotRegression(AnchorHeadTemplate):
         dir_labels = self.forward_ret_dict['dir_labels']
 
         if dir_preds is not None:
-            import pdb; pdb.set_trace()
             dir_loss = F.binary_cross_entropy(dir_preds, dir_labels) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['dir_weight']
         else:
@@ -87,7 +86,6 @@ class RotRegression(AnchorHeadTemplate):
             pred_embedding, target_embedding = self.add_sin_difference(
                 rot_preds, rot_labels
             )
-            import pdb; pdb.set_trace()
             rot_loss = F.l1_loss(pred_embedding, target_embedding) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['rot_weight']
         else:
