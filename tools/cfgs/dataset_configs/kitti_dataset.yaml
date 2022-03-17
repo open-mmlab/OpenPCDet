@@ -43,13 +43,11 @@ DATA_AUGMENTOR:
         - NAME: random_world_scaling
           WORLD_SCALE_RANGE: [0.95, 1.05]
 
-
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
     used_feature_list: ['x', 'y', 'z', 'intensity'],
     src_feature_list: ['x', 'y', 'z', 'intensity'],
 }
-
 
 DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
@@ -68,3 +66,26 @@ DATA_PROCESSOR:
         'train': 16000,
         'test': 40000
       }
+
+USE_PLANES: False
+WIDTH_THRESHOLD: 0.0
+NPOINTS: 30000
+SHIFT_AUG: False
+
+TRAIN_INFO_PATH: "/mnt/lustre/share_data/denghanming/3d_det/skeleton-v2/internal_18W-PK1-2_maxgt-class-assemble-6W-hardBG-2W_around.pkl; \
+    /mnt/lustre/share/songxiao/data/hesai_test_1224/hesai_1224_around.pkl; \
+    /mnt/lustre/share/songxiao/data/hesai_test_1101/hesai_1101_train_val_unified.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_20-0312_case_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_4597_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_20-0608_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_20-0701_around.pkl; \
+    /mnt/lustre/share/songxiao/data/hesai_test_1224/hesai_1224_around.pkl; \
+    /mnt/lustre/share/songxiao/data/hesai_test_1101/hesai_1101_train_val_unified.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_20-0312_case_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_4597_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_20-0608_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_20-0701_around.pkl" \
+
+TEST_INFO_PATH: "/mnt/lustre/share/songxiao/3ddet/internal_20-0312_case_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_4597_around.pkl; \
+    /mnt/lustre/share/songxiao/3ddet/internal_lg_issue_20-0608_around.pkl"
