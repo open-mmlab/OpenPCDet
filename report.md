@@ -27,6 +27,7 @@
   * with Kitti
 * Inference 
   * with Kitti
+  * with Kitware on a Kitti Trained Model
 * Test Between Different Datasets
 * OpenPCDet Configuration File 
 
@@ -317,7 +318,7 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 ## Comparison Table
 
-<img src="report/comparison_table.jpeg" width=50% height=50%>
+<img src="report/comparison_table.png" width=50% height=50%>
 
 # Paper Reviews
 
@@ -818,6 +819,17 @@ The kitti visualizer explained in Datasets -> Kitti section may be used here to 
 
 <img src="report/inference_with_gt.png" width=60% height=50%>
 
+## with Kitware on a Kitti Trained Model
+
+Since Kitware data is already in uniform coordinate system (converted to the same coordinate system as Kitti and Openpcdet), it is possible to make a test without any big change.
+
+```
+python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_15032022/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitti/testing_kitware/velodyne 
+```
+<img src="report/kitware_test.png" width=60% height=50%>
+
+The result doesnt seem bad but I cant decide if its ground truth or not since the data is more scarce (one box has very less points than a kitti's box due to the usage of 16 beams). But the boxes with higher accuracies seem to be ok.
+
 ## Test Between Different Datasets
 
 Due to the different configurations of different datasets, the prediction performance may not be well between different datasets (when you train a model with one dataset and test with another). The following points are important to make the test dataset compatible with train dataset configurations
@@ -877,3 +889,14 @@ Due to the different configurations of different datasets, the prediction perfor
 ## Fine Tuning with Kitti 
 
 Comparison Table to come
+
+Beside of Train time fine tuning, applying test time fine tuning by mostly arranging score threshold or nms parameters is very effective:
+
+Before test time fine tuning:
+
+<img src="report/before.png" width=60% height=50%>
+
+After test time fine tuning:
+
+<img src="report/after.png" width=60% height=50%>
+
