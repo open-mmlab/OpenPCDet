@@ -301,7 +301,7 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 <b> The setup contains: </b>
 
-* 1 Lidar : 16 beams, ?Hz 
+* 1 Lidar (VLP-16 Velodyne): 16 beams, 10Hz 
 
 - x-axes : front, y-axes : left, z axes : up (for ladouatokitti version)
 
