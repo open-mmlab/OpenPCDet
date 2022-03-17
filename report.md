@@ -1,11 +1,3 @@
-<img src="docs/open_mmlab.png" align="right" width="30%">
-
-# OpenPCDet
-
-`OpenPCDet` is a clear, simple, self-contained open source project for LiDAR-based 3D object detection. 
-
-This tutorial is about 3D Multi Object Detection using Lidar and includes detailed information for related papers, model architectures, dataset types and the usage of OpenPCDET for this goal. To have other informations about OpenPCDET or related issues please refer to the official repo which I forked from.
-
 # Includings
 
 ## Dataset Types
@@ -13,6 +5,7 @@ This tutorial is about 3D Multi Object Detection using Lidar and includes detail
 * Kitti 
 * Nuscene
 * Pandaset
+* Kitware 
 
 ## Paper Reviews
 
@@ -26,16 +19,21 @@ This tutorial is about 3D Multi Object Detection using Lidar and includes detail
 ## OpenPCDET Usage and Experiments
 
 * Building the Environment
-* Train with Kitti <br>
-  Possible Errors and Their Solutions 
-* Evaluation with Kitti
-* Inference with Kitti
-* OpenPCDet Vocabulary - Configuration File Parameters
+* Train 
+  * with Kitti
+  * with Pandaset
+  * Possible Errors and Their Solutions  
+* Evaluation 
+  * with Kitti
+* Inference 
+  * with Kitti
+* Test Between Different Datasets
+* OpenPCDet Configuration File 
 
 ## Fine Tuning with Kitti 
 
-TO DO:
-   Fine tuning table will be added with validation acc, train and test speed between second, pointpillar, pv rcnn and the final model chosed.
+* Results Table
+* Inference Results with Selected Inference Threshold
 
 # Dataset Types
 
@@ -226,7 +224,7 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 
 <b> Visualization </b>
 
-Didnt try
+Couldnt find any.
 
 <b> Links </b>
 
@@ -299,10 +297,27 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 * Visualization : https://github.com/pyaf/nuscenes_viz 
 
+## Kitware
+
+<b> The setup contains: </b>
+
+* 1 Lidar : 16 beams, ?Hz 
+
+- x-axes : front, y-axes : left, z axes : up (for ladouatokitti version)
+
+- The intensity range [0,1] (for ladouatokitti version)
+
+- Lidar located at 1.6 m
+
+<b>  Format </b>
+
+- Lidar data contains x, y, z, intensity information in .bin format ((or ladouatokitti version)
+
+- No annotation file for now.
+
 ## Comparison Table
 
-<img src="report/comparison_table.jpeg" width=50% height=50%>
-
+<img src="report/kitware_format.jpeg" width=50% height=50%>
 
 # Paper Reviews
 
@@ -652,7 +667,9 @@ To prevent the version conflicts between Cuda - Pytorch Version - Spvconv librqr
 * export PYTHONPATH="/home/yagmur/Desktop/OpenPCDet"
 
 
-## Train with Kitti
+## Train 
+
+## with Kitti
 
 <b> 1. Prepare the dataset </b>
 
@@ -741,8 +758,39 @@ To prevent the version conflicts between Cuda - Pytorch Version - Spvconv librqr
 
    Decrease the batch size.
 
+## with Pandaset 
 
-## Evaluation with Kitti
+* git clone git@github.com:scaleapi/pandaset-devkit.git
+* cd pandaset-devkit/python
+* pip install .
+
+!! Change requirements.txt in pandadevkit as following to solve the conflict with openpcdet environments. Otherwise Openpcdet collapse and it becomes unavailable to even train with kitti etc.
+
+gmplot>=1.2.0
+numpy>=1.18.2
+pandas>=1.0.3
+Pillow>=7.0.0
+transforms3d>=0.3.1
+
+* Place the dataset as follows
+
+  <img src="report/panda_dataset.png" width=40% height=50%>
+
+
+* python -m pcdet.datasets.pandaset.pandaset_dataset create_pandaset_infos tools/cfgs/dataset_configs/pandaset_dataset.yaml
+
+!! Change pandaset_dataset.py if you dont use the whole dataset but some scenes 
+
+   <img src="report/pandasetpy.png" width=40% height=50%>
+
+* python train.py --cfg_file cfgs/pandaset_models/pv_rcnn.yaml 
+
+!! --val_acc True is not supported yet.
+
+
+## Evaluation 
+
+## with Kitti
 
    If the model trained without --val_acc True option but you want to obtain all the evaluation progress, use the following command:
 
@@ -755,7 +803,9 @@ To prevent the version conflicts between Cuda - Pytorch Version - Spvconv librqr
    python test.py --cfg_file  cfgs/kitti_models/second.yaml --batch_size 1 --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_05032022/ckpt/checkpoint_epoch_60.pth 
    ```
 
-## Test - Inference with Kitti
+## Test - Inference 
+
+## with Kitti
 
 ```
 python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_15032022/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitti/testing_small/velodyne 
@@ -767,27 +817,69 @@ python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desk
 
 <img src="report/inference3.png" width=40% height=50%>
 
-
-
 The kitti visualizer explained in Datasets -> Kitti section may be used here to compare model predictions with ground truth (good to fine tune inference parameters like score threshold)
 
 <img src="report/inference_with_gt.png" width=40% height=50%>
 
-## OpenPCDet Vocabulary - Configuration File Parameters
+## Test Between Different Datasets
 
-1. MultiHead - SingleHead
+Due to the different configurations of different datasets, the prediction performance may not be well between different datasets (when you train a model with one dataset and test with another). The following points are important to make the test dataset compatible with train dataset configurations
 
-2. Model Configuration File
+* Beam size 
+
+   A lidar with a beam 64 produces more points then 16 or 32. Therefore, in a dataset created by 64 beam lidar we obtain more points in a ROI. (A car contains 50 points in a 64 beam lidar point cloud while it contains lets say 10 in a 16 beam lidar point cloud data)
+
+* Coordinate System
+
+   Openpcdet uses "uniform coordinate system" which is equivalent to Kitti's coordinate system. To train a custom dataset, the coordinate system (x y z axes of the lidar) should be arranged in the same way of this coordinate system. Its already done at the background of openpcdet for training with nuscene, pandaset etc but to test it should be done manually. (So even if you trained a model with pandaset and you want to test with pandaset, you need to make this transformation because the training is done according to this uniform coordinate system)
+
+* Intensity Range
+
+   Intensity range is used in training process by default. The uniform model that Openpcdet uses is again equivalent to Kitti dataset [0,1]. So the same process should be applied as coordinate system
+
+* Lidar Setup Height
+
+   The Z position of the lidar may effect the result. Hence its better to decrease or increase the Z position of points in the point cloud according to the train dataset's lidar height.
+
+
+
+
+## OpenPCDet Model Configuration File
 
    *  PREPARE: 
    {
       filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'], 
    }
 
-      Only include gt boxes which have at least the specified number of points
+      Only include gt boxes which have at least the specified number of points. This is the configuration for kitti created by 64 beams-lidar, in nuscene case which is created by 32 beams-lidar, these numbers are 1. 
 
    * SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15'] 
 
       The value here indicates that the sampler will sample at least that many instances of the classes in one batch.   
 
-   *    
+   * NUM_POINT_FEATURES: 4
+
+      The number of the features that 1 point has. For Kitti its 4 (x,y,z,i); for Nuscene its 5 (x,y,z,i,timestamp); for Pandaset its 6 (x,y,z,i,timestamp, lidar id). If you dont want to use other than x,y,z,i information (or even not i for training) you can change this number and update the following configuration:
+
+      POINT_FEATURE_ENCODING: { <br>
+         encoding_type: absolute_coordinates_encoding, <br>
+         used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'], <br>
+         src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp'], <br>
+      }
+
+   * VOXEL_SIZE: [ 0.05, 0.05, 0.1] #Voxel sizes in x y z direction
+      MAX_POINTS_PER_VOXEL: 5
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 16000,
+        'test': 40000
+      }
+
+      POINT_CLOUD_RANGE:  [0, -40, -3, 70.4, 40, 1] #Point Cloud Range in meters xmin ymin zmin xmax ymax zmax which gives 70.4 meter for front view, 80 meter for left right sides and 4 meter for height in Kitti case
+
+      Voxel sizes in meter which determines the Grid Size by division to the Point Cloud Range.
+      For Second the Grid Size must be a multiple of (16,16,40)   
+      For Pointpillar the Grid Size must be a multiple of (16,16) and 1 for Z direction.
+
+## Fine Tuning with Kitti 
+
+Comparison Table to come

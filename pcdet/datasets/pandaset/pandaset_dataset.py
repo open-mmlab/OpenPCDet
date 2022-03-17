@@ -367,6 +367,10 @@ class PandasetDataset(DatasetTemplate):
         """
         infos = []
         for seq in self.sequences:
+            if not (seq <= '005' or (seq >= '011' and seq <= '016')):
+            	continue
+            else:
+            	print(seq)	
             s = self.dataset[seq]
             s.load_lidar()
             if len(s.lidar.data) > 100:

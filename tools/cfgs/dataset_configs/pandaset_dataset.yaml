@@ -1,5 +1,5 @@
 DATASET: 'PandasetDataset'
-DATA_PATH: '../data/PANDASET'
+DATA_PATH: '../data/pandaset'
 
 POINT_CLOUD_RANGE: [-70, -40, -3, 70, 40, 1] # xmin, ymin, zmin, xmax, ymax, zmax
 
