@@ -318,7 +318,7 @@ Everytime pressing enter, it is passed to the next "sample" in the "selected sce
 
 ## Comparison Table
 
-<img src="report/comparison_table.png" width=50% height=50%>
+<img src="report/comparison-table.png" width=50% height=50%>
 
 # Paper Reviews
 
