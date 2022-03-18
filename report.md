@@ -73,14 +73,14 @@ The first and naturally oldest dataset.
           
 
    <img src="report/kitti_od_format.png" width=40% height=50%>
-   <img src="report/kitti_od_anno.png" width=55% height=100%>
+   <img src="report/kitti_od_anno.png" width=75% height=100%>
 
 * The dataset contains 8 classes for object detection: Car, Van, Truck, Pedestrian, Person(sitting), Cyclist, Tram, Misc 
 
 - In addition to the Object Detection dataset and annotations, there is another dataset for Object Tracking having the data arranged in sequences rather than different scenes from different moments like in Object Detection dataset. For this dataset the annotation format has 2 additional info 
 
    <img src="report/kitti_tr_format.png" width=40% height=50%>
-   <img src="report/kitti_tr_anno.png" width=55% height=100%>
+   <img src="report/kitti_tr_anno.png" width=75% height=100%>
 
 
 
@@ -198,7 +198,7 @@ Using  repo, the kitti point cloud data with ground truth boxes can be visualize
 
 - The intensity range [0,255]
 
-- Lidar located at ?? (missing info)
+- Lidar located at near 2m
 
 
 <b>  Format </b>
@@ -821,14 +821,34 @@ The kitti visualizer explained in Datasets -> Kitti section may be used here to 
 
 ## with Kitware on a Kitti Trained Model
 
-Since Kitware data is already in uniform coordinate system (converted to the same coordinate system as Kitti and Openpcdet), it is possible to make a test without any big change.
+!! Just change _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml to cfgs/dataset_configs/kitware_dataset.yaml in kitti_models/second.yaml file
 
 ```
-python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_15032022/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitti/testing_kitware/velodyne 
+python demo.py --cfg_file cfgs/kitti_models/second.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/kitti_models/second/default_15032022/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitware/velodyne 
 ```
-<img src="report/kitware_test.png" width=60% height=50%>
+<img src="report/kitware_on_kitti.png" width=60% height=50%>
 
 The result doesnt seem bad but I cant decide if its ground truth or not since the data is more scarce (one box has very less points than a kitti's box due to the usage of 16 beams). But the boxes with higher accuracies seem to be ok.
+
+## with Pandaset on a Pandaset Trained Model
+
+```
+python inference_pandaset.py --cfg_file cfgs/pandaset_models/pv_rcnn.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/pandaset_models/pv_rcnn/default/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/pandaset/
+```
+
+Its enough to give the general path of pandaset dataset, the data is already splitted as train, validation, test and inference_pandaset.py directly programmed to use test dataset.
+
+<img src="report/panda_inference.png" width=60% height=50%>
+
+## with Kitware on a Pandaset Trained Model
+
+!! Just change _BASE_CONFIG_: cfgs/dataset_configs/pandaset_dataset.yaml to cfgs/dataset_configs/kitware_dataset.yaml in pandaset_models/pv_rcnn.yaml file
+
+```
+python demo.py --cfg_file cfgs/pandaset_models/pv_rcnn.yaml --ckpt /home/yagmur/Desktop/OpenPCDet/output/pandaset_models/pv_rcnn/default/ckpt/checkpoint_epoch_80.pth --data_path /home/yagmur/Desktop/OpenPCDet/data/kitware/velodyne
+```
+<img src="report/kitware_on_panda.png" width=60% height=50%>
+
 
 ## Test Between Different Datasets
 
