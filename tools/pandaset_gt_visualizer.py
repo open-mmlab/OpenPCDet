@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Created on Fri Mar 18 14:06:30 2022
+
+@author: yagmur
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
 Created on Fri Mar 18 11:04:53 2022
 
 @author: yagmur
@@ -32,9 +40,7 @@ def parse_config():
                         help='specify the config for demo')
     parser.add_argument('--data_path', type=str, default='demo_data',
                         help='specify the point cloud data file or directory')
-    parser.add_argument('--ckpt', type=str, default=None, help='specify the pretrained model')
-    parser.add_argument('--out_folder', type=str, default=None, help='save demo results to the output folder')
-
+   
     args = parser.parse_args()
 
     cfg_from_yaml_file(args.cfg_file, cfg)
@@ -47,35 +53,27 @@ def main():
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = PandasetDataset(
-        dataset_cfg=cfg.DATA_CONFIG, class_names=cfg.CLASS_NAMES, training=False,
+        dataset_cfg=cfg, class_names=cfg.CLASS_NAMES, training=False,
         root_path=Path(args.data_path), logger=logger
     )
 
  
     logger.info(f'Total number of samples: \t{len(demo_dataset)}')
 
-    model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=demo_dataset)
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
-    model.cuda()
-    model.eval()
  
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
             logger.info('Visualized sample name %s: \t' , demo_dataset[idx]["frame_idx"])
             data_dict = demo_dataset.collate_batch([data_dict])
-            load_data_to_gpu(data_dict)
-            pred_dicts, _ = model.forward(data_dict)
-            
-            print(pred_dicts[0])
-       
+                          
+         #   print(data_dict['gt_boxes'][0,:,:7])
+                
             V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels'],
-                save_outputs = args.out_folder, filename=demo_dataset[idx]["frame_idx"]
-            )
+                 points=data_dict['points'][:, 1:], ref_boxes=data_dict['gt_boxes'][0,:,:7]
+             )
 
             if not OPEN3D_FLAG:
-                mlab.show(stop=True)
+                 mlab.show(stop=True)
 
     logger.info('Inference done.')
 
