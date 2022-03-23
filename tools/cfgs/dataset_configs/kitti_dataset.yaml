@@ -1,5 +1,6 @@
 DATASET: 'KittiDataset'
 DATA_PATH: '../data/kitti'
+AUG_LABEL_PATH: '../data/augmentation_label.npy'
 
 POINT_CLOUD_RANGE: [0, -40, -3, 70.4, 40, 1]
 

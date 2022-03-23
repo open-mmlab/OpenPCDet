@@ -41,7 +41,10 @@ class KittiDatasetRot(DatasetTemplate):
             if training:
                 self.info_path = self.dataset_cfg.TRAIN_INFO_PATH
             else:
+                self.logger.info('loading augmentation label')
+                self.aug_label = np.load(self.dataset_cfg.AUG_LABEL_PATH)
                 self.info_path = self.dataset_cfg.TEST_INFO_PATH
+        
             self.logger.info('Loading data from pkl')
             infos_list = self.info_path.split(';')
             self.kitti_infos = pkl_load(infos_list[0].strip())
@@ -412,7 +415,8 @@ class KittiDatasetRot(DatasetTemplate):
             points = select_points(points, npoint=self.dataset_cfg.NPOINTS)
             
         if self.training:
-            points, rotation = global_rotation_single_axis(points, rot_range=np.pi/2)
+            # points, rotation = global_rotation_single_axis(points, rot_range=np.pi/2)
+            points, rotation = global_rotation(points, rotation=np.pi/2)
             if rotation > 0:
                 dir_targets = 1.0
             else:
@@ -422,6 +426,19 @@ class KittiDatasetRot(DatasetTemplate):
                 points, z_shift = global_shift(points, z_shift=15.0)
             else:
                 z_shift = 0.0
+        else:
+            # for testing
+            # rotation, z_shift = self.aug_label[index][0], self.aug_label[index][1]
+            rotation, z_shift = data_dict['aug_rot'], data_dict['aug_shift']
+            if rotation > 0:
+                dir_targets = 1.0
+            else:
+                dir_targets = 0.0
+            # global rotation
+            points[:, :3] = rotation_points_single_angle(points[:, :3], rotation, axis=2)
+            
+            if self.dataset_cfg.SHIFT_AUG:
+                points[:, 2] = points[:, 2] + z_shift
         
         data_dict['points'] = points
         data_dict['rot_labels'] = rotation
@@ -444,17 +461,18 @@ class KittiDatasetRot(DatasetTemplate):
 
         info = copy.deepcopy(self.kitti_infos[index])
         
-        #sample_idx = info['point_cloud']['lidar_idx']
         info['image_idx'] = index
         sample_idx = info['image_idx']
         img_shape = info['img_shape']
-#        calib = self.get_calib(sample_idx)
         get_item_list = self.dataset_cfg.get('GET_ITEM_LIST', ['points'])
 
         input_dict = {
             'frame_id': sample_idx,
-#            'calib': calib,
         }
+        
+        if not self.training:
+            input_dict['aug_rot'] = self.aug_label[index][0]
+            input_dict['aug_shift'] = self.aug_label[index][1]
 
 #        if 'annos' in info:
 #            annos = info['annos']
@@ -477,10 +495,6 @@ class KittiDatasetRot(DatasetTemplate):
 #
         velodyne_path = info['velodyne_path']
         points = self.get_lidar(sample_idx, velodyne_path=velodyne_path)
-#            if self.dataset_cfg.FOV_POINTS_ONLY:
-#                pts_rect = calib.lidar_to_rect(points[:, 0:3])
-#                fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
-#                points = points[fov_flag]
         input_dict['points'] = points
         
         data_dict = self.prepare_data(data_dict=input_dict)

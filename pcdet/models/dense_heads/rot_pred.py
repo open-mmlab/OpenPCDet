@@ -9,10 +9,10 @@ from .anchor_head_template import AnchorHeadTemplate
 
 class RotRegression(AnchorHeadTemplate):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range,
-                 predict_boxes_when_training=True, **kwargs):
+                 predict_boxes_when_training=True, logger=None, **kwargs):
         super().__init__(
             model_cfg=model_cfg, num_class=num_class, class_names=class_names, grid_size=grid_size, point_cloud_range=point_cloud_range,
-            predict_boxes_when_training=predict_boxes_when_training
+            predict_boxes_when_training=predict_boxes_when_training, logger=logger
         )
 
         self.num_anchors_per_location = sum(self.num_anchors_per_location)
@@ -26,24 +26,25 @@ class RotRegression(AnchorHeadTemplate):
             nn.Linear(1024, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(True),
-            nn.Linear(512, 128),
-            nn.BatchNorm1d(128),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(True)
         )
+        self.dropout = nn.Dropout(0.4)
         
         if self.model_cfg.get('USE_DIR_CLASSIFIER', None) is not None:
-            self.dir_pred = nn.Linear(128, 1)
+            self.dir_pred = nn.Linear(256, 1)
             self.sigmoid = nn.Sigmoid()
         else:
             self.dir_pred = None
         
         if self.model_cfg.get('USE_SHIFT_REGRESSION', None) is not None:
-            self.shift_pred = nn.Linear(128, 1)
+            self.shift_pred = nn.Linear(256, 1)
         else:
             self.shift_pred = None
 
         if self.model_cfg.get('USE_ROT_REGRESSION', None) is not None:
-            self.rot_pred = nn.Linear(128, 1)
+            self.rot_pred = nn.Linear(256, 1)
         else:
             self.rot_pred = None
 
@@ -68,6 +69,9 @@ class RotRegression(AnchorHeadTemplate):
         dir_labels = self.forward_ret_dict['dir_labels']
 
         if dir_preds is not None:
+            self.logger.info('dir infos')
+            self.logger.info(dir_preds.data.cpu().numpy())
+            self.logger.info(dir_labels.data.cpu().numpy())
             dir_loss = F.binary_cross_entropy(dir_preds, dir_labels) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['dir_weight']
         else:
@@ -80,12 +84,15 @@ class RotRegression(AnchorHeadTemplate):
             shift_loss = 0.0
 
         if rot_preds is not None:
+            self.logger.info('rot infos')
             if dir_preds is not None:
                 inverse_mask = rot_labels < 0
                 rot_labels[inverse_mask] = rot_labels[inverse_mask] * -1
             pred_embedding, target_embedding = self.add_sin_difference(
                 rot_preds, rot_labels
             )
+            self.logger.info(rot_labels.data.cpu().numpy())
+            self.logger.info(rot_preds.data.cpu().numpy())
             rot_loss = F.l1_loss(pred_embedding, target_embedding) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['rot_weight']
         else:
@@ -102,6 +109,7 @@ class RotRegression(AnchorHeadTemplate):
         # squeeze feature
         feature_squeezed = self.conv_squeeze(spatial_features_2d).view(N, -1)
         feature_fc = self.fc(feature_squeezed)
+        feature_fc = self.dropout(feature_fc)
         
         if self.rot_pred is not None:
             rot_preds = self.rot_pred(feature_fc)

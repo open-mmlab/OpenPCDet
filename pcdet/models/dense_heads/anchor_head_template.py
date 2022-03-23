@@ -9,11 +9,12 @@ from .target_assigner.axis_aligned_target_assigner import AxisAlignedTargetAssig
 
 
 class AnchorHeadTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training):
+    def __init__(self, model_cfg, num_class, class_names, grid_size, point_cloud_range, predict_boxes_when_training, logger=None):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
         self.class_names = class_names
+        self.logger=logger
         self.predict_boxes_when_training = predict_boxes_when_training
         self.use_multihead = self.model_cfg.get('USE_MULTIHEAD', False)
 
