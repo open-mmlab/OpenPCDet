@@ -38,14 +38,14 @@ DATA_CONFIG:
               REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
               LIMIT_WHOLE_SCENE: False
 
-            - NAME: random_world_flip
-              ALONG_AXIS_LIST: ['x']
+            # - NAME: random_world_flip
+            #   ALONG_AXIS_LIST: ['x']
 
-            - NAME: random_world_rotation
-              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+            # - NAME: random_world_rotation
+            #   WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
 
-            - NAME: random_world_scaling
-              WORLD_SCALE_RANGE: [0.95, 1.05]
+            # - NAME: random_world_scaling
+            #   WORLD_SCALE_RANGE: [0.95, 1.05]
 
 MODEL:
     NAME: PointPillar

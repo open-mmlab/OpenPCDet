@@ -7,7 +7,7 @@ DATA_CONFIG:
     USE_PLANES: True
     WIDTH_THRESHOLD: 40.0
     NPOINTS: 30000
-    POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
+    POINT_CLOUD_RANGE: [-34.56, -39.68, -3, 34.56, 39.68, 1]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True

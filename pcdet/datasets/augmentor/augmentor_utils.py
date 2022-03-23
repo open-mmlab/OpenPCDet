@@ -80,7 +80,7 @@ def global_rotation_single_axis(points, rot_range=np.pi/2):
 
     return points, noise_rotation
 
-def global_rotation(points, rotation=np.pi/4):
+def global_rotation_customized(points, rotation=np.pi/4):
     if not isinstance(rotation, list):
         rotation = [-rotation, rotation]
     noise_rotation = np.random.uniform(rotation[0], rotation[1])
@@ -201,7 +201,7 @@ def get_topk_points(points, topk=2000, dim=2, inverse=False):
     points_selected = points[topk_index].numpy()
     return points_selected
 
-def points_width_filter(points, threshold=40):
+def points_width_filter(points, threshold=10):
     points_value = points[:, 1]
     points_width_flag = (points_value < threshold) & (points_value > (threshold*-1))
     points_selected = points[points_width_flag]

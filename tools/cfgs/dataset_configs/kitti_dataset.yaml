@@ -35,14 +35,14 @@ DATA_AUGMENTOR:
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
           LIMIT_WHOLE_SCENE: True
 
-        - NAME: random_world_flip
-          ALONG_AXIS_LIST: ['x']
+        # - NAME: random_world_flip
+        #   ALONG_AXIS_LIST: ['x']
 
-        - NAME: random_world_rotation
-          WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+        # - NAME: random_world_rotation
+        #   WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
 
-        - NAME: random_world_scaling
-          WORLD_SCALE_RANGE: [0.95, 1.05]
+        # - NAME: random_world_scaling
+        #   WORLD_SCALE_RANGE: [0.95, 1.05]
 
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
@@ -72,6 +72,7 @@ USE_PLANES: False
 WIDTH_THRESHOLD: 0.0
 NPOINTS: 30000
 SHIFT_AUG: False
+ROT_AUG: True
 
 TRAIN_INFO_PATH: "/mnt/lustre/share_data/denghanming/3d_det/skeleton-v2/internal_18W-PK1-2_maxgt-class-assemble-6W-hardBG-2W_around.pkl; \
     /mnt/lustre/share/songxiao/data/hesai_test_1224/hesai_1224_around.pkl; \

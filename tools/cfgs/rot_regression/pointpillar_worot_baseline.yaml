@@ -2,11 +2,8 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
-    
+
     DATASET: 'KittiDatasetRot'
-    USE_PLANES: True
-    WIDTH_THRESHOLD: 40.0
-    NPOINTS: 30000
     POINT_CLOUD_RANGE: [-34.56, -39.68, -3, 34.56, 39.68, 1]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
@@ -30,6 +27,7 @@ DATA_CONFIG:
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               USE_ROAD_PLANE: False
+              ROT_AUG: False
               DB_INFO_PATH:
                   - kitti_dbinfos_train.pkl
               PREPARE: {
@@ -83,7 +81,6 @@ MODEL:
         NUM_DIR_BINS: 2
 
         USE_ROT_REGRESSION: True
-        USE_DIR_CLASSIFIER: True
 
         ANCHOR_GENERATOR_CONFIG: [
             {

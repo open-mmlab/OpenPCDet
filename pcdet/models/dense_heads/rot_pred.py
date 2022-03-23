@@ -69,8 +69,6 @@ class RotRegression(AnchorHeadTemplate):
         dir_labels = self.forward_ret_dict['dir_labels']
 
         if dir_preds is not None:
-            self.logger.info('dir infos')
-            self.logger.info(dir_preds.data.cpu().numpy())
             self.logger.info(dir_labels.data.cpu().numpy())
             dir_loss = F.binary_cross_entropy(dir_preds, dir_labels) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['dir_weight']
@@ -84,15 +82,13 @@ class RotRegression(AnchorHeadTemplate):
             shift_loss = 0.0
 
         if rot_preds is not None:
-            self.logger.info('rot infos')
             if dir_preds is not None:
                 inverse_mask = rot_labels < 0
                 rot_labels[inverse_mask] = rot_labels[inverse_mask] * -1
+            self.logger.info(rot_labels.data.cpu().numpy())
             pred_embedding, target_embedding = self.add_sin_difference(
                 rot_preds, rot_labels
             )
-            self.logger.info(rot_labels.data.cpu().numpy())
-            self.logger.info(rot_preds.data.cpu().numpy())
             rot_loss = F.l1_loss(pred_embedding, target_embedding) * \
                 self.model_cfg['LOSS_CONFIG']['LOSS_WEIGHTS']['rot_weight']
         else:
@@ -103,6 +99,32 @@ class RotRegression(AnchorHeadTemplate):
         return rpn_loss, tb_dict
 
     def forward(self, data_dict):
+        vis_gt = True
+        if vis_gt:
+            from pcdet.utils.visualize import draw_bev_gt, draw_bev_pts
+            import numpy as np
+            import cv2
+            import os
+            batch_size = data_dict['batch_size']
+            voxel_coords = data_dict['voxel_coords']
+
+            visualize_dir = "./visualize_rot_width_depth"
+            if not os.path.exists(visualize_dir):
+                os.makedirs(visualize_dir)
+                print('create directory: {}'.format(visualize_dir))
+
+            for batch_id in range(batch_size):
+                frame_id = data_dict['frame_id'][batch_id]
+                frame_pts_path = os.path.join(visualize_dir, 'pts_%s.png'%frame_id)
+                # frame_gt_path = os.path.join(visualize_dir, 'gt_%s.png'%frame_id)
+
+                voxel_coord = voxel_coords[voxel_coords[:,0]==batch_id][:,1:].cpu().numpy()[:, ::-1]    # (N1, 3) [x,y,z]
+                # gt_boxes = data_dict["gt_boxes"][batch_id].cpu().numpy() # (K, 7)
+
+                draw_bev_pts(frame_pts_path, voxel_coord, gt_boxes=None, area_scope = [[0, 70.4], [-40, 40], [-3, 1]], cmap_color = False, voxel_size = [0.16, 0.16, 4])
+                import pdb; pdb.set_trace()
+                # draw_bev_gt(frame_gt_path, voxel_coord, gt_boxes, area_scope = [[0, 70.4], [-40, 40], [-3, 1]], cmap_color = False, voxel_size = self.global_cfg.DATA_CONFIG.DATA_PROCESSOR[2]['VOXEL_SIZE'])
+
         spatial_features_2d = data_dict['spatial_features_2d']
         N, C, H, W = spatial_features_2d.shape
         

@@ -8,13 +8,9 @@ from . import kitti_utils
 from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 from ..dataset import DatasetTemplate
-from ..augmentor.augmentor_utils import *
 
-def pkl_load(file_path):
-    read_data = open(file_path, 'rb')
-    return pickle.load(read_data)
 
-class KittiDatasetRot(DatasetTemplate):
+class KittiDatasetTest(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
         Args:
@@ -29,38 +25,12 @@ class KittiDatasetRot(DatasetTemplate):
         )
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
-        self.data_augmentor = None
 
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
-        # self.kitti_infos = []
-        # self.include_kitti_data(self.mode)
-
-        try:
-            if training:
-                self.info_path = self.dataset_cfg.TRAIN_INFO_PATH
-            else:
-                self.logger.info('loading augmentation label')
-                self.aug_label = np.load(self.dataset_cfg.AUG_LABEL_PATH)
-                self.info_path = self.dataset_cfg.TEST_INFO_PATH
-        
-            self.logger.info('Loading data from pkl')
-            infos_list = self.info_path.split(';')
-            self.logger.info(self.info_path)
-            self.kitti_infos = pkl_load(infos_list[0].strip())
-            if len(infos_list) > 1:
-                for idx in range(1, len(infos_list), 1):
-                    infos = pkl_load(infos_list[idx].strip())
-                    self.kitti_infos.extend(infos)
-            # append the cloud path to annos
-            for i in range(len(self.kitti_infos)):
-                frame_cloud_path = self.kitti_infos[i]['velodyne_path']
-            frame_annos_num = len(self.kitti_infos[i]['annos']['name'])
-            frame_id_array = np.array([frame_cloud_path])
-            self.kitti_infos[i]['annos']['image_id'] = frame_id_array
-        except:
-            raise Exception('No data info found')
+        self.kitti_infos = []
+        self.include_kitti_data(self.mode)
 
     def include_kitti_data(self, mode):
         if self.logger is not None:
@@ -90,12 +60,9 @@ class KittiDatasetRot(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
-    def get_lidar(self, idx, velodyne_path=''):
-        if velodyne_path[0] != '/':
-            lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
-        else:
-            lidar_file = velodyne_path
-        
+    def get_lidar(self, idx):
+        lidar_file = self.root_split_path / 'velodyne' / ('%s.bin' % idx)
+        assert lidar_file.exists()
         return np.fromfile(str(lidar_file), dtype=np.float32).reshape(-1, 4)
 
     def get_image(self, idx):
@@ -234,7 +201,6 @@ class KittiDatasetRot(DatasetTemplate):
                 info['annos'] = annotations
 
                 if count_inside_pts:
-                    self.logger.info('get inside points')
                     points = self.get_lidar(sample_idx)
                     calib = self.get_calib(sample_idx)
                     pts_rect = calib.lidar_to_rect(points[:, 0:3])
@@ -403,109 +369,116 @@ class KittiDatasetRot(DatasetTemplate):
 
         return len(self.kitti_infos)
 
-    def prepare_data(self, data_dict):
-        assert 'points' in data_dict, 'points should be provided for training'
-        points = data_dict['points']
-
-        if self.dataset_cfg.WIDTH_THRESHOLD > 0:
-            points = points_width_filter(points, threshold=self.dataset_cfg.WIDTH_THRESHOLD)
-
-        # global rotation
-        if self.dataset_cfg.USE_PLANES:
-            points = get_topk_points(points, topk=self.dataset_cfg.NPOINTS, inverse=True)
-        else:
-            points = select_points(points, npoint=self.dataset_cfg.NPOINTS)
-            
-        if self.training:
-            if self.dataset_cfg.ROT_AUG:
-                # points, rotation = global_rotation_single_axis(points, rot_range=np.pi/2)
-                points, rotation = global_rotation(points, rotation=np.pi/2)
-                if rotation > 0:
-                    dir_targets = 1.0
-                else:
-                    dir_targets = 0.0
-            else:
-                rotation = 0.0
-                dir_targets = 0.0
-
-            if self.dataset_cfg.SHIFT_AUG:
-                points, z_shift = global_shift(points, z_shift=15.0)
-            else:
-                z_shift = 0.0
-        else:
-            # for testing
-            # rotation, z_shift = self.aug_label[index][0], self.aug_label[index][1]
-            rotation, z_shift = data_dict['aug_rot'], data_dict['aug_shift']
-            if rotation > 0:
-                dir_targets = 1.0
-            else:
-                dir_targets = 0.0
-            # global rotation
-            points[:, :3] = rotation_points_single_angle(points[:, :3], rotation, axis=2)
-            
-            if self.dataset_cfg.SHIFT_AUG:
-                points[:, 2] = points[:, 2] + z_shift
-        
-        data_dict['points'] = points
-        data_dict['rot_labels'] = rotation
-        data_dict['dir_labels'] = dir_targets
-        data_dict['shift_labels'] = z_shift
-
-        data_dict = self.point_feature_encoder.forward(data_dict)
-        data_dict = self.data_processor.forward(
-            data_dict=data_dict
-        )
-
-        data_dict.pop('gt_names', None)
-
-        return data_dict
-
     def __getitem__(self, index):
         # index = 4
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.kitti_infos)
 
         info = copy.deepcopy(self.kitti_infos[index])
-        
-        info['image_idx'] = index
-        sample_idx = info['image_idx']
-        img_shape = info['img_shape']
-        # get_item_list = self.dataset_cfg.get('GET_ITEM_LIST', ['points'])
+
+        sample_idx = info['point_cloud']['lidar_idx']
+        img_shape = info['image']['image_shape']
+        calib = self.get_calib(sample_idx)
+        get_item_list = self.dataset_cfg.get('GET_ITEM_LIST', ['points'])
 
         input_dict = {
             'frame_id': sample_idx,
+            'calib': calib,
         }
-        
-        if not self.training:
-            input_dict['aug_rot'] = self.aug_label[index][0]
-            input_dict['aug_shift'] = self.aug_label[index][1]
 
-#        if 'annos' in info:
-#            annos = info['annos']
-#            annos = common_utils.drop_info_with_name(annos, name='DontCare')
-#            loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
-#            gt_names = annos['name']
-#            gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
-#            gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
-#
-#            input_dict.update({
-#                'gt_names': gt_names,
-#                'gt_boxes': gt_boxes_lidar
-#            })
-#            if "gt_boxes2d" in get_item_list:
-#                input_dict['gt_boxes2d'] = annos["bbox"]
-#
-#            road_plane = self.get_road_plane(sample_idx)
-#            if road_plane is not None:
-#                input_dict['road_plane'] = road_plane
-#
-        velodyne_path = info['velodyne_path']
-        points = self.get_lidar(sample_idx, velodyne_path=velodyne_path)
-        input_dict['points'] = points
-        
+        if 'annos' in info:
+            annos = info['annos']
+            annos = common_utils.drop_info_with_name(annos, name='DontCare')
+            loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
+            gt_names = annos['name']
+            gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
+            gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
+
+            input_dict.update({
+                'gt_names': gt_names,
+                'gt_boxes': gt_boxes_lidar
+            })
+            if "gt_boxes2d" in get_item_list:
+                input_dict['gt_boxes2d'] = annos["bbox"]
+
+            road_plane = self.get_road_plane(sample_idx)
+            if road_plane is not None:
+                input_dict['road_plane'] = road_plane
+
+        if "points" in get_item_list:
+            points = self.get_lidar(sample_idx)
+            if self.dataset_cfg.FOV_POINTS_ONLY:
+                pts_rect = calib.lidar_to_rect(points[:, 0:3])
+                fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
+                points = points[fov_flag]
+            input_dict['points'] = points
+
+        if "images" in get_item_list:
+            input_dict['images'] = self.get_image(sample_idx)
+
+        if "depth_maps" in get_item_list:
+            input_dict['depth_maps'] = self.get_depth_map(sample_idx)
+
+        if "calib_matricies" in get_item_list:
+            input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] = kitti_utils.calib_to_matricies(calib)
+
         data_dict = self.prepare_data(data_dict=input_dict)
 
         data_dict['image_shape'] = img_shape
         return data_dict
 
 
+def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
+    dataset = KittiDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
+    train_split, val_split = 'train', 'val'
+
+    train_filename = save_path / ('kitti_infos_%s.pkl' % train_split)
+    val_filename = save_path / ('kitti_infos_%s.pkl' % val_split)
+    trainval_filename = save_path / 'kitti_infos_trainval.pkl'
+    test_filename = save_path / 'kitti_infos_test.pkl'
+
+    print('---------------Start to generate data infos---------------')
+
+    dataset.set_split(train_split)
+    kitti_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    with open(train_filename, 'wb') as f:
+        pickle.dump(kitti_infos_train, f)
+    print('Kitti info train file is saved to %s' % train_filename)
+
+    dataset.set_split(val_split)
+    kitti_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
+    with open(val_filename, 'wb') as f:
+        pickle.dump(kitti_infos_val, f)
+    print('Kitti info val file is saved to %s' % val_filename)
+
+    with open(trainval_filename, 'wb') as f:
+        pickle.dump(kitti_infos_train + kitti_infos_val, f)
+    print('Kitti info trainval file is saved to %s' % trainval_filename)
+
+    dataset.set_split('test')
+    kitti_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
+    with open(test_filename, 'wb') as f:
+        pickle.dump(kitti_infos_test, f)
+    print('Kitti info test file is saved to %s' % test_filename)
+
+    print('---------------Start create groundtruth database for data augmentation---------------')
+    dataset.set_split(train_split)
+    dataset.create_groundtruth_database(train_filename, split=train_split)
+
+    print('---------------Data preparation Done---------------')
+
+
+if __name__ == '__main__':
+    import sys
+    if sys.argv.__len__() > 1 and sys.argv[1] == 'create_kitti_infos':
+        import yaml
+        from pathlib import Path
+        from easydict import EasyDict
+        dataset_cfg = EasyDict(yaml.safe_load(open(sys.argv[2])))
+        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+        create_kitti_infos(
+            dataset_cfg=dataset_cfg,
+            class_names=['Car', 'Pedestrian', 'Cyclist'],
+            data_path=ROOT_DIR / 'data' / 'kitti',
+            save_path=ROOT_DIR / 'data' / 'kitti'
+        )
