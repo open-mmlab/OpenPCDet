@@ -299,7 +299,7 @@ class Detector3DTemplate(nn.Module):
 
         cur_gt = gt_boxes
         k = cur_gt.__len__() - 1
-        while k > 0 and cur_gt[k].sum() == 0:
+        while k >= 0 and cur_gt[k].sum() == 0:
             k -= 1
         cur_gt = cur_gt[:k + 1]
 
