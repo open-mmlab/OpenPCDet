@@ -233,8 +233,8 @@ class Detector3DTemplate(nn.Module):
         tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
         self._eval_dict['deadline_diffs'].append(tdiff)
 
-        if 'gt_counts' in data_dict:
-            self._eval_dict['gt_counts'].append(data_dict['gt_counts'].cpu()[0].tolist())
+        #if 'gt_counts' in data_dict:
+        #    self._eval_dict['gt_counts'].append(data_dict['gt_counts'].cpu()[0].tolist())
 
         dl_missed = (True if tdiff > 0 else False)
 
@@ -324,7 +324,8 @@ class Detector3DTemplate(nn.Module):
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
                 if score_sum:
-                    cls_score_sums = torch.zeros(len(cls_preds)) #, \
+                    cls_score_sums = np.zeros(len(cls_preds), dtype=np.float32)
+                    #cls_score_sums = torch.zeros(len(cls_preds)) #, \
                     #        device=cls_preds[0].device)
                     css_index=0
                 cur_start_idx = 0

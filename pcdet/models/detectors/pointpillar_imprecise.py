@@ -6,6 +6,7 @@ import math
 import time
 import copy
 import json
+import tqdm
 import numpy as np
 
 from nuscenes.nuscenes import NuScenes
@@ -130,14 +131,14 @@ class PointPillarImprecise(Detector3DTemplate):
                     [ 10., 20., 30., 40., 50., 60.], # no more rpn stage
                     [ 25., 35., 45., 55., 65., 75.], # 1  more rpn stage
                     [ 40., 50., 60., 70., 80., 90.], # 2  more rpn stages
-                    ]
+            ]
             self.cfg_to_NDS = [
                     [.2] * 6,
                     [.3] * 6,
                     [.4] * 6,
-                    ]
+            ]
             self.cur_scene_token = ''
-            #self._eval_dict['gt_counts'] = []
+            #self._eval_dict['data_dict['gt_counts']'] = []
 
         #print('Model:')
         #print(self)
@@ -145,6 +146,8 @@ class PointPillarImprecise(Detector3DTemplate):
         self.rr_heads_queue = np.arange(self.dense_head.num_heads, dtype=np.uint8)
         self.last_head = self.dense_head.num_heads -1
         self.rrhq_restart=False
+        self.det_conf_table= np.zeros((self._num_stages, \
+                self.dense_head.num_heads, self.dense_head.num_heads,), dtype=np.float32)
 
         self.latest_token = None
         self.last_skipped_heads= np.array([], dtype=np.uint8)
@@ -181,9 +184,11 @@ class PointPillarImprecise(Detector3DTemplate):
                 m == self.IMPR_RRHeadSel_Prj or \
                 m == self.IMPR_PTEST)
 
-        def forward(self, data_dict):
-            if not self.training:
-                self.latest_token = data_dict['metadata'][0]['token']
+    def forward(self, data_dict):
+        if not self.training:
+            if self._calibrating_now:
+                self.all_gt_counts += data_dict['gt_counts'][0]
+            self.latest_token = data_dict['metadata'][0]['token']
             self.all_async_results = []
             self.proj_started=False
 
@@ -192,7 +197,8 @@ class PointPillarImprecise(Detector3DTemplate):
 
             dd = det_dicts[0] # Assume batch size is 1
             for k,v in dd.items():
-                dd[k] = v.cpu()
+                if k != 'cls_score_sums':
+                    dd[k] = v.cpu()
 
             self.last_cls_scores={}
             if data_dict['method'] == self.IMPR_SmarterHeadSel_Prj:
@@ -221,9 +227,23 @@ class PointPillarImprecise(Detector3DTemplate):
 
             elif data_dict['method'] == self.IMPR_SmartRRHeadSel_Prj and \
                     data_dict['calc_css']:
-                        #self.measure_time_start('SmartSel', False)
+                #self.measure_time_start('SmartSel', False)
                 for h, scr in zip(data_dict['heads_to_run'], dd['cls_score_sums']):
                     self.last_cls_scores[h] = scr
+                    if self._calibrating_now:
+                        gtc = data_dict['gt_counts'][0][h]
+                        if gtc == 0. and scr > 0.:
+                            conf = 0.
+                        elif gtc == 0. and scr == 0.:
+                            conf = 1.
+                        elif scr <= gtc:
+                            conf = scr / gtc
+                        else:
+                            conf = (2*gtc - scr) / gtc
+                            if conf < 0.:
+                                conf = 0.
+                        ns, nh = self._cur_calib_tuple
+                        self.det_conf_table[ns-1, nh-1, h] += conf
                 del dd['cls_score_sums']
                 #self.measure_time_end('SmartSel', False)
 
@@ -261,8 +281,8 @@ class PointPillarImprecise(Detector3DTemplate):
                                     [dd[k][i] for dd, i in zip( \
                                     self.chosen_det_dicts, self.all_indexes)])
 
-                                    if data_dict['method'] == self.IMPR_PTEST:
-                                        det_dicts_ret = [det_to_migrate] * len(det_dicts)
+                        if data_dict['method'] == self.IMPR_PTEST:
+                            det_dicts_ret = [det_to_migrate] * len(det_dicts)
                         else:
                             det_dicts_ret = []
                             for dd in det_dicts:
@@ -317,7 +337,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
             ret_dict = {
                     'loss': total_loss,
-                    }
+            }
 
             return ret_dict, tb_dict, disp_dict
 
@@ -440,7 +460,7 @@ class PointPillarImprecise(Detector3DTemplate):
             for i in range(1, len(self.post_sync_time_table_ms)):
                 if self.post_sync_time_table_ms[i][-1] <= rem_ms and \
                         self.cfg_to_NDS[i][-1] > best_NDS:
-                            best_NDS = self.cfg_to_NDS[i][-1]
+                    best_NDS = self.cfg_to_NDS[i][-1]
                     selected_cfg = (i+1, 6)
         else:
             # Traverse the table and find the config which will meet the
@@ -451,7 +471,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 for j in range(len(self.post_sync_time_table_ms[0])):
                     if self.post_sync_time_table_ms[i][j] <= rem_ms and \
                             self.cfg_to_NDS[i][j] > best_NDS:
-                                best_NDS = self.cfg_to_NDS[i][j]
+                        best_NDS = self.cfg_to_NDS[i][j]
                         selected_cfg = (i+1,j+1)
 
         data_dict['sh_config'] = selected_cfg
@@ -472,7 +492,7 @@ class PointPillarImprecise(Detector3DTemplate):
             dhq = self.det_hist_queue
 
         #proj_scr_thres = 0.1 * self.last_skipped_heads.shape[0]
-        proj_scr_thres = 0.3
+        proj_scr_thres = self._score_threshold
 
         for h in self.last_skipped_heads:
             for pose_dict, hs, det_dicts, _ in reversed(dhq):
@@ -532,7 +552,7 @@ class PointPillarImprecise(Detector3DTemplate):
             ar = self.pred_box_pool.apply_async(calcCurPose, \
                     (pred_boxes_chunk, \
                     pose_idx_start, idx_to_pose, cur_pose_inv))
-                    self.all_async_results.append(ar)
+            self.all_async_results.append(ar)
             pose_idx_start += pred_boxes_chunk.shape[0]
 
     def get_aging_prios(self):
@@ -580,7 +600,7 @@ class PointPillarImprecise(Detector3DTemplate):
             data_dict['calc_css'] = False
         elif data_dict['method'] == self.IMPR_RRHeadSel or \
                 data_dict['method'] == self.IMPR_RRHeadSel_Prj:
-                    data_dict['heads_to_run'] = self.rr_heads_queue[:selected_cfg[1]]
+            data_dict['heads_to_run'] = self.rr_heads_queue[:selected_cfg[1]]
             self.last_skipped_heads = self.rr_heads_queue[selected_cfg[1]:]
             self.rr_heads_queue = np.concatenate((self.last_skipped_heads, data_dict['heads_to_run']))
             data_dict['heads_to_run'].sort()
@@ -589,7 +609,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
         elif data_dict['method'] == self.IMPR_AgingHeadSel or \
                 data_dict['method'] == self.IMPR_AgingHeadSel_Prj:
-                    prios = self.get_aging_prios()
+            prios = self.get_aging_prios()
             prios = prios.argsort()
             data_dict['heads_to_run'] = prios[-selected_cfg[1]:]
             data_dict['heads_to_run'].sort()
@@ -599,7 +619,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
         elif data_dict['method'] == self.IMPR_SmartHeadSel or \
                 data_dict['method'] == self.IMPR_SmartHeadSel_Prj:
-                    aging_prios = self.get_aging_prios()
+            aging_prios = self.get_aging_prios()
             hprio_heads = self.get_totally_skipped_heads(aging_prios)
             if hprio_heads.shape[0] >= selected_cfg[1]:
                 # No need for smart head selection
@@ -649,13 +669,15 @@ class PointPillarImprecise(Detector3DTemplate):
                 #Make prioritization based on history
                 self.rrhq_restart=False
 
+                confs = self.det_conf_table[selected_cfg[0]-1, selected_cfg[1]-1]
                 prio_scores = np.zeros((self.dense_head.num_heads,),
                         dtype=np.float32)
                 for dh in self.det_hist_queue:
                     cls_scores_dict = dh[-1]
                     for h, score in cls_scores_dict.items():
                         # The recent one will override the older one
-                        prio_scores[h] = score
+                        prio_scores[h] = score * confs[h]
+                
                 #nz_scores = torch.count_nonzero(prio_scores)
                 prios = prio_scores.argsort()
                 selected_cfg = data_dict['sh_config']
@@ -672,13 +694,13 @@ class PointPillarImprecise(Detector3DTemplate):
                 # Do round robin
                 data_dict['heads_to_run'] = self.rr_heads_queue[:selected_cfg[1]]
                 # Check whether all heads in the rr queue are executed
-                if self.last_head in data_dict['heads_to_run']:
+                if self.last_head in data_dict['heads_to_run'] and not self._calibrating_now:
                     self.rrhq_restart=True
                 self.last_skipped_heads = self.rr_heads_queue[selected_cfg[1]:]
                 self.rr_heads_queue = np.concatenate(\
                         (self.last_skipped_heads, data_dict['heads_to_run']))
 
-                data_dict['calc_css'] = True
+            data_dict['calc_css'] = True
             data_dict['heads_to_run'].sort()
             #print('heads_to_run', data_dict['heads_to_run'], end="\n\n")
             self.last_skipped_heads.sort()
@@ -841,12 +863,20 @@ class PointPillarImprecise(Detector3DTemplate):
         for row in self.cfg_to_NDS:
             print(row)
 
+        self.det_conf_table = np.array(calib_dict["det_conf"])
+        print('Detection confidence tables (stage, num heads, num heads)')
+        for i, row in enumerate(self.det_conf_table):
+            print(f'Stage {i}:\n', row)
+
+
+
     def do_calibration(self, fname): #, sample_indexes):
         self._calibrating_now = True
         self._cur_calib_tuple = None  # (num_stages, num_heads)
         self._calib_test_cases=[]
-        calib_dict = {"data":{}, "stats":{}, "eval":{}, "method":self._default_method}
-        for i in range(1, self._num_stages+1):
+        calib_dict = {"data":{}, "stats":{}, "eval":{}, \
+                "det_conf":[], "method":self._default_method}
+        for i in range(3, self._num_stages+1):
             for j in range(1, self.dense_head.num_heads+1):
                 self._calib_test_cases.append((i,j))
         nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
@@ -860,8 +890,15 @@ class PointPillarImprecise(Detector3DTemplate):
             self.last_skipped_heads= np.array([], dtype=np.uint8)
             self.last_cls_scores= {}
 
+            if self._default_method == self.IMPR_SmartRRHeadSel_Prj:
+                self.rr_heads_queue = np.arange(self.dense_head.num_heads, dtype=np.uint8)
+                self.last_head = self.dense_head.num_heads -1
+                self.rrhq_restart=False
+            self.all_gt_counts = np.zeros(self.dense_head.num_heads, dtype=np.uint32)
+
             det_annos = []
             #for i in sample_indexes:
+            progress_bar = tqdm.tqdm(total=len(self.dataset), leave=True, desc='eval', dynamic_ncols=True)
             for i in range(len(self.dataset)):
                 with torch.no_grad():
                     batch_dict, pred_dicts, ret_dict = self.load_and_infer(i,
@@ -872,12 +909,30 @@ class PointPillarImprecise(Detector3DTemplate):
                         output_path='./temp_results'
                         )
                 det_annos += annos
-                if i % (len(self.dataset)//4) == 0:
-                    print(i, '/', len(self.dataset), ' done')
+                progress_bar.update()
+                #if i % (len(self.dataset)//4) == 0:
+                #    print(i, '/', len(self.dataset), ' done')
+            progress_bar.close()
             calib_dict["data"][str(cur_calib_conf)]  = copy.deepcopy(self.get_time_dict())
             stats = self.get_time_dict_stats()
             calib_dict["stats"][str(cur_calib_conf)] = stats
             self.print_time_stats()
+
+            print('All gt counts:', self.all_gt_counts)
+            head_usage = np.zeros(self.dense_head.num_heads, dtype=np.uint32)
+            for es in self._eval_dict['rpn_stg_exec_seqs']:
+                head_invocations = es[1]
+                for hi in head_invocations:
+                    head_usage[hi] += 1
+            print('Head usages:', head_usage)
+            if self._default_method == self.IMPR_SmartRRHeadSel_Prj:
+                s, h = cur_calib_conf
+                for i, hu in enumerate(head_usage):
+                    self.det_conf_table[s-1, h-1, i] /= hu
+                print('Detection confidence tables (stage, num heads, num heads)')
+                for i, table in enumerate(self.det_conf_table):
+                    print(f'Stage {i+1}:\n', table)
+
             self.clear_stats()
             gc.collect()
             torch.cuda.empty_cache()
@@ -890,11 +945,12 @@ class PointPillarImprecise(Detector3DTemplate):
             calib_dict['eval'][str(cur_calib_conf)]  = result_dict # mAP or NDS will be enough
             gc.collect()
             torch.cuda.empty_cache()
+
         del nusc
         gc.enable()
 
         #calib_dict['sample_indexes'] = sample_indexes.tolist()
-
+        calib_dict["det_conf"] = self.det_conf_table.tolist()
         with open(fname, 'w') as handle:
             json.dump(calib_dict, handle, indent=4)
 
