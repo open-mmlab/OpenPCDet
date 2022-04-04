@@ -35,17 +35,80 @@ fi
 CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
 CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/checkpoint_epoch_20.pth"
 
-# Centerpoint
+#SECOND CBGS
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_second_multihead.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_second_multihead_nds6229_updated.pth"
+
+# PointPillars Single Head
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_singlehead.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_dyn_pp_singlehead/default/ckpt/checkpoint_epoch_20.pth"
+
+#PointPillars Multihead
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_3br.yaml"
+#CKPT_FILE="../output/nuscenes_models/pp_multihead_nds5823_updated.pth"
+#             Min        Avrg    95perc  99perc  Max
+#End-to-end   121.88     127.65  130.65  131.99  133.54 ms
+#--------------average performance-------------
+#trans_err:       0.2564
+#scale_err:       0.2191
+#orient_err:      0.1841
+#vel_err:         0.5472
+#attr_err:        0.2503
+#mAP:     0.5024
+#NDS:     0.6055
+
+# Centerpoint-pointpillar
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_centerpoint.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_centerpoint_nds6070.pth"
+#             Min        Avrg    95perc  99perc  Max
+#End-to-end   136.60     141.26  143.79  144.84  148.17 ms
+#--------------average performance-------------
+#trans_err:       0.2484
+#scale_err:       0.2414
+#orient_err:      0.2774
+#vel_err:         0.4299
+#attr_err:        0.2241
+#mAP:     0.6264
+#NDS:     0.6711
+
+# Centerpoint-voxel01
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_voxel01_centerpoint_nds_6454.pth"
+#             Min        Avrg    95perc  99perc  Max
+#End-to-end   169.16     202.05  228.21  238.90  249.01 ms
+#--------------average performance-------------
+#trans_err:       0.2798
+#scale_err:       0.1978
+#orient_err:      0.2328
+#vel_err:         0.3187
+#attr_err:        0.2023
+#mAP:     0.6758
+#NDS:     0.7147
+
+# Centerpoint-voxel0075
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_voxel0075_centerpoint_nds_6648.pth"
+#             Min        Avrg    95perc  99perc  Max
+#End-to-end   273.41     322.60  356.90  372.49  386.75 ms
+#--------------average performance-------------
+#trans_err:       0.2190
+#scale_err:       0.2236
+#orient_err:      0.1877
+#vel_err:         0.3065
+#attr_err:        0.1980
+#mAP:     0.7329
+#NDS:     0.7530   
+
+
 
 # Baseline models
 #CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/cbgs_pp_multihead_1br.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/ckpt/checkpoint_epoch_20.pth"
 #CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_2br/default/cbgs_pp_multihead_2br.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_2br/default/ckpt/checkpoint_epoch_20.pth"
-#CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_3br/default/cbgs_pp_multihead_3br.yaml"
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_3br.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_3br/default/ckpt/checkpoint_epoch_20.pth"
+
 
 #TASKSET=""
 TASKSET="taskset 0xff"
@@ -70,8 +133,15 @@ elif [ $1 == 'methods' ]; then
 	mkdir -p $OUT_DIR
 	m=1
 	prfx="cbgs_dyn_pp_multihead_"
-	for model in "1br" "2br" "3br" "imprecise" #"imprecise" "imprecise" "imprecise"
+	for model in "1br" "2br" "3br" "imprecise" "imprecise" \
+		"imprecise" "imprecise" "imprecise" "imprecise" \
+		"imprecise" "imprecise" "imprecise"
 	do
+		if [ $m != 10 ] && [ $m != 12 ] ; then
+			# I don't need these anymore
+			m=$((m+1))
+			continue
+		fi
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
 		CKPT_FILE="../output/nuscenes_models/$cfg/default/ckpt/checkpoint_epoch_20.pth"
@@ -80,7 +150,9 @@ elif [ $1 == 'methods' ]; then
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 		sed -i "$ARG" $CFG_FILE
-		for s in $(seq 0.150 -0.010 0.080)
+		#for s in $(seq 0.140 -0.010 0.110)
+		#for s in $(seq 0.100 -0.010 0.050)
+		for s in $(seq $2 $3 $4)
 		do
 			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json
 			if [ -f $OUT_FILE ]; then
@@ -95,4 +167,6 @@ elif [ $1 == 'methods' ]; then
 	done
 elif [ $1 == 'single' ]; then
         $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" $2
+elif [ $1 == 'single2' ]; then
+        $CMD --set "MODEL.DEADLINE_SEC" 0.090 "MODEL.METHOD" $2
 fi

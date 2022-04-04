@@ -266,7 +266,7 @@ class Detector3DTemplate(nn.Module):
 
         return data_dict, pred_dicts, recall_dict
 
-    def post_processing(self, batch_dict, gen_recall_record=True):
+    def post_processing(self, batch_dict, gen_recall_record=True, score_sum=False):
         """
         Args:
             batch_dict:
@@ -323,6 +323,10 @@ class Detector3DTemplate(nn.Module):
                 else:
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
+                if score_sum:
+                    cls_score_sums = torch.zeros(len(cls_preds)) #, \
+                    #        device=cls_preds[0].device)
+                    css_index=0
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
                 for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
@@ -334,6 +338,11 @@ class Detector3DTemplate(nn.Module):
                         score_thresh=post_process_cfg.SCORE_THRESH
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
+                    if score_sum:
+                        #cls_score_sums[css_index] = cur_pred_labels.size()[0] + \
+                        #        torch.count_nonzero(cur_pred_scores > 0.5) * 100
+                        cls_score_sums[css_index] = cur_pred_labels.size()[0]
+                        css_index +=1
                     pred_scores.append(cur_pred_scores)
                     pred_labels.append(cur_pred_labels)
                     pred_boxes.append(cur_pred_boxes)
@@ -373,8 +382,10 @@ class Detector3DTemplate(nn.Module):
             record_dict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
-                'pred_labels': final_labels
+                'pred_labels': final_labels,
             }
+            if score_sum:
+                record_dict['cls_score_sums'] = cls_score_sums
             pred_dicts.append(record_dict)
 
         if 'score_thresh' in batch_dict:
@@ -662,3 +673,6 @@ class Detector3DTemplate(nn.Module):
         else:
             det = pred_dicts
         self.init_empty_det_dict(det)
+
+        print('Num params:', sum(p.numel() for p in self.parameters()))
+        print('Num params trainable:', sum(p.numel() for p in self.parameters() if p.requires_grad))

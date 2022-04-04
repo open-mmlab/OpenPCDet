@@ -249,7 +249,14 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
             self.rpn_head_alternatives.append(nn.ModuleList(rpn_heads))
         self.num_heads = len(self.rpn_head_alternatives[0])
 
-        self.head_to_labels = [rh.head_label_indices.tolist() for rh in self.rpn_head_alternatives[0]]
+        self.heads_to_labels = [rh.head_label_indices.tolist() \
+                for rh in self.rpn_head_alternatives[0]]
+        print('heads_to_labels:', self.heads_to_labels)
+        self.labels_to_heads = [-1]
+        for i, rh in enumerate(self.rpn_head_alternatives[0]):
+            self.labels_to_heads.extend(len(rh.head_label_indices) * [i])
+        print('labels_to_heads:', self.labels_to_heads)
+
         #self.cuda_streams = [ torch.cuda.Stream() for r in rpn_head_cfgs]
 
     def forward(self, data_dict):

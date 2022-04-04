@@ -46,6 +46,11 @@ class PointPillar(Detector3DTemplate):
             self.measure_time_start('PostProcess')
             pred_dicts, recall_dicts = self.post_processing(batch_dict, False)
             self.measure_time_end('PostProcess')
+
+            for dd in pred_dicts:
+                for k,v in dd.items():
+                    dd[k] = v.cpu()
+
             return pred_dicts, recall_dicts
 
     def get_training_loss(self):
