@@ -39,7 +39,7 @@ RUN pip install --user torch==1.6 torchvision==0.7.0 -f https://download.pytorch
 RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
     $PIP_INSTALL tensorboardX easydict pyyaml scikit-image tqdm SharedArray six
 
-WORKDIR /root
+#WORKDIR /root
 
 # Install Boost geometry
 RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_0.tar.gz && \
@@ -53,3 +53,15 @@ RUN pip uninstall -y SharedArray && \
     pip install SharedArray
 
 RUN pip install spconv-cu102
+
+
+RUN apt-get install -y tmux tmuxp
+RUN mkdir -p /OpenPCDet/data/kitti/ImageSets
+RUN mkdir -p /OpenPCDet/data/kitti/testing
+RUN mkdir -p /OpenPCDet/data/kitti/training
+RUN mkdir /OpenPCDet/checkpoints
+COPY tools /OpenPCDet/tools
+COPY docs /OpenPCDet/docs
+COPY pcdet /OpenPCDet/pcdet
+
+WORKDIR /OpenPCDet
