@@ -14,6 +14,10 @@ except:
 import numpy as np
 import torch
 
+import sys
+sys.path.append('/OpenPCDet')
+print (sys.path)
+
 from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu

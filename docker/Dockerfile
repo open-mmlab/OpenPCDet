@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:11.3.0-cudnn8-devel-ubuntu18.04
 
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
@@ -33,13 +33,14 @@ RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
 
 # Install torch and torchvision
 # See https://pytorch.org/ for other options if you use a different version of CUDA
-RUN pip install --user torch==1.6 torchvision==0.7.0 -f https://download.pytorch.org/whl/cu102/torch_stable.html
+RUN pip3 install torch==1.10.2+cu113 torchvision==0.11.3+cu113 torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+RUN pip3 install numpy==1.20 #to solve numpy dependency issues with opencv!
 
 # Install python packages
 RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
     $PIP_INSTALL tensorboardX easydict pyyaml scikit-image tqdm SharedArray six
 
-#WORKDIR /root
+# WORKDIR /root
 
 # Install Boost geometry
 RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_0.tar.gz && \
@@ -52,16 +53,33 @@ RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_
 RUN pip uninstall -y SharedArray && \
     pip install SharedArray
 
-RUN pip install spconv-cu102
+RUN pip install spconv-cu113
 
+RUN pip install open3d==0.13
+RUN apt install -y libgl1-mesa-glx
 
-RUN apt-get install -y tmux tmuxp
+#just for running the Demo we need to add:
+RUN apt-get update && apt-get install -y python3-opencv
+RUN pip install opencv-python
+
+#to get a GUI one needs to install:
+RUN apt-get install -y python3-tk 
+RUN apt-get install -y libnvidia-gl-510 x11-apps #this needs to match your GPU driver version!!!!!!!!!!!!!!
+
+RUN apt-get install -y tmux tmuxp vim 
 RUN mkdir -p /OpenPCDet/data/kitti/ImageSets
 RUN mkdir -p /OpenPCDet/data/kitti/testing
 RUN mkdir -p /OpenPCDet/data/kitti/training
 RUN mkdir /OpenPCDet/checkpoints
-COPY tools /OpenPCDet/tools
-COPY docs /OpenPCDet/docs
+
 COPY pcdet /OpenPCDet/pcdet
+#COPY tools /OpenPCDet/tools
+COPY docs /OpenPCDet/docs
+
+ENV PYTHONPATH="/OpenPCDet/:$PYTHONPATH"
+ADD setup.py /OpenPCDet/
 
 WORKDIR /OpenPCDet
+#RUN python /OpenPCDet/setup.py develop
+
+
