@@ -90,7 +90,7 @@ class ProposalTargetLayer(nn.Module):
             cur_roi, cur_gt, cur_roi_labels, cur_roi_scores = \
                 rois[index], gt_boxes[index], roi_labels[index], roi_scores[index]
             k = cur_gt.__len__() - 1
-            while k > 0 and cur_gt[k].sum() == 0:
+            while k >= 0 and cur_gt[k].sum() == 0:
                 k -= 1
             cur_gt = cur_gt[:k + 1]
             cur_gt = cur_gt.new_zeros((1, cur_gt.shape[1])) if len(cur_gt) == 0 else cur_gt
@@ -145,7 +145,7 @@ class ProposalTargetLayer(nn.Module):
             rand_num = np.floor(np.random.rand(self.roi_sampler_cfg.ROI_PER_IMAGE) * fg_num_rois)
             rand_num = torch.from_numpy(rand_num).type_as(max_overlaps).long()
             fg_inds = fg_inds[rand_num]
-            bg_inds = []
+            bg_inds = fg_inds[fg_inds < 0] # yield empty tensor
 
         elif bg_num_rois > 0 and fg_num_rois == 0:
             # sampling bg

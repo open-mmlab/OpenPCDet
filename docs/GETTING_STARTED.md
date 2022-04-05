@@ -108,7 +108,9 @@ OpenPCDet
 │   ├── lyft
 │   │   │── ImageSets
 │   │   │── trainval
-│   │   │   │── data & maps & images & lidar & train_lidar
+│   │   │   │── data & maps(train_maps) & images(train_images) & lidar(train_lidar) & train_lidar
+│   │   │── test
+│   │   │   │── data & maps(test_maps) & test_images & test_lidar
 ├── pcdet
 ├── tools
 ```
@@ -118,10 +120,15 @@ OpenPCDet
 pip install -U lyft_dataset_sdk==0.0.8
 ```
 
-* Generate the data infos by running the following command (it may take several hours): 
+* Generate the training & validation data infos by running the following command (it may take several hours): 
 ```python 
 python -m pcdet.datasets.lyft.lyft_dataset --func create_lyft_infos \
     --cfg_file tools/cfgs/dataset_configs/lyft_dataset.yaml
+```
+* Generate the test data infos by running the following command: 
+```python 
+python -m pcdet.datasets.lyft.lyft_dataset --func create_lyft_infos \
+    --cfg_file tools/cfgs/dataset_configs/lyft_dataset.yaml --version test
 ```
 
 * You need to check carefully since we don't provide a benchmark for it.
