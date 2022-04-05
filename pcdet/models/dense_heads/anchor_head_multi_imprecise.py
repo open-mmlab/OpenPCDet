@@ -252,7 +252,7 @@ class AnchorHeadMultiImprecise(AnchorHeadTemplate):
         self.heads_to_labels = [rh.head_label_indices.tolist() \
                 for rh in self.rpn_head_alternatives[0]]
         print('heads_to_labels:', self.heads_to_labels)
-        self.labels_to_heads = [-1]
+        self.labels_to_heads = []
         for i, rh in enumerate(self.rpn_head_alternatives[0]):
             self.labels_to_heads.extend(len(rh.head_label_indices) * [i])
         print('labels_to_heads:', self.labels_to_heads)
