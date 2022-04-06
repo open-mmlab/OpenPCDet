@@ -111,12 +111,17 @@ def init_dicts(dataset_name):
 
 # method number to method name
 # NANP: No aging no prediction
-method_num_to_str = ['3Baseline-1', '2Baseline-2', '1Baseline-3',
-                     '4Impr-MultiStage', '5Impr-RRHeadSel',
-                     '6Impr-AgingHeadSel', '7Impr-SmartHeadSel', 
-                     '8Impr-AgingHeadSel-Prj', '9Impr-SmartHeadSel-Prj',
-                     'AImpr-RRHeadSel-Prj', 'BImpr-SmarterHeadSel-Prj',
-                     'CImpr-SmartRRHeadSel-Prj']
+method_num_to_str = [
+        '3Baseline-1',
+        '2Baseline-2',
+        '1Baseline-3',
+        '4Impr-MultiStage',
+        '5Impr-RRHeadSel',
+        '6Impr-StaticHeadSel',
+        '7Impr-RRHeadSel-P',
+        '8Impr-StaticHeadSel-P',
+        '9Impr-DynamicHeadSel-P'
+]
 
 def merge_eval_dicts(eval_dicts):
     merged_ed = copy.deepcopy(proto_eval_dict)
@@ -225,18 +230,15 @@ exps_dict= {nm[1:]:exps_dict[nm] for nm in exp_names}
 # Filter some
 #exps_dict = {nm:exps_dict[nm] for nm in ['Baseline-3', 'Baseline-2', 'Baseline-1', 'Impr-MS-HS-A-P']}
 exps_dict = { nm:exps_dict[nm] for nm in [ \
-#       'Baseline-3',
-#       'Baseline-2',
-#       'Baseline-1',
-#       'Impr-MultiStage',
-#        'Impr-RRHeadSel',
-#        'Impr-AgingHeadSel',
-#        'Impr-SmartHeadSel',
-#        'Impr-AgingHeadSel-Prj',
-#        'Impr-SmartHeadSel-Prj',
-        'Impr-RRHeadSel-Prj',
-#        'Impr-SmarterHeadSel-Prj',
-        'Impr-SmartRRHeadSel-Prj',
+#        'Baseline-1',
+#        'Baseline-2',
+#        'Baseline-3',
+#        'Impr-MultiStage',
+        'Impr-RRHeadSel',
+        'Impr-StaticHeadSel',
+        'Impr-RRHeadSel-P',
+        'Impr-StaticHeadSel-P',
+        'Impr-DynamicHeadSel-P'
         ]}
 for exp, evals in exps_dict.items():
     # Sort according to deadlines
