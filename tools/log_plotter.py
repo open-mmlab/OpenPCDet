@@ -117,10 +117,11 @@ method_num_to_str = [
         '1Baseline-3',
         '4Impr-MultiStage',
         '5Impr-RRHeadSel',
-        '6Impr-StaticHeadSel',
-        '7Impr-RRHeadSel-P',
-        '8Impr-StaticHeadSel-P',
-        '9Impr-DynamicHeadSel-P'
+        '6Impr-PCHeadSel',
+        '7Impr-DynamicHeadSel',
+        '8Impr-RRHeadSel-P',
+        '9Impr-PCHeadSel-P',
+        'AImpr-DynamicHeadSel-P'
 ]
 
 def merge_eval_dicts(eval_dicts):
@@ -233,11 +234,12 @@ exps_dict = { nm:exps_dict[nm] for nm in [ \
 #        'Baseline-1',
 #        'Baseline-2',
 #        'Baseline-3',
-#        'Impr-MultiStage',
+        'Impr-MultiStage',
         'Impr-RRHeadSel',
-        'Impr-StaticHeadSel',
+        'Impr-PCHeadSel',
+        'Impr-DynamicHeadSel',
         'Impr-RRHeadSel-P',
-        'Impr-StaticHeadSel-P',
+        'Impr-PCHeadSel-P',
         'Impr-DynamicHeadSel-P'
         ]}
 for exp, evals in exps_dict.items():
