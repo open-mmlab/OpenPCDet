@@ -138,7 +138,6 @@ class PointPillarImprecise(Detector3DTemplate):
         #print('Model:')
         #print(self)
 
-
         # AP scores from trainval evaluation
         #self.det_conf_table = torch.tensor([
         #        [0.438, 0.114, 0.006, 0.127, 0.028, 0.107, 0.116, 0.000, 0.216, 0.101],
@@ -175,7 +174,6 @@ class PointPillarImprecise(Detector3DTemplate):
             self.max_queue_size = self.dense_head.num_heads
         else:
             self.max_queue_size = self.dense_head.num_heads - 1
-        self.hist_cnt = 1
 
         # holds the time passed since a head was used for all heads
         self.head_age_arr = np.full(self.dense_head.num_heads, \
@@ -271,7 +269,6 @@ class PointPillarImprecise(Detector3DTemplate):
 
             det_dicts_ret = det_dicts
             if self.use_projection(data_dict):
-                self.all_async_results.clear()
                 self.measure_time_start('PostPrediction', False)
                 pose = self.token_to_pos[self.latest_token]
                 pose_dict = { 'ts' : int(pose['timestamp']),
@@ -288,7 +285,6 @@ class PointPillarImprecise(Detector3DTemplate):
                             [ar.get() for ar in self.all_async_results]))
                     if self.projected_boxes.size()[0] > 0:
                         det_to_migrate = {'pred_boxes': self.projected_boxes}
-                        #print('all_pred_boxes final   size:', all_pred_boxes.size())
                         for k in ['pred_scores', 'pred_labels']:
                             det_to_migrate[k]= torch.cat( \
                                     [dd[k][i] for dd, i in zip( \
@@ -302,6 +298,7 @@ class PointPillarImprecise(Detector3DTemplate):
                                 dd_ = {k:torch.cat([dd[k], det_to_migrate[k]]) \
                                         for k in dd.keys()}
                                 det_dicts_ret.append(dd_)
+                    self.all_async_results.clear()
                 self.measure_time_end('PostPrediction', False)
 
             for h in data_dict['heads_to_run']:
@@ -452,7 +449,7 @@ class PointPillarImprecise(Detector3DTemplate):
     def start_projections(self, data_dict):
         do_ptest = (self._default_method == self.IMPR_PTEST)
         if do_ptest:
-            proj_scr_thres = data_dict['score_thresh']
+            proj_scr_thres = 0.
         else:
             proj_scr_thres = 0.1 * self.last_skipped_heads.shape[0]
 
@@ -485,17 +482,18 @@ class PointPillarImprecise(Detector3DTemplate):
         indexes_to_migrate = []
         for h in self.last_skipped_heads:
             age = self.head_age_arr[h]
-            if age < len(self.det_dicts_queue) or do_ptest:
-                if do_ptest:
-                    age = self.hist_cnt
+            if do_ptest:
+                age = 2
+            if age < len(self.det_dicts_queue):
                 skipped_labels = self.dense_head.heads_to_labels[h]
                 dd = self.det_dicts_queue[age][0]
                 #if not (type(dd['pred_labels']).__module__ == np.__name__):
-                if not isinstance(dd['pred_labels'], list):
-                    dd['pred_labels'] = dd['pred_labels'].tolist()
-                    dd['pred_scores'] = dd['pred_scores'].tolist()
-                    dd['pred_boxes']  = dd['pred_boxes'].numpy()
-                pred_labels, pred_scores = dd['pred_labels'], dd['pred_scores']
+                #if not isinstance(dd['pred_labels'], list):
+                #    dd['pred_labels'] = dd['pred_labels'].tolist()
+                #    dd['pred_scores'] = dd['pred_scores'].tolist()
+                #    dd['pred_boxes']  = dd['pred_boxes'].numpy()
+                pred_labels = dd['pred_labels'].tolist()
+                pred_scores = dd['pred_scores'].tolist()
                 indexes_to_migrate = []
                 for i, lbl in enumerate(pred_labels):
                     # migrate confident ones
@@ -516,7 +514,7 @@ class PointPillarImprecise(Detector3DTemplate):
         # This is where the overhead is, 
         # Create a 2D numpy array for all boxes to be predicted
         # 9 is the single pred box size
-        all_pred_boxes = np.empty((total_num_of_migrations, 9))
+        all_pred_boxes = torch.empty((total_num_of_migrations, 9))
 
         # Generate the dicts for index to cst csr ept epr
         idx_to_pose, i = {}, 0
@@ -535,7 +533,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 'epr_inv' : Quaternion(pose['ep_rotation']).inverse,
         }
 
-        pred_boxes_chunks = np.array_split(all_pred_boxes, \
+        pred_boxes_chunks = np.array_split(all_pred_boxes.numpy(), \
                 self.pool_size)
 
         pose_idx_start = 0
@@ -729,7 +727,8 @@ class PointPillarImprecise(Detector3DTemplate):
         for i in range(1, self._num_stages+1):
             for j in range(hstart, self.dense_head.num_heads+1):
                 self._calib_test_cases.append((i,j))
-        nusc = NuScenes(version='v1.0-mini', dataroot='../data/nuscenes/v1.0-mini', verbose=True)
+        nusc = NuScenes(version='v1.0-mini', \
+                dataroot='../data/nuscenes/v1.0-mini', verbose=True)
         gc.disable()
 
         for cur_calib_conf in self._calib_test_cases:
