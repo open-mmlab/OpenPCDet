@@ -6,7 +6,11 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 RUN apt-get update -y \
     && apt-get install build-essential \
     && apt-get install -y apt-utils git curl ca-certificates bzip2 tree htop wget \
-    && apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev bmon iotop g++ python3.7 python3.7-dev python3.7-distutils
+    && apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev bmon iotop g++ python3.6 python3.6-dev python3.6-distutils
+
+RUN apt-get update && apt-get install -y software-properties-common
+RUN apt-get update -q && \
+    apt-get install -yq wget curl git build-essential vim sudo lsb-release locales bash-completion
 
 # Install cmake v3.13.2
 RUN apt-get purge -y cmake && \
@@ -22,8 +26,9 @@ RUN apt-get purge -y cmake && \
     rm -rf /root/temp
 
 # Install python
-RUN ln -sv /usr/bin/python3.7 /usr/bin/python
-RUN wget https://bootstrap.pypa.io/get-pip.py && \
+RUN ln -sv /usr/bin/python3.6 /usr/bin/python
+# RUN wget https://bootstrap.pypa.io/get-pip.py && \
+RUN wget https://bootstrap.pypa.io/pip/3.6/get-pip.py && \
 	python get-pip.py && \
 	rm get-pip.py
 
@@ -34,7 +39,7 @@ RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
 # Install torch and torchvision
 # See https://pytorch.org/ for other options if you use a different version of CUDA
 RUN pip3 install torch==1.10.2+cu113 torchvision==0.11.3+cu113 torchaudio==0.10.2+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-RUN pip3 install numpy==1.20 #to solve numpy dependency issues with opencv!
+RUN pip3 install numpy==1.19.5 #to solve numpy dependency issues with opencv!
 
 # Install python packages
 RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
@@ -71,6 +76,46 @@ RUN mkdir -p /OpenPCDet/data/kitti/ImageSets
 RUN mkdir -p /OpenPCDet/data/kitti/testing
 RUN mkdir -p /OpenPCDet/data/kitti/training
 RUN mkdir /OpenPCDet/checkpoints
+
+#ROS
+RUN apt-get install -y net-tools iputils-ping
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/sources.list.d/ros-latest.list'
+RUN curl -k https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | sudo apt-key add -
+
+RUN apt-get update -q && \
+    apt-get install -y ros-melodic-desktop-full python-rosdep &&\
+    # apt-get install -y ros-melodic-desktop-full python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential && \
+    rm -rf /var/lib/#apt/lists/*
+RUN rosdep init
+RUN rosdep update
+RUN apt install -y python3-pip python3-all-dev python3-rospkg
+RUN apt install -y ros-melodic-desktop-full --fix-missing
+
+# RUN rm /usr/bin/python
+# RUN rm /usr/bin/python3
+# RUN ln -sv /usr/bin/python3.6 /usr/bin/python
+
+RUN locale-gen en_US.UTF-8
+RUN useradd -m -d /home/ubuntu ubuntu -p `perl -e 'print crypt("ubuntu", "salt"),"\n"'` && \
+    echo "ubuntu ALL=(ALL) ALL" >> /etc/sudoers
+USER ubuntu
+# WORKDIR /home/ubuntu
+ENV HOME=/home/ubuntu \
+    CATKIN_SHELL=bash
+ENV LANG=en_US.UTF-8 LANGUAGE=en_US:en LC_ALL=en_US.UTF-8
+
+RUN mkdir -p ~/catkin_ws/src \
+    && /bin/bash -c '. /opt/ros/melodic/setup.bash; catkin_init_workspace $HOME/catkin_ws/src' \
+    && /bin/bash -c '. /opt/ros/melodic/setup.bash; cd $HOME/catkin_ws; catkin_make'
+RUN mkdir -p ~/catkin_ws/build
+RUN mkdir -p ~/catkin_ws/devel
+
+RUN echo 'source /opt/ros/melodic/setup.bash' >> ~/.bashrc \
+    && echo 'source ~/catkin_ws/devel/setup.bash' >> ~/.bashrc
+# COPY ./docker/ros_entrypoint.sh /
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+# CMD ["/bin/bash"]
+##ROS
 
 COPY pcdet /OpenPCDet/pcdet
 #COPY tools /OpenPCDet/tools

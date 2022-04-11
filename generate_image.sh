@@ -1,1 +1,1 @@
-nvidia-docker build -f docker/Dockerfile -t openpcdet-docker .
+nvidia-docker build --network=host -f docker/Dockerfile -t openpcdet-docker .

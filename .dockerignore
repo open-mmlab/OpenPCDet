@@ -1,0 +1,6 @@
+.github
+.git
+.cache
+data
+build
+checkpoints
