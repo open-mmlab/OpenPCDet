@@ -27,7 +27,7 @@ else
 		-v /home/$USER/OpenPCDet/checkpoints:/OpenPCDet/checkpoints \
 		-v /home/$USER/OpenPCDet/tools:/OpenPCDet/tools \
 		-v /home/$USER/OpenPCDet/setup.py:/OpenPCDet/setup.py \
-		--rm --gpus all \
+		--gpus all \
 		openpcdet-docker
 fi
 
