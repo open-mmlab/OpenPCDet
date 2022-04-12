@@ -3,7 +3,7 @@ from collections import namedtuple
 import numpy as np
 import torch
 
-from .detectors import build_detector
+from .detectors import build_detector, build_ros_detector
 
 try:
     import kornia
@@ -19,6 +19,11 @@ def build_network(model_cfg, num_class, dataset):
     )
     return model
 
+def build_ros_network(model_cfg, num_class, dataset):
+    model = build_ros_detector(
+        model_cfg=model_cfg, num_class=num_class, dataset=dataset
+    )
+    return model
 
 def load_data_to_gpu(batch_dict):
     for key, val in batch_dict.items():
