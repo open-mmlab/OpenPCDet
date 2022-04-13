@@ -39,6 +39,31 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         nn.init.normal_(self.conv_box.weight, mean=0, std=0.001)
 
     def forward(self, data_dict):
+        vis_gt = True
+        if vis_gt:
+            from pcdet.utils.visualize import draw_bev_gt, draw_bev_pts
+            import numpy as np
+            import cv2
+            import os
+            batch_size = data_dict['batch_size']
+            voxel_coords = data_dict['voxel_coords']
+
+            visualize_dir = "./visualize"
+            if not os.path.exists(visualize_dir):
+                os.makedirs(visualize_dir)
+                print('create directory: {}'.format(visualize_dir))
+
+            for batch_id in range(batch_size):
+                frame_id = data_dict['frame_id'][batch_id]
+                frame_pts_path = os.path.join(visualize_dir, 'pts_%s.png'%frame_id)
+                # frame_gt_path = os.path.join(visualize_dir, 'gt_%s.png'%frame_id)
+
+                voxel_coord = voxel_coords[voxel_coords[:,0]==batch_id][:,1:].cpu().numpy()[:, ::-1]    # (N1, 3) [x,y,z]
+                # gt_boxes = data_dict["gt_boxes"][batch_id].cpu().numpy() # (K, 7)
+
+                draw_bev_pts(frame_pts_path, voxel_coord, gt_boxes=None, area_scope = [[0, 70.4], [-40, 40], [-3, 1]], cmap_color = False, voxel_size = [0.16, 0.16, 4])
+                import pdb; pdb.set_trace()
+                
         spatial_features_2d = data_dict['spatial_features_2d']
 
         cls_preds = self.conv_cls(spatial_features_2d)

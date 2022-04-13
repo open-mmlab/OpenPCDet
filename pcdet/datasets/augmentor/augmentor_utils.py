@@ -3,6 +3,8 @@ import math
 import copy
 from ...utils import common_utils
 from ...utils import box_utils
+import torch
+import numba
 
 
 def random_flip_along_x(gt_boxes, points):
@@ -63,6 +65,56 @@ def global_rotation(gt_boxes, points, rot_range):
 
     return gt_boxes, points
 
+def global_rotation_single_axis(points, rot_range=np.pi/2):
+    """
+    Args:
+        gt_boxes: (N, 7 + C), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (M, 3 + C),
+        rot_range: [min, max]
+    Returns:
+    """
+    if not isinstance(rot_range, list):
+        rot_range = [-rot_range, rot_range]
+    noise_rotation = np.random.uniform(rot_range[0], rot_range[1])
+    points = common_utils.rotate_points_along_z(points[np.newaxis, :, :], np.array([noise_rotation]))[0]
+
+    return points, noise_rotation
+
+def global_rotation_customized(points, rotation=np.pi/4):
+    if not isinstance(rotation, list):
+        rotation = [-rotation, rotation]
+    noise_rotation = np.random.uniform(rotation[0], rotation[1])
+    points[:, :3] = rotation_points_single_angle(points[:, :3], noise_rotation, axis=2)
+    return points, noise_rotation
+
+@numba.jit(nopython=True)
+def rotation_points_single_angle(points, angle, axis=0):
+    # points: [N, 3]
+    rot_sin = np.sin(angle)
+    rot_cos = np.cos(angle)
+    if axis == 1:
+        rot_mat_T = np.array(
+            [rot_cos, 0, -rot_sin, 0, 1, 0, rot_sin, 0, rot_cos],
+            dtype=points.dtype).reshape(3, 3)
+    elif axis == 2 or axis == -1:
+        rot_mat_T = np.array(
+            [rot_cos, -rot_sin, 0, rot_sin, rot_cos, 0, 0, 0, 1],
+            dtype=points.dtype).reshape(3, 3)
+    elif axis == 0:
+        rot_mat_T = np.array(
+            [1, 0, 0, 0, rot_cos, -rot_sin, 0, rot_sin, rot_cos],
+            dtype=points.dtype).reshape(3, 3)
+    else:
+        raise ValueError("axis should in range")
+
+    return points @ rot_mat_T
+
+def global_shift(points, z_shift):
+    if not isinstance(z_shift, list):
+        z_shift = [-z_shift, z_shift]
+    noise_shift = np.random.uniform(z_shift[0], z_shift[1])
+    points[:, 2] = points[:, 2] + noise_shift
+    return points, noise_shift
 
 def global_scaling(gt_boxes, points, scale_range):
     """
@@ -138,6 +190,50 @@ def random_translation_along_x(gt_boxes, points, offset_std):
     #     gt_boxes[:, 7] += offset
     
     return gt_boxes, points
+
+def get_topk_points(points, topk=2000, dim=2, inverse=False):
+    if not isinstance(points, torch.Tensor):
+        points = torch.FloatTensor(points)
+    points_value = points[:, dim]
+    if inverse:
+        points_value = points_value * -1
+    topk_value, topk_index = torch.topk(points_value, k=topk)
+    points_selected = points[topk_index].numpy()
+    return points_selected
+
+def points_width_filter(points, threshold=10):
+    points_value = points[:, 1]
+    points_width_flag = (points_value < threshold) & (points_value > (threshold*-1))
+    points_selected = points[points_width_flag]
+    return points_selected
+
+def select_points(points, npoint=16384, depth_threshold=40.0):
+    if points.shape[0] < npoint:
+        # current points are less than required and padding is added
+        choice = np.arange(0, points.shape[0], dtype=np.int32)
+        extra_choice = np.random.choice(choice, npoint-points.shape[0], replace=False)      # 是否进行重复采样
+        choice = np.concatenate((choice, extra_choice), axis=0)
+        np.random.shuffle(choice)
+    elif points.shape[0] > npoint:
+        # current points are more than required
+        # first filter out by depth threshold
+        pts_depth = points[:, 2]
+        pts_near_flag = pts_depth < depth_threshold
+        far_idxs = np.where(pts_near_flag==0)[0]
+        near_idxs = np.where(pts_near_flag==1)[0]
+
+        if len(near_idxs) < npoint:
+            near_idxs_choice = near_idxs
+            far_idxs_choice = np.random.choice(far_idxs, npoint-len(near_idxs_choice), replace=False)
+            choice = np.concatenate((near_idxs, far_idxs_choice), aixs=0)
+        else:
+            choice = np.random.choice(near_idxs, npoint, replace=False)
+        np.random.shuffle(choice)
+    else:
+        choice = np.arange(0, points.shape[0], dtype=np.int32)
+    
+    points = points[choice, :]
+    return points
 
 
 def random_translation_along_y(gt_boxes, points, offset_std):
