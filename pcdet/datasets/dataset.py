@@ -146,6 +146,8 @@ class DatasetTemplate(torch_data.Dataset):
         gt_names = data_dict.pop('gt_names', None)
         classes = [['car'], ['truck', 'construction_vehicle'], ['bus', 'trailer'], \
                 ['barrier'], ['motorcycle', 'bicycle'], ['pedestrian', 'traffic_cone']]
+        #classes = ['car', 'truck', 'construction_vehicle', 'bus', 'trailer', \
+        #        'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
         gt_counts = np.zeros(len(classes), dtype=np.uint32)
         for name in gt_names:
             for i, cls in enumerate(classes):

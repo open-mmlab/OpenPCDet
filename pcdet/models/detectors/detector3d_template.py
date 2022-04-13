@@ -7,6 +7,7 @@ import time
 import numpy as np
 import datetime
 import json
+import glob
 
 from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils.spconv_utils import find_all_spconv_keys
@@ -323,10 +324,10 @@ class Detector3DTemplate(nn.Module):
                 else:
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
-                #if score_sum:
-                    #cls_score_sums = np.zeros(len(cls_preds), dtype=np.float32)
-                    #cls_score_sums = torch.zeros(len(cls_preds)) #, \
-                    #        device=cls_preds[0].device)
+                if score_sum:
+                    cls_score_sums = torch.zeros(len(cls_preds), \
+                            device=cls_preds[0].device)
+                    css_index = 0
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
                 for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
@@ -338,10 +339,11 @@ class Detector3DTemplate(nn.Module):
                         score_thresh=post_process_cfg.SCORE_THRESH
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
-                    #if score_sum:
-                        #cls_score_sums[css_index] = cur_pred_labels.size()[0] + \
-                        #        torch.count_nonzero(cur_pred_scores > 0.5) * 100
-                    #    css_index +=1
+                    if score_sum:
+                        cls_score_sums[css_index] = torch.sum(cur_pred_scores)
+                        #        torch.sum(cur_pred_scores[cur_pred_scores > 0.5]) * 50
+                        css_index+=1
+
                     pred_scores.append(cur_pred_scores)
                     pred_labels.append(cur_pred_labels)
                     pred_boxes.append(cur_pred_boxes)
@@ -383,8 +385,8 @@ class Detector3DTemplate(nn.Module):
                 'pred_scores': final_scores,
                 'pred_labels': final_labels,
             }
-            #if score_sum:
-            #    record_dict['cls_score_sums'] = cls_score_sums
+            if score_sum:
+                record_dict['cls_score_sums'] = cls_score_sums
             pred_dicts.append(record_dict)
 
         if 'score_thresh' in batch_dict:
@@ -609,6 +611,23 @@ class Detector3DTemplate(nn.Module):
 
         if self.model_cfg.get('METHOD', None) is not None:
             self._eval_dict['method'] = self.model_cfg.METHOD
+
+        # Collect timing errors
+        #0.5 1.0 2.0 4.0
+        #1 2 4 8
+        dist_th_to_idx = {'0.5':0, '1.0':1, '2.0':2, '4.0':3}
+        timing_err_dict = {}
+        paths = sorted(glob.glob("./time_err_json_pool/*"))
+        for p in paths:
+            with open(p, 'r') as handle:
+                time_errs = json.load(handle)
+                fname = p.split('/')[-1]
+                cls, dist, _ = fname.split('-')
+                if cls not in timing_err_dict:
+                    timing_err_dict[cls] = [.0] * 4
+                timing_err_dict[cls][dist_th_to_idx[dist]] = time_errs
+            os.remove(p)
+        self._eval_dict['time_err'] = timing_err_dict
 
         print('Dumping evaluation dictionary file')
         current_date_time = datetime.datetime.today()

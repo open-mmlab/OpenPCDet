@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 gen_data()
 {
 	pushd /point_pillars/nuscenes_dataset/v1.0-mini
@@ -15,21 +14,21 @@ gen_data()
 	popd
 	sleep 1
 }
-#
-## Calibration
+
+# Calibration
 . revert_tables.sh
 cp -r 150ms_backup/* .
 . copy_new_tables.sh
-#rm -f eval_dict*
-#str='mini_train, mini_val = mini_val, mini_train'
-#sed_str_calib='s/#'$str'/'$str'/g'
-#sed --follow-symlinks -i "$sed_str_calib" splits.py
+rm -f eval_dict*
+str='mini_train, mini_val = mini_val, mini_train'
+sed_str_calib='s/#'$str'/'$str'/g'
+sed --follow-symlinks -i "$sed_str_calib" splits.py
 #gen_data
-#for i in 8 7 6 5 4
+#for i in 13 10
 #do
 #	./run_tests.sh single $i
 #done
-#
+
 # Gen test data
 rm -f eval_dict*
 sed_str_test='s/'$str'/#'$str'/g'
