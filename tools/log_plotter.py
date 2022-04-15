@@ -107,6 +107,9 @@ def init_dicts(dataset_name):
         "mAP": proto_mAP_dict,
         'eval_results_dict': {},
         "dataset": 'NuScenesDataset',
+        "time_err": {},
+        'avrg_recognize_time': 0.,
+        'avrg_instances_detected': 0.,
     }
 
 # method number to method name
@@ -118,10 +121,13 @@ method_num_to_str = [
         '4Impr-MultiStage',
         '5Impr-RRHeadSel',
         '6Impr-PCHeadSel',
-        '7Impr-DynamicHeadSel',
+        '7Impr-HistoryHeadSel',
         '8Impr-RRHeadSel-P',
         '9Impr-PCHeadSel-P',
-        'AImpr-DynamicHeadSel-P'
+        'AImpr-HistoryHeadSel-P',
+        'BImpr-StaticHeadSel',
+        'CImpr-CSSHeadSel-P',
+        'DImpr-NearoptHeadSel-P'
 ]
 
 def merge_eval_dicts(eval_dicts):
@@ -208,6 +214,21 @@ def load_eval_dict(path):
         eval_d['mAP']['NDS'] = AP_dict_json['NDS']
         eval_d['mAP']['mAP'] = AP_dict_json['mAP']
 
+        if 'time_err' in eval_d:
+            eval_d['avrg_recognize_time'] = 0.
+            eval_d['avrg_instances_detected'] = 0
+            for cls, timings_per_thr in  eval_d['time_err'].items():
+                avrg_timing, avrg_instances = .0, .0
+                for timings in timings_per_thr:
+                    l = len(timings)
+                    if l > 0:
+                        avrg_timing += sum(list(timings.values())) / l
+                        avrg_instances += l
+                eval_d['avrg_recognize_time'] += avrg_timing / len(timings_per_thr)
+                eval_d['avrg_instances_detected'] += avrg_instances/ len(timings_per_thr)
+            eval_d['avrg_recognize_time'] /= len(eval_d['time_err'])
+            eval_d['avrg_instances_detected'] /= len(eval_d['time_err'])
+
     return eval_d
 
 exps_dict = {}
@@ -236,12 +257,17 @@ exps_dict = { nm:exps_dict[nm] for nm in [ \
 #        'Baseline-3',
         'Impr-MultiStage',
         'Impr-RRHeadSel',
-        'Impr-PCHeadSel',
-        'Impr-DynamicHeadSel',
-        'Impr-RRHeadSel-P',
-        'Impr-PCHeadSel-P',
-        'Impr-DynamicHeadSel-P'
+#        'Impr-PCHeadSel',
+        'Impr-HistoryHeadSel',
+#        'Impr-RRHeadSel-P',
+#        'Impr-PCHeadSel-P',
+        'Impr-HistoryHeadSel-P',
+        'Impr-StaticHeadSel',
+#        'Impr-CSSHeadSel-P',
+#        'Impr-NearoptHeadSel-P'
         ]}
+plot_head_selection = True
+
 for exp, evals in exps_dict.items():
     # Sort according to deadlines
     evals.sort(key=lambda e: e['deadline_sec'])
@@ -384,11 +410,40 @@ def plot_stage_and_head_usage(merged_exps_dict):
         ylim += 3.0
 
     plt.savefig("exp_plots/rpn_and_heads_stats.jpg")
+if plot_head_selection:
+    procs.append(Process(target=plot_stage_and_head_usage, \
+                         args=(merged_exps_dict,)))
+    procs[-1].start()
 
-procs.append(Process(target=plot_stage_and_head_usage, \
-                     args=(merged_exps_dict,)))
-procs[-1].start()
+def plot_instance_data(merged_exps_dict):
+    linestyles = ['-', '--', '-.', ':'] * 2
+    i=0
+    # compare execution times end to end
+    fig, axs = plt.subplots(2, 1, figsize=(6, 6), constrained_layout=True)
+    for ax, k in zip(axs, ['avrg_instances_detected', 'avrg_recognize_time']):
+        for exp_name, evals in exps_dict.items():
+            x = [e['deadline_msec'] for e in evals]
+            y = [e[k] for e in evals]
+            l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i],
+                marker='.', markersize=10, markeredgewidth=0.7)
+            i+=1
+            ax.scatter(x, y, color=l2d[0].get_c())
+        ax.invert_xaxis()
+        ax.set_ylim(.0, 140)
+        ax.legend(fontsize='large')
+        ax.set_ylabel(k, fontsize='x-large')
+        ax.set_xlabel('Deadline (msec)', fontsize='x-large')
+        ax.grid('True', ls='--')
+    #fig.suptitle("Average end-to-end time over different deadlines", fontsize=16)
+    plt.savefig("exp_plots/instance_data.jpg")
 
+
+   
+#
+#procs.append(Process(target=plot_instance_data, \
+#                     args=(merged_exps_dict,)))
+#procs[-1].start()
+#
 #Add normalize accuray
 max_NDS = 0.
 for exp_name, evals in merged_exps_dict.items():
@@ -413,6 +468,36 @@ ax.grid('True', ls='--')
 ax.set_ylim(0.0, 105.)
 
 plt.savefig("exp_plots/normalized_NDS_deadlines.jpg")
+
+def autolabel(rects):
+    """Attach a text label above each bar in *rects*, displaying its height."""
+    for rect in rects:
+        height = rect.get_height()
+        ax.annotate('{}'.format(height),
+                    xy=(rect.get_x() + rect.get_width() / 2, height),
+                    xytext=(0, 3),  # 3 points vertical offset
+                    textcoords="offset points",
+                    ha='center', va='bottom')
+
+fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
+labels = list(merged_exps_dict.keys())
+colors=['b', 'g', 'r', 'c', 'm', 'y', 'k']
+x_values = np.arange(len(labels))
+y_values = [round(sum(evals['mAP']['normalized_NDS'])/ \
+		len(evals['mAP']['normalized_NDS']),1) \
+        for evals in merged_exps_dict.values()]
+
+rects = ax.bar(x_values, y_values, color=colors[:len(y_values)])
+autolabel(rects)
+for r, l in zip(rects, labels):
+    r.set_label(l)
+ax.legend(fontsize='small', ncol=2)
+ax.set_ylabel('Average accuracy (%)', fontsize='x-large')
+#ax.set_xlabel(')', fontsize='x-large')
+#ax.grid('True', ls='--')
+ax.set_ylim(0.0, 105.)
+
+plt.savefig("exp_plots/normalized_NDS_bar.jpg")
 
 for p in procs:
     p.join()

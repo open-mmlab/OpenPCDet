@@ -51,6 +51,9 @@ class Detector3DTemplate(nn.Module):
 
         self._use_empty_det_dict_for_eval = False
 
+        # 6 is the num heads
+        #self.cls_score_sums = torch.zeros(6, dtype=torch.float32, device='cuda')
+
     @property
     def mode(self):
         return 'TRAIN' if self.training else 'TEST'
@@ -222,11 +225,12 @@ class Detector3DTemplate(nn.Module):
         self.measure_time_start('LoadToGPU')
         load_data_to_gpu(data_dict)
         self.measure_time_end('LoadToGPU')
-        data_dict['abs_deadline_sec'] = start_time + self._eval_dict['deadline_sec']
+        data_dict['deadline_sec'] = self._eval_dict['deadline_sec']
         data_dict.update(extra_data)  # deadline, method, etc.
+        data_dict['abs_deadline_sec'] = start_time + data_dict['deadline_sec']
         self.measure_time_end('PreProcess')
         pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        torch.cuda.synchronize()
+        #torch.cuda.synchronize()
         finish_time = time.time()
         self.measure_time_end('End-to-end')
         torch.cuda.nvtx.range_pop()
@@ -325,8 +329,8 @@ class Detector3DTemplate(nn.Module):
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
                 if score_sum:
-                    cls_score_sums = torch.zeros(len(cls_preds), \
-                            device=cls_preds[0].device)
+                    #htr = batch_dict['heads_to_run']
+                    pred_score_sizes = [0] * len(cls_preds)
                     css_index = 0
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
@@ -340,8 +344,8 @@ class Detector3DTemplate(nn.Module):
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
                     if score_sum:
-                        cls_score_sums[css_index] = torch.sum(cur_pred_scores)
-                        #        torch.sum(cur_pred_scores[cur_pred_scores > 0.5]) * 50
+                        #self.cls_score_sums[htr[css_index]] = torch.sum(cur_pred_scores)
+                        pred_score_sizes[css_index] = len(cur_pred_scores)
                         css_index+=1
 
                     pred_scores.append(cur_pred_scores)
@@ -386,7 +390,7 @@ class Detector3DTemplate(nn.Module):
                 'pred_labels': final_labels,
             }
             if score_sum:
-                record_dict['cls_score_sums'] = cls_score_sums
+                record_dict['pred_score_sizes'] = pred_score_sizes
             pred_dicts.append(record_dict)
 
         if 'score_thresh' in batch_dict:

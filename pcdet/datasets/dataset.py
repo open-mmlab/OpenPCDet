@@ -148,7 +148,7 @@ class DatasetTemplate(torch_data.Dataset):
                 ['barrier'], ['motorcycle', 'bicycle'], ['pedestrian', 'traffic_cone']]
         #classes = ['car', 'truck', 'construction_vehicle', 'bus', 'trailer', \
         #        'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
-        gt_counts = np.zeros(len(classes), dtype=np.uint32)
+        gt_counts = np.zeros(len(classes), dtype=np.int32)
         for name in gt_names:
             for i, cls in enumerate(classes):
                 if name in cls:

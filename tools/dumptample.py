@@ -33,7 +33,7 @@ def dump_calib_tables(fname):
 
     for k, v in calib_dict['stats'].items():
         r,c = get_rc(k)
-        post_sync_time_table_ms[r-1][c-1] = v['Post-PFE'][2]
+        post_sync_time_table_ms[r-1][c-1] = v['Post-PFE'][3]
 
     for k, v in calib_dict['eval'].items():
         r,c = get_rc(k)

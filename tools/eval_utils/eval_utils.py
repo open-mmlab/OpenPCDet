@@ -78,15 +78,24 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         with torch.no_grad():
             model.calibrate()
 
-    if cfg.LOCAL_RANK == 0:
-        progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
+    #if cfg.LOCAL_RANK == 0:
+    #    progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
 
     start_time = time.time()
     gc.disable()
     # Currently, batch size of 1 is supported only
+    use_range_of_deadlines=False
+    if cfg.MODEL.get('DEADLINE_SEC', None) is not None:
+        dl = float(cfg.MODEL.DEADLINE_SEC)
+        deadlines=np.linspace(dl+0.01, dl, len(dataset))
+        use_range_of_deadlines=True
     for i in range(len(dataset)):
         with torch.no_grad():
-            batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
+            if use_range_of_deadlines:
+                batch_dict, pred_dicts, ret_dict = model.load_and_infer(i, \
+                        {'deadline_sec':deadlines[i]})
+            else:
+                batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
 
         if visualize:
             #print('labels:', pred_dicts[0]['pred_labels'])
@@ -103,19 +112,18 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             output_path=final_output_dir if save_to_file else None
         )
         det_annos += annos
-        if cfg.LOCAL_RANK == 0:
-            progress_bar.set_postfix(disp_dict)
-            progress_bar.update()
+        #if cfg.LOCAL_RANK == 0:
+        #    progress_bar.set_postfix(disp_dict)
+        #    progress_bar.update()
 
     if 'post_eval' in dir(model):
         model.post_eval()
 
-    #    gc.collect()
     gc.collect()
     gc.enable()
 
-    if cfg.LOCAL_RANK == 0:
-        progress_bar.close()
+    #if cfg.LOCAL_RANK == 0:
+    #    progress_bar.close()
 
     if dist_test:
         rank, world_size = common_utils.get_dist_info()
