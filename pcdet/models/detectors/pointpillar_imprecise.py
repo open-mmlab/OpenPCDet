@@ -188,27 +188,27 @@ class PointPillarImprecise(Detector3DTemplate):
                     0.210, (0.185+0.007)/2, (0.262+0.157)/2]).argsort()),
         ]
 
-        self.css_to_m = np.array([[1.90283234, 0.28519965, 0.18645298, \
-                    1.4957657,  0.21884773, 2.6849554], \
-                [1.80106114, 1.00799013, 0.7763087, \
-                    1.59361883, 0.30468379, 2.62101971], \
-                [1.64180563, 1.24500285, 1.24537723, \
-                    1.90696785, 0.30452398, 2.55396733]],
-                dtype=np.float32)
-
-        self.css_to_inv_m = 1.0 /  self.css_to_m
-
-        #self.css_to_m = torch.tensor(self.css_to_m.tolist(), \
-        #        device='cuda', dtype=torch.float32)
-
-        self.css_to_b = np.array([[-0.81712875, 0.32067108, -0.20142403, \
-                    -3.09549931, 0.1479765, -2.94680419], \
-                [0.05846191, -1.3219942, -1.09886723, \
-                    -2.80553087, 0.053551, -2.60581026], \
-                [0.83723844, -1.49960012, -0.71332603, \
-                    -2.61017381,  0.02575145, -2.20646418]], \
-                dtype=np.float32)
-
+#        self.css_to_m = np.array([[1.90283234, 0.28519965, 0.18645298, \
+#                    1.4957657,  0.21884773, 2.6849554], \
+#                [1.80106114, 1.00799013, 0.7763087, \
+#                    1.59361883, 0.30468379, 2.62101971], \
+#                [1.64180563, 1.24500285, 1.24537723, \
+#                    1.90696785, 0.30452398, 2.55396733]],
+#                dtype=np.float32)
+#
+#        self.css_to_inv_m = 1.0 /  self.css_to_m
+#
+#        #self.css_to_m = torch.tensor(self.css_to_m.tolist(), \
+#        #        device='cuda', dtype=torch.float32)
+#
+#        self.css_to_b = np.array([[-0.81712875, 0.32067108, -0.20142403, \
+#                    -3.09549931, 0.1479765, -2.94680419], \
+#                [0.05846191, -1.3219942, -1.09886723, \
+#                    -2.80553087, 0.053551, -2.60581026], \
+#                [0.83723844, -1.49960012, -0.71332603, \
+#                    -2.61017381,  0.02575145, -2.20646418]], \
+#                dtype=np.float32)
+#
         self.latest_token = None
         if self._default_method == self.IMPR_PCHeadSel or \
                 self._default_method == self.IMPR_PCHeadSel_Prj:
@@ -311,11 +311,8 @@ class PointPillarImprecise(Detector3DTemplate):
 
                 for pss, h in zip(pred_score_sizes, htr):
                     ei = si + pss
-                    self.cls_score_sums[h] = torch.sum(pred_scores[si:ei])
+                    self.head_scores_arr[h] = torch.sum(pred_scores[si:ei])
                     si = ei
-
-                self.head_scores_arr[htr] = self.css_to_m[ns, htr] * \
-                        self.cls_score_sums[htr] + self.css_to_b[ns, htr]
 
                 if self.history_calib > 0:
                     self.gt_and_css_tuples.append((self.gt_counts.tolist(), \
@@ -646,20 +643,16 @@ class PointPillarImprecise(Detector3DTemplate):
                     data_dict['heads_to_run']))
         elif method == self.IMPR_PCHeadSel or method == self.IMPR_PCHeadSel_Prj:
             # Pritoritize the heads to maximize projection performance
-            #perfs = np.empty(self.dense_head.num_heads, dtype=np.float32)
             perfs = self.head_age_arr * self.head_proj_calib_mult + \
                     self.head_proj_calib_add
-            #for h in range(self.dense_head.num_heads):
-            #    age = self.head_age_arr[h]-1
-            #    perfs[h] = self.head_proj_calib_table[age][h]
             inv_prios = perfs.argsort()
             data_dict['heads_to_run'] = inv_prios[:num_heads_to_run]
             self.last_skipped_heads = inv_prios[num_heads_to_run:]
         elif method == self.IMPR_HistoryHeadSel or method == self.IMPR_HistoryHeadSel_Prj:
-            mqs = len(self.det_dicts_queue) #self.max_queue_size
+            mqs = len(self.det_dicts_queue)
             haa = self.head_age_arr
-            hsa = self.head_scores_arr #.cpu().numpy()
-            scr_heap = [(-scr*haa[h]*self.css_to_inv_m[num_stages_to_run-1,h],h) \
+            hsa = self.head_scores_arr
+            scr_heap = [(-scr*haa[h], h) \
                     if haa[h] < mqs else (-1024.*haa[h], h)\
                     for h, scr in enumerate(hsa)]
             heapq.heapify(scr_heap)
@@ -935,6 +928,7 @@ class PointPillarImprecise(Detector3DTemplate):
 
     def clear_stats(self):
         super().clear_stats()
+        self.reset_queues_and_arrays()
         self._eval_dict['rpn_stg_exec_seqs'] = []
         self._eval_dict['projections_per_task'] = []
 
