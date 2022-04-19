@@ -110,24 +110,47 @@ def init_dicts(dataset_name):
         "time_err": {},
         'avrg_recognize_time': 0.,
         'avrg_instances_detected': 0.,
+        'color': 'r',
+        'lnstyle': '-',
     }
 
 # method number to method name
 # NANP: No aging no prediction
+
+
+#linestyles = ['-', '--', '-.', ':'] * 4
+linestyles = ['--', ':'] * 10
+method_colors= [
+    'tab:blue', 
+    'tab:orange', 
+    'tab:green', 
+    'tab:olive', 
+    'tab:purple', 
+    'w',
+    'tab:brown',
+    'tab:blue', 
+    'w',
+    'tab:red',  #'xkcd:coral', 
+    'tab:pink', 
+    'tab:orange', 
+    'tab:green'
+]
+m_to_c_ls = [(method_colors[i], linestyles[i]) for i in range(len(method_colors))]
+
 method_num_to_str = [
         '3Baseline-1',
         '2Baseline-2',
         '1Baseline-3',
-        '4Impr-MultiStage',
-        '5Impr-RRHeadSel',
-        '6Impr-PCHeadSel',
-        '7Impr-HistoryHeadSel',
-        '8Impr-RRHeadSel-P',
-        '9Impr-PCHeadSel-P',
-        'AImpr-HistoryHeadSel-P',
-        'BImpr-StaticHeadSel',
-        'CImpr-CSSHeadSel-P',
-        'DImpr-NearoptHeadSel-P'
+        '4MultiStage',
+        '5RoundRoHS',
+        'PCHeadSel',
+        '6HistoryHS',
+        '8RoundRoHS-P',
+        'PCHeadSel-P',
+        'AHistoryHS-P',
+        '7StaticHS',
+        '9CSSumHS-P',
+        'BNearOptHS-P',
 ]
 
 def merge_eval_dicts(eval_dicts):
@@ -243,6 +266,8 @@ with concurrent.futures.ThreadPoolExecutor() as executor:
         k = method_num_to_str[ed['method']-1]
         if k not in exps_dict:
             exps_dict[k] = []
+        ed['color'] = m_to_c_ls[ed['method']-1][0]
+        ed['lnstyle'] = m_to_c_ls[ed['method']-1][1]
         exps_dict[k].append(ed)
 
 #Sort exps
@@ -251,21 +276,37 @@ exps_dict= {nm[1:]:exps_dict[nm] for nm in exp_names}
 
 # Filter some
 #exps_dict = {nm:exps_dict[nm] for nm in ['Baseline-3', 'Baseline-2', 'Baseline-1', 'Impr-MS-HS-A-P']}
-exps_dict = { nm:exps_dict[nm] for nm in [ \
-#        'Baseline-1',
-#        'Baseline-2',
-#        'Baseline-3',
-        'Impr-MultiStage',
-        'Impr-RRHeadSel',
-#        'Impr-PCHeadSel',
-        'Impr-HistoryHeadSel',
-#        'Impr-RRHeadSel-P',
-#        'Impr-PCHeadSel-P',
-        'Impr-HistoryHeadSel-P',
-        'Impr-StaticHeadSel',
-#        'Impr-CSSHeadSel-P',
-#        'Impr-NearoptHeadSel-P'
-        ]}
+
+max_NDS = 0.
+for exp_name, evals in exps_dict.items():
+    NDS_arr = [e['mAP']['NDS'] for e in evals]
+    max_NDS = max(max(NDS_arr), max_NDS)
+
+exps_dict1= { nm:exps_dict[nm] for nm in [ \
+        'Baseline-1',
+        'Baseline-2',
+        'Baseline-3',
+        'MultiStage',
+        'HistoryHS-P',
+]}
+
+exps_dict2 = { nm:exps_dict[nm] for nm in [ \
+        'MultiStage',
+        'StaticHS',
+        'RoundRoHS',
+        'HistoryHS',
+        'HistoryHS-P',
+]}
+
+exps_dict3 = { nm:exps_dict[nm] for nm in [ \
+        'CSSumHS-P',
+        'RoundRoHS-P',
+        'HistoryHS-P',
+        'NearOptHS-P',
+]}
+
+exps_dict=exps_dict3
+
 plot_head_selection = True
 
 for exp, evals in exps_dict.items():
@@ -282,32 +323,29 @@ for exp, evals in exps_dict.items():
             mAP, NDS = e["mAP"]['mAP'], e["mAP"]['NDS']
             print('\tdeadline:', e['deadline_sec'], "\tmissed:", e['deadlines_missed'],
                   f"\tmAP, NDS:\t{mAP:.2f},\t{NDS:.2f}")
-
-
 merged_exps_dict = {}
 for k, v in exps_dict.items():
     merged_exps_dict[k] = merge_eval_dicts(v)
 
 # for plotting
-colors = ['green', 'red', 'blue']
 procs = []
 
 # compare deadlines misses
 def plot_func_dm(exps_dict):
-    linestyles = ['-', '--', '-.', ':'] * 2
     i=0
     fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
     for exp_name, evals in exps_dict.items():
         for e in evals:
             x = [e['deadline_msec'] for e in evals]
             y = [e['deadlines_missed']/len(e['deadline_diffs'])*100. for e in evals]
-        l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i],
-            marker='.', markersize=10, markeredgewidth=0.7)
+        l2d = ax.plot(x, y, label=exp_name, 
+            marker='.', markersize=10, markeredgewidth=0.7,
+            c=evals[0]['color'], linestyle=evals[0]['lnstyle'])
         i+=1
         #ax.scatter(x, y, color=l2d[0].get_c())
     ax.invert_xaxis()
     ax.set_ylim(0., 105.)
-    ax.legend(fontsize='large')
+    ax.legend(fontsize='medium')
     ax.set_ylabel('Deadline miss ratio (%)', fontsize='x-large')
     ax.set_xlabel('Deadline (msec)', fontsize='x-large')
     ax.grid('True', ls='--')
@@ -320,20 +358,20 @@ procs[-1].start()
 
 
 def plot_func_eted(exps_dict):
-    linestyles = ['-', '--', '-.', ':'] * 2
     i=0
     # compare execution times end to end
     fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
     for exp_name, evals in exps_dict.items():
         x = [e['deadline_msec'] for e in evals]
         y = [e['exec_time_stats']['End-to-end'][1] for e in evals]
-        l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i],
-            marker='.', markersize=10, markeredgewidth=0.7)
+        l2d = ax.plot(x, y, label=exp_name,
+            marker='.', markersize=10, markeredgewidth=0.7,
+            c=evals[0]['color'], linestyle=evals[0]['lnstyle'])
         i+=1
         ax.scatter(x, y, color=l2d[0].get_c())
     ax.invert_xaxis()
     ax.set_ylim(.0, 140)
-    ax.legend(fontsize='large')
+    ax.legend(fontsize='medium')
     ax.set_ylabel('End-to-end time (msec)', fontsize='x-large')
     ax.set_xlabel('Deadline (msec)', fontsize='x-large')
     ax.grid('True', ls='--')
@@ -383,7 +421,6 @@ def plot_stage_and_head_usage(merged_exps_dict):
     fig, axes = plt.subplots(2, 1, figsize=(6, 6), constrained_layout=True)
 #    # axes[0] for num stages, axes[1] for heads, bar graph all, x axis deadlines
 #    #calculate misses due to skipping heads
-    linestyles = ['-', '--', '-.', ':'] * 2
     i = 0
     for exp_name, evals in merged_exps_dict.items():
         x = evals['deadline_msec']
@@ -393,16 +430,18 @@ def plot_stage_and_head_usage(merged_exps_dict):
             y1.append(sum(arr) / len(arr))
             arr = [len(r[1]) for r in er]
             y2.append(sum(arr) / len(arr))
-        axes[0].plot(x, y1, label=exp_name, linestyle=linestyles[i],
-                marker='.', markersize=10, markeredgewidth=0.7)
-        axes[1].plot(x, y2, label=exp_name, linestyle=linestyles[i],
-                marker='.', markersize=10, markeredgewidth=0.7)
+        axes[0].plot(x, y1, label=exp_name,
+                marker='.', markersize=10, markeredgewidth=0.7,
+                c=evals[0]['color'], linestyle=evals[0]['lnstyle'])
+        axes[1].plot(x, y2, label=exp_name,
+                marker='.', markersize=10, markeredgewidth=0.7,
+                c=evals[0]['color'], linestyle=evals[0]['lnstyle'])
         i+=1
 
     ylim = 3.5
     for ax, ylbl in zip(axes, ('Avrg. RPN stages', 'Avrg. det heads')):
         ax.invert_xaxis()
-        ax.legend(fontsize='large')
+        ax.legend(fontsize='medium')
         ax.set_ylabel(ylbl, fontsize='x-large')
         ax.set_xlabel('Deadline (msec)', fontsize='x-large')
         ax.grid('True', ls='--')
@@ -410,13 +449,12 @@ def plot_stage_and_head_usage(merged_exps_dict):
         ylim += 3.0
 
     plt.savefig("exp_plots/rpn_and_heads_stats.jpg")
-if plot_head_selection:
-    procs.append(Process(target=plot_stage_and_head_usage, \
-                         args=(merged_exps_dict,)))
-    procs[-1].start()
+#if plot_head_selection:
+#    procs.append(Process(target=plot_stage_and_head_usage, \
+#                         args=(merged_exps_dict,)))
+#    procs[-1].start()
 
 def plot_instance_data(merged_exps_dict):
-    linestyles = ['-', '--', '-.', ':'] * 2
     i=0
     # compare execution times end to end
     fig, axs = plt.subplots(2, 1, figsize=(6, 6), constrained_layout=True)
@@ -424,44 +462,40 @@ def plot_instance_data(merged_exps_dict):
         for exp_name, evals in exps_dict.items():
             x = [e['deadline_msec'] for e in evals]
             y = [e[k] for e in evals]
-            l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i],
-                marker='.', markersize=10, markeredgewidth=0.7)
+            l2d = ax.plot(x, y, label=exp_name,
+                marker='.', markersize=10, markeredgewidth=0.7,
+                c=evals[0]['color'], linestyle=evals[0]['lnstyle'])
             i+=1
             ax.scatter(x, y, color=l2d[0].get_c())
         ax.invert_xaxis()
         ax.set_ylim(.0, 140)
-        ax.legend(fontsize='large')
+        ax.legend(fontsize='medium')
         ax.set_ylabel(k, fontsize='x-large')
         ax.set_xlabel('Deadline (msec)', fontsize='x-large')
         ax.grid('True', ls='--')
     #fig.suptitle("Average end-to-end time over different deadlines", fontsize=16)
     plt.savefig("exp_plots/instance_data.jpg")
 
-
+for exp_name, evals in merged_exps_dict.items():
+    evals['mAP']['normalized_NDS'] = np.array(evals['mAP']['NDS']) / max_NDS * 100.
    
 #
 #procs.append(Process(target=plot_instance_data, \
 #                     args=(merged_exps_dict,)))
 #procs[-1].start()
 #
-#Add normalize accuray
-max_NDS = 0.
-for exp_name, evals in merged_exps_dict.items():
-    max_NDS = max(max(evals['mAP']['NDS']), max_NDS)
-for exp_name, evals in merged_exps_dict.items():
-    evals['mAP']['normalized_NDS'] = np.array(evals['mAP']['NDS']) / max_NDS * 100.
-
-linestyles = ['-', '--', '-.', ':'] * 2
+#Add normalized accuracy
 i = 0
 fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
 for exp_name, evals in merged_exps_dict.items():
     x = evals['deadline_msec']
     y = evals['mAP']['normalized_NDS']
-    l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i],
-            marker='.', markersize=10, markeredgewidth=0.7)
+    l2d = ax.plot(x, y, label=exp_name,
+            marker='.', markersize=10, markeredgewidth=0.7,
+            c=evals['color'][0], linestyle=evals['lnstyle'][0])
     i+=1
 ax.invert_xaxis()
-ax.legend(fontsize='large')
+ax.legend(fontsize='medium')
 ax.set_ylabel('Normalized accuracy (%)', fontsize='x-large')
 ax.set_xlabel('Deadline (msec)', fontsize='x-large')
 ax.grid('True', ls='--')
@@ -481,17 +515,23 @@ def autolabel(rects):
 
 fig, ax = plt.subplots(1, 1, figsize=(6, 3), constrained_layout=True)
 labels = list(merged_exps_dict.keys())
-colors=['b', 'g', 'r', 'c', 'm', 'y', 'k']
 x_values = np.arange(len(labels))
 y_values = [round(sum(evals['mAP']['normalized_NDS'])/ \
-		len(evals['mAP']['normalized_NDS']),1) \
+        len(evals['mAP']['normalized_NDS']),1) \
         for evals in merged_exps_dict.values()]
 
-rects = ax.bar(x_values, y_values, color=colors[:len(y_values)])
+rects = ax.bar(x_values, y_values, color=[v['color'][0] for v in merged_exps_dict.values()])
+ax.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are off
+
 autolabel(rects)
 for r, l in zip(rects, labels):
     r.set_label(l)
-ax.legend(fontsize='small', ncol=2)
+ax.legend(fontsize='medium', ncol=2)
 ax.set_ylabel('Average accuracy (%)', fontsize='x-large')
 #ax.set_xlabel(')', fontsize='x-large')
 #ax.grid('True', ls='--')
@@ -505,7 +545,6 @@ for p in procs:
 sys.exit(0)
 #####################################################################################
 ## compare mAP for all types
-#linestyles = ['-', '--', '-.', ':'] * 4
 #i = 0
 #fig, axs = plt.subplots(2, 1, figsize=(8, 6), constrained_layout=True)
 #for ax, eval_type in zip(axs, proto_mAP_dict.keys()):
