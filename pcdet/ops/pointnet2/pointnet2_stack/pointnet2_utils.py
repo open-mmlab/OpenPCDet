@@ -441,10 +441,11 @@ class VectorPoolWithVoxelQuery(Function):
         point_cnt_of_grid, grouped_idxs, N, num_c_in = ctx.vector_pool_for_backward
         grad_support_features = grad_new_features.new_zeros((N, num_c_in))
 
-        pointnet2.vector_pool_grad_wrapper(
-            grad_new_features.contiguous(), point_cnt_of_grid, grouped_idxs,
-            grad_support_features
-        )
+        if grouped_idxs.shape[0] > 0:
+            pointnet2.vector_pool_grad_wrapper(
+                grad_new_features.contiguous(), point_cnt_of_grid, grouped_idxs,
+                grad_support_features
+            )
 
         return None, None, grad_support_features, None, None, None, None, None, None, None, None, None, None, None, None
 
