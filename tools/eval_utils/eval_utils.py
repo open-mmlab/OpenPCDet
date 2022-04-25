@@ -84,18 +84,12 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     start_time = time.time()
     gc.disable()
     # Currently, batch size of 1 is supported only
-    use_range_of_deadlines=False
-    if cfg.MODEL.get('DEADLINE_SEC', None) is not None:
-        dl = float(cfg.MODEL.DEADLINE_SEC)
-        deadlines=np.linspace(dl+0.01, dl, len(dataset))
-        use_range_of_deadlines=True
+    #if cfg.MODEL.get('DEADLINE_SEC', None) is not None:
+    #    dl = float(cfg.MODEL.DEADLINE_SEC)
     for i in range(len(dataset)):
         with torch.no_grad():
-            if use_range_of_deadlines:
-                batch_dict, pred_dicts, ret_dict = model.load_and_infer(i, \
-                        {'deadline_sec':deadlines[i]})
-            else:
-                batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
+            batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
+        #            {'deadline_sec':dl})
 
         if visualize:
             #print('labels:', pred_dicts[0]['pred_labels'])

@@ -51,9 +51,6 @@ class Detector3DTemplate(nn.Module):
 
         self._use_empty_det_dict_for_eval = False
 
-        # 6 is the num heads
-        #self.cls_score_sums = torch.zeros(6, dtype=torch.float32, device='cuda')
-
     @property
     def mode(self):
         return 'TRAIN' if self.training else 'TEST'
@@ -328,10 +325,9 @@ class Detector3DTemplate(nn.Module):
                 else:
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
-                if score_sum:
-                    #htr = batch_dict['heads_to_run']
-                    pred_score_sizes = [0] * len(cls_preds)
-                    css_index = 0
+                #if score_sum:
+                #    pred_score_sizes = [0] * len(cls_preds)
+                #    css_index = 0
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
                 for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
@@ -343,16 +339,15 @@ class Detector3DTemplate(nn.Module):
                         score_thresh=post_process_cfg.SCORE_THRESH
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
-                    if score_sum:
-                        #self.cls_score_sums[htr[css_index]] = torch.sum(cur_pred_scores)
-                        pred_score_sizes[css_index] = len(cur_pred_scores)
-                        css_index+=1
+                    #if score_sum:
+                    #    pred_score_sizes[css_index] = len(cur_pred_scores)
+                    #    css_index+=1
 
                     pred_scores.append(cur_pred_scores)
                     pred_labels.append(cur_pred_labels)
                     pred_boxes.append(cur_pred_boxes)
                     cur_start_idx += cur_cls_preds.shape[0]
-
+                
                 final_scores = torch.cat(pred_scores, dim=0)
                 final_labels = torch.cat(pred_labels, dim=0)
                 final_boxes = torch.cat(pred_boxes, dim=0)
@@ -390,7 +385,7 @@ class Detector3DTemplate(nn.Module):
                 'pred_labels': final_labels,
             }
             if score_sum:
-                record_dict['pred_score_sizes'] = pred_score_sizes
+                record_dict['pred_score_sizes'] = [len(ps) for ps in pred_scores]
             pred_dicts.append(record_dict)
 
         if 'score_thresh' in batch_dict:

@@ -121,19 +121,20 @@ def init_dicts(dataset_name):
 #linestyles = ['-', '--', '-.', ':'] * 4
 linestyles = ['--', ':'] * 10
 method_colors= [
-    'tab:blue', 
-    'tab:orange', 
+    'tab:purple', 
+    'tab:red', 
     'tab:green', 
     'tab:olive', 
     'tab:purple', 
-    'w',
     'tab:brown',
     'tab:blue', 
-    'w',
     'tab:red',  #'xkcd:coral', 
     'tab:pink', 
     'tab:orange', 
-    'tab:green'
+    'tab:red',
+    'tab:green', 
+    'tab:purple', 
+    'xkcd:coral', 
 ]
 m_to_c_ls = [(method_colors[i], linestyles[i]) for i in range(len(method_colors))]
 
@@ -142,15 +143,16 @@ method_num_to_str = [
         '2Baseline-2',
         '1Baseline-3',
         '4MultiStage',
-        '5RoundRoHS',
-        'PCHeadSel',
-        '6HistoryHS',
-        '8RoundRoHS-P',
-        'PCHeadSel-P',
-        'AHistoryHS-P',
-        '7StaticHS',
-        '9CSSumHS-P',
-        'BNearOptHS-P',
+        '5StaticHS',
+        '6RoundRoHS',
+        '8HistoryHS',
+        '9PConfHS-P',
+        'ARoundRoHS-P',
+        'CHistoryHS-P',
+        'DNearOptHS-P',
+        '7CSSumHS',
+        'BCSSumHS-P',
+        'ENearOptHS',
 ]
 
 def merge_eval_dicts(eval_dicts):
@@ -283,19 +285,21 @@ for exp_name, evals in exps_dict.items():
     max_NDS = max(max(NDS_arr), max_NDS)
 
 exps_dict1= { nm:exps_dict[nm] for nm in [ \
-        'Baseline-1',
-        'Baseline-2',
         'Baseline-3',
+        'Baseline-2',
+        'Baseline-1',
         'MultiStage',
+        'HistoryHS',
         'HistoryHS-P',
 ]}
 
 exps_dict2 = { nm:exps_dict[nm] for nm in [ \
         'MultiStage',
         'StaticHS',
+        'CSSumHS',
         'RoundRoHS',
         'HistoryHS',
-        'HistoryHS-P',
+        'NearOptHS',
 ]}
 
 exps_dict3 = { nm:exps_dict[nm] for nm in [ \
@@ -305,9 +309,20 @@ exps_dict3 = { nm:exps_dict[nm] for nm in [ \
         'NearOptHS-P',
 ]}
 
-exps_dict=exps_dict3
+exps_dict4 = { nm:exps_dict[nm] for nm in [ \
+        'CSSumHS',
+        'CSSumHS-P',
+        'RoundRoHS',
+        'RoundRoHS-P',
+        'HistoryHS',
+        'HistoryHS-P',
+        'NearOptHS',
+        'NearOptHS-P',
+]}
 
-plot_head_selection = True
+exps_dict=exps_dict4
+
+plot_head_selection = False
 
 for exp, evals in exps_dict.items():
     # Sort according to deadlines
@@ -531,11 +546,11 @@ ax.tick_params(
 autolabel(rects)
 for r, l in zip(rects, labels):
     r.set_label(l)
-ax.legend(fontsize='medium', ncol=2)
+ax.legend(fontsize='medium', ncol=3)
 ax.set_ylabel('Average accuracy (%)', fontsize='x-large')
 #ax.set_xlabel(')', fontsize='x-large')
 #ax.grid('True', ls='--')
-ax.set_ylim(0.0, 105.)
+ax.set_ylim(0.0, 119.)
 
 plt.savefig("exp_plots/normalized_NDS_bar.jpg")
 
@@ -543,230 +558,3 @@ for p in procs:
     p.join()
 
 sys.exit(0)
-#####################################################################################
-## compare mAP for all types
-#i = 0
-#fig, axs = plt.subplots(2, 1, figsize=(8, 6), constrained_layout=True)
-#for ax, eval_type in zip(axs, proto_mAP_dict.keys()):
-#    for exp_name, evals in merged_exps_dict.items():
-#        x = evals['deadline_msec']
-#        y = evals['mAP'][eval_type]
-#        l2d = ax.plot(x, y, label=exp_name, linestyle=linestyles[i])
-#        ax.scatter(x, y, color=l2d[0].get_c())
-#        i+=1
-#    ax.invert_xaxis()
-#    ax.legend(fontsize='small', ncol=2)
-#    ax.set_ylabel(eval_type, fontsize='large')
-#    ax.set_xlabel('Deadline (msec)', fontsize='large')
-#    ax.grid('True', ls='--')
-#    ax.set_ylim(0.0, 1.0)
-#
-#fig.suptitle("Accuracy over different deadlines", fontsize=16)
-#plt.savefig("exp_plots/mAP_deadlines.jpg")
-#
-
-
-#def plot_impr_rem_hist(exps_dict):
-#    for exp_name, exp_dict in exps_dict.items():
-#        if 'imprecise' not in exp_name:
-#            continue
-#        fig, axs = plt.subplots(3, 1, figsize=(12, 12), constrained_layout=True)
-#        for i, ax in enumerate(axs):
-#            dist = exp_dict['exec_times'][f"impr{i + 1}"]
-#            perc99 = np.percentile(dist, 99, interpolation='lower')
-#            perc1 = np.percentile(dist, 1, interpolation='lower')
-#            dist_ = [et for et in dist if et < perc99 and et > perc1]
-#            ax.hist(dist_, 33)
-#            ax.set_xlabel(f"Remaining time to execute {i} stages (ms, 99pct)")
-#            ax.text((perc99 + perc1) / 2, 20, f"Max: {perc99:.5}")
-#            print(f"Remaining time to execute {i + 1} stages is 99 perc:{perc99}")
-#            print(f"Remaining time to execute {i + 1} stages is max:", max(dist))
-#
-#        fig.suptitle("Remaining time historgram for three imprecise stage cases", fontsize=16)
-#        plt.savefig("exp_plots/impr_hist.jpg")
-#
-#
-#procs.append(Process(target=plot_impr_rem_hist, \
-#                     args=(exps_dict,)))
-#procs[-1].start()
-#
-##
-#for exp_name, exp_dict in exps_dict.items():
-#    if diff_slc:
-#        # RPN scaling
-#        fig, axs = plt.subplots(4, 1, figsize=(16, 12))
-#        x = exp_dict['slice_size_perc']
-#        # x = exp_dict['stage1_slice_size']
-#        for stg, ax in enumerate(axs[:-2]):
-#            stg_key = f"RPN-stage-{stg + 2}"
-#            mam_dict = exp_dict['exec_times']
-#            # last one does not do slicing
-#            y = [mam_dict[stg_key][1][i] / mam_dict[stg_key][1][-1] * 100 - x[i] \
-#                 for i in range(len(mam_dict[stg_key][1]) - 1)]
-#            ax.bar(x[:-1], y, width=0.4)
-#            ax.set_ylabel(f'RPN stage {stg + 2} time scale error percentage')
-#            ax.set_xticks(list(range(10, 65, 5)))
-#            ax.set_xlabel('Slice size percentage')
-#
-#        axs[-2].scatter(x, exp_dict['stage1_slice_size'])
-#        axs[-2].set_ylabel('Stage 1 slice height')
-#        axs[-2].set_xlabel('Slice size percentage')
-#        axs[-2].set_xticks(list(range(10, 105, 5)))
-#        axs[-2].grid('True', ls='--')
-#
-#        axs[-1].scatter(x, exp_dict['num_slices'])
-#        axs[-1].set_ylabel('Number of slices')
-#        axs[-1].set_xlabel('Slice size percentage')
-#        axs[-1].set_xticks(list(range(10, 105, 5)))
-#        axs[-1].grid('True', ls='--')
-#
-#        fig.suptitle("RPN execution time scaling", fontsize=16)
-#        plt.savefig("exp_plots/rpn_scaling_perc.jpg")
-#
-#        # num slices vs slice size
-# better approach: use plot dict
-#def fill_plot_dict(plot_dict, exp_dict, keys, pred_keys=None):
-#    if pred_keys is None:
-#        pred_keys = list()
-#    for exp in exp_dict.keys():
-#        if exp not in plot_dict:
-#            plot_dict[exp] = {}
-#        for k in keys:
-#            if len(pred_keys) == 0:
-#                plot_dict[exp][k] = exp_dict[exp][k]
-#            elif len(pred_keys) == 1:
-#                plot_dict[exp][k] = \
-#                    exp_dict[exp][pred_keys[0]][k]
-#            elif len(pred_keys) == 2:
-#                plot_dict[exp][k] = \
-#                    exp_dict[exp][pred_keys[0]][pred_keys[1]][k]
-#
-#plot_dict = {}
-#exec_keys_to_plot = [
-#    'PreProcess', 'RPN-stage-1', 'RPN-stage-2', 'RPN-stage-3',
-#    'RPN-finalize', 'PostProcess', 'End-to-end']
-#
-#fill_plot_dict(plot_dict, merged_exps_dict, exec_keys_to_plot, ['exec_times'])
-#procs.append(Process(target=plot_func_hist, args=(plot_dict,  "ALL_", )))
-#procs[-1].start()
-#plot_dict.clear()
-
-#exec_keys_to_plot = ['PFE', 'PillarGen', 'PillarPrep',
-#                     'PillarFeatureNet', 'PillarScatter']
-#fill_plot_dict(plot_dict, merged_exps_dict, exec_keys_to_plot, ['exec_times'])
-#fill_plot_dict(plot_dict, merged_exps_dict, ['num_voxels'],)
-#procs.append(Process(target=plot_func_hist, args=(plot_dict,  "PFE_", )))
-#procs[-1].start()
-#
-#exec_keys_to_plot = ['exec_keys_to_plot']
-
-#def plot_func_sorted(plot_dict, x_key, filename_prefix):
-#    for exp_name, merged_evals in plot_dict.items():
-#        h = (len(merged_evals) - 1) // 2
-#        fig, axs = plt.subplots(h, 2, figsize=(16, h * 4))
-#        axs = np.concatenate(axs)
-#
-#        x = np.concatenate(merged_evals[x_key])
-#        del merged_evals[x_key]
-#        sorted_indexes = np.argsort(x)
-#        # downsample indexes until array length is small enough
-#        target_size = 250
-#        if len(sorted_indexes) > target_size:
-#            mask = [True] + ([False] * math.floor(len(sorted_indexes) // target_size))
-#            mask = mask * math.ceil(len(sorted_indexes) / len(mask))
-#            sorted_indexes = sorted_indexes[mask[:len(sorted_indexes)]]
-#
-#        x = x[sorted_indexes]
-#
-#        for (i, ax), (key, val) in zip(enumerate(axs), merged_evals.items()):
-#            # Use 99 percentile
-#            y = np.concatenate(val)
-#            if len(y) > 0:
-#                y = y[sorted_indexes]
-#                perc99_idx = int(len(y) * 0.99)
-#                print(f"{exp_name} {key} 99 perc:{y[perc99_idx]}, max: {max(x)}")
-#                ax.plot(x[:perc99_idx], y[:perc99_idx])
-#                ax.grid('True', ls='--')
-#                ax.set_ylabel(key + ' execution time (ms)')
-#            ax.set_xlabel(x_key)
-#            # #plot first instance timeline
-#            # ax.bar(np.arange(len(mrg_exe_times[key][0])), mrg_exe_times[key][0])
-#            # ax.set_xlabel('deadline ' + str(merged_evals['deadline_msec'][0]) + key +
-#            #               ' execution timeline (sample ID)')
-#
-#        fig.suptitle(exp_name + " - Number of voxels vs. Execution Time of PFE Phases", fontsize=16)
-#        plt.savefig("exp_plots/" + filename_prefix + exp_name + "_voxel_pfe_bar.jpg")
-#
-## plot dict was already filled except end to end
-#fill_plot_dict(plot_dict, merged_exps_dict, ['End-to-end'], ['exec_times'])
-#procs.append(Process(target=plot_func_sorted, args=(plot_dict, 'num_voxels', "", )))
-#procs[-1].start()
-
-
-#def plot_gt_miss(imp_merged_evals, method):
-#    if 'gt_counts' not in imp_merged_evals:
-#        print('Skipping head/miss analysis')
-#        return
-#
-#    #calculate misses due to skipping heads
-#    misses = []
-#    for exp_gt_counts, exp_seqs in zip(imp_merged_evals['gt_counts'], \
-#            imp_merged_evals['rpn_stg_exec_seqs']):
-#        misses.append([0] * len(exp_gt_counts[0]))
-#        for gt_count, seq in zip(exp_gt_counts, exp_seqs):
-#            for s in seq[1]:
-#                gt_count[s] = 0
-#            for i, g in enumerate(gt_count):
-#                misses[-1][i] += 1 if g else 0
-#    misses = np.transpose(misses)
-#    fig, ax = plt.subplots(1, 1, figsize=(12, 4), constrained_layout=True)
-#
-#    x = imp_merged_evals['deadline_msec']
-#    for i, y in enumerate(misses):
-#        l2d = ax.plot(x, y, label=f'head {i+1}')
-#        ax.scatter(x, y, color=l2d[0].get_c())
-#        ax.invert_xaxis()
-#    ax.legend(fontsize='medium')
-#    ax.set_ylabel('Misses', fontsize='large')
-#    ax.set_xlabel('Deadline (msec)', fontsize='large')
-#    ax.grid('True', ls='--')
-#
-#    fig.suptitle("Objects missed due to skipping heads", fontsize=16)
-#    plt.savefig(f"exp_plots/gtmiss_deadlines_{method}.jpg")
-#
-#procs.append(Process(target=plot_gt_miss, \
-#                     args=(merged_exps_dict['Imprecise'],'Imprecise',)))
-#procs[-1].start()
-#procs.append(Process(target=plot_gt_miss, \
-#                     args=(merged_exps_dict['Imprecise-NANP'],'Imprecise-NANP',)))
-#procs[-1].start()
-
-#
-#def plot_func_hist(plot_dict, filename_prefix):
-#    for exp_name, merged_evals in plot_dict.items():
-#        h, w = len(merged_evals) // 2, 2
-#        if h == 0:
-#            h, w = 1, 1
-#        fig, axs = plt.subplots(h, w, figsize=(16, h * 4))
-#        if w == 1:
-#            axs = [axs]
-#        axs = np.concatenate(axs)
-#
-#        for (i, ax), (key, val) in zip(enumerate(axs), merged_evals.items()):
-#            # Use 99 percentile
-#            x = np.concatenate(val)
-#            if len(x) > 0:
-#                perc99 = np.percentile(x, 99, interpolation='lower')
-#                # print(f"{exp_name} {key} 99 perc:{perc99}, max: {max(x)}")
-#                x = [et for et in x if et < perc99]
-#                ax.hist(x, 33)
-#            ax.set_xlabel(key + ' execution time bins (ms)')
-#            # #plot first instance timeline
-#            # ax.bar(np.arange(len(mrg_exe_times[key][0])), mrg_exe_times[key][0])
-#            # ax.set_xlabel('deadline ' + str(merged_evals['deadline_msec'][0]) + key +
-#            #               ' execution timeline (sample ID)')
-#
-#        fig.suptitle("Execution time histogram of " + exp_name, fontsize=16)
-#        plt.savefig("exp_plots/" + filename_prefix + exp_name + "_exec_time_hist.jpg")
-
-
