@@ -16,21 +16,24 @@ class PointPillar(Detector3DTemplate):
                 'MapToBEV': [], #'PillarScatter': [],
                 'RPN-finalize': [],
                 'RPN-total': [],
+                'Post-RPN': [],
                 'PostProcess': [],})
 
     def forward(self, batch_dict):
         #for cur_module in self.module_list:
         #    batch_dict = cur_module(batch_dict)
 
-        self.measure_time_start('VFE')
+        #self.measure_time_start('VFE')
         batch_dict = self.vfe(batch_dict)
-        self.measure_time_end('VFE')
-        self.measure_time_start('MapToBEV')
+        #self.measure_time_end('VFE')
+        #self.measure_time_start('MapToBEV')
         batch_dict = self.map_to_bev(batch_dict)
-        self.measure_time_end('MapToBEV')
+        #self.measure_time_end('MapToBEV')
+        self.measure_time_end('Pre-RPN')
         self.measure_time_start('RPN-total')
         batch_dict = self.backbone_2d(batch_dict)
         self.measure_time_end('RPN-total')
+        self.measure_time_start('Post-RPN')
         self.measure_time_start('RPN-finalize')
         batch_dict = self.dense_head(batch_dict)
         self.measure_time_end('RPN-finalize')
@@ -41,6 +44,8 @@ class PointPillar(Detector3DTemplate):
             ret_dict = {
                 'loss': loss
             }
+            self.measure_time_end('Post-RPN')
+
             return ret_dict, tb_dict, disp_dict
         else:
             self.measure_time_start('PostProcess')
@@ -50,6 +55,7 @@ class PointPillar(Detector3DTemplate):
             for dd in pred_dicts:
                 for k,v in dd.items():
                     dd[k] = v.cpu()
+            self.measure_time_end('Post-RPN')
 
             return pred_dicts, recall_dicts
 

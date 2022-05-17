@@ -108,7 +108,7 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/ch
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_2br/default/ckpt/checkpoint_epoch_20.pth"
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_3br.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_3br/default/ckpt/checkpoint_epoch_20.pth"
-
+export OMP_NUM_THREADS=2
 
 #TASKSET=""
 TASKSET="taskset 0xff"
@@ -135,9 +135,9 @@ elif [ $1 == 'methods' ]; then
 	prfx="cbgs_dyn_pp_multihead_"
 	for model in "1br" "2br" "3br" "imprecise" "imprecise" \
 		"imprecise" "imprecise" "imprecise" "imprecise" \
-		"imprecise" "imprecise" "imprecise"
+		"imprecise" "imprecise" "imprecise" "imprecise" "imprecise"
 	do
-		if [ $m != 10 ] && [ $m != 12 ] ; then
+		if [ $m == 8 ] ; then
 			# I don't need these anymore
 			m=$((m+1))
 			continue
@@ -150,8 +150,6 @@ elif [ $1 == 'methods' ]; then
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 		sed -i "$ARG" $CFG_FILE
-		#for s in $(seq 0.140 -0.010 0.110)
-		#for s in $(seq 0.100 -0.010 0.050)
 		for s in $(seq $2 $3 $4)
 		do
 			OUT_FILE=$OUT_DIR/eval_dict_m"$m"_d"$s".json

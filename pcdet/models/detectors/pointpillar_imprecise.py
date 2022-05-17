@@ -286,6 +286,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 det_dicts = [oracle_dd] * data_dict['batch_size']
 
             det_dicts_ret = det_dicts
+
             if data_dict['method'] == self.IMPR_HistoryHeadSel:
                 self.det_dicts_queue.appendleft(det_dicts)
             elif self.use_projection(data_dict):
@@ -337,7 +338,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 for h in self.last_skipped_heads:
                     self.head_age_arr[h] += 1
 
-                self.measure_time_end("Post-PFE", False)
+                self.measure_time_end("Post-PFE", data_dict['method'] == self.IMPR_Dryrun)
 
             return det_dicts_ret, recall_dict
         else:
@@ -387,7 +388,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 torch.cuda.synchronize()
             #self.measure_time_end('Sync', False)
             rem_ms = (data_dict['abs_deadline_sec'] - time.time()) * 1000.0
-            self.measure_time_start('Post-PFE', False)
+            self.measure_time_start('Post-PFE', data_dict['method'] == self.IMPR_Dryrun)
 
         self.measure_time_start('RPN-stage-1')
         data_dict = self.backbone_2d(data_dict)
@@ -641,6 +642,7 @@ class PointPillarImprecise(Detector3DTemplate):
                 i +=1
             data_dict['heads_to_run'] = heads_to_run
             self.last_skipped_heads = np.array([t[1] for t in scr_heap], dtype=np.uint8)
+
         elif method == self.IMPR_StaticHeadSel:
             prios = self.head_static_prios[num_stages_to_run-1]
             data_dict['heads_to_run'] = prios[:num_heads_to_run].copy()

@@ -139,20 +139,20 @@ method_colors= [
 m_to_c_ls = [(method_colors[i], linestyles[i]) for i in range(len(method_colors))]
 
 method_num_to_str = [
-        '3Baseline-1',
-        '2Baseline-2',
-        '1Baseline-3',
+        '3PointPillars-1',
+        '2PointPillars-2',
+        '1PointPillars-3',
         '4MultiStage',
         '5StaticHS',
-        '6RoundRoHS',
-        '8HistoryHS',
+        '6RoundRobin-NoPrj',
+        '8Ours-NoPrj',
         '9PConfHS-P',
-        'ARoundRoHS-P',
-        'CHistoryHS-P',
-        'DNearOptHS-P',
-        '7CSSumHS',
-        'BCSSumHS-P',
-        'ENearOptHS',
+        'ARoundRobin',
+        'COurs',
+        'DNearOptimal',
+        '7ClsScrSum-NoPrj',
+        'BClsScrSum',
+        'ENearOptimal-NoPrj',
 ]
 
 def merge_eval_dicts(eval_dicts):
@@ -285,39 +285,36 @@ for exp_name, evals in exps_dict.items():
     max_NDS = max(max(NDS_arr), max_NDS)
 
 exps_dict1= { nm:exps_dict[nm] for nm in [ \
-        'Baseline-3',
-        'Baseline-2',
-        'Baseline-1',
+        'PointPillars-3',
+        'PointPillars-2',
+        'PointPillars-1',
         'MultiStage',
-        'HistoryHS',
-        'HistoryHS-P',
+        'Ours',
 ]}
 
 exps_dict2 = { nm:exps_dict[nm] for nm in [ \
-        'MultiStage',
-        'StaticHS',
-        'CSSumHS',
-        'RoundRoHS',
-        'HistoryHS',
-        'NearOptHS',
+        'ClsScrSum-NoPrj',
+        'RoundRobin-NoPrj',
+        'Ours-NoPrj',
+        'NearOptimal-NoPrj',
 ]}
 
 exps_dict3 = { nm:exps_dict[nm] for nm in [ \
-        'CSSumHS-P',
-        'RoundRoHS-P',
-        'HistoryHS-P',
-        'NearOptHS-P',
+        'ClsScrSum',
+        'RoundRobin',
+        'Ours',
+        'NearOptimal',
 ]}
 
 exps_dict4 = { nm:exps_dict[nm] for nm in [ \
-        'CSSumHS',
-        'CSSumHS-P',
-        'RoundRoHS',
-        'RoundRoHS-P',
-        'HistoryHS',
-        'HistoryHS-P',
-        'NearOptHS',
-        'NearOptHS-P',
+        'ClsScrSum-NoPrj',
+        'ClsScrSum',
+        'RoundRobin-NoPrj',
+        'RoundRobin',
+        'Ours-NoPrj',
+        'Ours',
+        'NearOptimal-NoPrj',
+        'NearOptimal',
 ]}
 
 exps_dict=exps_dict4

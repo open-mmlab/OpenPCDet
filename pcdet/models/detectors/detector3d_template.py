@@ -32,6 +32,7 @@ class Detector3DTemplate(nn.Module):
 
         self._time_dict = {
                 'End-to-end': [],
+                'Pre-RPN': [],
                 'PreProcess' : [],
                 'GetitemPost' : [],
                 'LoadToGPU' : [],
@@ -202,6 +203,7 @@ class Detector3DTemplate(nn.Module):
         raise NotImplementedError
 
     def load_data_with_ds_index(self, dataset_index):
+        self.measure_time_start('Pre-RPN')
         data_dict = self.dataset.collate_batch([self.dataset[dataset_index]])
         load_data_to_gpu(data_dict)
         return data_dict
@@ -212,6 +214,7 @@ class Detector3DTemplate(nn.Module):
         start_time = time.time()
         torch.cuda.nvtx.range_push('End-to-end')
         self.measure_time_start('End-to-end')
+        self.measure_time_start('Pre-RPN')
         self.measure_time_start('PreProcess')
         self.measure_time_start('GetitemPost')
         data_dict = self.dataset.getitem_post(data_dict)
@@ -544,17 +547,19 @@ class Detector3DTemplate(nn.Module):
 
         for name, val in self._time_dict.items():
             if len(val) == 0:
-                ret[name] = [0, 0, 0, 0, 0]
+                ret[name] = [0, 0, 0, 0, 0, 0]
             else:
                 val_max = max(val)
                 perc95 = np.percentile(val, 95, interpolation='lower')
                 perc99 = np.percentile(val, 99, interpolation='lower')
                 val = [et for et in val if et <= perc99]
+                std_dev = np.std(val)
                 ret[name] = [min(val), # min
                          sum(val) / len(val),  # avrg
                          perc95,
                          perc99, # 99 percentile
-                         val_max]  # max
+                         val_max, # max
+                         std_dev]  # std_dev
         return ret
 
     def get_time_dict(self):
@@ -569,11 +574,11 @@ class Detector3DTemplate(nn.Module):
         max_len=0
         for name in self.get_time_dict_stats().keys():
             max_len = max(len(name), max_len)
-        print((" " * max_len),"Min\tAvrg\t95perc\t99perc\tMax")
+        print((" " * max_len),"Min\tAvrg\t95perc\t99perc\tMax\tStd_dev")
         for name, val in self.get_time_dict_stats().items():
             spaces = " " * (max_len - len(name)+1)
             print(f"{name}{spaces}{val[0]:.2f}\t{val[1]:.2f}"
-                    f"\t{val[2]:.2f}\t{val[3]:.2f}\t{val[4]:.2f} ms")
+                    f"\t{val[2]:.2f}\t{val[3]:.2f}\t{val[4]:.2f}\t{val[5]:.2f} ms")
 
     # Does not allow same events to be nested
     def measure_time_start(self, event_name_str, cuda_event=True):
