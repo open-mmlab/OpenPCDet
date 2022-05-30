@@ -103,8 +103,18 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def worker_init_fn(worker_id, seed=666):
+    if seed is not None:
+        random.seed(seed + worker_id)
+        np.random.seed(seed + worker_id)
+        torch.manual_seed(seed + worker_id)
+        torch.cuda.manual_seed(seed + worker_id)
+        torch.cuda.manual_seed_all(seed + worker_id)
 
 
 def get_pad_params(desired_size, cur_size):
