@@ -12,6 +12,9 @@ class PVRCNN(Detector3DTemplate):
 
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
+            if 'loss_box_of_pts' in batch_dict:
+                loss += batch_dict['loss_box_of_pts']
+                tb_dict['loss_box_of_pts'] = batch_dict['loss_box_of_pts']
 
             ret_dict = {
                 'loss': loss
