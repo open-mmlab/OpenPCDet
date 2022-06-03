@@ -94,12 +94,14 @@ class SECONDHead(RoIHeadTemplate):
             grid_size = self.model_cfg.ROI_GRID_POOL.GRID_SIZE
             grid = nn.functional.affine_grid(
                 theta,
-                torch.Size((rois.size(1), spatial_features_2d.size(1), grid_size, grid_size))
+                torch.Size((rois.size(1), spatial_features_2d.size(1), grid_size, grid_size)),
+                align_corners=True
             )
 
             pooled_features = nn.functional.grid_sample(
                 spatial_features_2d[b_id].unsqueeze(0).expand(rois.size(1), spatial_features_2d.size(1), height, width),
-                grid
+                grid,
+                align_corners=True
             )
 
             pooled_features_list.append(pooled_features)
