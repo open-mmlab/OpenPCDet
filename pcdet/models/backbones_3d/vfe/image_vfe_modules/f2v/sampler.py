@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,6 +18,11 @@ class Sampler(nn.Module):
         self.mode = mode
         self.padding_mode = padding_mode
 
+        if torch.__version__ >= '1.3':
+            self.grid_sample = partial(F.grid_sample, align_corners=True)
+        else:
+            self.grid_sample = F.grid_sample
+
     def forward(self, input_features, grid):
         """
         Samples input using sampling grid
@@ -26,6 +33,5 @@ class Sampler(nn.Module):
             output_features: (B, C, X, Y, Z) Output voxel features
         """
         # Sample from grid
-        output = F.grid_sample(input=input_features, grid=grid, mode=self.mode, padding_mode=self.padding_mode,
-                               align_corners=True)
+        output = self.grid_sample(input=input_features, grid=grid, mode=self.mode, padding_mode=self.padding_mode)
         return output
