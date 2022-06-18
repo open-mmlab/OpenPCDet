@@ -46,10 +46,11 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y']
-            gt_boxes, points = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
-                gt_boxes, points,
+            gt_boxes, points, enable = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
+                gt_boxes, points, return_flip=True
             )
-        
+            data_dict['flip_%s'%cur_axis] = enable
+
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict
@@ -60,23 +61,25 @@ class DataAugmentor(object):
         rot_range = config['WORLD_ROT_ANGLE']
         if not isinstance(rot_range, list):
             rot_range = [-rot_range, rot_range]
-        gt_boxes, points = augmentor_utils.global_rotation(
-            data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range
+        gt_boxes, points, noise_rot = augmentor_utils.global_rotation(
+            data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range, return_rot=True
         )
         
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
+        data_dict['noise_rot'] = noise_rot
         return data_dict
     
     def random_world_scaling(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_scaling, config=config)
-        gt_boxes, points = augmentor_utils.global_scaling(
-            data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE']
+        gt_boxes, points, noise_scale = augmentor_utils.global_scaling(
+            data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE'], return_scale=True
         )
         
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
+        data_dict['noise_scale'] = noise_scale
         return data_dict
     
     def random_image_flip(self, data_dict=None, config=None):
