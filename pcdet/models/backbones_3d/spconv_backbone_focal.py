@@ -195,6 +195,15 @@ class VoxelBackBone8xFocal(nn.Module):
             'x_conv3': 64,
             'x_conv4': 64
         }
+        
+        self.forward_ret_dict = {}
+        
+    def get_loss(self, tb_dict=None):
+        loss = self.forward_ret_dict['loss_box_of_pts']
+        if tb_dict is None:
+            tb_dict = {}
+        tb_dict['loss_box_of_pts'] = loss.item()
+        return loss, tb_dict
 
     def forward(self, batch_dict):
         """
@@ -221,9 +230,12 @@ class VoxelBackBone8xFocal(nn.Module):
         x = self.conv_input(input_sp_tensor)
         x_conv1, batch_dict = self.conv1(x, batch_dict)
 
+        loss_box_of_pts = 0
         if self.use_img:
             x_image = self.semseg(batch_dict['images'])['layer1_feat2d']
-            x_conv1, batch_dict = self.conv_focal_multimodal(x_conv1, batch_dict, x_image)
+            x_conv1, batch_dict, loss_box_of_pts = self.conv_focal_multimodal(x_conv1, batch_dict, x_image)
+
+        self.forward_ret_dict['loss_box_of_pts'] = loss_box_of_pts
 
         x_conv2, batch_dict = self.conv2(x_conv1, batch_dict)
         x_conv3, batch_dict = self.conv3(x_conv2, batch_dict)
