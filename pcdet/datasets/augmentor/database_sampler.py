@@ -9,7 +9,7 @@ import SharedArray
 import torch.distributed as dist
 
 from ...ops.iou3d_nms import iou3d_nms_utils
-from ...utils import box_utils, common_utils, box2d_utils, calibration_kitti
+from ...utils import box_utils, common_utils, calibration_kitti
 from pcdet.datasets.kitti.kitti_object_eval_python import kitti_common
 
 class DataBaseSampler(object):
@@ -283,14 +283,14 @@ class DataBaseSampler(object):
                                                                         data_dict['images'].shape[:2])
         sampled_boxes2d = torch.Tensor(sampled_boxes2d)
         existed_boxes2d = torch.Tensor(data_dict['gt_boxes2d'])
-        iou2d1 = box2d_utils.pairwise_iou(sampled_boxes2d, existed_boxes2d).cpu().numpy()
-        iou2d2 = box2d_utils.pairwise_iou(sampled_boxes2d, sampled_boxes2d).cpu().numpy()
+        iou2d1 = box_utils.pairwise_iou(sampled_boxes2d, existed_boxes2d).cpu().numpy()
+        iou2d2 = box_utils.pairwise_iou(sampled_boxes2d, sampled_boxes2d).cpu().numpy()
         iou2d2[range(sampled_boxes2d.shape[0]), range(sampled_boxes2d.shape[0])] = 0
         iou2d1 = iou2d1 if iou2d1.shape[1] > 0 else iou2d2
 
-        valid_mask = ((iou2d1.max(axis=1)<self.box_iou_thres) &
-                        (iou2d2.max(axis=1)<self.box_iou_thres) &
-                        ((iou1.max(axis=1) + iou2.max(axis=1)) == 0)).nonzero()[0]
+        valid_mask = ((iou2d1.max(axis=1)<self.box_iou_thres) & 
+                      (iou2d2.max(axis=1)<self.box_iou_thres) & 
+                      ((iou1.max(axis=1) + iou2.max(axis=1)) == 0)).nonzero()[0]
 
         sampled_boxes2d = sampled_boxes2d[valid_mask].cpu().numpy()
         return sampled_boxes2d, mv_height, valid_mask
@@ -394,8 +394,7 @@ class DataBaseSampler(object):
 
                 sampled_boxes = np.stack([x['box3d_lidar'] for x in sampled_dict], axis=0).astype(np.float32)
 
-                if self.sampler_cfg.get('DATABASE_WITH_FAKELIDAR', False):
-                    sampled_boxes = box_utils.boxes3d_kitti_fakelidar_to_lidar(sampled_boxes)
+                assert not self.sampler_cfg.get('DATABASE_WITH_FAKELIDAR', False), 'Please use latest codes to generate GT_DATABASE'
 
                 iou1 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], existed_boxes[:, 0:7])
                 iou2 = iou3d_nms_utils.boxes_bev_iou_cpu(sampled_boxes[:, 0:7], sampled_boxes[:, 0:7])
@@ -418,16 +417,13 @@ class DataBaseSampler(object):
 
         sampled_gt_boxes = existed_boxes[gt_boxes.shape[0]:, :]
 
-        if self.aug_with_img:
-            if len(sampled_gt_boxes2d) > 0:
-                sampled_gt_boxes2d = np.concatenate(sampled_gt_boxes2d, axis=0)
+        if len(sampled_gt_boxes2d) > 0:
+            sampled_gt_boxes2d = np.concatenate(sampled_gt_boxes2d, axis=0)
 
         if total_valid_sampled_dict.__len__() > 0:
-            data_dict = self.add_sampled_boxes_to_scene(data_dict,
-                                                        sampled_gt_boxes,
-                                                        total_valid_sampled_dict,
-                                                        sampled_mv_height,
-                                                        sampled_gt_boxes2d)
+            data_dict = self.add_sampled_boxes_to_scene(
+                data_dict, sampled_gt_boxes, total_valid_sampled_dict, sampled_mv_height, sampled_gt_boxes2d
+            )
 
         data_dict.pop('gt_boxes_mask')
         return data_dict
