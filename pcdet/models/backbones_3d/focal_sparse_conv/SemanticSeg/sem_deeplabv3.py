@@ -111,7 +111,9 @@ class SegTemplate(nn.Module):
         """
 
         # Preprocess images
-        x = self.preprocess(images)
+        if self.pretrained:
+            images = normalize(images, mean=self.norm_mean, std=self.norm_std)
+        x = images.cuda()
 
         # Extract features
         result = OrderedDict()
@@ -139,20 +141,6 @@ class SegTemplate(nn.Module):
             result["aux"] = x
 
         return result
-
-    def preprocess(self, images):
-        """
-        Preprocess images
-        Args:
-            images: (N, 3, H, W), Input images
-        Return
-            x: (N, 3, H, W), Preprocessed images
-        """
-        x = images
-        if self.pretrained:
-            # Match ResNet pretrained preprocessing
-            x = normalize(x, mean=self.norm_mean, std=self.norm_std)
-        return x.cuda()
 
 
 class SemDeepLabV3(SegTemplate):
