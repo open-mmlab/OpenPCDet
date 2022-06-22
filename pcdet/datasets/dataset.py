@@ -43,7 +43,13 @@ class DatasetTemplate(torch_data.Dataset):
             self.depth_downsample_factor = self.data_processor.depth_downsample_factor
         else:
             self.depth_downsample_factor = None
-
+        
+        self.gt_sampler_with_img = False
+        for augmentor in self.data_augmentor.data_augmentor_queue:
+            if isinstance(augmentor, DataBaseSampler):
+                if augmentor.aug_with_img:
+                    self.gt_sampler_with_img = True
+            
     @property
     def mode(self):
         return 'train' if self.training else 'test'
@@ -207,7 +213,7 @@ class DatasetTemplate(torch_data.Dataset):
                         pad_w = common_utils.get_pad_params(desired_size=max_w, cur_size=image.shape[1])
                         pad_width = (pad_h, pad_w)
                         # Pad with nan, to be replaced later in the pipeline.
-                        pad_value = 0 #np.nan
+                        pad_value = 0 if self.gt_sampler_with_img else np.nan
 
                         if key == "images":
                             pad_width = (pad_h, pad_w, (0, 0))
