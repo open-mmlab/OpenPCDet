@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
-from kornia.enhance.normalize import normalize
 
 
 class SegTemplate(nn.Module):
@@ -112,7 +111,7 @@ class SegTemplate(nn.Module):
 
         # Preprocess images
         if self.pretrained:
-            images = normalize(images, mean=self.norm_mean, std=self.norm_std)
+            images = (images - self.norm_mean[None, :, None, None].type_as(images)) / self.norm_std[None, :, None, None].type_as(images)
         x = images.cuda()
 
         # Extract features
