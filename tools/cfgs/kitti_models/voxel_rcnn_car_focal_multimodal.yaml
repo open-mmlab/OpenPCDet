@@ -8,7 +8,8 @@ DATA_CONFIG:
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
 
-              AUG_WITH_IMAGE: True # use PC-Image Aug
+              # AUG_WITH_IMAGE: True # use PC-Image Aug
+              IMG_AUG_TYPE: kitti
 
               USE_ROAD_PLANE: True
               DB_INFO_PATH:
