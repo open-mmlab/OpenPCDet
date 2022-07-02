@@ -151,7 +151,7 @@ class DDNTemplate(nn.Module):
         x = images
         if self.pretrained:
             # Create a mask for padded pixels
-            mask = torch.isnan(x)
+            mask = (x == 0)
 
             # Match ResNet pretrained preprocessing
             x = normalize(x, mean=self.norm_mean, std=self.norm_std)
