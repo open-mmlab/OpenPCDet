@@ -9,7 +9,6 @@ from .augmentor.data_augmentor import DataAugmentor
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
 
-
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
         super().__init__()
@@ -44,7 +43,7 @@ class DatasetTemplate(torch_data.Dataset):
             self.depth_downsample_factor = self.data_processor.depth_downsample_factor
         else:
             self.depth_downsample_factor = None
-
+            
     @property
     def mode(self):
         return 'train' if self.training else 'test'
@@ -123,14 +122,17 @@ class DatasetTemplate(torch_data.Dataset):
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
             gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
-
+            
+            if 'calib' in data_dict:
+                calib = data_dict['calib']
             data_dict = self.data_augmentor.forward(
                 data_dict={
                     **data_dict,
                     'gt_boxes_mask': gt_boxes_mask
                 }
             )
-
+            if 'calib' in data_dict:
+                data_dict['calib'] = calib
         if data_dict.get('gt_boxes', None) is not None:
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
             data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
@@ -204,8 +206,7 @@ class DatasetTemplate(torch_data.Dataset):
                         pad_h = common_utils.get_pad_params(desired_size=max_h, cur_size=image.shape[0])
                         pad_w = common_utils.get_pad_params(desired_size=max_w, cur_size=image.shape[1])
                         pad_width = (pad_h, pad_w)
-                        # Pad with nan, to be replaced later in the pipeline.
-                        pad_value = np.nan
+                        pad_value = 0
 
                         if key == "images":
                             pad_width = (pad_h, pad_w, (0, 0))
@@ -219,6 +220,20 @@ class DatasetTemplate(torch_data.Dataset):
 
                         images.append(image_pad)
                     ret[key] = np.stack(images, axis=0)
+                elif key in ['calib']:
+                    ret[key] = val
+                elif key in ["points_2d"]:
+                    max_len = max([len(_val) for _val in val])
+                    pad_value = 0
+                    points = []
+                    for _points in val:
+                        pad_width = ((0, max_len-len(_points)), (0,0))
+                        points_pad = np.pad(_points,
+                                pad_width=pad_width,
+                                mode='constant',
+                                constant_values=pad_value)
+                        points.append(points_pad)
+                    ret[key] = np.stack(points, axis=0)
                 else:
                     ret[key] = np.stack(val, axis=0)
             except:

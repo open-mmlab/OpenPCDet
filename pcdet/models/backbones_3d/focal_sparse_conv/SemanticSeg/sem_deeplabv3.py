@@ -5,16 +5,10 @@ from torch import hub
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision
 
-try:
-    from kornia.enhance.normalize import normalize
-except:
-    pass
-    # print('Warning: kornia is not installed. This package is only required by CaDDN')
 
-    
-class DDNTemplate(nn.Module):
-
+class SegTemplate(nn.Module):
     def __init__(self, constructor, feat_extract_layer, num_classes, pretrained_path=None, aux_loss=None):
         """
         Initializes depth distribution network.
@@ -39,10 +33,10 @@ class DDNTemplate(nn.Module):
         # Model
         self.model = self.get_model(constructor=constructor)
         self.feat_extract_layer = feat_extract_layer
-        self.model.backbone.return_layers = {
-            feat_extract_layer: 'features',
-            **self.model.backbone.return_layers
-        }
+
+        return_layers = {_layer:_layer for _layer in feat_extract_layer}
+        self.model.backbone.return_layers.update(return_layers)
+
 
     def get_model(self, constructor):
         """
@@ -57,30 +51,28 @@ class DDNTemplate(nn.Module):
                             pretrained_backbone=False,
                             num_classes=self.num_classes,
                             aux_loss=self.aux_loss)
-
         # Update weights
         if self.pretrained_path is not None:
             model_dict = model.state_dict()
-            
+
             # Download pretrained model if not available yet
             checkpoint_path = Path(self.pretrained_path)
             if not checkpoint_path.exists():
                 checkpoint = checkpoint_path.name
                 save_dir = checkpoint_path.parent
-                save_dir.mkdir(parents=True)
+                save_dir.mkdir(parents=True, exist_ok=True)
                 url = f'https://download.pytorch.org/models/{checkpoint}'
                 hub.load_state_dict_from_url(url, save_dir)
 
             # Get pretrained state dict
             pretrained_dict = torch.load(self.pretrained_path)
-            pretrained_dict = self.filter_pretrained_dict(model_dict=model_dict,
-                                                          pretrained_dict=pretrained_dict)
+            #pretrained_dict = self.filter_pretrained_dict(model_dict=model_dict, pretrained_dict=pretrained_dict)
 
             # Update current model state dict
             model_dict.update(pretrained_dict)
-            model.load_state_dict(model_dict)
+            model.load_state_dict(model_dict, strict=False)
 
-        return model
+        return model.cuda()
 
     def filter_pretrained_dict(self, model_dict, pretrained_dict):
         """
@@ -116,19 +108,28 @@ class DDNTemplate(nn.Module):
                 logits: (N, num_classes, H_out, W_out), Classification logits
                 aux: (N, num_classes, H_out, W_out), Auxillary classification logits
         """
+
         # Preprocess images
-        x = self.preprocess(images)
+        if self.pretrained:
+            images = (images - self.norm_mean[None, :, None, None].type_as(images)) / self.norm_std[None, :, None, None].type_as(images)
+        x = images.cuda()
 
         # Extract features
         result = OrderedDict()
         features = self.model.backbone(x)
-        result['features'] = features['features']
-        feat_shape = features['features'].shape[-2:]
+        for _layer in self.feat_extract_layer:
+            result[_layer] = features[_layer]
+        return result
+
+        if 'features' in features.keys():
+            feat_shape = features['features'].shape[-2:]
+        else:
+            feat_shape = features['layer1'].shape[-2:]
 
         # Prediction classification logits
-        x = features["out"]
-        x = self.model.classifier(x)
-        x = F.interpolate(x, size=feat_shape, mode='bilinear', align_corners=False)
+        x = features["out"] # comment the classifier to reduce memory
+        # x = self.model.classifier(x)
+        # x = F.interpolate(x, size=feat_shape, mode='bilinear', align_corners=False)
         result["logits"] = x
 
         # Prediction auxillary classification logits
@@ -140,23 +141,20 @@ class DDNTemplate(nn.Module):
 
         return result
 
-    def preprocess(self, images):
+
+class SemDeepLabV3(SegTemplate):
+
+    def __init__(self, backbone_name, **kwargs):
         """
-        Preprocess images
+        Initializes SemDeepLabV3 model
         Args:
-            images: (N, 3, H, W), Input images
-        Return
-            x: (N, 3, H, W), Preprocessed images
+            backbone_name: string, ResNet Backbone Name [ResNet50/ResNet101]
         """
-        x = images
-        if self.pretrained:
-            # Create a mask for padded pixels
-            mask = (x == 0)
+        if backbone_name == "ResNet50":
+            constructor = torchvision.models.segmentation.deeplabv3_resnet50
+        elif backbone_name == "ResNet101":
+            constructor = torchvision.models.segmentation.deeplabv3_resnet101
+        else:
+            raise NotImplementedError
 
-            # Match ResNet pretrained preprocessing
-            x = normalize(x, mean=self.norm_mean, std=self.norm_std)
-
-            # Make padded pixels = 0
-            x[mask] = 0
-
-        return x
+        super().__init__(constructor=constructor, **kwargs)
