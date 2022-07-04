@@ -345,7 +345,7 @@ class DataBaseSampler(object):
         if self.img_aug_type == 'kitti':
             obj_points_idx = np.concatenate(img_aug_gt_dict['obj_index_list'], axis=0)
             point_idxes = -1 * np.ones(len(points), dtype=np.int)
-            point_idxes = np.concatenate([obj_points_idx, point_idxes], axis=0)
+            point_idxes[:obj_points_idx.shape[0]] = obj_points_idx
 
             data_dict['gt_boxes2d'] = np.concatenate([img_aug_gt_dict['gt_boxes2d'], np.array(img_aug_gt_dict['crop_boxes2d'])], axis=0)
             data_dict = self.copy_paste_to_image_kitti(data_dict, img_aug_gt_dict['gt_crops2d'], img_aug_gt_dict['gt_number'], point_idxes)
