@@ -28,4 +28,9 @@ class PVRCNN(Detector3DTemplate):
         loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict)
 
         loss = loss_rpn + loss_point + loss_rcnn
+        
+        if hasattr(self.backbone_3d, 'get_loss'):
+            loss_backbone3d, tb_dict = self.backbone_3d.get_loss(tb_dict)
+            loss += loss_backbone3d
+        
         return loss, tb_dict, disp_dict
