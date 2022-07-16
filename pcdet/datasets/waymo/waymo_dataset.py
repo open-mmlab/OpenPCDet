@@ -23,10 +23,15 @@ class WaymoDataset(DatasetTemplate):
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
+
         self.data_path = self.root_path / self.dataset_cfg.PROCESSED_DATA_TAG
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_sequence_list = [x.strip() for x in open(split_dir).readlines()]
+
+        scene_legth_path  = str(self.root_path) +  '/scenes_length.pkl'
+        with open(scene_legth_path, 'rb') as f:
+            self.length_infos = pickle.load(f)
 
         self.infos = []
         self.include_waymo_data(self.mode)
@@ -50,9 +55,10 @@ class WaymoDataset(DatasetTemplate):
     def include_waymo_data(self, mode):
         self.logger.info('Loading Waymo dataset')
         waymo_infos = []
+        waymo_infos_dict = {}
 
         num_skipped_infos = 0
-        for k in range(len(self.sample_sequence_list)):
+        for k in range(len(self.sample_sequence_list[:1])):
             sequence_name = os.path.splitext(self.sample_sequence_list[k])[0]
             info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
             info_path = self.check_sequence_name_with_all_version(info_path)
@@ -62,8 +68,10 @@ class WaymoDataset(DatasetTemplate):
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
                 waymo_infos.extend(infos)
+                waymo_infos_dict[sequence_name] = infos
 
-        self.infos.extend(waymo_infos[:])
+        self.infos.extend(waymo_infos)
+        self.waymo_infos_dict = waymo_infos_dict
         self.logger.info('Total skipped info %s' % num_skipped_infos)
         self.logger.info('Total samples for Waymo dataset: %d' % (len(waymo_infos)))
 
@@ -166,6 +174,178 @@ class WaymoDataset(DatasetTemplate):
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
+    @staticmethod
+    def transform_prebox_to_current(pred_boxes3d,pose_pre,pose_cur):
+
+        expand_bboxes = np.concatenate([pred_boxes3d[:,:3], np.ones((pred_boxes3d.shape[0], 1))], axis=-1)
+        bboxes_global = np.dot(expand_bboxes, pose_pre.T)[:, :3]
+        expand_bboxes_global = np.concatenate([bboxes_global[:,:3],np.ones((bboxes_global.shape[0], 1))], axis=-1)
+        bboxes_pre2cur = np.dot(expand_bboxes_global, np.linalg.inv(pose_cur.T))[:, :3]
+        bboxes_pre2cur = np.concatenate([bboxes_pre2cur, pred_boxes3d[:,3:9]],axis=-1)
+        bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] + np.arctan2(pose_pre[..., 1, 0], pose_pre[..., 0,0])
+        bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] - np.arctan2(pose_cur[..., 1, 0], pose_cur[..., 0,0])
+
+        return bboxes_pre2cur
+
+    @staticmethod
+    def reorder_rois_for_refining(pred_bboxes,only_car=False):
+
+        num_max_rois = max([len(bbox) for bbox in pred_bboxes])
+        num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
+        ordered_bboxes = np.zeros([len(pred_bboxes),num_max_rois,pred_bboxes[0].shape[-1]])
+
+        for bs_idx in range(ordered_bboxes.shape[0]):
+            ordered_bboxes[bs_idx,:len(pred_bboxes[bs_idx])] = pred_bboxes[bs_idx]
+        return ordered_bboxes
+
+
+
+    def get_sequence_data_withpredbox(self, info, points, sequence_name, sample_idx, sequence_cfg):
+            """
+            Args:
+                info:
+                points:
+                sequence_name:
+                sample_idx:
+                sequence_cfg:
+            Returns:
+            """
+
+            def remove_ego_points(points, center_radius=1.0):
+                mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
+                return points[mask]
+
+            pose_cur = info['pose'].reshape((4, 4))
+            # speeds_cur = info['annos']['speeds']
+            bboxes_cur = info['annos']['gt_boxes_lidar']
+            # obj_idx_cur  = info['annos']['obj_ids']
+
+            # num_pts_cur = points.shape[0]
+            length = self.length_infos[sequence_name]
+            sample_idx_pre_list = np.clip(sample_idx + np.arange(
+                sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1]), 0, length-1)
+            sample_idx_pre_list = sample_idx_pre_list[::-1] #convert to -1,-2,-3
+            if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
+                onehot_cur = np.zeros((points.shape[0], len(sample_idx_pre_list) + 1)).astype(points.dtype)
+                onehot_cur[:, 0] = 1
+                points = np.hstack([points, onehot_cur])
+            else:
+                points = np.hstack([points, np.zeros((points.shape[0], 1)).astype(points.dtype)])
+            points_pre_all = []
+            # num_points_pre = []
+            # num_bboxes_pre = []
+            # bboxes_list_pre = []
+            pred_bboxs = []
+            pred_superbboxes = []
+            pose_all = []
+            pose_all.append(pose_cur)
+
+            sequence_info = self.waymo_infos_dict[sequence_name]
+
+            # box_path = os.path.join('../data/waymo/', 'centerpoint_4frame_vel_dynmeanvfe', sequence_name, ('%03d.npy' % sample_idx))
+            # import pdb;pdb.set_trace()
+            box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx))
+
+            # selected = common_utils.keep_arrays_by_name(sequence_info[sample_idx]['annos']['name'], self.class_names)
+            # mask = (sequence_info[sample_idx]['annos']['num_points_in_gt'][selected] > 0)
+
+            # bboxes_cur_mask = bboxes_cur[selected][mask]
+            # obj_idx_cur_mask  = obj_idx_cur[selected][mask]
+
+            try:
+                load_boxes3d = np.load(box_path)
+                pred_boxes3d = load_boxes3d[:,:9]  #[xyz,lwh,yaw, score, label]
+                #Note: supboxes is the predicted next-frame location whose center is moved with 1.5x motion
+                pred_supboxes3d = load_boxes3d[:,9:][:,:7] ##[xyz,lwh,yaw,]
+                disp = pred_supboxes3d[:,:2] - pred_boxes3d[:,:2] # get x,y motion
+                pred_boxes3d = np.concatenate([pred_boxes3d,disp],axis=-1)
+            except:
+                pred_boxes3d = np.zeros([1,11])
+                pred_supboxes3d = np.zeros([1,7])
+
+            # if sequence_cfg.ONLY_LOAD_CAR:
+            #     pred_scores = pred_boxes3d[:,7]
+            #     pred_labels = pred_boxes3d[:,8]
+            #     car_mask = pred_labels==1
+            #     pred_boxes3d = pred_boxes3d[car_mask]
+            #     pred_supboxes3d = pred_supboxes3d[car_mask]
+
+            pred_bboxs.append(pred_boxes3d)
+            pred_superbboxes.append(pred_supboxes3d)
+
+            for i, sample_idx_pre in enumerate(sample_idx_pre_list):
+
+                points_pre = self.get_lidar(sequence_name, sample_idx_pre)
+                pose_pre = sequence_info[sample_idx_pre]['pose'].reshape((4, 4))
+
+                try:
+
+                    # box_path = os.path.join('../data/waymo/', 'centerpoint_4frame_vel_dynmeanvfe', sequence_name, ('%03d.npy' % sample_idx_pre))
+                    box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
+                    boxes3d = np.load(box_path)
+                    pred_boxes3d = boxes3d[:,:9]
+
+                    if sequence_cfg.ONLY_LOAD_CAR:
+                        pred_scores = boxes3d[:,7]
+                        pred_labels = boxes3d[:,8]
+                        car_mask = pred_labels==1
+                        pred_boxes3d = pred_boxes3d[car_mask]
+
+                        pred_supboxes3d = boxes3d[:,9:][car_mask][:,:7]
+                        disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
+                    else:
+                        pred_supboxes3d = boxes3d[:,9:]
+                        disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
+
+                    pred_boxes3d = np.concatenate([pred_boxes3d,disp],axis=-1)
+                except:
+                    pred_boxes3d = np.zeros([1,9])
+                    pred_supboxes3d = np.zeros([1,7])
+
+                bboxes_pre2cur = self.transform_prebox_to_current(pred_boxes3d,pose_pre,pose_cur)
+
+                supbboxes_pre2cur = self.transform_prebox_to_current(pred_supboxes3d,pose_pre,pose_cur)
+
+                motion = supbboxes_pre2cur[:,:2] - bboxes_pre2cur[:,:2]
+                pred_boxes3d = np.concatenate([bboxes_pre2cur, motion], axis=-1)
+
+
+                # bboxes_pre = self.transform_prebox_to_current(bboxes_pre,pose_pre,pose_cur)
+
+                expand_points_pre = np.concatenate([points_pre[:, :3], np.ones((points_pre.shape[0], 1))], axis=-1)
+                points_pre_global = np.dot(expand_points_pre, pose_pre.T)[:, :3]
+                expand_points_pre_global = np.concatenate([points_pre_global,
+                                                        np.ones((points_pre_global.shape[0], 1))], axis=-1)
+                points_pre2cur = np.dot(expand_points_pre_global, np.linalg.inv(pose_cur.T))[:, :3]
+                points_pre = np.concatenate([points_pre2cur, points_pre[:, 3:]], axis=-1)
+                if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
+                    onehot_vector = np.zeros((points_pre.shape[0], len(sample_idx_pre_list) + 1))
+                    onehot_vector[:, i + 1] = 1
+                    points_pre = np.hstack([points_pre, onehot_vector])
+                else:
+
+                    points_pre = np.hstack([points_pre, 0.1 * (i+1)
+                                            * np.ones((points_pre.shape[0], 1)).astype(points_pre.dtype)])  # one frame 0.1s
+                points_pre = remove_ego_points(points_pre, 1.0)
+                points_pre_all.append(points_pre)
+                # bboxes_list_pre.append(bboxes_pre)
+                pred_bboxs.append(pred_boxes3d)
+                pred_superbboxes.append(supbboxes_pre2cur)
+                # num_points_pre.append(points_pre.shape[0])
+                # num_bboxes_pre.append(bboxes_pre.shape[0])
+                pose_all.append(pose_pre)
+
+            points = np.concatenate([points] + points_pre_all, axis=0)
+            poses = np.concatenate(pose_all, axis=0)
+            _pred_bboxs = self.reorder_rois_for_refining(pred_bboxs,True)
+            pred_bboxs = _pred_bboxs[...,[0,1,2,3,4,5,6,9,10]]
+            pred_scores = _pred_bboxs[...,7]
+            pred_labels = _pred_bboxs[...,8]
+            # bboxes = self.reorder_rois_for_refining(bboxes)
+
+            return points, bboxes_cur, pred_bboxs,pred_scores,pred_labels,poses
+
+
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
             return len(self.infos) * self.total_epochs
@@ -175,22 +355,41 @@ class WaymoDataset(DatasetTemplate):
     def __getitem__(self, index):
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
-
         info = copy.deepcopy(self.infos[index])
         pc_info = info['point_cloud']
         sequence_name = pc_info['lidar_sequence']
         sample_idx = pc_info['sample_idx']
-
+        input_dict = {
+            'frame_id': info['frame_id'],
+            'sample_idx': sample_idx
+        }
         if self.use_shared_memory and index < self.shared_memory_file_limit:
             sa_key = f'{sequence_name}___{sample_idx}'
             points = SharedArray.attach(f"shm://{sa_key}").copy()
         else:
             points = self.get_lidar(sequence_name, sample_idx)
 
-        input_dict = {
+            if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
+
+
+                if self.dataset_cfg.SEQUENCE_CONFIG.get('LOAD_PREDBOX',None):
+   
+
+                    points, gt_bboxes, pred_bboxes,pred_scores,pred_labels,poses = self.get_sequence_data_withpredbox(
+                        info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+                    )
+                    input_dict.update({'poses': poses}) 
+
+                else:
+                    points, gt_bboxes = self.get_sequence_data(
+                        info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+                    )
+
+
+        input_dict.update({
             'points': points,
             'frame_id': info['frame_id'],
-        }
+        })
 
         if 'annos' in info:
             annos = info['annos']
@@ -199,7 +398,16 @@ class WaymoDataset(DatasetTemplate):
             if self.dataset_cfg.get('INFO_WITH_FAKELIDAR', False):
                 gt_boxes_lidar = box_utils.boxes3d_kitti_fakelidar_to_lidar(annos['gt_boxes_lidar'])
             else:
-                gt_boxes_lidar = annos['gt_boxes_lidar']
+                if self.dataset_cfg.get('SEQUENCE_CONFIG',None):
+                    if not self.dataset_cfg.SEQUENCE_CONFIG.USE_SPEED:
+                        gt_boxes_lidar = gt_bboxes[:,:7]
+
+                    else:
+                        gt_boxes_lidar = gt_bboxes 
+
+                else:
+                    gt_boxes_lidar = annos['gt_boxes_lidar']
+                
 
             if self.training and self.dataset_cfg.get('FILTER_EMPTY_BOXES_FOR_TRAIN', False):
                 mask = (annos['num_points_in_gt'] > 0)  # filter empty boxes
@@ -207,11 +415,22 @@ class WaymoDataset(DatasetTemplate):
                 gt_boxes_lidar = gt_boxes_lidar[mask]
                 annos['num_points_in_gt'] = annos['num_points_in_gt'][mask]
 
-            input_dict.update({
-                'gt_names': annos['name'],
-                'gt_boxes': gt_boxes_lidar,
-                'num_points_in_gt': annos.get('num_points_in_gt', None)
-            })
+            if self.dataset_cfg.get('USE_PREDBOX',False):
+                input_dict.update({
+                    'gt_names': annos['name'],
+                    'roi_boxes': pred_bboxes , 
+                    'roi_scores': pred_scores,
+                    'roi_labels': pred_labels,
+                    'gt_boxes': gt_boxes_lidar,
+                    'num_points_in_gt': annos.get('num_points_in_gt', None)
+    
+                })
+            else:
+                input_dict.update({
+                    'gt_names': annos['name'],
+                    'gt_boxes': gt_boxes_lidar,
+                    'num_points_in_gt': annos.get('num_points_in_gt', None)
+                })
 
         data_dict = self.prepare_data(data_dict=input_dict)
         data_dict['metadata'] = info.get('metadata', info['frame_id'])
