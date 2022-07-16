@@ -1017,7 +1017,7 @@ class MPPNetMemoryBank(RoIHeadTemplate):
 
                 start1 = time.time()
                 cur_batch_boxes = trajectory_rois[bs_idx,0,:,:7].view(-1,7)
-                cur_radiis = torch.sqrt((cur_batch_boxes[:,3]/2) ** 2 + (cur_batch_boxes[:,4]/2) ** 2) * 1.2
+                cur_radiis = torch.sqrt((cur_batch_boxes[:,3]/2) ** 2 + (cur_batch_boxes[:,4]/2) ** 2) * 1.1
                 cur_points = batch_dict['points'][(batch_dict['points'][:, 0] == bs_idx)][:,1:]
                 time_mask = cur_points[:,-1].abs() < 1e-3
                 cur_points = cur_points[time_mask]
@@ -1588,7 +1588,20 @@ class MPPNetMemoryBank(RoIHeadTemplate):
                 if self.avg_stage1:
                     stage1_score = batch_dict['roi_scores'][:,:,:1]
                     batch_cls_preds = F.sigmoid(batch_cls_preds)
-                    batch_cls_preds = torch.sqrt(batch_cls_preds*stage1_score)
+                    if self.model_cfg.get('IOU_WEIGHT', None):
+                        car_mask = batch_dict['roi_labels'] ==1
+                        batch_cls_preds_car = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[0])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[0])
+                        batch_cls_preds_car = batch_cls_preds_car[car_mask][None]
+                        batch_cls_preds_pedcyc = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[1])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[1])
+                        batch_cls_preds_pedcyc = batch_cls_preds_pedcyc[~car_mask][None]
+                        batch_cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
+                        batch_box_preds = torch.cat([batch_dict['batch_box_preds'][car_mask],batch_dict['batch_box_preds'][~car_mask]],0)[None]
+                        batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
+                        batch_dict['roi_labels'] = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
+                        batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
+
+                    else:
+                        batch_cls_preds = torch.sqrt(batch_cls_preds*stage1_score)
                     batch_dict['cls_preds_normalized']  = True
                 batch_dict['batch_cls_preds'] = batch_cls_preds
                 
