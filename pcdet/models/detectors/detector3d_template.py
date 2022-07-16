@@ -221,7 +221,7 @@ class Detector3DTemplate(nn.Module):
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
 
-            if nms and False:
+            if nms:
                 if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                     if not isinstance(cls_preds, list):
                         cls_preds = [cls_preds]
