@@ -6,6 +6,8 @@ from .voxelrcnn_head import VoxelRCNNHead
 from .roi_head_template import RoIHeadTemplate
 from .mppnet_head import MPPNetHead
 from .mppnet_memory_bank_inference import MPPNetMemoryBank
+from .offboard_ct3d_head_efficient_test import OffboardHeadCT3DEffiTEST
+from .offboard_ct3d_head_efficient2 import OffboardHeadCT3DEffi
 
 __all__ = {
     'RoIHeadTemplate': RoIHeadTemplate,
@@ -15,5 +17,7 @@ __all__ = {
     'PointRCNNHead': PointRCNNHead,
     'VoxelRCNNHead': VoxelRCNNHead,
     'MPPNetHead': MPPNetHead,
-    'MPPNetMemoryBank': MPPNetMemoryBank
+    'MPPNetMemoryBank': MPPNetMemoryBank,
+    'OffboardHeadCT3DEffiTEST':OffboardHeadCT3DEffiTEST,
+    'OffboardHeadCT3DEffi': OffboardHeadCT3DEffi
 }

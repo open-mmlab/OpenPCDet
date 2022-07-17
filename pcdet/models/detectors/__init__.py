@@ -10,6 +10,7 @@ from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
 from .pv_rcnn_plusplus import PVRCNNPlusPlus
 from .mppnet import MPPNet
+from .offboard_4window import  Offboard_4window
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -23,7 +24,8 @@ __all__ = {
     'VoxelRCNN': VoxelRCNN,
     'CenterPoint': CenterPoint,
     'PVRCNNPlusPlus': PVRCNNPlusPlus,
-    'MPPNet': MPPNet
+    'MPPNet': MPPNet,
+    'Offboard_4window': Offboard_4window
 }
 
 
