@@ -103,13 +103,7 @@ class CustomDataset(DatasetTemplate):
     def get_calib(self, loc):
         """
         This calibration is different from the kitti dataset.
-        The transform formual of labelCloud: ROOT/labelCloud/io/labels/kitti.py: import labels
-            if self.transformed:
-                centroid = centroid[2], -centroid[0], centroid[1] - 2.3
-            dimensions = [float(v) for v in line_elements[8:11]]
-            if self.transformed:
-                dimensions = dimensions[2], dimensions[1], dimensions[0]
-            bbox = BBox(*centroid, *dimensions)
+        You should check or redefine it according to your condition.
         """
         loc_lidar = np.concatenate([np.array((float(loc_obj[2]), float(-loc_obj[0]), float(loc_obj[1]-2.3)), dtype=np.float32).reshape(1,3) for loc_obj in loc])
         return loc_lidar
