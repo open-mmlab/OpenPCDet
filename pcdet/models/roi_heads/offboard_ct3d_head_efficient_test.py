@@ -1045,15 +1045,15 @@ class OffboardHeadCT3DEffiTEST(RoIHeadTemplate):
                 # sampled_idx_buffer = sorted_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
 
 
-                # sampled_idx = torch.topk(mask.float(),128)[1]
-                # sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
-                # roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
-                # sampled_mask = mask[roi_idx, sampled_idx]  # (num_rois, 128)
-                # sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
+                sampled_idx = torch.topk(mask.float(),128)[1]
+                sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
+                roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
+                sampled_mask = mask[roi_idx, sampled_idx]  # (num_rois, 128)
+                sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
 
-                # src = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
-                # empty_flag = sampled_mask.sum(-1)==0
-                # src[empty_flag] = 0
+                src = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
+                empty_flag = sampled_mask.sum(-1)==0
+                src[empty_flag] = 0
 
 
                 # batch_dict['crop_time'] = time.time()- start2
@@ -1073,28 +1073,28 @@ class OffboardHeadCT3DEffiTEST(RoIHeadTemplate):
                 # time_mask_list.append(time.time() - start3)
                 # point_mask[roi_box_idx].nonzero().reshape(-1)
 
-                for roi_box_idx in range(0, num_rois):
-                    cur_roi_points = cur_points[point_mask[roi_box_idx]]
-                    if cur_roi_points.shape[0] > self.num_points:
-                        random.seed(0)
-                        choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-                        cur_roi_points_sample = cur_roi_points[choice]
-                        # cur_roi_points_sample = cur_roi_points[:128]
+                # for roi_box_idx in range(0, num_rois):
+                #     cur_roi_points = cur_points[point_mask[roi_box_idx]]
+                #     if cur_roi_points.shape[0] > self.num_points:
+                #         random.seed(0)
+                #         choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+                #         cur_roi_points_sample = cur_roi_points[choice]
+                #         # cur_roi_points_sample = cur_roi_points[:128]
 
-                    elif cur_roi_points.shape[0] == 0:
-                        cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
-                        batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
+                #     elif cur_roi_points.shape[0] == 0:
+                #         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
+                #         batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
 
-                    else:
-                        empty_num = num_sample - cur_roi_points.shape[0]
-                        add_zeros = cur_roi_points.new_zeros(empty_num, 6)
-                        add_zeros = cur_roi_points[0].repeat(empty_num, 1)
-                        cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
+                #     else:
+                #         empty_num = num_sample - cur_roi_points.shape[0]
+                #         add_zeros = cur_roi_points.new_zeros(empty_num, 6)
+                #         add_zeros = cur_roi_points[0].repeat(empty_num, 1)
+                #         cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
 
-                    if not self.time_stamp:
-                        cur_roi_points_sample = cur_roi_points_sample[:,:-1]
+                #     if not self.time_stamp:
+                #         cur_roi_points_sample = cur_roi_points_sample[:,:-1]
 
-                    src[bs_idx, roi_box_idx, :self.num_points, :] = cur_roi_points_sample
+                #     src[bs_idx, roi_box_idx, :self.num_points, :] = cur_roi_points_sample
                 
                 # from tools.visual_utils import ss_visual_utils as V
                 # import pdb
