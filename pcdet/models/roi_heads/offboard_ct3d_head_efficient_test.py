@@ -1076,10 +1076,10 @@ class OffboardHeadCT3DEffiTEST(RoIHeadTemplate):
                 for roi_box_idx in range(0, num_rois):
                     cur_roi_points = cur_points[point_mask[roi_box_idx]]
                     if cur_roi_points.shape[0] > self.num_points:
-                        # random.seed(0)
-                        # choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-                        # cur_roi_points_sample = cur_roi_points[choice]
-                        cur_roi_points_sample = cur_roi_points[:128]
+                        random.seed(0)
+                        choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+                        cur_roi_points_sample = cur_roi_points[choice]
+                        # cur_roi_points_sample = cur_roi_points[:128]
 
                     elif cur_roi_points.shape[0] == 0:
                         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
