@@ -54,7 +54,10 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
-            pred_dicts, ret_dict = model(batch_dict)
+            try:
+                pred_dicts, ret_dict  = model(batch_dict)
+            except:
+                pred_dicts, ret_dict, _ = model(batch_dict)
         disp_dict = {}
 
         statistics_info(cfg, ret_dict, metric, disp_dict)
@@ -173,6 +176,7 @@ def eval_one_epoch_memorybank(cfg, model, dataloader, epoch_id, logger, dist_tes
     grid_time = []
     forward_time = []
     match_time = []
+    point_bank = []
     start_time = time.time()
     for i, batch_dict in enumerate(dataloader):
 
@@ -185,9 +189,9 @@ def eval_one_epoch_memorybank(cfg, model, dataloader, epoch_id, logger, dist_tes
 
         if batch_dict['sample_idx'][0] >=1:
             #if i >=4:
-            batch_dict['grid_feature_memory'] = memory_dict['grid_feature_memory']
+            # batch_dict['grid_feature_memory'] = memory_dict['grid_feature_memory']
             batch_dict['feature_bank'] = feature_bank
-
+            batch_dict['point_bank'] = point_bank
             # batch_dict['traj_memory'] = memory_dict['traj_memory']
             # batch_dict['pos_fea_memory'] = memory_dict['pos_fea_memory']
             # batch_dict['pos_fea_ori_memory'] = memory_dict['pos_fea_ori_memory']
@@ -225,13 +229,16 @@ def eval_one_epoch_memorybank(cfg, model, dataloader, epoch_id, logger, dist_tes
             # memory_dict['traj_memory'] = batch_dict['trajectory_rois']
             if len(feature_bank) <=(cfg.MODEL.ROI_HEAD.Transformer.num_frames-1) :
                 feature_bank.insert(0,batch_dict['grid_feature_memory'][:,:64])
+                point_bank.insert(0,batch_dict['src_ori_memory'])
             else:
                 feature_bank.pop()
                 feature_bank.insert(0,batch_dict['grid_feature_memory'][:,:64])
+                point_bank.pop()
+                point_bank.insert(0,batch_dict['src_ori_memory'])
             memory_dict['grid_feature_memory'] = batch_dict['grid_feature_memory']
             # memory_dict['pos_fea_memory'] = batch_dict['pos_fea_memory']
             # memory_dict['pos_fea_ori_memory'] = batch_dict['pos_fea_ori_memory']
-            # memory_dict['src_ori_memory'] = batch_dict['src_ori_memory']
+            memory_dict['src_ori_memory'] = batch_dict['src_ori_memory']
         annos = dataset.generate_prediction_dicts(
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None

@@ -35,7 +35,7 @@ def parse_config():
     parser.add_argument('--max_waiting_mins', type=int, default=30, help='max waiting minutes')
     parser.add_argument('--start_epoch', type=int, default=0, help='')
     parser.add_argument('--eval_tag', type=str, default='default', help='eval tag for this experiment')
-    parser.add_argument('--use_memory_bank', action='store_true', default=False, help='memory bank eval tag for mppnet')
+    parser.add_argument('--use_memory_bank', action='store_true', default=False, help='memory bank eval for mppnet')
     parser.add_argument('--eval_all', action='store_true', default=False, help='whether to evaluate all checkpoints')
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
