@@ -129,6 +129,7 @@ MODEL:
         USE_REGMLP: False
         USE_MLP_JOINTEMB: False
         MATCHING_IOU: [0.5, 0.5]
+        IOU_WEIFHT: [0.5,0.4]
 
 
 
