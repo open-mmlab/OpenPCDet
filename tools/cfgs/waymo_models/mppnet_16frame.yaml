@@ -136,6 +136,7 @@ MODEL:
         OUTPUT_RAW_SCORE: False
         SAVE_BBOX: False
         EVAL_METRIC: waymo
+        NOT_APPLY_NMS_FOR_VEL: True
 
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False

@@ -141,6 +141,7 @@ MODEL:
         SAVE_BBOX: False
         EVAL_METRIC: waymo
         USE_MEMORYBANK: True
+        NOT_APPLY_NMS_FOR_VEL: True
 
         NMS_CONFIG:
             MULTI_CLASSES_NMS: False
