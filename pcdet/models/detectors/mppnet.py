@@ -16,15 +16,9 @@ class MPPNet(Detector3DTemplate):
 
         batch_dict['proposals_list'] = batch_dict['roi_boxes']
 
-        if self.model_cfg.ROI_HEAD.get('USE_BEV_FEAT',None):
-            with torch.no_grad():
-                for cur_module in self.module_list[:-1]:
-                    batch_dict = cur_module(batch_dict)
-            batch_dict =  self.module_list[-1](batch_dict)
-            
-        else:
-            for cur_module in self.module_list[:]:
-                batch_dict = cur_module(batch_dict)
+
+        for cur_module in self.module_list[:]:
+            batch_dict = cur_module(batch_dict)
         
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
@@ -36,37 +30,12 @@ class MPPNet(Detector3DTemplate):
             return ret_dict, tb_dict, disp_dict
         else:
 
-            # if self.model_cfg.POST_PROCESSING.get('SAVE_BBOX',False):
-            #     pred_dicts, recall_dicts = self.post_processing(batch_dict)
-               
-            #     for bs_idx in range(batch_dict['batch_size']):
+            pred_dicts, recall_dicts = self.post_processing(batch_dict)
 
-            #         cur_boxes = batch_dict['batch_box_preds'][bs_idx]
-            #         cur_scores = batch_dict['batch_cls_preds'][bs_idx]
-            #         cur_labels = batch_dict['roi_labels'][bs_idx]
-            #         cur_superboxes = batch_dict['pred_superboxes'][bs_idx]
-                    
-
-
-            #         path = '/home/xschen/OpenPCDet_xuesong/iter_6933/%s/' % (batch_dict['frame_id'][bs_idx][:-4])
-
-            #         if not os.path.exists(path):
-            #             try:
-            #                 os.makedirs(path)
-            #             except:
-            #                 pass
-            #         bbox_path = path + '%s.npy' % (batch_dict['frame_id'][bs_idx][-3:])
-            
-            #         #cur_gtboxes = torch.cat([cur_gtboxes[k:k+1],torch.ones([1,1]).cuda()],-1)
-            #         pred_boxes = torch.cat([cur_boxes,cur_scores,cur_labels[:,None],cur_superboxes],dim=-1)
-            #         np.save(bbox_path, pred_boxes.cpu().numpy())
-
-            # else:
-            #     start_time = time.time()
-            pred_dicts, recall_dicts = self.post_processing(batch_dict,nms=self.model_cfg.POST_PROCESSING.get('USE_NMS',True))
-
-            # torch.cuda.empty_cache()
-            return pred_dicts, recall_dicts, batch_dict
+            if self.model_cfg.POST_PROCESSING.get('USE_MEMORYBANK',False):
+                return pred_dicts, recall_dicts, batch_dict
+            else:
+                return pred_dicts, recall_dicts
 
     def get_training_loss(self):
         disp_dict = {}  

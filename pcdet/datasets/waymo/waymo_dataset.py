@@ -280,24 +280,15 @@ class WaymoDataset(DatasetTemplate):
 
                 try:
 
-                    # box_path = os.path.join('../data/waymo/', 'centerpoint_4frame_vel_dynmeanvfe', sequence_name, ('%03d.npy' % sample_idx_pre))
                     box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
                     boxes3d = np.load(box_path)
                     pred_boxes3d = boxes3d[:,:9]
 
-                    if sequence_cfg.ONLY_LOAD_CAR:
-                        pred_scores = boxes3d[:,7]
-                        pred_labels = boxes3d[:,8]
-                        car_mask = pred_labels==1
-                        pred_boxes3d = pred_boxes3d[car_mask]
-
-                        pred_supboxes3d = boxes3d[:,9:][car_mask][:,:7]
-                        disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
-                    else:
-                        pred_supboxes3d = boxes3d[:,9:]
-                        disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
+                    pred_supboxes3d = boxes3d[:,9:]
+                    disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
 
                     pred_boxes3d = np.concatenate([pred_boxes3d,disp],axis=-1)
+
                 except:
                     pred_boxes3d = np.zeros([1,9])
                     pred_supboxes3d = np.zeros([1,7])
@@ -372,9 +363,8 @@ class WaymoDataset(DatasetTemplate):
             if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
 
 
-                if self.dataset_cfg.SEQUENCE_CONFIG.get('LOAD_PREDBOX',None):
+                if self.dataset_cfg.get('USE_PREDBOX',False):
    
-
                     points, gt_bboxes, pred_bboxes,pred_scores,pred_labels,poses = self.get_sequence_data_withpredbox(
                         info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                     )

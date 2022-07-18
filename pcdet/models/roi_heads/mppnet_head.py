@@ -10,7 +10,6 @@ from pcdet.ops.iou3d_nms import iou3d_nms_utils
 import torch.nn.functional as F
 from ...utils import box_coder_utils, common_utils, loss_utils
 from .roi_head_template import RoIHeadTemplate
-from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ..model_utils.mppnet_utils import build_transformer
 
 import torch.nn.parallel
@@ -20,7 +19,6 @@ import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_, kaiming_normal_
 from pcdet.ops.pointnet2.pointnet2_batch import pointnet2_modules
 from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
-from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 
 
 class PointNetfeat(nn.Module):
@@ -294,7 +292,8 @@ class MPPNetHead(RoIHeadTemplate):
             )  # (BxN, 6x6x6, 3)
         # order [xxxxyyyyzzzz ....] not [xyz...,xyz..xyz..xyz]
 
-        global_roi_grid_points = global_roi_grid_points.view(batch_size, -1, 3) 
+        global_roi_grid_points = global_roi_grid_points.view(batch_size, -1, 3)
+  
         if len(point_coords.shape)==3:
             point_coords = point_coords.view(point_coords.shape[0]*num_frames,point_coords.shape[1]//num_frames,point_coords.shape[-1])
             xyz = point_coords[:, :, 0:3].view(-1,3)
@@ -678,6 +677,7 @@ class MPPNetHead(RoIHeadTemplate):
         batch_dict['num_frames'] = batch_dict['rois'].shape[2]
         roi_scores_list = copy.deepcopy(batch_dict['roi_scores'])
         roi_labels_list = copy.deepcopy(batch_dict['roi_labels'])
+
         batch_dict['roi_scores'] = batch_dict['roi_scores'].permute(0,2,1)
         batch_dict['roi_labels'] = batch_dict['roi_labels'][:,0,:].long()
         proposals_list = batch_dict['proposals_list']
@@ -731,11 +731,11 @@ class MPPNetHead(RoIHeadTemplate):
 
         src_geometry_feature,proxy_points = self.get_proposal_aware_geometry_feature(src,batch_size,trajectory_rois,num_rois,batch_dict)
 
-        box_cls,  box_reg, feat_box = self.trajectories_auxiliary_branch(trajectory_rois)
-
         src_motion_feature = self.get_proposal_aware_motion_feature(proxy_points,batch_size,trajectory_rois,num_rois,batch_dict)
 
         src = src_geometry_feature + src_motion_feature
+
+        box_cls,  box_reg, feat_box = self.trajectories_auxiliary_branch(trajectory_rois)
         
         if self.model_cfg.get('USE_TRAJ_EMPTY_MASK',None):
             src[empty_mask.view(-1)] = 0
@@ -756,24 +756,24 @@ class MPPNetHead(RoIHeadTemplate):
         point_reg_list = []
 
 
-        """
-        index_list = [[0,4,8],[1,5,9],[2,6,10],[3,7,11]]
-        for i in range(3):
-            point_cls_list.append(self.class_embed[0](tokens[index_list[0][i]]))
+        
+        # index_list = [[0,4,8],[1,5,9],[2,6,10],[3,7,11]]
+        # for i in range(3):
+        #     point_cls_list.append(self.class_embed[0](tokens[index_list[0][i]]))
 
 
-        for i in range(hs.shape[0]):
-            for j in range(3):
-                point_reg_list.append(self.bbox_embed[i](tokens[index_list[i][j]]))
+        # for i in range(hs.shape[0]):
+        #     for j in range(3):
+        #         point_reg_list.append(self.bbox_embed[i](tokens[index_list[i][j]]))
 
 
 
-        point_cls = torch.cat(point_cls_list,0)
-        point_reg = torch.cat(point_reg_list,0)
+        # point_cls = torch.cat(point_cls_list,0)
+        # point_reg = torch.cat(point_reg_list,0)
 
-        # if self.model_cfg.Transformer.joint_dim==1024:
-        hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
-        """
+        # # if self.model_cfg.Transformer.joint_dim==1024:
+        # hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
+        
 
         for i in range(3):
             point_cls_list.append(self.class_embed[0](tokens[i][0]))

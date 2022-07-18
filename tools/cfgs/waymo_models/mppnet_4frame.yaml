@@ -13,58 +13,19 @@ DATA_CONFIG:
 
     SEQUENCE_CONFIG:
         ENABLED: True
-        LOAD_PREDBOX: True
-        MID_CONTEXT: False
+        # LOAD_PREDBOX: False
         SAMPLE_OFFSET: [-3,0]
         USE_SPEED: False
-        USE_EPOCH36_BBOX: False
-        USE_FLIPX_BBOX: False
-        USE_FLIPY_BBOX: False
-        USE_FLIPXY_BBOX: False
-        USE_095_BBOX: False
-        USE_105_BBOX: False
-        USE_Z02_BBOX: False
-        USE_Z-02_BBOX: False
-        USE_N225_BBOX: False
-        USE_N45_BBOX: False
-        USE_N135_BBOX: False
-        USE_N1575_BBOX: False
-        USE_P225_BBOX: False
-        USE_P45_BBOX: False
-        USE_P135_BBOX: False
-        USE_P1575_BBOX: False
-        USE_NONMS_FLIPX_BBOX: False
-        USE_NONMS_FLIPY_BBOX: False
-        USE_NONMS_FLIPXY_BBOX: False
-        USE_NONMS_095_BBOX: False
-        USE_NONMS_105_BBOX: False
-        USE_NONMS_Z02_BBOX: False
-        USE_NONMS_Z-02_BBOX: False
-        USE_NONMS_N225_BBOX: False
-        USE_NONMS_N45_BBOX: False
-        USE_NONMS_N135_BBOX: False
-        USE_NONMS_N1575_BBOX: False
-        USE_NONMS_P225_BBOX: False
-        USE_NONMS_P45_BBOX: False
-        USE_NONMS_P135_BBOX: False
-        USE_NONMS_P1575_BBOX: False
-        USE_NONMS_EPOCH36_BBOX: False
-        USE_EPOCH6_BBOX: False
-        USE_ITER_6933: False
-        USE_SPEED_BBOX: False
-        USE_POINTPILLAR_VEL_BBOX: False
-        USE_POINTPILLAR_SUP_BBOX: False
-        USE_POINTPILLAR_EPOCH36_VEL_BBOX: False
-        USE_POINTPILLAR_EPOCH36_SUP_BBOX: False
-        USE_EPOCH36_VEL_BBOX: False
-        USE_2FRAMESUP_VEL_BOX: False
-        USE_1DIM_VEL_BOX: False
-        ONLY_LOAD_CAR : False
+        # USE_4FRAME_VEL_DYNBOX: False
+        # ONLY_LOAD_CAR : False
+
 
     USE_SUPERBOX: False
     USE_SUPERBOX_EVAL: False
     JITTER: False
     SPEED_THRESHOLD: 0.4
+    USE_PREDBOX: True
+    ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
 
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]
@@ -88,19 +49,10 @@ DATA_CONFIG:
                 'test': True
             }
 
-        # -   NAME: multi_frame_transform_points_to_voxels
-        #     WINDOW_STRIDE: 1
-        #     VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
-        #     MAX_POINTS_PER_VOXEL: 5
-        #     MAX_NUMBER_OF_VOXELS: {
-        #         'train': 150000,
-        #         'test': 150000
-        #     }
-
     POINT_FEATURE_ENCODING: {
-        encoding_type: absolute_coordinates_encoding_time, #absolute_coordinates_encoding,
-        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation'],
-        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation'],       
+        encoding_type: absolute_coordinates_encoding, #absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],       
         }
 
 
@@ -393,3 +345,4 @@ OPTIMIZATION:
     WARMUP_EPOCH: 1
 
     GRAD_NORM_CLIP: 10
+
