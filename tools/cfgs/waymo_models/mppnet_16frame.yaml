@@ -34,6 +34,7 @@ DATA_CONFIG:
     USE_SUPERBOX_EVAL: False
     JITTER: False
     USE_PREDBOX: True
+    ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
 
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]
@@ -136,6 +137,7 @@ MODEL:
             ENABLED: False
             THRESHOD: 0.8
         USE_MLP_JOINTEMB: False
+        IOU_WEIGHT: [0.5,0.4]
 
 
 
@@ -145,7 +147,7 @@ MODEL:
             MLPS: [[128,128], [128,128]]
             POOL_RADIUS: [0.8, 1.6]
             NSAMPLE: [16, 16]
-            MLPS2: [[128,128]]
+            MLPS2: [[64,64]]
             POOL_RADIUS2: [0.8]
             NSAMPLE2: [16]
             POOL_METHOD: max_pool
