@@ -261,10 +261,7 @@ class Detector3DTemplate(nn.Module):
                     # import pdb;pdb.set_trace()
                     if batch_dict.get('has_class_labels', False):
                         label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
-                        if 'valid_traj_mask' in batch_dict.keys():
-                            label_preds = batch_dict[label_key][index][batch_dict['valid_traj_mask'][batch_mask]]
-                        else:
-                            label_preds = batch_dict[label_key][index]
+                        label_preds = batch_dict[label_key][index]
                     else:
                         label_preds = label_preds + 1
                     
