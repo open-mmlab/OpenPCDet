@@ -175,7 +175,7 @@ class Detector3DTemplate(nn.Module):
     def forward(self, **kwargs):
         raise NotImplementedError
 
-    def post_processing(self, batch_dict, nms):
+    def post_processing(self, batch_dict):
         """
         Args:
             batch_dict:
@@ -220,8 +220,7 @@ class Detector3DTemplate(nn.Module):
                 src_cls_preds = cls_preds
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
-
-            if nms:
+            if True:
                 if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                     if not isinstance(cls_preds, list):
                         cls_preds = [cls_preds]
@@ -259,7 +258,7 @@ class Detector3DTemplate(nn.Module):
                         }
                         pred_dicts.append(record_dict)
                         continue
-
+                    # import pdb;pdb.set_trace()
                     if batch_dict.get('has_class_labels', False):
                         label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                         if 'valid_traj_mask' in batch_dict.keys():
@@ -284,30 +283,27 @@ class Detector3DTemplate(nn.Module):
                     final_boxes = box_preds[selected]
 
                     # ########  Car DONOT Using NMS ###### 
-                    # try:
-                    #     pedcyc_mask = final_labels !=1 
-                    #     final_scores_pedcyc = final_scores[pedcyc_mask]
-                    #     final_labels_pedcyc = final_labels[pedcyc_mask]
-                    #     final_boxes_pedcyc = final_boxes[pedcyc_mask]
+                    if post_process_cfg.get('NOT_APPLY_NMS_FOR_CAR',False):
+                        try:
+                            pedcyc_mask = final_labels !=1 
+                            final_scores_pedcyc = final_scores[pedcyc_mask]
+                            final_labels_pedcyc = final_labels[pedcyc_mask]
+                            final_boxes_pedcyc = final_boxes[pedcyc_mask]
 
-                    #     car_mask = label_preds==1
-                    #     final_scores_car = cls_preds[car_mask]
-                    #     final_labels_car = label_preds[car_mask]
-                    #     final_boxes_car = box_preds[car_mask]
-                    # except:
-                    #     import pdb;pdb.set_trace()
+                            car_mask = label_preds==1
+                            final_scores_car = cls_preds[car_mask]
+                            final_labels_car = label_preds[car_mask]
+                            final_boxes_car = box_preds[car_mask]
+                        except:
+                            import pdb;pdb.set_trace()
 
-                    # final_scores  = torch.cat([final_scores_car,final_scores_pedcyc],0)
-                    # final_labels  = torch.cat([final_labels_car,final_labels_pedcyc],0)
-                    # final_boxes  = torch.cat([final_boxes_car,final_boxes_pedcyc],0)
+                        final_scores  = torch.cat([final_scores_car,final_scores_pedcyc],0)
+                        final_labels  = torch.cat([final_labels_car,final_labels_pedcyc],0)
+                        final_boxes  = torch.cat([final_boxes_car,final_boxes_pedcyc],0)
 
                     # ########  Car DONOT Using NMS ###### 
-
-                    # if 'pred_superboxes' in batch_dict.keys():
-                    #     final_superboxes = batch_dict['pred_superboxes'][index][0][selected]
-                    # print('ok')
-
             else:
+                # import pdb;pdb.set_trace()
                 if cls_preds.shape[0] > 0:
                     cls_preds, _ = torch.max(cls_preds, dim=-1)
                     selected  = (cls_preds > 0.1).nonzero().reshape(-1)
@@ -324,7 +320,6 @@ class Detector3DTemplate(nn.Module):
                     }
                     pred_dicts.append(record_dict)
                     continue
-
 
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
