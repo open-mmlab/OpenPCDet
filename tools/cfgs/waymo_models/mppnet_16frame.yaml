@@ -13,26 +13,9 @@ DATA_CONFIG:
 
     SEQUENCE_CONFIG:
         ENABLED: True
-        LOAD_PREDBOX: True
-        MID_CONTEXT: False
         SAMPLE_OFFSET: [-15,0]
         USE_SPEED: False
-        USE_VEL: False
-        USE_EPOCH36_BBOX: False
-        USE_EPOCH6_BBOX: False
-        USE_ITER_6933: False
-        USE_SPEED_BBOX: False
-        USE_POINTPILLAR_VEL_BBOX: False
-        USE_POINTPILLAR_SUP_BBOX: False
-        USE_POINTPILLAR_EPOCH36_VEL_BBOX: False
-        USE_POINTPILLAR_EPOCH36_SUP_BBOX: False
-        USE_EPOCH36_VEL_BBOX: False
-        USE_4FRAME_VEL_DYNBOX: False
-        ONLY_LOAD_CAR : False
 
-    USE_SUPERBOX: False
-    USE_SUPERBOX_EVAL: False
-    JITTER: False
     USE_PREDBOX: True
     ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
 
@@ -68,195 +51,58 @@ DATA_CONFIG:
 
 MODEL:
     NAME: MPPNet
-    ONLY_TRAIN_RCNN: True
-    ONLY_TRAIN_RPN: False
-    ONLY_TRAIN_DECODER: False
-
 
     ROI_HEAD:
         NAME: MPPNetHead
-        TRANS_INPUT: 256
+        TRANS_INPUT: 64
         CLASS_AGNOSTIC: True
-        USE_TIMESTAMP: False
-        SPLIT_MOVING_STATIC: False
-        USE_RADIUS_CROP: True
-        TIMESTAMP_SAMPLING: True
-        USE_TRAJ_SAMPLING: True
-        SPLIT_TIMEENCODING:  False
         USE_BOX_ENCODING:
             ENABLED: True 
-            USE_SINGLEBOX: False
-            TRANS_POOL: False
             NORM_T0: True
             ALL_YAW_T0: True
-        USE_TRAJ: True
-        USE_CLS_LOSS: True
-        USE_FUSION_LOSS: False
-        USE_SPHERICAL_COOR: True
-        USE_MID_CONTEXT: False
-        USE_CT3D_NORM: True
-        SPLIT_MOVE: False
-        MOVE_AUG: False
-        MOVE_NUM: 5
-        FPS_KEYPOINT: False
-        TRAJ_NORM: True
-        USE_1FRAME_POINT: False
-        SHARE_BOX_FEAT: False
-        USE_MOTION: False
-        VECTOR_POOL: False
-        ZERO_PADDING: False
-        USE_RAWPOINT: False
-        VOXELIZE_POINT: False
-        AVG_STAGE_1: False
-        USE_REFLECTION: True
-        USE_CENTER_INIT_TOKEN:
-            enabled: False
-            traj_norm: True
-            init_type: box
-            share_token: True
-        USE_CENTER_PADDING: False
-        USE_TRAJ_GT_ASSIGN: False
-        USE_TRAJ_EMPTY_MASK: False
-        FIX_CORNER_BUG: False
-        USE_POINT_CORNER_LOSS: False
+        AVG_STAGE_1: True
+        USE_TRAJ_EMPTY_MASK: True
         USE_AUG_LOSS: True
-        USE_BOX_CLS: False
-        SHARE_LOCAL_VOXEL: False
-        USE_REGMLP: False
-        USE_RANDOM_NOISE: False
-        USE_3LAYER_LOSS: True
-        SHARE_REG_HEAD: False
-        USE_BEV_FEAT:
-            ENABLED: False
-            CONCAT: False
-        USE_ROI_AUG: False
-        BG_ROI_AUG: False
-        DOUBLE_FG_AUG: False
-        USE_SPEED_BOX: False
+        USE_ROI_AUG: True
         USE_TRAJ_AUG:
-            ENABLED: False
+            ENABLED: True
             THRESHOD: 0.8
         USE_MLP_JOINTEMB: False
         IOU_WEIGHT: [0.5,0.4]
 
 
 
-        ROI_GRID_PVRCNNPOOL:
-            ONE_BALL: False
+        ROI_GRID_POOL:
             GRID_SIZE: 4
-            MLPS: [[128,128], [128,128]]
-            POOL_RADIUS: [0.8, 1.6]
-            NSAMPLE: [16, 16]
-            MLPS2: [[64,64]]
-            POOL_RADIUS2: [0.8]
-            NSAMPLE2: [16]
+            MLPS: [[64,64]]
+            POOL_RADIUS: [0.8]
+            NSAMPLE: [16]
             POOL_METHOD: max_pool
-            SHARE_GROUP: False
-            IGNORE_EMPTY_VOXEL: True
-            NHEAD: 4
-            DROUPOUT: 0.1
-            MSG_POST_MLPS: [ 256 ]
-            OUTCHANNEL: 256
+
 
         Transformer:
-            name: deit128x384
-            only_encoder: False
-            use_grid_points: True
             num_points: 128
-            num_key_points: 64
             pos_hidden_dim: 64
             enc_layers: 3
-            dec_layers: 1
             dim_feedforward: 512
-            hidden_dim: 256
-            half_up_dimension: False
-            joint_dim: 1024
+            hidden_dim: 64
             dropout: 0.1
             nheads: 4
-            num_queries: 4
-            aux_loss: False
             pre_norm: False
-            channeltime: False
-            use_decoder:
-                enabled: False
-                name: casc-norm
-                local_decoder: True
-            use_128_decoder: False
-            split_time: False
-            time_attn: True
-            time_attn_type: crossattn_mlp
-            use_semlp: False
-            deit_channel_weight: None
-            use_channel_weight: False
-            mlp_residual: True
-            use_learn_time_token: False
-            use_motion_attn: False
-            tgt_after_mean:  True
-            tgt_before_mean: False
-            multi_decoder: False
-            weighted_sum: False
-            channelwise_decoder: 
-                enabled: False
-                weighted: True
-            add_cls_token: False
-            frame1_cls: True
-            p4conv_merge: True # for 1 group or 8,12 frames should be True
-            fusion_type: mlp
-            fusion_mlp_norm: ffn
-            fusion_init_token: True
-            use_mlp_as_query: False
-            merge_groups: 4
-            masking_radius: 0.8
             num_frames: 16
-            sequence_stride: 2
-            channel_time: False
-            ms_pool: False
-            pyramid: False
-            use_one_coding_for_later: False
-            add_extra_sa: False
-            mlp_cross_grid_pos: True
-            use_box_pos:
-                enabled: False
-                token_use_box_pos: False
-                only_use_xyzyaw: True
-                box_res_emb: True
-            update_234: True
-            share_head: False
-            use_1_frame: False
-            crossattn_last_layer: False
-            use_voxel_point_feat:
-                enabled: True
-                traj_norm: False
-                dual_time_encoding: False
-                share_up_dim: False
-                feat_add: True
+            num_groups: 4
+            sequence_stride: 4
             use_grid_pos:
                 enabled: True
-                norm: False
-                token_center: False
                 init_type: index
-            share_sa_layer:
-                enabled: True
-                share_ffn: False
-            use_mlp_query_decoder: False
-            use_fc_token:
-                enabled: False
-                share: True
-            use_center_token_add: False
-            share_center_token: False
+
             use_mlp_mixer:
                 enabled: True
-                grid_size: 4
                 hidden_dim: 16
-                use_v2: False
-                use_attn_reweight: False
-            use_mlp_mixer_v2: False
-            use_mlp_cross_mixer: False
 
         TARGET_CONFIG:
-            USE_SUPERBOX_FOR_RCNN: False
             BOX_CODER: ResidualCoder
-            ROI_PER_IMAGE: 128
+            ROI_PER_IMAGE: 96
             FG_RATIO: 0.5
             REG_AUG_METHOD: single
             ROI_FG_AUG_TIMES: 10
@@ -289,8 +135,6 @@ MODEL:
         SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
         SAVE_BBOX: False
-        SPLITMOVE: False
-        TTA: False
         EVAL_METRIC: waymo
 
         NMS_CONFIG:

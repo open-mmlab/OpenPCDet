@@ -58,9 +58,8 @@ def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id
     # load checkpoint
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test)
     model.cuda()
-
     # start evaluation
-    if args.use_memory_bank:
+    if cfg.MODEL.POST_PROCESSING.get('USE_MEMORYBANK',False):
         eval_utils.eval_one_epoch_memorybank(
             cfg, model, test_loader, epoch_id, logger, dist_test=dist_test,
             result_dir=eval_output_dir, save_to_file=args.save_to_file

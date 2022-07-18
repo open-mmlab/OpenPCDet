@@ -10,22 +10,18 @@ from pcdet.ops.iou3d_nms import iou3d_nms_utils
 import torch.nn.functional as F
 from ...utils import box_coder_utils, common_utils, loss_utils
 from .roi_head_template import RoIHeadTemplate
-from ...ops.roiaware_pool3d import roiaware_pool3d_utils
-from ...ops.roipoint_pool3d import roipoint_pool3d_utils
-from ..model_utils.ctrans import build_transformer
+from ..model_utils.mppnet_utils import build_transformer
 import numba as nb
 import torch.nn.parallel
 import torch.utils.data
 import numpy as np
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_, kaiming_normal_
-from pcdet.ops.pointnet2.pointnet2_batch import pointnet2_modules
 from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
-from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 
 
 class PointNetfeat(nn.Module):
-    def __init__(self, pts_dim, x=1,outchannel=512,transformer=True):
+    def __init__(self, pts_dim, x=1,outchannel=512):
         super(PointNetfeat, self).__init__()
         if outchannel==256:
             self.output_channel = 256
@@ -35,14 +31,11 @@ class PointNetfeat(nn.Module):
         self.conv2 = torch.nn.Conv1d(64 * x, 128 * x, 1)
         self.conv3 = torch.nn.Conv1d(128 * x, 256 * x, 1)
         self.conv4 = torch.nn.Conv1d(256 * x,  self.output_channel, 1)
-        #self.conv3 = torch.nn.Conv1d(512 * x, self.output_channel, 1)
         self.bn1 = nn.BatchNorm1d(64 * x)
         self.bn2 = nn.BatchNorm1d(128 * x)
         self.bn3 = nn.BatchNorm1d(256 * x)
         self.bn4 = nn.BatchNorm1d(self.output_channel)
-        self.transformer = transformer
-        if transformer:
-            self.attn = nn.MultiheadAttention(512, 4, dropout=0.1)
+
 
 
     def forward(self, x):
@@ -50,13 +43,9 @@ class PointNetfeat(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        x_ori = self.bn4(self.conv4(x)) # NOTE: should not put a relu [bs,C,N]
-        if self.transformer:
-            query = x_ori[:,:,0:1].permute(2,0,1)
-            key= value = x_ori[:,:,1:].permute(2,0,1)
-            x = self.attn(query,key,value)[0].permute(1,2,0).contiguous()
-        else:
-            x = torch.max(x_ori, 2, keepdim=True)[0]
+        x_ori = self.bn4(self.conv4(x)) 
+
+        x = torch.max(x_ori, 2, keepdim=True)[0]
 
         x = x.view(-1, self.output_channel)
         return x, x_ori
@@ -66,32 +55,11 @@ class PointNet(nn.Module):
         super(PointNet, self).__init__()
         self.joint_feat = joint_feat
         channels = model_cfg.TRANS_INPUT
+
         if joint_feat:
             self.feat = None
+            times=5
 
-            if (model_cfg.Transformer.num_frames == 4 and model_cfg.Transformer.p4conv_merge  and model_cfg.Transformer.merge_groups==1) or (model_cfg.Transformer.time_attn_type in ['mlp_merge','trans_merge'] \
-                and model_cfg.Transformer.merge_groups==1) or model_cfg.Transformer.use_1_frame or model_cfg.Transformer.use_mlp_query_decoder: 
-                # if model_cfg.Transformer.pyramid:
-                #     times = 3
-                # else:
-                times = 2
-            elif model_cfg.Transformer.merge_groups==2: # model_cfg.Transformer.joint_dim==1024 and model_cfg.Transformer.num_frames > 4:
-                times=3
-            else: # model_cfg.Transformer.joint_dim==1024 and model_cfg.Transformer.num_frames > 4:
-                #### 这种写法默认只要不是1group 都是 1024 dim ####
-                # if model_cfg.Transformer.pyramid:
-                #     times=9
-                # else:
-                times=5
-
-            if model_cfg.Transformer.hidden_dim==512:
-                times = 2*(times -1) +1
-
-            if not model_cfg.Transformer.get('frame1_reg',True):
-                times = times -1
-
-            # if model_cfg.TRANS_INPUT ==128:
-            #     times=6
             self.fc_s1 = nn.Linear(channels*times, 256)
             self.fc_s2 = nn.Linear(256, 3, bias=False)
             self.fc_c1 = nn.Linear(channels*times, 256)
@@ -101,12 +69,10 @@ class PointNet(nn.Module):
             self.fc_hr1 = nn.Linear(channels*times, 256)
             self.fc_hr2 = nn.Linear(256, 1, bias=False)
 
-
-
         else:
             # channels=256
             times=1
-            self.feat = PointNetfeat(pts_dim, x, transformer=model_cfg.USE_BOX_ENCODING.TRANS_POOL)
+            self.feat = PointNetfeat(pts_dim, x)
 
             self.fc1 = nn.Linear(512 * x, 256 * x)
             self.fc2 = nn.Linear(256 * x, channels)
@@ -115,7 +81,7 @@ class PointNet(nn.Module):
             self.bn1 = nn.BatchNorm1d(256 * x)
             self.bn2 = nn.BatchNorm1d(channels)
             self.relu = nn.ReLU()
-            # NOTE: should there put a BN?
+
             self.fc_s1 = nn.Linear(channels*times, 256)
             self.fc_s2 = nn.Linear(256, 3, bias=False)
             self.fc_c1 = nn.Linear(channels*times, 256)
@@ -124,104 +90,6 @@ class PointNet(nn.Module):
             self.fc_ce2 = nn.Linear(256, 3, bias=False)
             self.fc_hr1 = nn.Linear(channels*times, 256)
             self.fc_hr2 = nn.Linear(256, 1, bias=False)
-
-    def forward(self, x, feat=None):
-
-        if self.joint_feat:
-            if len(feat.shape) > 2:
-                feat = torch.max(feat, 2, keepdim=True)[0]
-                x = feat.view(-1, self.output_channel)
-                x = F.relu(self.bn1(self.fc1(x)))
-                feat = F.relu(self.bn2(self.fc2(x)))
-            else:
-                feat = feat
-            feat_traj = None
-        else:
-            x, feat_traj = self.feat(self.pre_bn(x))
-            x = F.relu(self.bn1(self.fc1(x)))
-            feat = F.relu(self.bn2(self.fc2(x)))
-
-        x = F.relu(self.fc_c1(feat))
-        logits = self.fc_c2(x)
-
-        x = F.relu(self.fc_ce1(feat))
-        centers = self.fc_ce2(x)
-
-        x = F.relu(self.fc_s1(feat))
-        sizes = self.fc_s2(x)
-
-        x = F.relu(self.fc_hr1(feat))
-        headings = self.fc_hr2(x)
-
-        return logits, torch.cat([centers, sizes, headings],-1),feat,feat_traj
-
-    def init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d) or isinstance(m, nn.Linear):
-                kaiming_normal_(m.weight.data)
-                if m.bias is not None:
-                    zeros_(m.bias)
-
-class RegMLP(nn.Module):
-    def __init__(self):
-        super().__init__()
-        times = 1
-        self.fc_s1 = nn.Linear(256*times, 256)
-        self.fc_s2 = nn.Linear(256, 3, bias=False)
-        self.fc_ce1 = nn.Linear(256*times, 256)
-        self.fc_ce2 = nn.Linear(256, 3, bias=False)
-        self.fc_hr1 = nn.Linear(256*times, 256)
-        self.fc_hr2 = nn.Linear(256, 1, bias=False)
-
-    def forward(self, feat):
-
-        x = F.relu(self.fc_ce1(feat))
-        centers = self.fc_ce2(x)
-
-        x = F.relu(self.fc_s1(feat))
-        sizes = self.fc_s2(x)
-
-        x = F.relu(self.fc_hr1(feat))
-        headings = self.fc_hr2(x)
-
-        return torch.cat([centers, sizes, headings],-1)
-
-    def init_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d) or isinstance(m, nn.Linear):
-                kaiming_normal_(m.weight.data)
-                if m.bias is not None:
-                    zeros_(m.bias)
-
-class PointNetTimeMerge(nn.Module):
-    def __init__(self, pts_dim, x, CLS_NUM,joint_feat=True,model_cfg=None):
-        super(PointNetTimeMerge, self).__init__()
-        self.joint_feat = joint_feat
-        # times = 5
-        # if joint_feat:
-        #     self.feat = None
-
-        times = 4
-        # else:
-        #     times=1
-        #     self.feat = PointNetfeat(pts_dim, x)
-
-        #     self.fc1 = nn.Linear(512 * x, 256 * x)
-        #     self.fc2 = nn.Linear(256 * x, 256)
-
-        #     self.pre_bn = nn.BatchNorm1d(pts_dim)
-        #     self.bn1 = nn.BatchNorm1d(256 * x)
-        #     self.bn2 = nn.BatchNorm1d(256)
-        self.relu = nn.ReLU()
-        # NOTE: should there put a BN?
-        self.fc_s1 = nn.Linear(256*times, 256)
-        self.fc_s2 = nn.Linear(256, 3, bias=False)
-        self.fc_c1 = nn.Linear(256*times, 256)
-        self.fc_c2 = nn.Linear(256, CLS_NUM, bias=False)
-        self.fc_ce1 = nn.Linear(256*times, 256)
-        self.fc_ce2 = nn.Linear(256, 3, bias=False)
-        self.fc_hr1 = nn.Linear(256*times, 256)
-        self.fc_hr2 = nn.Linear(256, 1, bias=False)
 
     def forward(self, x, feat=None):
 
@@ -274,241 +142,78 @@ class MLP(nn.Module):
             x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
         return x
 
-
-@nb.jit(nopython=True,parallel=True)
-def croproipoint(src,trajectory_rois,cur_points,point_mask, batch_size,num_rois,num_sample,num_points,nonempty_mask):
-
-    # for bs_idx in range(batch_size):
-
-    #     start1 = time.time()
-    #     cur_batch_boxes = trajectory_rois[bs_idx,0,:,:7].reshape(-1,7)
-    #     cur_radiis = np.sqrt((cur_batch_boxes[:,3]/2) ** 2 + (cur_batch_boxes[:,4]/2) ** 2) * 1.2
-    #     cur_points = batch_dict['points'][(batch_dict['points'][:, 0] == bs_idx)][:,1:].cpu().numpy()
-        # dis = np.linalg.norm((cur_points[:,:2].unsqueeze(0) - cur_batch_boxes[:,:2].unsqueeze(1).repeat(1,cur_points.shape[0],1)), dim = 2)
-        # point_mask = (dis <= cur_radiis.unsqueeze(-1))
-        # batch_dict['point_mask_time'] = time.time() - start1
-        # start2 = time.time()
-        # time_mask_list = []
-        # if num_rois >=128:
-        #     import pdb;pdb.set_trace()
-        #     print(num_rois)
-    for roi_box_idx in range(0, num_rois):
-        # start3 = time.time()
-        cur_roi_points = cur_points[point_mask[roi_box_idx]]
-        # time_mask = np.abs(cur_roi_points[:,-1]) < 1e-3
-        # cur_roi_points = cur_roi_points[time_mask]
-        # time_mask_list.append(time.time() - start3)
-        if cur_roi_points.shape[0] > 0:
-            np.random.seed(0)
-            choice = np.random.choice(cur_roi_points.shape[0], num_points, replace=True)
-            cur_roi_points_sample = cur_roi_points[choice]
-
-            # elif cur_roi_points.shape[0] == 0:
-            #     cur_roi_points_sample = np.zeros([num_points, 6])
-            #     nonempty_mask[0, roi_box_idx] = False
-
-            # else:
-            #     empty_num = num_sample - cur_roi_points.shape[0]
-            #     add_zeros = np.zeros([empty_num, 6])
-            #     add_zeros = np.tile(cur_roi_points[0],(empty_num, 1))
-            #     cur_roi_points_sample = np.concatenate([cur_roi_points, add_zeros],  0)
-
-            cur_roi_points_sample = cur_roi_points_sample[:,:-1]
-            src[0, roi_box_idx, :num_points, :] = cur_roi_points_sample
-
-    return src
-
 class MPPNetMemoryBank(RoIHeadTemplate):
     def __init__(self, input_channels, model_cfg, voxel_size, point_cloud_range, num_class=1,**kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
         self.time_stamp = self.model_cfg.get('USE_TIMESTAMP',None)
-        assert not (self.time_stamp and model_cfg.Transformer.use_learn_time_token)
-        # self.window_stride = kwargs['window_stride']
-        # if self.model_cfg.USE_CT3D_NORM:
-        #     self.pointemb = PointNet(30,1,1)
-        # else:
-        #     self.pointemb = PointNet(12,1,1)
-        if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-            self.seqboxemb = PointNet(8,1,1,model_cfg=self.model_cfg)
-            if self.model_cfg.get('USE_MLP_JOINTEMB',None):
-                self.jointemb = MLP(256*5, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
-            else:
-                self.jointemb = PointNet(1,1,1,joint_feat=True,model_cfg=self.model_cfg)
-        else:
-            self.pointemb = PointNetTimeMerge(1,1,1,joint_feat=True,model_cfg=self.model_cfg)
-
         self.num_points = self.model_cfg.Transformer.num_points
         self.avg_stage1 = self.model_cfg.get('AVG_STAGE_1', None)
-        num_queries = model_cfg.Transformer.num_queries
-        self.masking_radius = model_cfg.Transformer.masking_radius
+
         self.nhead = model_cfg.Transformer.nheads
         hidden_dim = model_cfg.TRANS_INPUT
         self.hidden_dim = model_cfg.TRANS_INPUT
-        self.merge_groups = model_cfg.Transformer.merge_groups
-        self.use_box_pos = model_cfg.Transformer.use_box_pos
-        self.use_voxel_point_feat = model_cfg.Transformer.use_voxel_point_feat
-        self.half_up_dimension = model_cfg.Transformer.half_up_dimension
-        self.query_embed = nn.Embedding(1, model_cfg.Transformer.hidden_dim)
-        self.grid_size = model_cfg.ROI_GRID_PVRCNNPOOL.GRID_SIZE
-        if isinstance(self.grid_size,list):
-            self.num_grid_points = self.grid_size[0]*self.grid_size[1]*self.grid_size[2]
-        else:
-            self.num_grid_points = model_cfg.ROI_GRID_PVRCNNPOOL.GRID_SIZE**3
+        self.num_groups = model_cfg.Transformer.num_groups
+
+        self.grid_size = model_cfg.ROI_GRID_POOL.GRID_SIZE
+        self.num_grid_points = model_cfg.ROI_GRID_POOL.GRID_SIZE**3
         self.num_key_points = self.num_grid_points
-        self.use_learn_time_token = self.model_cfg.Transformer.use_learn_time_token
-        self.use_reflection = self.model_cfg.get('USE_REFLECTION', True)
-        self.use_traj_pos_emb = self.model_cfg.Transformer.get('use_traj_pos_emb', False)
-        self.use_center_init_token = self.model_cfg.get('USE_CENTER_INIT_TOKEN', False)
-        self.pyramid = self.model_cfg.Transformer.pyramid
-        self.use_regmlp = self.model_cfg.get('USE_REGMLP', None)
-        if self.use_center_init_token.enabled:
-            if self.use_center_init_token.init_type == 'xyz':
-                self.up_dimension_token = MLP(input_dim = 28, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-            elif self.use_center_init_token.init_type == 'xyzyaw':
-                self.up_dimension_token = MLP(input_dim = 29, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-            elif self.use_center_init_token.init_type == 'xyzwhlyaw':
-                self.up_dimension_token = MLP(input_dim = 32, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-            elif self.use_center_init_token.init_type == 'box':
-                if self.use_center_init_token.share_token:
-                    self.up_dimension_token = MLP(input_dim = 8, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-                else:
-                    self.up_dimension_token = MLP(input_dim = 31, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-            else:
-                raise NotImplementedError
-
-        if self.use_reflection:
-            res_dim = 0
+        # import pdb;pdb.set_trace()
+        self.seqboxemb = PointNet(8,1,1,model_cfg=self.model_cfg)
+        if self.model_cfg.get('USE_MLP_JOINTEMB',None):
+            self.jointemb = MLP(self.hidden_dim*5, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
         else:
-            res_dim = 2
+            self.jointemb = PointNet(1,1,1,joint_feat=True,model_cfg=self.model_cfg)
 
-        if (not self.use_learn_time_token) and (not self.time_stamp):
-            dim=30 - res_dim
-        else:
-            dim=27
 
-        if self.model_cfg.Transformer.use_voxel_point_feat.get('feat_add',None):
-            # dim = 28
-            self.up_dimension_voxel = MLP(input_dim = dim, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-        else:
-            self.up_dimension_voxel = MLP(input_dim = dim, hidden_dim = 64, output_dim = hidden_dim//2, num_layers = 3)
+        dim=30 
 
-        if self.time_stamp:
-            input_dim = 30 - res_dim
-        else:
-            input_dim = 29 - res_dim
-        # if self.use_voxel_point_feat.enabled and self.use_voxel_point_feat.share_up_dim and not self.use_reflection:
-        #     self.up_dimension = MLP(input_dim = 27, hidden_dim = 64, output_dim = 128, num_layers = 3)
-        # elif self.model_cfg.VOXELIZE_POINT or self.use_voxel_point_feat.enabled or self.half_up_dimension:
-        #     self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-        # else:
-        #     self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
+        self.up_dimension_voxel = MLP(input_dim = dim, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
 
-        # if not self.model_cfg.SHARE_LOCAL_VOXEL:
-        #     self.up_dimension_local = MLP(input_dim = 27, hidden_dim = 64, output_dim = hidden_dim//2, num_layers = 3)
-
+        input_dim = 29 
         if self.model_cfg.Transformer.num_frames==4:
             self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim =hidden_dim//2, num_layers = 3)
         else:
             self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim =hidden_dim, num_layers = 3)
 
-        if self.use_box_pos.enabled:
-            # self.reduce_box_feat = MLP(input_dim = 512, hidden_dim = 64, output_dim = 32, num_layers = 3)
-            if self.use_box_pos.only_use_xyzyaw:
-                self.up_dimension_bbox = MLP(input_dim = 4, hidden_dim = 64, output_dim = hidden_dim, num_layers = 4)
-            elif self.use_box_pos.box_res_emb:
-                self.up_dimension_bbox = MLP(input_dim = 7 , hidden_dim = 64, output_dim = hidden_dim, num_layers = 4)
-            else:
-                self.up_dimension_bbox = MLP(input_dim = 9, hidden_dim = 64, output_dim = hidden_dim, num_layers = 4)
-
-        self.up_dimension_bbox = MLP(input_dim = 7 , hidden_dim = 64, output_dim = hidden_dim, num_layers = 4)
-        
-        self.add_cls_token = model_cfg.Transformer.add_cls_token
-        self.use_grid_points = model_cfg.Transformer.use_grid_points
         self.transformer = build_transformer(model_cfg.Transformer)
 
-
-        if self.use_grid_points:
-            if self.model_cfg.VECTOR_POOL:
-                self.roi_grid_pool_layer = pointnet2_stack_modules.VectorPoolAggregationModuleMSG(128,model_cfg.ROI_GRID_POOL)
-            else:
-
-                if self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD=='pyramid_pool':
-                    self.roi_grid_pool_layer = pointnet2_stack_modules.PyramidModuleV2(
-                        input_channels=128,
-                        nradius=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS,
-                        nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE,
-                        grid_sizes= self.model_cfg.ROI_GRID_PVRCNNPOOL.GRID_SIZE,
-                        num_heads = self.model_cfg.ROI_GRID_PVRCNNPOOL.NHEAD,
-                        head_dims = 128//self.model_cfg.ROI_GRID_PVRCNNPOOL.NHEAD,
-                    )
-
-                else:
-                    if self.model_cfg.ROI_GRID_PVRCNNPOOL.ONE_BALL:
-                        outchanel = self.model_cfg.ROI_GRID_PVRCNNPOOL.OUTCHANNEL
-                        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-                                radii=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS2,
-                                nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE2,
-                                mlps=[[outchanel,outchanel]],
-                                use_xyz=True,
-                                # ignore_empty_voxel= self.model_cfg.ROI_GRID_PVRCNNPOOL.IGNORE_EMPTY_VOXEL,
-                                pool_method=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD,
-                                # config = self.model_cfg.ROI_GRID_PVRCNNPOOL
-                                )
-                    else:
-                        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-                                radii=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS,
-                                nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE,
-                                mlps=self.model_cfg.ROI_GRID_PVRCNNPOOL.MLPS,
-                                use_xyz=True,
-                                # ignore_empty_voxel= self.model_cfg.ROI_GRID_PVRCNNPOOL.IGNORE_EMPTY_VOXEL,
-                                pool_method=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD,
-                                # config = self.model_cfg.ROI_GRID_PVRCNNPOOL
-                                )
+        # if self.model_cfg.ROI_GRID_POOL.ONE_BALL:
+        # outchanel = self.model_cfg.ROI_GRID_PVRCNNPOOL.OUTCHANNEL
+        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
+                radii=self.model_cfg.ROI_GRID_POOL.POOL_RADIUS,
+                nsamples=self.model_cfg.ROI_GRID_POOL.NSAMPLE,
+                mlps=self.model_cfg.ROI_GRID_POOL.MLPS,
+                use_xyz=True,
+                pool_method=self.model_cfg.ROI_GRID_POOL.POOL_METHOD,
+                )
+        # else:
+        #     self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
+        #             radii=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS,
+        #             nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE,
+        #             mlps=self.model_cfg.ROI_GRID_PVRCNNPOOL.MLPS,
+        #             use_xyz=True,
+        #             pool_method=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD,
+        #             )
+            
                     
 
         self.class_embed = nn.ModuleList()
         self.bbox_embed = nn.ModuleList()
-        # import pdb;pdb.set_trace()
-        self.num_pred = 4 if 'casc' in model_cfg.Transformer.use_decoder.name and not model_cfg.Transformer.time_attn_type == 'mlp_merge' else 1
-        # if model_cfg.Transformer.pyramid:
-        #     model_cfg.Transformer.hidden_dim = model_cfg.Transformer.hidden_dim*2
+        self.num_pred = 4 
 
-        if self.num_pred > 1:
+        for i in range(self.num_pred):
+            self.class_embed.append(nn.Linear(model_cfg.Transformer.hidden_dim, 1))
+            self.bbox_embed.append(MLP(model_cfg.Transformer.hidden_dim, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4))
 
-            for i in range(self.num_pred):
-                self.class_embed.append(nn.Linear(model_cfg.Transformer.hidden_dim, 1))
-                if self.use_regmlp:
-                    self.bbox_embed.append(RegMLP())
-                else:
-                    self.bbox_embed.append(MLP(model_cfg.Transformer.hidden_dim, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4))
-        else:
-            self.class_embed = nn.Linear(model_cfg.Transformer.hidden_dim, 1)
-            self.bbox_embed = MLP(model_cfg.Transformer.hidden_dim, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
-
-        if self.model_cfg.USE_BEV_FEAT.CONCAT:
-            self.merge_bev_point = MLP(256*2, 256, 256, 3)
-
-        if self.model_cfg.USE_FUSION_LOSS:
-            self.timefusion = PointNetTimeMerge(1,1,1,model_cfg=self.model_cfg)
-            self.timefusion_class_embed = nn.Linear(model_cfg.Transformer.hidden_dim, 1)
         if self.model_cfg.Transformer.use_grid_pos.enabled:
             if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
-                if isinstance(self.grid_size, list):
-                    self.gridindex = torch.cat([i.reshape(-1,1)for i in torch.meshgrid(torch.arange(self.grid_size[0]), torch.arange(self.grid_size[1]), torch.arange(self.grid_size[2]))],1).float().cuda()
-                else:
-                    self.gridindex = torch.cat([i.reshape(-1,1)for i in torch.meshgrid(torch.arange(self.grid_size), torch.arange(self.grid_size), torch.arange(self.grid_size))],1).float().cuda()
-                
-                if self.model_cfg.Transformer.use_grid_pos.norm:
-                    self.gridindex = self.gridindex -1.5
-                if self.model_cfg.Transformer.use_grid_pos.token_center:
-                    self.gridindex = torch.cat([torch.tensor([0,0,0]).view(1,3).cuda(),self.gridindex],0)
+                self.gridindex = torch.cat([i.reshape(-1,1)for i in torch.meshgrid(torch.arange(self.grid_size), torch.arange(self.grid_size), torch.arange(self.grid_size))],1).float().cuda()
+
                 self.gridposembeding = MLP(input_dim = 3, hidden_dim = 256, output_dim = hidden_dim, num_layers = 2)
-                self.gridposembeding_pyramid = MLP(input_dim = 3, hidden_dim = 256, output_dim = hidden_dim*2, num_layers = 3)
+
             else:
                 self.pos = nn.Parameter(torch.zeros(1, self.num_grid_points, 256))
-
-        # self.croppoint = roipoint_pool3d_utils.RoIPointPool3d(128,[1.0,1.0,1.0])
 
     def init_weights(self, weight_init='xavier'):
         if weight_init == 'kaiming':
@@ -872,46 +577,49 @@ class MPPNetMemoryBank(RoIHeadTemplate):
             cur_batch_boxes = trajectory_rois[bs_idx,0,:,:7].view(-1,7)
             cur_radiis = torch.sqrt((cur_batch_boxes[:,3]/2) ** 2 + (cur_batch_boxes[:,4]/2) ** 2) * 1.1
             cur_points = batch_dict['points'][(batch_dict['points'][:, 0] == bs_idx)][:,1:]
+            time_mask = cur_points[:,-1].abs() < 1e-3
+            cur_points = cur_points[time_mask]
             dis = torch.norm((cur_points[:,:2].unsqueeze(0) - cur_batch_boxes[:,:2].unsqueeze(1).repeat(1,cur_points.shape[0],1)), dim = 2)
             point_mask = (dis <= cur_radiis.unsqueeze(-1))
             time_mask_list = []
 
-            # sampled_idx = torch.topk(mask.float(),128)[1]
-            # sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
-            # roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
-            # sampled_mask = mask[roi_idx, sampled_idx]  # (num_rois, 128)
-            # sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
+            mask = point_mask
+            sampled_idx = torch.topk(mask.float(),128)[1]
+            sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
+            roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
+            sampled_mask = mask[roi_idx, sampled_idx]  # (num_rois, 128)
+            sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
 
-            # src = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
-            # empty_flag = sampled_mask.sum(-1)==0
-            # src[empty_flag] = 0
+            src = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
+            empty_flag = sampled_mask.sum(-1)==0
+            src[empty_flag] = 0
 
-            for roi_box_idx in range(0, num_rois):
-                start3 = time.time()
-                cur_roi_points = cur_points[point_mask[roi_box_idx]]
-                time_mask = cur_roi_points[:,-1].abs() < 1e-3
-                cur_roi_points = cur_roi_points[time_mask]
-                time_mask_list.append(time.time() - start3)
-                if cur_roi_points.shape[0] > self.num_points:
-                    # random.seed(0)
-                    # choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-                    # cur_roi_points_sample = cur_roi_points[choice]
-                    cur_roi_points_sample = cur_roi_points[:128]
+            # for roi_box_idx in range(0, num_rois):
+            #     start3 = time.time()
+            #     cur_roi_points = cur_points[point_mask[roi_box_idx]]
+            #     # time_mask = cur_roi_points[:,-1].abs() < 1e-3
+            #     # cur_roi_points = cur_roi_points[time_mask]
+            #     time_mask_list.append(time.time() - start3)
+            #     if cur_roi_points.shape[0] > self.num_points:
+            #         # random.seed(0)
+            #         # choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+            #         # cur_roi_points_sample = cur_roi_points[choice]
+            #         cur_roi_points_sample = cur_roi_points[:128]
 
-                elif cur_roi_points.shape[0] == 0:
-                    cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
-                    batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
+            #     elif cur_roi_points.shape[0] == 0:
+            #         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
+            #         batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
 
-                else:
-                    empty_num = num_sample - cur_roi_points.shape[0]
-                    add_zeros = cur_roi_points.new_zeros(empty_num, 6)
-                    add_zeros = cur_roi_points[0].repeat(empty_num, 1)
-                    cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
+            #     else:
+            #         empty_num = num_sample - cur_roi_points.shape[0]
+            #         add_zeros = cur_roi_points.new_zeros(empty_num, 6)
+            #         add_zeros = cur_roi_points[0].repeat(empty_num, 1)
+            #         cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
 
-                if not self.time_stamp:
-                    cur_roi_points_sample = cur_roi_points_sample[:,:-1]
+            #     if not self.time_stamp:
+            #         cur_roi_points_sample = cur_roi_points_sample[:,:-1]
 
-                src[bs_idx, roi_box_idx, :self.num_points, :] = cur_roi_points_sample
+            #     src[bs_idx, roi_box_idx, :self.num_points, :] = cur_roi_points_sample
 
         # src = src.repeat([1,1,trajectory_rois.shape[1],1])
 
@@ -1024,35 +732,35 @@ class MPPNetMemoryBank(RoIHeadTemplate):
         # repeat_frame = 1
 
         
-        if self.model_cfg.USE_TRAJ:
-            frame1 = cur_batch_boxes
-            trajectory_rois = cur_batch_boxes[:,None,:,:].repeat(1,batch_dict['rois'].shape[-2],1,1)
-            trajectory_roi_scores = torch.zeros_like(batch_dict['roi_scores'].permute(0,2,1))
-            trajectory_rois[:,0,:,:]= frame1
-            trajectory_roi_scores[:,0,:] = batch_dict['roi_scores'][:,:,0]
-            # if batch_dict['sample_idx'][0] ==16:
-            # import pdb;pdb.set_trace()
-            effective_length = torch.zeros([batch_dict['batch_size'],batch_dict['rois'].shape[-2],trajectory_rois.shape[2]])
-            effective_length[:,0] = 1
-            # matching_dict = []
-            matching_table = (trajectory_rois.new_ones([trajectory_rois.shape[1],trajectory_rois.shape[2]]) * -1).long()
-            for i in range(1,batch_dict['rois'].shape[-2]):
-                frame = torch.zeros_like(cur_batch_boxes)
+        # if self.model_cfg.USE_TRAJ:
+        frame1 = cur_batch_boxes
+        trajectory_rois = cur_batch_boxes[:,None,:,:].repeat(1,batch_dict['rois'].shape[-2],1,1)
+        trajectory_roi_scores = torch.zeros_like(batch_dict['roi_scores'].permute(0,2,1))
+        trajectory_rois[:,0,:,:]= frame1
+        trajectory_roi_scores[:,0,:] = batch_dict['roi_scores'][:,:,0]
+        # if batch_dict['sample_idx'][0] ==16:
+        # import pdb;pdb.set_trace()
+        effective_length = torch.zeros([batch_dict['batch_size'],batch_dict['rois'].shape[-2],trajectory_rois.shape[2]])
+        effective_length[:,0] = 1
+        # matching_dict = []
+        matching_table = (trajectory_rois.new_ones([trajectory_rois.shape[1],trajectory_rois.shape[2]]) * -1).long()
+        for i in range(1,batch_dict['rois'].shape[-2]):
+            frame = torch.zeros_like(cur_batch_boxes)
 
-                frame[:,:,0:2] = trajectory_rois[:,i-1,:,0:2] + trajectory_rois[:,i-1,:,7:9]
+            frame[:,:,0:2] = trajectory_rois[:,i-1,:,0:2] + trajectory_rois[:,i-1,:,7:9]
 
-                frame[:,:,2:] = trajectory_rois[:,i-1,:,2:]
+            frame[:,:,2:] = trajectory_rois[:,i-1,:,2:]
 
-                for idx in range( batch_dict['batch_size']):
-                    iou3d = iou3d_nms_utils.boxes_iou3d_gpu(frame[idx][:,:7], proposals_list[idx,i,:,:7])
-                    max_overlaps, gt_assignment = torch.max(iou3d, dim=1)
-                    fg_inds = ((max_overlaps >= 0.5)).nonzero().view(-1)
-                    effective_length[idx,i,fg_inds] = 1
-                    matching_table[i,fg_inds] = gt_assignment[fg_inds]
-                    trajectory_rois[idx,i,:,:][fg_inds] = proposals_list[idx][i][gt_assignment[fg_inds]]
-                    trajectory_roi_scores[idx,i,:][fg_inds] = roi_scores_list[idx][i][gt_assignment[fg_inds]]
+            for idx in range( batch_dict['batch_size']):
+                iou3d = iou3d_nms_utils.boxes_iou3d_gpu(frame[idx][:,:7], proposals_list[idx,i,:,:7])
+                max_overlaps, gt_assignment = torch.max(iou3d, dim=1)
+                fg_inds = ((max_overlaps >= 0.5)).nonzero().view(-1)
+                effective_length[idx,i,fg_inds] = 1
+                matching_table[i,fg_inds] = gt_assignment[fg_inds]
+                trajectory_rois[idx,i,:,:][fg_inds] = proposals_list[idx][i][gt_assignment[fg_inds]]
+                trajectory_roi_scores[idx,i,:][fg_inds] = roi_scores_list[idx][i][gt_assignment[fg_inds]]
 
-            batch_dict['effi_length'] = effective_length
+        batch_dict['effi_length'] = effective_length
         
 
         batch_dict['traj_memory'] = trajectory_rois
@@ -1107,40 +815,6 @@ class MPPNetMemoryBank(RoIHeadTemplate):
         mask=None
         #####get curret frame feat #####
 
-        """
-        if batch_dict['sample_idx'][0] >=1:
-            
-            src_repeat = src_ori[:,None,:128,:].repeat([1,trajectory_rois.shape[1],1,1])
-            src_before = src_repeat[:,1:,:,:].clone() #[bs,traj,num_roi,C]
-            valid_length = self.model_cfg.Transformer.num_frames -1 if batch_dict['sample_idx'][0] > self.model_cfg.Transformer.num_frames -1  else int(batch_dict['sample_idx'][0].item())
-
-            # for i in effective_length[0,1:].sum(0).nonzero()[:,0]:
-            #     for j in range(valid_length):
-            #         if effective_length[0,j+1,i]:
-            #             memory_idx = matching_dict[j][i.item()]
-            #             src_before[i,j] = batch_dict['feature_bank'][j][memory_idx]#[:,:valid_length*64]#.reshape(16,64,256)[j]
-            
-
-            num_max_rois = max(trajectory_rois.shape[2], *[i.shape[0] for i in batch_dict['point_bank']])
-            point_bank = self.reorder_points(batch_dict['point_bank'][:valid_length],num_max_rois)
-            pose_cur = batch_dict['poses'][0,:4,:4].cpu().numpy()
-            points = point_bank.view(-1,5)
-            expanded_points = torch.cat([points[:,:3],torch.ones(points.shape[0],1).cuda()],-1)
-            bboxes_pre2cur = torch.from_numpy(np.dot(expanded_points.cpu().numpy(), np.linalg.inv(pose_cur.T))[:, :3]).cuda()
-            bboxes_pre2cur = bboxes_pre2cur.view(point_bank.shape[0],point_bank.shape[1],point_bank.shape[2],3)
-            point_bank = torch.cat([bboxes_pre2cur,point_bank[...,3:]],-1)
-            effective_length = effective_length[0,1:1+valid_length].bool() #rm dim of bs
-            for i in range(valid_length):
-                src_before[:,i][effective_length[i]] = point_bank[i,matching_table[1+i][effective_length[i]]]
-
-            src_point = torch.cat([src_repeat[:,:1],src_before],1)#.view(src_ori.shape[0],-1,src_ori.shape[-1])
-            if batch_dict['sample_idx'][0]==1:
-                import pdb;pdb.set_trace()
-        else:
-            pass
-            # src = src.repeat([1,trajectory_rois.shape[1],1])
-        """
-
         src = self.up_dimension(src) # [bs,num_points,num_feat]
 
         box_cls,  box_reg, feat_box = self.trajectories_auxiliary_branch(trajectory_rois)
@@ -1152,21 +826,12 @@ class MPPNetMemoryBank(RoIHeadTemplate):
 
         batch_dict['grid_time'] = time.time() - start_time
 
-
-
         start5 = time.time()
         if batch_dict['sample_idx'][0] >=1:
 
             src_repeat = src[:,None,:64,:].repeat([1,trajectory_rois.shape[1],1,1])
             src_before = src_repeat[:,1:,:,:].clone() #[bs,traj,num_roi,C]
             valid_length = self.model_cfg.Transformer.num_frames -1 if batch_dict['sample_idx'][0] > self.model_cfg.Transformer.num_frames -1  else int(batch_dict['sample_idx'][0].item())
-
-            # for i in effective_length[0,1:].sum(0).nonzero()[:,0]:
-            #     for j in range(valid_length):
-            #         if effective_length[0,j+1,i]:
-            #             memory_idx = matching_dict[j][i.item()]
-            #             src_before[i,j] = batch_dict['feature_bank'][j][memory_idx]#[:,:valid_length*64]#.reshape(16,64,256)[j]
-            
 
             num_max_rois = max(trajectory_rois.shape[2], *[i.shape[0] for i in batch_dict['feature_bank']])
             # num_max_rois = max(trajectory_rois.shape[2], *[i.shape[0] for i in batch_dict['src_ori_memory']])
@@ -1175,10 +840,10 @@ class MPPNetMemoryBank(RoIHeadTemplate):
             for i in range(valid_length):
                 src_before[:,i][effective_length[i]] = feature_bank[i,matching_table[1+i][effective_length[i]]]
 
-
             src = torch.cat([src_repeat[:,:1],src_before],1).view(src.shape[0],-1,src.shape[-1])
 
         else:
+
             src = src.repeat([1,trajectory_rois.shape[1],1])
 
 
@@ -1194,8 +859,7 @@ class MPPNetMemoryBank(RoIHeadTemplate):
         pading_time = time.time()
 
         src_motion_feature = self.get_proposal_aware_motion_feature(proxy_points,batch_size,trajectory_rois,num_rois,batch_dict)
-        print('motion feat',src_motion_feature.mean())
-        # exit()
+
         src = src + src_motion_feature
 
         
@@ -1206,208 +870,79 @@ class MPPNetMemoryBank(RoIHeadTemplate):
         start_time = time.time()
         box_pos = None
 
-        if self.model_cfg.Transformer.use_grid_pos.enabled:
-            grid_pos = None
-            if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
-                pos = self.gridposembeding(self.gridindex.cuda())[None,:,:]
-                if not self.model_cfg.Transformer.use_grid_pos.token_center:
-                    pos = torch.cat([torch.zeros(1,1,self.hidden_dim).cuda(),pos],1)
-            else:
-                grid_pos = None
-                pos = torch.cat([torch.zeros(1,1,256).cuda(),self.pos],1)
 
-            if self.pyramid:
-                pos_pyramid = self.gridposembeding_pyramid(self.gridindex[:8].cuda())
-                pos_pyramid = torch.cat([torch.zeros(1,self.hidden_dim*2).cuda(),pos_pyramid],0)[None,:,:]
-            else:
-                pos_pyramid =None
-
+        if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
+            pos = self.gridposembeding(self.gridindex.cuda())[None,:,:]
+            pos = torch.cat([torch.zeros(1,1,self.hidden_dim).cuda(),pos],1)
 
         else:
             grid_pos = None
             pos=None
 
+        hs, tokens, mlp_merge = self.transformer(src,pos=pos, num_frames = batch_dict['num_frames'])
+        batch_dict['casa_time'] = time.time() - start_time
+        head_time = time.time()
+        point_cls_list = []
+        point_reg_list = []
 
-        if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-            # output
-            if 'ct3d' not in self.model_cfg.Transformer.name:
-                # import pdb;pdb.set_trace()
-                if self.model_cfg.Transformer.use_1_frame:
-                    src = src[:,:src.shape[1]//4]
 
-                start_time = time.time()
-                hs, tokens, mlp_merge = self.transformer(src,mask, pos=pos,num_frames = batch_dict['num_frames'], )
-                batch_dict['casa_time'] = time.time() - start_time
-                head_time = time.time()
-                point_cls_list = []
-                point_reg_list = []
-                if hs.shape[0] > 1:
-                    if self.add_cls_token:
-                        cls = cls.permute(1,0,2).squeeze(1)
-                        point_cls = self.class_embed[0](cls)
-                        for i in range(hs.shape[0]):
-                            point_reg_list.append(self.bbox_embed[i](hs[i]))
-                        point_reg = torch.cat(point_reg_list,0)
-                        hs = hs[0:1]
-                    else:
-                        # import pdb;pdb.set_trace()
-                        if self.model_cfg.get('USE_3LAYER_LOSS',None):
+        for i in range(3):
+            point_cls_list.append(self.class_embed[0](tokens[i][0]))
 
-                            if self.model_cfg.Transformer.merge_groups==2:
-                                index_list = [[0,2,4],[1,3,5]]
-                            else:
-                                index_list = [[0,4,8],[1,5,9],[2,6,10],[3,7,11]]
+        for i in range(hs.shape[0]):
+            for j in range(3):
+                point_reg_list.append(self.bbox_embed[i](tokens[j][i]))
 
-                            for i in range(3):
-                                point_cls_list.append(self.class_embed[0](tokens[index_list[0][i]]))
-                            if self.model_cfg.get('SHARE_REG_HEAD',None):
-                                for i in range(hs.shape[0]):
-                                    for j in range(3):
-                                        point_reg_list.append(self.bbox_embed[0](tokens[index_list[i][j]]))
-                            else:
-                                for i in range(hs.shape[0]):
-                                    for j in range(3):
-                                        point_reg_list.append(self.bbox_embed[i](tokens[index_list[i][j]]))
-                        else:
-                            for i in range(hs.shape[0]):
-                                point_cls_list.append(self.class_embed[i](hs[i]))
-                                point_reg_list.append(self.bbox_embed[i](hs[i]))
+        point_cls = torch.cat(point_cls_list,0)
 
-                        if self.model_cfg.Transformer.frame1_cls and not self.model_cfg.get('USE_3LAYER_LOSS',None):
-                            point_cls = point_cls_list[0]
-                        else:
-                            point_cls = torch.cat(point_cls_list,0)
-                        if self.model_cfg.Transformer.get('frame1_reg',True):
-                            point_reg = torch.cat(point_reg_list,0)
-                        else:
-                            point_reg = torch.cat(point_reg_list[1:],0)
-                        if self.model_cfg.Transformer.joint_dim==1024:
-                            hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
-                        else:
-                            hs = hs[0:1]
-                    
-                else:
-                    point_cls = self.class_embed[0](hs[0])
-                    point_reg = self.bbox_embed[0](hs[0])
-                # if point_cls.shape[1] >1 :
-                #     point_cls = point_cls.mean(1,True)
-                #     point_reg = point_reg.mean(1,True)
-                #     hs = hs.mean(1)
-            else:
-                pos = torch.zeros([src.shape[0],src.shape[1],self.model_cfg.Transformer.hidden_dim]).cuda().float()
-                hs,_= self.transformer(src, self.query_embed.weight, pos)
-                point_cls = self.class_embed[0](hs)[-1].squeeze(1)
-                point_reg = self.bbox_embed[0](hs)[-1].squeeze(1)
-
-            if  self.model_cfg.Transformer.dec_layers > 1:
-                hs = hs[-1].squeeze()
-
-            # import pdb;pdb.set_trace()
-            if self.model_cfg.get('USE_MLP_JOINTEMB',None):
-                joint_cls = None
-                joint_reg = self.jointemb(torch.cat([hs,feat_box],-1))
-            else:
-                joint_cls, joint_reg, _, _ = self.jointemb(None,torch.cat([hs,feat_box],-1))
-            
-            if self.model_cfg.USE_FUSION_LOSS:
-                fusion_cls = self.timefusion_class_embed(mlp_merge.squeeze())
-                if self.model_cfg.Transformer.fusion_type == 'mlp':
-                    _, fusion_reg, _, _ = self.timefusion(None,torch.cat([mlp_merge.squeeze(),feat_box],-1))
-                else:
-                    _, fusion_reg, _, _ = self.timefusion(None,torch.cat([mlp_merge.permute(1,0,2).contiguous().view(mlp_merge.shape[1],-1),feat_box],-1))
-            
-            if self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
-                rcnn_cls = point_cls
-            else:
-                rcnn_cls = joint_cls
-
-            rcnn_reg = joint_reg
-
+        point_reg = torch.cat(point_reg_list,0)
+        hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
+        
+        if self.model_cfg.get('USE_MLP_JOINTEMB',None):
+            joint_cls = None
+            joint_reg = self.jointemb(torch.cat([hs,feat_box],-1))
         else:
-            # Transformer
-            if 'ct3d' not in self.model_cfg.Transformer.name:
-                hs, cls, mlp_merge = self.transformer(src,mask, pos=pos, box_pos=box_pos, num_frames = batch_dict['num_frames'], center_token=center_token)
-                point_cls_list = []
-                point_reg_list = []
+            joint_cls, joint_reg, _, _ = self.jointemb(None,torch.cat([hs,feat_box],-1))
+        
+        if self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
+            rcnn_cls = point_cls
+        else:
+            rcnn_cls = joint_cls
 
-                for i in range(hs.shape[0]):
-                    point_cls_list.append(self.class_embed[i](hs[i]))
-                    point_reg_list.append(self.bbox_embed[i](hs[i]))
-
-                point_cls = point_cls_list[0]
-
-                point_reg = torch.cat(point_reg_list,0)
-
-                if self.model_cfg.Transformer.joint_dim==1024:
-                    hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
-
-                joint_cls, joint_reg, _, _ = self.pointemb(None,hs.squeeze())
-                rcnn_cls = point_cls
-                rcnn_reg = joint_reg
-            else:
-                pos = torch.zeros([src.shape[0],src.shape[1],self.model_cfg.Transformer.hidden_dim]).cuda().float()
-                hs,_= self.transformer(src, self.query_embed.weight, pos)
-                rcnn_cls = self.class_embed[0](hs)[-1].squeeze(1)
-                rcnn_reg = self.bbox_embed[0](hs)[-1].squeeze(1)
-
-        # batch_dict['voxelize_time'] = time.time() - start_time
+        rcnn_reg = joint_reg
 
         if not self.training:
             batch_dict['rois'] = batch_dict['rois'][:,:,0].contiguous()
             
-            # if rcnn_cls.shape[0] != rcnn_reg.shape[0]:
-            #     rcnn_cls = torch.cat(rcnn_cls[:,None,:].chunk(4,0),1).mean(1)
-            if self.model_cfg.get('USE_3LAYER_LOSS',None):
-                rcnn_cls = rcnn_cls[-rcnn_cls.shape[0]//3:]
+            rcnn_cls = rcnn_cls[-rcnn_cls.shape[0]//3:]
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=batch_dict['batch_size'], rois=batch_dict['rois'], cls_preds=rcnn_cls, box_preds=rcnn_reg
             )
 
             batch_dict['batch_box_preds'] = batch_box_preds
 
-            if self.model_cfg.USE_CLS_LOSS:
-                batch_dict['cls_preds_normalized'] = False
-                if self.avg_stage1:
-                    stage1_score = batch_dict['roi_scores'][:,:,:1]
-                    batch_cls_preds = F.sigmoid(batch_cls_preds)
-                    if self.model_cfg.get('IOU_WEIGHT', None):
-                        car_mask = batch_dict['roi_labels'] ==1
-                        batch_cls_preds_car = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[0])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[0])
-                        batch_cls_preds_car = batch_cls_preds_car[car_mask][None]
-                        batch_cls_preds_pedcyc = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[1])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[1])
-                        batch_cls_preds_pedcyc = batch_cls_preds_pedcyc[~car_mask][None]
-                        batch_cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
-                        batch_box_preds = torch.cat([batch_dict['batch_box_preds'][car_mask],batch_dict['batch_box_preds'][~car_mask]],0)[None]
-                        batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
-                        batch_dict['roi_labels'] = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
-                        batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
-
-                    else:
-                        batch_cls_preds = torch.sqrt(batch_cls_preds*stage1_score)
-                    batch_dict['cls_preds_normalized']  = True
-                batch_dict['batch_cls_preds'] = batch_cls_preds
+            batch_dict['cls_preds_normalized'] = False
+            if self.avg_stage1:
+                stage1_score = batch_dict['roi_scores'][:,:,:1]
+                batch_cls_preds = F.sigmoid(batch_cls_preds)
+                if self.model_cfg.get('IOU_WEIGHT', None):
+                    car_mask = batch_dict['roi_labels'] ==1
+                    batch_cls_preds_car = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[0])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[0])
+                    batch_cls_preds_car = batch_cls_preds_car[car_mask][None]
+                    batch_cls_preds_pedcyc = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[1])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[1])
+                    batch_cls_preds_pedcyc = batch_cls_preds_pedcyc[~car_mask][None]
+                    batch_cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
+                    batch_box_preds = torch.cat([batch_dict['batch_box_preds'][car_mask],batch_dict['batch_box_preds'][~car_mask]],0)[None]
+                    batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
+                    batch_dict['roi_labels'] = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
+                    batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
+                    
+                else:
+                    batch_cls_preds = torch.sqrt(batch_cls_preds*stage1_score)
+                batch_dict['cls_preds_normalized']  = True
+            batch_dict['batch_cls_preds'] = batch_cls_preds
                 
-            else:
-                batch_dict['batch_cls_preds'] = batch_dict['roi_scores'][:,:,:1]
-                batch_dict['cls_preds_normalized'] = True
-        # else:
-        #     targets_dict['batch_size'] = batch_size
-        #     targets_dict['nonempty_mask'] = batch_dict['nonempty_mask']
-        #     targets_dict['rcnn_cls'] = rcnn_cls
-        #     targets_dict['rcnn_reg'] = rcnn_reg
-        #     if self.model_cfg.USE_FUSION_LOSS:
-        #         targets_dict['fusion_cls'] = fusion_cls
-        #         targets_dict['fusion_reg'] = fusion_reg
-
-        #     if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-        #         targets_dict['box_reg'] = box_reg
-        #         targets_dict['box_cls'] = box_cls
-        #         targets_dict['point_reg'] = point_reg
-        #         targets_dict['point_cls'] = point_cls
-        #     self.forward_ret_dict = targets_dict
-        batch_dict['head_time'] = time.time() - head_time
         batch_dict['transformer_time'] = time.time()- start_time
-        batch_dict['forward_time'] = time.time() - start_time1
         return batch_dict
 
     def get_loss(self, tb_dict=None):

@@ -1,18 +1,13 @@
 from os import getgrouplist
 import torch.nn as nn
-import pdb
 import torch
 import numpy as np
 from numpy import *
 import torch.nn.functional as F
 from typing import Optional, List
 from torch import Tensor
-import copy
-from copy import deepcopy
-from einops import rearrange, repeat
-from torch import nn, einsum
 import matplotlib.pyplot as plt
-#import cv2
+
 
 def with_pos_embed(tensor, pos: Optional[Tensor]):
     if pos is None:
@@ -75,17 +70,15 @@ class SpatialMixerBlock(nn.Module):
         if self.config.get('order', 'zyx') =='xyz':
             src_3d = src_3d.permute(0,1,4,3,2).contiguous() #[zyx]>> merge order is inverse >>xyz
         mixed_x = self.mixer_x(src_3d) #[0,1,2,3,4]
-        # mixed_x = src_3d.permute(0,2,3,4,1) + self.ffn(mixed_x)
         mixed_x = src_3d + mixed_x
         mixed_x = self.norm_x(mixed_x.permute(0,2,3,4,1)).permute(0,4,1,2,3).contiguous()
 
         mixed_y = self.mixer_y(mixed_x.permute(0,1,2,4,3)).permute(0,1,2,4,3).contiguous()
-        # mixed_y = mixed_x.permute(0,2,3,4,1)  + self.ffn(mixed_y.permute(0,2,3,4,1))
         mixed_y =  mixed_x + mixed_y
         mixed_y = self.norm_y(mixed_y.permute(0,2,3,4,1)).permute(0,4,1,2,3).contiguous()
 
         mixed_z = self.mixer_z(mixed_y.permute(0,1,4,3,2)).permute(0,1,4,3,2).contiguous()
-        # mixed_z = mixed_y.permute(0,2,3,4,1) + self.ffn(mixed_z.permute(0,2,3,4,1))
+
         mixed_z =  mixed_y + mixed_z
         mixed_z = self.norm_z(mixed_z.permute(0,2,3,4,1)).permute(0,4,1,2,3).contiguous()
 
@@ -113,20 +106,19 @@ class Transformer(nn.Module):
 
     def __init__(self, config, d_model=512, nhead=8, num_encoder_layers=6,
                 dim_feedforward=2048, dropout=0.1,activation="relu", normalize_before=False,
-                 num_queries=None,num_point=None,share_head=True,merge_groups=None,
+                 num_queries=None,num_point=None,share_head=True,num_groups=None,
                  sequence_stride=None,num_frames=None):
         super().__init__()
 
         self.config = config
-        self.num_queries = num_queries
         self.share_head = share_head
         self.num_frames = num_frames
         self.nhead = nhead
         self.sequence_stride = sequence_stride
-        self.merge_groups = merge_groups
+        self.num_groups = num_groups
 
         encoder_layer = [TransformerEncoderLayerCrossAttn(self.config, d_model, d_model, nhead, dim_feedforward,
-                        dropout, activation, normalize_before, num_point,merge_groups=merge_groups) for i in range(num_encoder_layers)]
+                        dropout, activation, normalize_before, num_point,num_groups=num_groups) for i in range(num_encoder_layers)]
 
         encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
         self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm,self.config)
@@ -136,8 +128,8 @@ class Transformer(nn.Module):
         
         if self.num_frames >4:
   
-            if self.merge_groups:
-                group = self.num_frames // self.merge_groups
+            if self.num_groups:
+                group = self.num_frames // self.num_groups
             self.merge = MLP(input_dim = self.config.hidden_dim*group, hidden_dim = self.config.hidden_dim, output_dim = self.config.hidden_dim, num_layers = 4)
 
             self.fusion_norm = FFN(d_model, dim_feedforward)
@@ -153,22 +145,13 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def compute_mask(self, xyz, radius, dist=None):
-        with torch.no_grad():
-            if dist is None or dist.shape[1] != xyz.shape[1]:
-                dist = torch.cdist(xyz, xyz, p=2)
-            # entries that are True in the mask do not contribute to self-attention
-            # so points outside the radius are not considered
-            mask = dist >= radius
-        return mask, dist
-
     def forward(self, src, src_mask=None,pos=None,num_frames=None):
 
         BS, N, C = src.shape
         self.num_point = N//num_frames
         src_merge = None
-        group = self.merge_groups
-        # import pdb;pdb.set_trace()
+        group = self.num_groups
+
         if not pos is None:
             pos = pos.permute(1, 0, 2)
         if self.num_frames == 16:
@@ -188,9 +171,8 @@ class Transformer(nn.Module):
                     groups = torch.cat(groups,-1)
                     src_groups.append(groups)
             src_merge = torch.cat(src_groups,1)
-            current_num = 4
-            
-            src = self.fusion_norm(src[:,:current_num*64],self.merge(src_merge))
+
+            src = self.fusion_norm(src[:,:group*64],self.merge(src_merge))
 
             src1 = torch.cat([reg_token1,src[:,0:self.num_point]],dim=1)
             src2 = torch.cat([reg_token2,src[:,self.num_point:2*self.num_point]],dim=1)
@@ -216,7 +198,7 @@ class Transformer(nn.Module):
 
 
         src = src.permute(1, 0, 2)
-        memory,tokens = self.encoder(src, mask = src_mask, num_frames=num_frames,pos=pos) # num_point,bs,feat torch.Size([128, 128, 256])
+        memory,tokens = self.encoder(src, mask = src_mask, num_frames=num_frames,pos=pos) 
 
         memory = torch.cat(memory[0:1].chunk(4,dim=1),0)
         return memory, tokens, src_merge
@@ -252,18 +234,14 @@ class TransformerEncoder(nn.Module):
 class TransformerEncoderLayerCrossAttn(nn.Module):
     count = 0
     def __init__(self, config, d_model, dout, nhead, dim_feedforward=2048, dropout=0.1,
-                 activation="relu", normalize_before=False,num_points=None,
-                 use_channel_weight=False,time_attn=False,time_attn_type=False, use_motion_attn=False,share_head=True,
-                 ms_pool=False,pyramid=False,use_grid_pos=False,use_box_pos=False,mlp_cross_grid_pos=False,merge_groups=None,
-                 update_234=False,crossattn_last_layer=False,share_sa_layer=True,add_extra_sa=False,fc_token=None):
+                 activation="relu", normalize_before=False,num_points=None,num_groups=None):
         super().__init__()
         TransformerEncoderLayerCrossAttn.count += 1
         self.count = TransformerEncoderLayerCrossAttn.count
 
         self.config = config
-        self.ms_pool = ms_pool
         self.num_point = num_points
-        self.merge_groups = merge_groups
+        self.num_groups= num_groups
         self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
@@ -274,43 +252,14 @@ class TransformerEncoderLayerCrossAttn(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-
-        self.time_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-
         self.time_attn1 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.time_attn2 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.time_attn3 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         self.time_attn4 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        
-
-        self.time_point_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-
-        self.time_token_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-
-        self.linear3 = nn.Linear(d_model, dim_feedforward)
-        self.dropout3 = nn.Dropout(dropout)
-        self.linear4 = nn.Linear(dim_feedforward, d_model)
-
-        self.norm3 = nn.LayerNorm(d_model)
-        self.norm4 = nn.LayerNorm(d_model)
-        self.norm_cls_token = nn.LayerNorm(d_model)
-        self.dropout4 = nn.Dropout(dropout)
-        self.dropout5 = nn.Dropout(dropout)
+    
 
         self.activation = _get_activation_fn(activation)
         self.normalize_before = normalize_before
-
-        self.ffn1 = FFN(d_model, dim_feedforward)
-        self.ffn2 = FFN(d_model, dim_feedforward)
-        self.ffn3 = FFN(d_model, dim_feedforward)
-        self.ffn4 = FFN(d_model, dim_feedforward)
-
-
-        self.time_mlp1 = MLP(input_dim = 256*3, hidden_dim = 256, output_dim = 256, num_layers = 2)
-        self.time_mlp2 = MLP(input_dim = 256*3, hidden_dim = 256, output_dim = 256, num_layers = 2)
-        self.time_mlp3 = MLP(input_dim = 256*3, hidden_dim = 256, output_dim = 256, num_layers = 2)
-        self.time_mlp4 = MLP(input_dim = 256*3, hidden_dim = 256, output_dim = 256, num_layers = 2)
-            
 
         self.time_mlp_fusion = MLP(input_dim = d_model*4, hidden_dim = d_model, output_dim = d_model, num_layers = 4)
 
@@ -455,10 +404,9 @@ def build_transformer(args):
         num_encoder_layers=args.enc_layers,
         normalize_before=args.pre_norm,
         num_point = args.num_points,
-        num_queries = args.num_queries,
         num_frames = args.num_frames,
-        sequence_stride = args.sequence_stride,
-        merge_groups=args.merge_groups,
+        sequence_stride = args.get('sequence_stride',1),
+        num_groups=args.num_groups,
     )
 
 def _get_activation_fn(activation):

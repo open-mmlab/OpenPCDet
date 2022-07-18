@@ -61,7 +61,6 @@ class PointNet(nn.Module):
             self.feat = None
             times=5
 
-
             self.fc_s1 = nn.Linear(channels*times, 256)
             self.fc_s2 = nn.Linear(256, 3, bias=False)
             self.fc_c1 = nn.Linear(channels*times, 256)
@@ -155,12 +154,12 @@ class MPPNetHead(RoIHeadTemplate):
         self.nhead = model_cfg.Transformer.nheads
         hidden_dim = model_cfg.TRANS_INPUT
         self.hidden_dim = model_cfg.TRANS_INPUT
-        self.merge_groups = model_cfg.Transformer.merge_groups
+        self.num_groups = model_cfg.Transformer.num_groups
 
-        self.grid_size = model_cfg.ROI_GRID_PVRCNNPOOL.GRID_SIZE
-        self.num_grid_points = model_cfg.ROI_GRID_PVRCNNPOOL.GRID_SIZE**3
+        self.grid_size = model_cfg.ROI_GRID_POOL.GRID_SIZE
+        self.num_grid_points = model_cfg.ROI_GRID_POOL.GRID_SIZE**3
         self.num_key_points = self.num_grid_points
-        # if self.model_cfg.USE_BOX_ENCODING.ENABLED:
+        # import pdb;pdb.set_trace()
         self.seqboxemb = PointNet(8,1,1,model_cfg=self.model_cfg)
         if self.model_cfg.get('USE_MLP_JOINTEMB',None):
             self.jointemb = MLP(self.hidden_dim*5, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
@@ -178,26 +177,16 @@ class MPPNetHead(RoIHeadTemplate):
         else:
             self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim =hidden_dim, num_layers = 3)
 
-        self.use_grid_points = model_cfg.Transformer.use_grid_points
         self.transformer = build_transformer(model_cfg.Transformer)
 
-        if self.model_cfg.ROI_GRID_PVRCNNPOOL.ONE_BALL:
-            outchanel = self.model_cfg.ROI_GRID_PVRCNNPOOL.OUTCHANNEL
-            self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-                    radii=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS2,
-                    nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE2,
-                    mlps=[[outchanel,outchanel]],
-                    use_xyz=True,
-                    pool_method=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD,
-                    )
-        else:
-            self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
-                    radii=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_RADIUS,
-                    nsamples=self.model_cfg.ROI_GRID_PVRCNNPOOL.NSAMPLE,
-                    mlps=self.model_cfg.ROI_GRID_PVRCNNPOOL.MLPS,
-                    use_xyz=True,
-                    pool_method=self.model_cfg.ROI_GRID_PVRCNNPOOL.POOL_METHOD,
-                    )
+        self.roi_grid_pool_layer = pointnet2_stack_modules.StackSAModuleMSG(
+                radii=self.model_cfg.ROI_GRID_POOL.POOL_RADIUS,
+                nsamples=self.model_cfg.ROI_GRID_POOL.NSAMPLE,
+                mlps=self.model_cfg.ROI_GRID_POOL.MLPS,
+                use_xyz=True,
+                pool_method=self.model_cfg.ROI_GRID_POOL.POOL_METHOD,
+                )
+
             
                     
 
@@ -1100,7 +1089,7 @@ class MPPNetHead(RoIHeadTemplate):
                 groups = point_cls_flat.shape[0] // rcnn_cls_labels.shape[0]
                 if groups != 1:
                     point_loss_cls = 0
-                    slice = point_cls_flat.shape[0] // self.merge_groups
+                    slice = point_cls_flat.shape[0] // self.num_groups
                     for i in range(groups):
                         batch_loss_point_cls = F.binary_cross_entropy(torch.sigmoid(point_cls_flat[i*slice:(i+1)*slice]), rcnn_cls_labels.float(), reduction='none')
                         cls_valid_mask = (rcnn_cls_labels >= 0).float()

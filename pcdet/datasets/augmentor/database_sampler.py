@@ -384,8 +384,12 @@ class DataBaseSampler(object):
                 obj_points = copy.deepcopy(gt_database_data[start_offset:end_offset])
             else:
                 file_path = self.root_path / info['path']
-                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
-                    [-1, self.sampler_cfg.NUM_POINT_FEATURES])
+                if str(file_path)[-3:] =='bin':
+                    obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
+                        [-1, self.sampler_cfg.NUM_POINT_FEATURES])
+                        
+                elif str(file_path)[-3:] =='npy':
+                    obj_points = np.load(str(file_path)) 
 
             obj_points[:, :3] += info['box3d_lidar'][:3]
 
