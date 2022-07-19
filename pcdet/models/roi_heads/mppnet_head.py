@@ -812,7 +812,8 @@ class MPPNetHead(RoIHeadTemplate):
                     batch_cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
                     batch_box_preds = torch.cat([batch_dict['batch_box_preds'][car_mask],batch_dict['batch_box_preds'][~car_mask]],0)[None]
                     batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
-                    batch_dict['roi_labels'] = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
+                    roi_labels = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
+                    batch_dict['roi_labels'] = roi_labels.view(batch_size, -1)
                     batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
                     
                 else:

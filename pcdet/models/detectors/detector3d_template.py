@@ -280,7 +280,7 @@ class Detector3DTemplate(nn.Module):
                 final_boxes = box_preds[selected]
 
                 #########  Car DONOT Using NMS ###### 
-                if post_process_cfg.get('NOT_APPLY_NMS_FOR_CAR',True):
+                if post_process_cfg.get('NOT_APPLY_NMS_FOR_VEL',False):
                     
                     pedcyc_mask = final_labels !=1 
                     final_scores_pedcyc = final_scores[pedcyc_mask]
