@@ -16,11 +16,6 @@ DATA_CONFIG:
         SAMPLE_OFFSET: [-3,0]
         USE_SPEED: False
 
-
-    USE_SUPERBOX: False
-    USE_SUPERBOX_EVAL: False
-    JITTER: False
-    SPEED_THRESHOLD: 0.4
     USE_PREDBOX: True
     ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
 
@@ -62,10 +57,6 @@ MODEL:
         AVG_STAGE_1: True
         USE_TRAJ_EMPTY_MASK: True
         USE_AUG_LOSS: True
-        USE_ROI_AUG: True
-        USE_TRAJ_AUG:
-            ENABLED: True
-            THRESHOD: 0.8
         USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
 
@@ -76,12 +67,8 @@ MODEL:
             MLPS: [[128,128], [128,128]]
             POOL_RADIUS: [0.8, 1.6]
             NSAMPLE: [16, 16]
-            MLPS2: [[64,64]]
-            POOL_RADIUS2: [0.8]
-            NSAMPLE2: [16]
-
             POOL_METHOD: max_pool
-            # OUTCHANNEL: 256
+            
 
         Transformer:
             num_points: 128
@@ -111,7 +98,10 @@ MODEL:
             REG_AUG_METHOD: single
             ROI_FG_AUG_TIMES: 10
             RATIO: 0.2
-
+            USE_ROI_AUG: True
+            USE_TRAJ_AUG:
+                ENABLED: True
+                THRESHOD: 0.8
             SAMPLE_ROI_BY_EACH_CLASS: True
             CLS_SCORE_TYPE: roi_iou
 

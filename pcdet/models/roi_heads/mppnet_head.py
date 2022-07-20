@@ -63,8 +63,8 @@ class PointNet(nn.Module):
 
             self.fc_s1 = nn.Linear(channels*times, 256)
             self.fc_s2 = nn.Linear(256, 3, bias=False)
-            self.fc_c1 = nn.Linear(channels*times, 256)
-            self.fc_c2 = nn.Linear(256, CLS_NUM, bias=False)
+            # self.fc_c1 = nn.Linear(channels*times, 256)
+            # self.fc_c2 = nn.Linear(256, CLS_NUM, bias=False)
             self.fc_ce1 = nn.Linear(channels*times, 256)
             self.fc_ce2 = nn.Linear(256, 3, bias=False)
             self.fc_hr1 = nn.Linear(channels*times, 256)
@@ -85,8 +85,8 @@ class PointNet(nn.Module):
 
             self.fc_s1 = nn.Linear(channels*times, 256)
             self.fc_s2 = nn.Linear(256, 3, bias=False)
-            self.fc_c1 = nn.Linear(channels*times, 256)
-            self.fc_c2 = nn.Linear(256, CLS_NUM, bias=False)
+            # self.fc_c1 = nn.Linear(channels*times, 256)
+            # self.fc_c2 = nn.Linear(256, CLS_NUM, bias=False)
             self.fc_ce1 = nn.Linear(channels*times, 256)
             self.fc_ce2 = nn.Linear(256, 3, bias=False)
             self.fc_hr1 = nn.Linear(channels*times, 256)
@@ -108,8 +108,8 @@ class PointNet(nn.Module):
             x = F.relu(self.bn1(self.fc1(x)))
             feat = F.relu(self.bn2(self.fc2(x)))
 
-        x = F.relu(self.fc_c1(feat))
-        logits = self.fc_c2(x)
+        # x = F.relu(self.fc_c1(feat))
+        # logits = self.fc_c2(x)
 
         x = F.relu(self.fc_ce1(feat))
         centers = self.fc_ce2(x)
@@ -120,7 +120,7 @@ class PointNet(nn.Module):
         x = F.relu(self.fc_hr1(feat))
         headings = self.fc_hr2(x)
 
-        return logits, torch.cat([centers, sizes, headings],-1),feat,feat_traj
+        return torch.cat([centers, sizes, headings],-1),feat,feat_traj
 
     def init_weights(self):
         for m in self.modules():
@@ -152,6 +152,7 @@ class MPPNetHead(RoIHeadTemplate):
         self.avg_stage1 = self.model_cfg.get('AVG_STAGE_1', None)
 
         self.nhead = model_cfg.Transformer.nheads
+        self.num_enc_layer = model_cfg.Transformer.enc_layers
         hidden_dim = model_cfg.TRANS_INPUT
         self.hidden_dim = model_cfg.TRANS_INPUT
         self.num_groups = model_cfg.Transformer.num_groups
@@ -191,11 +192,10 @@ class MPPNetHead(RoIHeadTemplate):
                     
 
         self.class_embed = nn.ModuleList()
-        self.bbox_embed = nn.ModuleList()
-        self.num_pred = 4 
+        self.class_embed.append(nn.Linear(model_cfg.Transformer.hidden_dim, 1))
 
-        for i in range(self.num_pred):
-            self.class_embed.append(nn.Linear(model_cfg.Transformer.hidden_dim, 1))
+        self.bbox_embed = nn.ModuleList()
+        for _ in range(self.num_groups):
             self.bbox_embed.append(MLP(model_cfg.Transformer.hidden_dim, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4))
 
         if self.model_cfg.Transformer.use_grid_pos.enabled:
@@ -622,9 +622,9 @@ class MPPNetHead(RoIHeadTemplate):
 
         batch_rcnn = box_seq.shape[0]*box_seq.shape[2]
 
-        box_cls,  box_reg, feat_traj, _ = self.seqboxemb(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
+        box_reg, feat_traj, _ = self.seqboxemb(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
         
-        return box_cls, box_reg, feat_traj
+        return box_reg, feat_traj
 
     def generate_trajectory(self,cur_batch_boxes,proposals_list,roi_labels_list,roi_scores_list,batch_dict):
         frame1 = cur_batch_boxes
@@ -687,24 +687,30 @@ class MPPNetHead(RoIHeadTemplate):
 
         if self.training:
             targets_dict = self.assign_targets(batch_dict)
-            batch_dict['rois'] = targets_dict['rois'].permute(0,2,1,3).contiguous()
-            targets_dict['rois']  = targets_dict['rois'][:,batch_dict['cur_frame_idx']]
+            batch_dict['rois'] = targets_dict['rois']
             batch_dict['roi_scores'] = targets_dict['roi_scores']
             batch_dict['roi_labels'] = targets_dict['roi_labels']
-            targets_dict['trajectory_rois'][:,batch_dict['cur_frame_idx'],:,:] = batch_dict['rois'][:,:,batch_dict['cur_frame_idx'],:]
+            targets_dict['trajectory_rois'][:,batch_dict['cur_frame_idx'],:,:] = batch_dict['rois']
             trajectory_rois = targets_dict['trajectory_rois']
             effective_length = targets_dict['effi_length']
+            empty_mask = batch_dict['rois'][:,:,:6].sum(-1)==0
+
+        else:
+            # if self.model_cfg.get('USE_TRAJ_EMPTY_MASK',None):
+            empty_mask = batch_dict['rois'][:,:,0,:6].sum(-1)==0
+            batch_dict['valid_traj_mask'] = ~empty_mask
 
 
         rois = batch_dict['rois']
         num_rois = batch_dict['rois'].shape[1]
         batch_dict['traj_time'] = time.time() - start_time
         start_time = time.time()
-        if self.model_cfg.get('USE_TRAJ_EMPTY_MASK',None):
-            empty_mask = batch_dict['rois'][:,:,0,:6].sum(-1)==0
-            batch_dict['valid_traj_mask'] = ~empty_mask
-            if self.training:
-                targets_dict['empty_mask'] = empty_mask
+        # import pdb;pdb.set_trace()
+        # if self.model_cfg.get('USE_TRAJ_EMPTY_MASK',None):
+        #     empty_mask = batch_dict['rois'][:,:,:6].sum(-1)==0
+        #     batch_dict['valid_traj_mask'] = ~empty_mask
+            # if self.training:
+            #     targets_dict['empty_mask'] = empty_mask
 
         num_sample = self.num_points 
 
@@ -724,7 +730,7 @@ class MPPNetHead(RoIHeadTemplate):
 
         src = src_geometry_feature + src_motion_feature
 
-        box_cls,  box_reg, feat_box = self.trajectories_auxiliary_branch(trajectory_rois)
+        box_reg, feat_box = self.trajectories_auxiliary_branch(trajectory_rois)
         
         if self.model_cfg.get('USE_TRAJ_EMPTY_MASK',None):
             src[empty_mask.view(-1)] = 0
@@ -782,17 +788,13 @@ class MPPNetHead(RoIHeadTemplate):
         else:
             joint_cls, joint_reg, _, _ = self.jointemb(None,torch.cat([hs,feat_box],-1))
         
-        if self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
-            rcnn_cls = point_cls
-        else:
-            rcnn_cls = joint_cls
 
+        rcnn_cls = point_cls
         rcnn_reg = joint_reg
 
         if not self.training:
             batch_dict['rois'] = batch_dict['rois'][:,:,0].contiguous()
-            
-            rcnn_cls = rcnn_cls[-rcnn_cls.shape[0]//3:]
+            rcnn_cls = rcnn_cls[-rcnn_cls.shape[0]//self.num_enc_layer:]
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=batch_dict['batch_size'], rois=batch_dict['rois'], cls_preds=rcnn_cls, box_preds=rcnn_reg
             )
@@ -844,11 +846,11 @@ class MPPNetHead(RoIHeadTemplate):
             targets_dict['rcnn_reg'] = rcnn_reg
 
 
-            if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-                targets_dict['box_reg'] = box_reg
-                targets_dict['box_cls'] = box_cls
-                targets_dict['point_reg'] = point_reg
-                targets_dict['point_cls'] = point_cls
+            # if self.model_cfg.USE_BOX_ENCODING.ENABLED:
+            targets_dict['box_reg'] = box_reg
+            # targets_dict['box_cls'] = box_cls
+            targets_dict['point_reg'] = point_reg
+            targets_dict['point_cls'] = point_cls
             self.forward_ret_dict = targets_dict
         batch_dict['transformer_time'] = time.time()- start_time
         return batch_dict
@@ -856,56 +858,38 @@ class MPPNetHead(RoIHeadTemplate):
     def get_loss(self, tb_dict=None):
         tb_dict = {} if tb_dict is None else tb_dict
         rcnn_loss = 0
-        if self.model_cfg.USE_CLS_LOSS:
-            rcnn_loss_cls, cls_tb_dict = self.get_box_cls_layer_loss(self.forward_ret_dict)
-            rcnn_loss += rcnn_loss_cls
-            tb_dict.update(cls_tb_dict)
+        rcnn_loss_cls, cls_tb_dict = self.get_box_cls_layer_loss(self.forward_ret_dict)
+        rcnn_loss += rcnn_loss_cls
+        tb_dict.update(cls_tb_dict)
 
         rcnn_loss_reg, reg_tb_dict = self.get_box_reg_layer_loss(self.forward_ret_dict)
         rcnn_loss += rcnn_loss_reg
         tb_dict.update(reg_tb_dict)
         tb_dict['rcnn_loss'] = rcnn_loss.item()
-        tb_dict['num_pos'] = self.forward_ret_dict['num_pos']
-        # import pdb;pdb.set_trace()
         return rcnn_loss, tb_dict
 
     def get_box_reg_layer_loss(self, forward_ret_dict):
         loss_cfgs = self.model_cfg.LOSS_CONFIG
         code_size = self.box_coder.code_size
         reg_valid_mask = forward_ret_dict['reg_valid_mask'].view(-1)
-        nonempty_mask = forward_ret_dict['nonempty_mask'].view(-1)
+        # nonempty_mask = forward_ret_dict['nonempty_mask'].view(-1)
         batch_size = forward_ret_dict['batch_size']
 
         gt_boxes3d_ct = forward_ret_dict['gt_of_rois'][..., 0:code_size]
         gt_of_rois_src = forward_ret_dict['gt_of_rois_src'][..., 0:code_size].view(-1, code_size)
 
         rcnn_reg = forward_ret_dict['rcnn_reg']  # (rcnn_batch_size, C)
-        if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-            roi_boxes3d = forward_ret_dict['trajectory_rois']
-        else:
-            roi_boxes3d = forward_ret_dict['rois']
+
+        roi_boxes3d = forward_ret_dict['rois']
 
         rcnn_batch_size = gt_boxes3d_ct.view(-1, code_size).shape[0]
 
-        if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-
-            if self.model_cfg.get('USE_NONEMPTY_MASK',None):
-                fg_mask_t0 = (forward_ret_dict['reg_valid_mask'][:,0] > 0).view(-1) & nonempty_mask
-                fg_sum_t0 = fg_mask_t0.long().sum().item()
-            else:
-                fg_mask_t0 = (forward_ret_dict['reg_valid_mask'][:,0] > 0).view(-1)
-                fg_sum_t0 = fg_mask_t0.long().sum().item()
-            
-            fg_mask = (reg_valid_mask > 0)
-            fg_sum = fg_mask.long().sum().item()
-        
-        else:
-            if self.model_cfg.get('USE_NONEMPTY_MASK',None):
-                fg_mask = (reg_valid_mask > 0) & nonempty_mask
-                fg_sum = fg_mask.long().sum().item()
-            else:
-                fg_mask = (reg_valid_mask > 0)
-                fg_sum = fg_mask.long().sum().item()
+        # if self.model_cfg.get('USE_NONEMPTY_MASK',None):
+        #     fg_mask = (reg_valid_mask > 0) & nonempty_mask
+        #     fg_sum = fg_mask.long().sum().item()
+        # else:
+        fg_mask = (reg_valid_mask > 0)
+        fg_sum = fg_mask.long().sum().item()
 
         
 
@@ -913,41 +897,18 @@ class MPPNetHead(RoIHeadTemplate):
 
         if loss_cfgs.REG_LOSS == 'smooth-l1':
 
-
-            if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-             
-                rois_anchor = roi_boxes3d.clone().detach()[:,:,:,:7].contiguous().view(-1, code_size)
-                rois_anchor[:, 0:3] = 0
-                rois_anchor[:, 6] = 0
-                
-                reg_targets = self.box_coder.encode_torch(
-                    gt_boxes3d_ct.view(-1 , code_size), rois_anchor
-                    )
-
-                reg_targets_shape = reg_targets.view(batch_size,-1,code_size)
-                reg_targets_t0 = reg_targets_shape[:,:reg_targets_shape.shape[1]//4,:].contiguous().view(-1, code_size).unsqueeze(dim=0)
-
-                rcnn_loss_reg = self.reg_loss_func(
-                    rcnn_reg.unsqueeze(dim=0),
-                    reg_targets_t0,
-                )  # [B, M, 7]
-                rcnn_loss_reg = (rcnn_loss_reg.view(rcnn_batch_size//4, -1) * fg_mask_t0.unsqueeze(dim=-1).float()).sum() / max(fg_sum_t0, 1)
-                rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][0]
-
-            else:
-
-                rois_anchor = roi_boxes3d.clone().detach()[:,:,:7].contiguous().view(-1, code_size)
-                rois_anchor[:, 0:3] = 0
-                rois_anchor[:, 6] = 0
-                reg_targets = self.box_coder.encode_torch(
-                    gt_boxes3d_ct.view(rcnn_batch_size, code_size), rois_anchor
-                    )
-                rcnn_loss_reg = self.reg_loss_func(
-                    rcnn_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),
-                    reg_targets.unsqueeze(dim=0),
-                )  # [B, M, 7]
-                rcnn_loss_reg = (rcnn_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-                rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][0]
+            rois_anchor = roi_boxes3d.clone().detach()[:,:,:7].contiguous().view(-1, code_size)
+            rois_anchor[:, 0:3] = 0
+            rois_anchor[:, 6] = 0
+            reg_targets = self.box_coder.encode_torch(
+                gt_boxes3d_ct.view(rcnn_batch_size, code_size), rois_anchor
+                )
+            rcnn_loss_reg = self.reg_loss_func(
+                rcnn_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),
+                reg_targets.unsqueeze(dim=0),
+            )  # [B, M, 7]
+            rcnn_loss_reg = (rcnn_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
+            rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][0]
 
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
   
@@ -976,26 +937,19 @@ class MPPNetHead(RoIHeadTemplate):
                     tb_dict['point_loss_reg'] = point_loss_reg.item()
                     rcnn_loss_reg += point_loss_reg
 
-                if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-                    seqbox_reg = forward_ret_dict['box_reg']  # (rcnn_batch_size, C)
-                    if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-                        seqbox_loss_reg = self.reg_loss_func(seqbox_reg.unsqueeze(dim=0),reg_targets_t0,)  # [B, M, 7]
-                        seqbox_loss_reg = (seqbox_loss_reg.view(-1, code_size) * fg_mask_t0.unsqueeze(dim=-1).float()).sum() / max(fg_sum_t0, 1)
-                    else:
-                        seqbox_loss_reg = self.reg_loss_func(seqbox_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),reg_targets.unsqueeze(dim=0),)
-                        seqbox_loss_reg = (seqbox_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-                    seqbox_loss_reg = seqbox_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][1]
-                    tb_dict['seqbox_loss_reg'] = seqbox_loss_reg.item()
-                    rcnn_loss_reg += seqbox_loss_reg
+                # if self.model_cfg.USE_BOX_ENCODING.ENABLED:
+                seqbox_reg = forward_ret_dict['box_reg']  # (rcnn_batch_size, C)
+                seqbox_loss_reg = self.reg_loss_func(seqbox_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),reg_targets.unsqueeze(dim=0),)
+                seqbox_loss_reg = (seqbox_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
+                seqbox_loss_reg = seqbox_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][1]
+                tb_dict['seqbox_loss_reg'] = seqbox_loss_reg.item()
+                rcnn_loss_reg += seqbox_loss_reg
 
             if loss_cfgs.CORNER_LOSS_REGULARIZATION and fg_sum > 0:
                 # TODO: NEED to BE CHECK
-                if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-                    fg_rcnn_reg = rcnn_reg[fg_mask_t0]
-                    fg_roi_boxes3d = roi_boxes3d[:,0,:,:7].contiguous().view(-1, code_size)[fg_mask_t0]
-                else:
-                    fg_rcnn_reg = rcnn_reg.view(rcnn_batch_size, -1)[fg_mask]
-                    fg_roi_boxes3d = roi_boxes3d[:,:,:7].contiguous().view(-1, code_size)[fg_mask]
+
+                fg_rcnn_reg = rcnn_reg.view(rcnn_batch_size, -1)[fg_mask]
+                fg_roi_boxes3d = roi_boxes3d[:,:,:7].contiguous().view(-1, code_size)[fg_mask]
 
                 fg_roi_boxes3d = fg_roi_boxes3d.view(1, -1, code_size)
                 batch_anchors = fg_roi_boxes3d.clone().detach()
@@ -1011,55 +965,44 @@ class MPPNetHead(RoIHeadTemplate):
                 ).squeeze(dim=1)
                 rcnn_boxes3d[:, 0:3] += roi_xyz
 
-                if self.model_cfg.get('FIX_CORNER_BUG',None):
-                    corner_loss_func = loss_utils.get_corner_loss_lidar_v2
-                else:
-                    corner_loss_func = loss_utils.get_corner_loss_lidar_v1
+                corner_loss_func = loss_utils.get_corner_loss_lidar
 
-                if self.model_cfg.get('USE_TRAJ_GT_ASSIGN',None):
-                    loss_corner = corner_loss_func(
-                        rcnn_boxes3d[:, 0:7],
-                        gt_of_rois_src.view(batch_size,-1,gt_of_rois_src.shape[-1])[:,:num_rois,:].contiguous().view(-1,gt_of_rois_src.shape[-1])[fg_mask_t0][:, 0:7]
-                    )
-                else:
-                    loss_corner = corner_loss_func(
-                        rcnn_boxes3d[:, 0:7],
-                        gt_of_rois_src[fg_mask][:, 0:7])
+                loss_corner = corner_loss_func(
+                    rcnn_boxes3d[:, 0:7],
+                    gt_of_rois_src[fg_mask][:, 0:7])
 
                 loss_corner = loss_corner.mean()
                 loss_corner = loss_corner * loss_cfgs.LOSS_WEIGHTS['rcnn_corner_weight']
 
-
-
                 rcnn_loss_reg += loss_corner
                 tb_dict['rcnn_loss_corner'] = loss_corner.item()
 
-                if self.model_cfg.get('USE_POINT_CORNER_LOSS',None):
+                # if self.model_cfg.get('USE_POINT_CORNER_LOSS',None):
 
-                    point_reg = forward_ret_dict['point_reg']  # (rcnn_batch_size, C)
-                    fg_point_reg = point_reg.view(rcnn_batch_size, -1)[fg_mask]
-                    fg_roi_boxes3d = roi_boxes3d[:,:,:7].contiguous().view(-1, code_size)[fg_mask]
+                #     point_reg = forward_ret_dict['point_reg']  # (rcnn_batch_size, C)
+                #     fg_point_reg = point_reg.view(rcnn_batch_size, -1)[fg_mask]
+                #     fg_roi_boxes3d = roi_boxes3d[:,:,:7].contiguous().view(-1, code_size)[fg_mask]
 
-                    fg_roi_boxes3d = fg_roi_boxes3d.view(1, -1, code_size)
-                    batch_anchors = fg_roi_boxes3d.clone().detach()
-                    roi_ry = fg_roi_boxes3d[:, :, 6].view(-1)
-                    roi_xyz = fg_roi_boxes3d[:, :, 0:3].view(-1, 3)
-                    batch_anchors[:, :, 0:3] = 0
-                    point_boxes3d = self.box_coder.decode_torch(
-                        fg_point_reg.view(batch_anchors.shape[0], -1, code_size), batch_anchors.repeat(1,4,1)
-                    ).view(-1, code_size)
+                #     fg_roi_boxes3d = fg_roi_boxes3d.view(1, -1, code_size)
+                #     batch_anchors = fg_roi_boxes3d.clone().detach()
+                #     roi_ry = fg_roi_boxes3d[:, :, 6].view(-1)
+                #     roi_xyz = fg_roi_boxes3d[:, :, 0:3].view(-1, 3)
+                #     batch_anchors[:, :, 0:3] = 0
+                #     point_boxes3d = self.box_coder.decode_torch(
+                #         fg_point_reg.view(batch_anchors.shape[0], -1, code_size), batch_anchors.repeat(1,4,1)
+                #     ).view(-1, code_size)
 
-                    point_boxes3d = common_utils.rotate_points_along_z(point_boxes3d.unsqueeze(dim=1), roi_ry.repeat(4)).squeeze(dim=1)
-                    point_boxes3d[:, 0:3] += roi_xyz.repeat(4,1)
+                #     point_boxes3d = common_utils.rotate_points_along_z(point_boxes3d.unsqueeze(dim=1), roi_ry.repeat(4)).squeeze(dim=1)
+                #     point_boxes3d[:, 0:3] += roi_xyz.repeat(4,1)
 
                     
-                    point_loss_corner = corner_loss_func(point_boxes3d[:, 0:7],gt_of_rois_src[fg_mask][:, 0:7].repeat(4,1))  # [B, M, 7]
+                #     point_loss_corner = corner_loss_func(point_boxes3d[:, 0:7],gt_of_rois_src[fg_mask][:, 0:7].repeat(4,1))  # [B, M, 7]
 
-                    point_loss_corner = point_loss_corner.mean()
-                    point_loss_corner = point_loss_corner * loss_cfgs.LOSS_WEIGHTS['rcnn_corner_weight']
+                #     point_loss_corner = point_loss_corner.mean()
+                #     point_loss_corner = point_loss_corner * loss_cfgs.LOSS_WEIGHTS['rcnn_corner_weight']
 
-                    rcnn_loss_reg += point_loss_corner
-                    tb_dict['point_loss_corner'] = point_loss_corner.item()
+                #     rcnn_loss_reg += point_loss_corner
+                #     tb_dict['point_loss_corner'] = point_loss_corner.item()
 
                     
 
@@ -1072,8 +1015,8 @@ class MPPNetHead(RoIHeadTemplate):
         loss_cfgs = self.model_cfg.LOSS_CONFIG
         rcnn_cls = forward_ret_dict['rcnn_cls']
         # nonempty_mask = forward_ret_dict['nonempty_mask'].view(-1)
-        if self.model_cfg.USE_BOX_ENCODING.ENABLED:
-            point_cls = forward_ret_dict['point_cls']
+        # if self.model_cfg.USE_BOX_ENCODING.ENABLED:
+        # point_cls = forward_ret_dict['point_cls']
 
         rcnn_cls_labels = forward_ret_dict['rcnn_cls_labels'].view(-1)
 
@@ -1100,27 +1043,27 @@ class MPPNetHead(RoIHeadTemplate):
                 cls_valid_mask = (rcnn_cls_labels >= 0).float() 
                 rcnn_loss_cls = (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
 
-            if not self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
-                point_cls_flat = point_cls.view(-1)
-                groups = point_cls_flat.shape[0] // rcnn_cls_labels.shape[0]
-                if groups != 1:
-                    point_loss_cls = 0
-                    slice = point_cls_flat.shape[0] // self.num_groups
-                    for i in range(groups):
-                        batch_loss_point_cls = F.binary_cross_entropy(torch.sigmoid(point_cls_flat[i*slice:(i+1)*slice]), rcnn_cls_labels.float(), reduction='none')
-                        cls_valid_mask = (rcnn_cls_labels >= 0).float()
-                        point_loss_cls = point_loss_cls + (batch_loss_point_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
+            # if not self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
+            #     point_cls_flat = point_cls.view(-1)
+            #     groups = point_cls_flat.shape[0] // rcnn_cls_labels.shape[0]
+            #     if groups != 1:
+            #         point_loss_cls = 0
+            #         slice = point_cls_flat.shape[0] // self.num_groups
+            #         for i in range(groups):
+            #             batch_loss_point_cls = F.binary_cross_entropy(torch.sigmoid(point_cls_flat[i*slice:(i+1)*slice]), rcnn_cls_labels.float(), reduction='none')
+            #             cls_valid_mask = (rcnn_cls_labels >= 0).float()
+            #             point_loss_cls = point_loss_cls + (batch_loss_point_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
                     
-                    point_loss_cls  = point_loss_cls / groups
+            #         point_loss_cls  = point_loss_cls / groups
 
 
-                else:
+            #     else:
 
-                    point_cls_flat = point_cls.view(-1)
-                    #box_cls_flat   = box_cls.view(-1)
-                    batch_loss_point_cls = F.binary_cross_entropy(torch.sigmoid(point_cls_flat), rcnn_cls_labels.float(), reduction='none')
-                    cls_valid_mask = (rcnn_cls_labels >= 0).float()
-                    point_loss_cls = (batch_loss_point_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
+            #         point_cls_flat = point_cls.view(-1)
+            #         #box_cls_flat   = box_cls.view(-1)
+            #         batch_loss_point_cls = F.binary_cross_entropy(torch.sigmoid(point_cls_flat), rcnn_cls_labels.float(), reduction='none')
+            #         cls_valid_mask = (rcnn_cls_labels >= 0).float()
+            #         point_loss_cls = (batch_loss_point_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)
 
 
         elif loss_cfgs.CLS_LOSS == 'CrossEntropy':
@@ -1131,15 +1074,15 @@ class MPPNetHead(RoIHeadTemplate):
         else:
             raise NotImplementedError
 
-        if self.model_cfg.USE_BOX_ENCODING.ENABLED:
+        # if self.model_cfg.USE_BOX_ENCODING.ENABLED:
       
-            if self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
-                rcnn_loss_cls = rcnn_loss_cls * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight'] 
-            else:
-                rcnn_loss_cls = (rcnn_loss_cls+ point_loss_cls) * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight'] 
+            # if self.model_cfg.get('USE_POINT_AS_JOINT_CLS',True):
+        rcnn_loss_cls = rcnn_loss_cls * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight'] 
+            # else:
+            #     rcnn_loss_cls = (rcnn_loss_cls+ point_loss_cls) * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight'] 
 
-        else:
-            rcnn_loss_cls = (rcnn_loss_cls) * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight']
+        # else:
+        #     rcnn_loss_cls = (rcnn_loss_cls) * loss_cfgs.LOSS_WEIGHTS['rcnn_cls_weight']
         tb_dict = {'rcnn_loss_cls': rcnn_loss_cls.item()}
         return rcnn_loss_cls, tb_dict
 

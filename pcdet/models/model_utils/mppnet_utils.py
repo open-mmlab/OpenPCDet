@@ -252,20 +252,17 @@ class TransformerEncoderLayerCrossAttn(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-        self.time_attn1 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.time_attn2 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.time_attn3 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.time_attn4 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        if self.count <= self.config.enc_layers-1:
+            self.time_attn1 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+            self.time_attn2 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+            self.time_attn3 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+            self.time_attn4 = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+            self.ffn2 = FFN(d_model, dim_feedforward)
+            self.time_mlp_fusion = MLP(input_dim = d_model*4, hidden_dim = d_model, output_dim = d_model, num_layers = 4)
     
 
         self.activation = _get_activation_fn(activation)
         self.normalize_before = normalize_before
-
-        self.time_mlp_fusion = MLP(input_dim = d_model*4, hidden_dim = d_model, output_dim = d_model, num_layers = 4)
-
-
-        self.ffn2 = FFN(d_model, dim_feedforward)
-
 
         self.mixer = SpatialMixerBlock(self.config.use_mlp_mixer.hidden_dim,self.config.use_mlp_mixer.get('grid_size', 4),self.config.hidden_dim, self.config.use_mlp_mixer)
 
