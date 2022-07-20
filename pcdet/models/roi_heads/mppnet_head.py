@@ -804,21 +804,36 @@ class MPPNetHead(RoIHeadTemplate):
                 stage1_score = batch_dict['roi_scores'][:,:,:1]
                 batch_cls_preds = F.sigmoid(batch_cls_preds)
                 if self.model_cfg.get('IOU_WEIGHT', None):
-                    car_mask = batch_dict['roi_labels'] ==1
-                    batch_cls_preds_car = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[0])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[0])
-                    batch_cls_preds_car = batch_cls_preds_car[car_mask][None]
-                    batch_cls_preds_pedcyc = batch_cls_preds.pow(self.model_cfg.IOU_WEIGHT[1])*stage1_score.pow(1-self.model_cfg.IOU_WEIGHT[1])
-                    batch_cls_preds_pedcyc = batch_cls_preds_pedcyc[~car_mask][None]
-                    batch_cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
-                    batch_box_preds = torch.cat([batch_dict['batch_box_preds'][car_mask],batch_dict['batch_box_preds'][~car_mask]],0)[None]
-                    batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
-                    roi_labels = torch.cat([batch_dict['roi_labels'][car_mask],batch_dict['roi_labels'][~car_mask]],0)[None]
-                    batch_dict['roi_labels'] = roi_labels.view(batch_size, -1)
-                    batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
+                    batch_box_preds_list = []
+                    roi_labels_list = []
+                    batch_cls_preds_list = []
+                    for bs_idx in range(batch_size):
+                        car_mask = batch_dict['roi_labels'][bs_idx] ==1
+                        batch_cls_preds_car = batch_cls_preds[bs_idx].pow(self.model_cfg.IOU_WEIGHT[0])* \
+                                              stage1_score[bs_idx].pow(1-self.model_cfg.IOU_WEIGHT[0])
+                        batch_cls_preds_car = batch_cls_preds_car[car_mask][None]
+                        batch_cls_preds_pedcyc = batch_cls_preds[bs_idx].pow(self.model_cfg.IOU_WEIGHT[1])* \
+                                                 stage1_score[bs_idx].pow(1-self.model_cfg.IOU_WEIGHT[1])
+                        batch_cls_preds_pedcyc = batch_cls_preds_pedcyc[~car_mask][None]
+                        cls_preds = torch.cat([batch_cls_preds_car,batch_cls_preds_pedcyc],1)
+                        box_preds = torch.cat([batch_dict['batch_box_preds'][bs_idx][car_mask],
+                                                     batch_dict['batch_box_preds'][bs_idx][~car_mask]],0)[None]
+                        # batch_dict['batch_box_preds'] = batch_box_preds.view(batch_size, -1, batch_box_preds.shape[-1])
+                        roi_labels = torch.cat([batch_dict['roi_labels'][bs_idx][car_mask],
+                                                batch_dict['roi_labels'][bs_idx][~car_mask]],0)[None]
+                        # batch_dict['roi_labels'] = roi_labels.view(batch_size, -1)
+                        # batch_cls_preds = batch_cls_preds.view(batch_size, -1, 1)
+                        batch_box_preds_list.append(box_preds)
+                        roi_labels_list.append(roi_labels)
+                        batch_cls_preds_list.append(cls_preds)
+                    batch_dict['batch_box_preds'] = torch.cat(batch_box_preds_list,0)
+                    batch_dict['roi_labels'] = torch.cat(roi_labels_list,0)
+                    batch_cls_preds = torch.cat(batch_cls_preds_list,0)
                     
                 else:
                     batch_cls_preds = torch.sqrt(batch_cls_preds*stage1_score)
                 batch_dict['cls_preds_normalized']  = True
+
             batch_dict['batch_cls_preds'] = batch_cls_preds
                 
 
