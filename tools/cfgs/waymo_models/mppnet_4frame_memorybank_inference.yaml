@@ -17,10 +17,6 @@ DATA_CONFIG:
         USE_SPEED: False
 
 
-    USE_SUPERBOX: False
-    USE_SUPERBOX_EVAL: False
-    JITTER: False
-    SPEED_THRESHOLD: 0.4
     USE_PREDBOX: True
     ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
 
@@ -111,7 +107,10 @@ MODEL:
             REG_AUG_METHOD: single
             ROI_FG_AUG_TIMES: 10
             RATIO: 0.2
-
+            USE_ROI_AUG: True
+            USE_TRAJ_AUG:
+                ENABLED: True
+                THRESHOD: 0.8
             SAMPLE_ROI_BY_EACH_CLASS: True
             CLS_SCORE_TYPE: roi_iou
 

@@ -2,8 +2,6 @@ from typing import ValuesView
 import torch.nn as nn
 import torch
 import numpy as np
-import itertools
-from numpy import *
 import copy
 import time
 from pcdet.ops.iou3d_nms import iou3d_nms_utils
@@ -12,12 +10,10 @@ from ...utils import box_coder_utils, common_utils, loss_utils
 from .roi_head_template import RoIHeadTemplate
 from ..model_utils.mppnet_utils import build_transformer
 
-import torch.nn.parallel
-import torch.utils.data
-import numpy as np
-import torch.nn.functional as F
+# import torch.nn.parallel
+# import torch.utils.data
 from torch.nn.init import xavier_uniform_, zeros_, kaiming_normal_
-from pcdet.ops.pointnet2.pointnet2_batch import pointnet2_modules
+# from pcdet.ops.pointnet2.pointnet2_batch import pointnet2_modules
 from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 
 
@@ -449,10 +445,10 @@ class MPPNetHead(RoIHeadTemplate):
                 cur_roi_points = cur_roi_points[time_mask]
                 time_mask_list.append(time.time() - start3)
                 if cur_roi_points.shape[0] > self.num_points:
-                    # random.seed(0)
-                    # choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-                    # cur_roi_points_sample = cur_roi_points[choice]
-                    cur_roi_points_sample = cur_roi_points[:128]
+                    np.random.seed(0)
+                    choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+                    cur_roi_points_sample = cur_roi_points[choice]
+                    # cur_roi_points_sample = cur_roi_points[:128]
 
                 elif cur_roi_points.shape[0] == 0:
                     cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
@@ -508,10 +504,10 @@ class MPPNetHead(RoIHeadTemplate):
 
 
                     if cur_roi_points.shape[0] > self.num_points:
-                        # random.seed(0)
-                        # choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-                        # cur_roi_points_sample = cur_roi_points[choice]
-                        cur_roi_points_sample = cur_roi_points[:128]
+                        np.random.seed(0)
+                        choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+                        cur_roi_points_sample = cur_roi_points[choice]
+                        # cur_roi_points_sample = cur_roi_points[:128]
 
                     elif cur_roi_points.shape[0] == 0:
                         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
@@ -542,7 +538,7 @@ class MPPNetHead(RoIHeadTemplate):
             corner_points = corner_points.view(batch_size * num_rois, -1)
             corner_add_center_points = torch.cat([corner_points, trajectory_rois[:,i,:,:].contiguous().reshape(batch_size * num_rois, -1)[:,:3]], dim = -1)
             pos_fea = src[:,i*self.num_points:(i+1)*self.num_points,:3].repeat(1,1,9) - corner_add_center_points.unsqueeze(1).repeat(1,self.num_points,1)  # 27 维
-            pos_fea_ori = pos_fea
+            # pos_fea_ori = pos_fea
 
             if self.model_cfg.get('USE_SPHERICAL_COOR',True):
                 lwh = trajectory_rois[:,i,:,:].reshape(batch_size * num_rois, -1)[:,3:6].unsqueeze(1).repeat(1,pos_fea.shape[1],1)
@@ -673,8 +669,8 @@ class MPPNetHead(RoIHeadTemplate):
         batch_size = batch_dict['batch_size']
         cur_batch_boxes = copy.deepcopy(batch_dict['rois'].detach())[:,:,0]
         batch_dict['cur_frame_idx'] = 0
-        batch_dict['matching_index'] = []
-        batch_dict['fg_inds'] = []
+        # batch_dict['matching_index'] = []
+        # batch_dict['fg_inds'] = []
     
         trajectory_rois,trajectory_roi_scores,effective_length \
              = self.generate_trajectory(cur_batch_boxes,proposals_list,roi_labels_list,roi_scores_list,batch_dict)

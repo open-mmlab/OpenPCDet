@@ -206,7 +206,6 @@ class Detector3DTemplate(nn.Module):
 
             box_preds = batch_dict['batch_box_preds'][batch_mask]
             src_box_preds = box_preds
-
             if not isinstance(batch_dict['batch_cls_preds'], list):
                 cls_preds = batch_dict['batch_cls_preds'][batch_mask]
 

@@ -63,10 +63,6 @@ MODEL:
         AVG_STAGE_1: True
         USE_TRAJ_EMPTY_MASK: True
         USE_AUG_LOSS: True
-        USE_ROI_AUG: True
-        USE_TRAJ_AUG:
-            ENABLED: True
-            THRESHOD: 0.8
         USE_MLP_JOINTEMB: False
         IOU_WEIGHT: [0.5,0.4]
 
@@ -107,7 +103,10 @@ MODEL:
             REG_AUG_METHOD: single
             ROI_FG_AUG_TIMES: 10
             RATIO: 0.2
-
+            USE_ROI_AUG: True
+            USE_TRAJ_AUG:
+                ENABLED: True
+                THRESHOD: 0.8
             SAMPLE_ROI_BY_EACH_CLASS: True
             CLS_SCORE_TYPE: roi_iou
 

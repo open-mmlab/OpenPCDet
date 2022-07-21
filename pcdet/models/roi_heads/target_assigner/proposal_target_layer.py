@@ -108,8 +108,6 @@ class ProposalTargetLayer(nn.Module):
         effi_length = batch_dict['effi_length']
         batch_effi_length = rois.new_zeros((batch_size, batch_dict['trajectory_rois'].shape[1], self.roi_sampler_cfg.ROI_PER_IMAGE))
 
-        num_pos_list = []
-
         for index in range(batch_size):
             if len(batch_dict['rois'].shape)==4:
                 cur_trajectory_rois = trajectory_rois[index]
@@ -343,7 +341,7 @@ class ProposalTargetLayer(nn.Module):
                 cur_gt = gt_boxes[gt_mask]
                 original_gt_assignment = gt_mask.nonzero().view(-1)
 
-                iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi, cur_gt)  # (M, N)
+                iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi[:,:7], cur_gt[:,:7])  # (M, N)
                 cur_max_overlaps, cur_gt_assignment = torch.max(iou3d, dim=1)
                 max_overlaps[roi_mask] = cur_max_overlaps
                 gt_assignment[roi_mask] = original_gt_assignment[cur_gt_assignment]
