@@ -8,11 +8,12 @@ All Rights Reserved 2018.
 #include <torch/serialize/tensor.h>
 #include <ATen/cuda/CUDAContext.h>
 #include <vector>
-#include <THC/THC.h>
-
 #include "sampling_gpu.h"
 
+#if TORCH_MAJOR_VERSION == 1 && TORCH_MINOR_VERSION <= 10
+#include <THC/THC.h>
 extern THCState *state;
+#endif
 
 
 int gather_points_wrapper_fast(int b, int c, int n, int npoints, 

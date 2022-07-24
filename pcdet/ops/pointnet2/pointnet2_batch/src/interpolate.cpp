@@ -7,7 +7,6 @@ All Rights Reserved 2018.
 
 #include <torch/serialize/tensor.h>
 #include <vector>
-#include <THC/THC.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +14,10 @@ All Rights Reserved 2018.
 #include <cuda_runtime_api.h>
 #include "interpolate_gpu.h"
 
+#if TORCH_MAJOR_VERSION == 1 && TORCH_MINOR_VERSION <= 10
+#include <THC/THC.h>
 extern THCState *state;
+#endif
 
 
 void three_nn_wrapper_fast(int b, int n, int m, at::Tensor unknown_tensor, 
@@ -42,6 +44,7 @@ void three_interpolate_wrapper_fast(int b, int c, int m, int n,
 
     three_interpolate_kernel_launcher_fast(b, c, m, n, points, idx, weight, out);
 }
+
 
 void three_interpolate_grad_wrapper_fast(int b, int c, int n, int m,
                             at::Tensor grad_out_tensor,
