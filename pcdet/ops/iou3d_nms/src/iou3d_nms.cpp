@@ -95,7 +95,7 @@ int nms_gpu(at::Tensor boxes, at::Tensor keep, float nms_overlap_thresh){
 
     int boxes_num = boxes.size(0);
     const float * boxes_data = boxes.data<float>();
-    long * keep_data = keep.data<long>();
+    int32_t * keep_data = keep.data<int32_t>();
 
     const int col_blocks = DIVUP(boxes_num, THREADS_PER_BLOCK_NMS);
 
@@ -107,14 +107,14 @@ int nms_gpu(at::Tensor boxes, at::Tensor keep, float nms_overlap_thresh){
     // unsigned long long *mask_cpu = new unsigned long long [boxes_num * col_blocks];
     std::vector<unsigned long long> mask_cpu(boxes_num * col_blocks);
 
-//    printf("boxes_num=%d, col_blocks=%d\n", boxes_num, col_blocks);
+    // printf("boxes_num=%d, col_blocks=%d\n", boxes_num, col_blocks);
     CHECK_ERROR(cudaMemcpy(&mask_cpu[0], mask_data, boxes_num * col_blocks * sizeof(unsigned long long),
                            cudaMemcpyDeviceToHost));
 
     cudaFree(mask_data);
 
-    unsigned long long remv_cpu[col_blocks];
-    memset(remv_cpu, 0, col_blocks * sizeof(unsigned long long));
+    std::vector<unsigned long long> remv_cpu(col_blocks);
+    memset(&remv_cpu[0], 0, col_blocks * sizeof(unsigned long long));
 
     int num_to_keep = 0;
 
@@ -145,7 +145,7 @@ int nms_normal_gpu(at::Tensor boxes, at::Tensor keep, float nms_overlap_thresh){
 
     int boxes_num = boxes.size(0);
     const float * boxes_data = boxes.data<float>();
-    long * keep_data = keep.data<long>();
+    int32_t * keep_data = keep.data<int32_t>();
 
     const int col_blocks = DIVUP(boxes_num, THREADS_PER_BLOCK_NMS);
 
@@ -157,14 +157,14 @@ int nms_normal_gpu(at::Tensor boxes, at::Tensor keep, float nms_overlap_thresh){
     // unsigned long long *mask_cpu = new unsigned long long [boxes_num * col_blocks];
     std::vector<unsigned long long> mask_cpu(boxes_num * col_blocks);
 
-//    printf("boxes_num=%d, col_blocks=%d\n", boxes_num, col_blocks);
+    // printf("boxes_num=%d, col_blocks=%d\n", boxes_num, col_blocks);
     CHECK_ERROR(cudaMemcpy(&mask_cpu[0], mask_data, boxes_num * col_blocks * sizeof(unsigned long long),
                            cudaMemcpyDeviceToHost));
 
     cudaFree(mask_data);
 
-    unsigned long long remv_cpu[col_blocks];
-    memset(remv_cpu, 0, col_blocks * sizeof(unsigned long long));
+    std::vector<unsigned long long> remv_cpu(col_blocks);
+    memset(&remv_cpu[0], 0, col_blocks * sizeof(unsigned long long));
 
     int num_to_keep = 0;
 
