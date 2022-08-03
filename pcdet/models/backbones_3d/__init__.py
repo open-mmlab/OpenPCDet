@@ -1,9 +1,6 @@
 from .pointnet2_backbone import PointNet2Backbone, PointNet2MSG
 from .spconv_backbone import VoxelBackBone8x, VoxelResBackBone8x
-try:
-    from .spconv_backbone_focal import VoxelBackBone8xFocal
-except:
-    VoxelBackBone8xFocal=None
+from .spconv_backbone_focal import VoxelBackBone8xFocal
 from .spconv_unet import UNetV2
 
 __all__ = {
