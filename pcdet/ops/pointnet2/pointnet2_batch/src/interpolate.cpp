@@ -14,11 +14,6 @@ All Rights Reserved 2018.
 #include <cuda_runtime_api.h>
 #include "interpolate_gpu.h"
 
-#if TORCH_MAJOR_VERSION == 1 && TORCH_MINOR_VERSION <= 10
-#include <THC/THC.h>
-extern THCState *state;
-#endif
-
 
 void three_nn_wrapper_fast(int b, int n, int m, at::Tensor unknown_tensor, 
     at::Tensor known_tensor, at::Tensor dist2_tensor, at::Tensor idx_tensor) {

@@ -3,11 +3,6 @@
 #include <vector>
 #include "sampling_gpu.h"
 
-#if TORCH_MAJOR_VERSION == 1 && TORCH_MINOR_VERSION <= 10
-#include <THC/THC.h>
-extern THCState *state;
-#endif
-
 #define CHECK_CUDA(x) do { \
   if (!x.type().is_cuda()) { \
     fprintf(stderr, "%s must be CUDA tensor at %s:%d\n", #x, __FILE__, __LINE__); \

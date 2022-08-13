@@ -10,11 +10,6 @@ All Rights Reserved 2018.
 #include <vector>
 #include "sampling_gpu.h"
 
-#if TORCH_MAJOR_VERSION == 1 && TORCH_MINOR_VERSION <= 10
-#include <THC/THC.h>
-extern THCState *state;
-#endif
-
 
 int gather_points_wrapper_fast(int b, int c, int n, int npoints, 
     at::Tensor points_tensor, at::Tensor idx_tensor, at::Tensor out_tensor){
