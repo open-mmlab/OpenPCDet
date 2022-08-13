@@ -2,7 +2,7 @@ import os
 
 import torch
 import torch.nn as nn
-
+import numpy as np
 from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils.spconv_utils import find_all_spconv_keys
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
@@ -257,7 +257,7 @@ class Detector3DTemplate(nn.Module):
                     }
                     pred_dicts.append(record_dict)
                     continue
-                # import pdb;pdb.set_trace()
+
                 if batch_dict.get('has_class_labels', False):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
@@ -295,7 +295,31 @@ class Detector3DTemplate(nn.Module):
                     final_labels  = torch.cat([final_labels_car,final_labels_pedcyc],0)
                     final_boxes  = torch.cat([final_boxes_car,final_boxes_pedcyc],0)
 
-                #########  Car DONOT Using NMS ###### 
+                #########  Car DONOT Using NMS ######
+            if post_process_cfg.POST_PROCESSING.get('SAVE_BBOX',False):
+
+                for bs_idx in range(batch_dict['batch_size']):
+
+                    if batch_dict['final_box_dicts'][bs_idx]['pred_boxes'].shape[0] >0:
+                        cur_vels = batch_dict['final_box_dicts'][bs_idx]['pred_boxes'][:,7:9]
+                        cur_boxes = batch_dict['final_box_dicts'][bs_idx]['pred_boxes']
+                        cur_scores = batch_dict['final_box_dicts'][bs_idx]['pred_scores']
+                        cur_labels = batch_dict['final_box_dicts'][bs_idx]['pred_labels']
+
+                        path = os.path.join(self.dataset.dataset_cfg.DATA_PATH, self.model_cfg.POST_PROCESSING.BBOX_SAVE_PATH, '%s' % (batch_dict['frame_id'][bs_idx][:-4]))
+
+                        if not os.path.exists(path):
+                            try:
+                                os.makedirs(path)
+                            except:
+                                pass
+                        bbox_path = os.path.join(path, '%s.npy' % (batch_dict['frame_id'][bs_idx][-3:]))
+                
+                        pred_boxes = torch.cat([cur_boxes[:,:7],cur_scores[:,None],cur_labels[:,None],cur_vels],dim=-1)
+                        np.save(bbox_path, pred_boxes.cpu().numpy())
+                    else:
+                        pass 
+             
 
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
