@@ -7,12 +7,9 @@ All Rights Reserved 2019-2020.
 
 #include <torch/serialize/tensor.h>
 #include <vector>
-#include <THC/THC.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "ball_query_gpu.h"
-
-extern THCState *state;
 
 #define CHECK_CUDA(x) do { \
   if (!x.type().is_cuda()) { \
@@ -27,6 +24,7 @@ extern THCState *state;
   } \
 } while (0)
 #define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
+
 
 int ball_query_wrapper_stack(int B, int M, float radius, int nsample,
     at::Tensor new_xyz_tensor, at::Tensor new_xyz_batch_cnt_tensor,
