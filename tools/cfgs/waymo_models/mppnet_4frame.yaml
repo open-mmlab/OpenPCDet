@@ -52,9 +52,7 @@ MODEL:
         CLASS_AGNOSTIC: True
         USE_BOX_ENCODING:
             ENABLED: True 
-            NORM_T0: True
-            ALL_YAW_T0: True
-        AVG_STAGE_1: True
+        AVG_STAGE1_SCORE: True
         USE_TRAJ_EMPTY_MASK: True
         USE_AUG_LOSS: True
         USE_MLP_JOINTEMB: True
@@ -71,7 +69,8 @@ MODEL:
             
 
         Transformer:
-            num_points: 128
+            num_lidar_points: 128
+            num_proxy_points: 64  # GRID_SIZE*GRID_SIZE*GRID_SIZE
             pos_hidden_dim: 64
             enc_layers: 3
             dim_feedforward: 512

@@ -222,8 +222,8 @@ class WaymoDataset(DatasetTemplate):
                 speeds_pre2cur = np.dot(expand_speeds_cur, np.linalg.inv(pose_cur[:3,:3].T))[:, :2] 
                 bboxes_cur = np.concatenate([bboxes_cur, speeds_pre2cur], axis=-1)
 
-        sample_idx_pre_list = np.clip(sample_idx + np.arange(
-            sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1]), 0, 196)
+        sample_idx_pre_list = np.array(sample_idx + np.arange(
+            sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1])).clip(min=0)
         sample_idx_pre_list = sample_idx_pre_list[::-1] 
         if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
             onehot_cur = np.zeros((points.shape[0], len(sample_idx_pre_list) + 1)).astype(points.dtype)
@@ -251,9 +251,6 @@ class WaymoDataset(DatasetTemplate):
                 else:
                     expand_speeds_pre = np.concatenate([speeds_pre, np.zeros((speeds_pre.shape[0], 1))], axis=-1)
                     speeds_pre2cur = np.dot(expand_speeds_pre, np.linalg.inv(pose_pre[:3,:3].T))[:, :2] 
-            elif sequence_cfg.get('USE_ONEDIM_SPEED',None):
-    
-                bboxes_pre = np.concatenate([bboxes_pre, np.zeros((bboxes_pre.shape[0],2))], axis=-1)
 
             expand_points_pre = np.concatenate([points_pre[:, :3], np.ones((points_pre.shape[0], 1))], axis=-1)
             points_pre_global = np.dot(expand_points_pre, pose_pre.T)[:, :3]
@@ -268,7 +265,7 @@ class WaymoDataset(DatasetTemplate):
             else:
 
                 points_pre = np.hstack([points_pre, 0.1 * (i+1)
-                                        * np.ones((points_pre.shape[0], 1)).astype(points_pre.dtype)])  # one frame 0.1s
+                                        * np.ones((points_pre.shape[0], 1)).astype(points_pre.dtype)])  # time lag for one frame is 0.1s
 
             points_pre = remove_ego_points(points_pre, 1.0)
             points_pre_all.append(points_pre)
@@ -298,8 +295,8 @@ class WaymoDataset(DatasetTemplate):
 
             pose_cur = info['pose'].reshape((4, 4))
             bboxes_cur = info['annos']['gt_boxes_lidar']
-            sample_idx_pre_list = np.clip(sample_idx + np.arange(
-                sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1]), min=0)
+            sample_idx_pre_list = np.array(sample_idx + np.arange(
+                sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1])).clip(min=0)
             sample_idx_pre_list = sample_idx_pre_list[::-1] 
             if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
                 onehot_cur = np.zeros((points.shape[0], len(sample_idx_pre_list) + 1)).astype(points.dtype)
@@ -317,7 +314,6 @@ class WaymoDataset(DatasetTemplate):
 
 
             box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx))
-
 
             try:
                 load_boxes3d = np.load(box_path)

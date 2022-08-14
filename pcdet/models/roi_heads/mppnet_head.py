@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch
 import numpy as np
 import copy
-import time
 from pcdet.ops.iou3d_nms import iou3d_nms_utils
 import torch.nn.functional as F
 from ...utils import common_utils, loss_utils
@@ -14,8 +13,8 @@ from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_s
 
 class ProposalTargetLayerMPPNet(ProposalTargetLayer):
     def __init__(self, roi_sampler_cfg):
-        super().__init__()
-        self.roi_sampler_cfg = roi_sampler_cfg
+        super().__init__(roi_sampler_cfg = roi_sampler_cfg)
+
 
     def forward(self, batch_dict):
         """
@@ -39,7 +38,7 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
 
         if 'trajectory_rois' in batch_dict.keys():
             batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, \
-            batch_trajectory_rois,batch_effi_length = self.sample_rois_for_mppnet(batch_dict=batch_dict)
+            batch_trajectory_rois,batch_valid_length = self.sample_rois_for_mppnet(batch_dict=batch_dict)
         else:
             batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels = self.sample_rois_for_rcnn(
                 batch_dict=batch_dict
@@ -71,7 +70,7 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
                             'gt_iou_of_rois': batch_roi_ious,'roi_scores': batch_roi_scores,
                             'roi_labels': batch_roi_labels,'reg_valid_mask': reg_valid_mask, 
                             'rcnn_cls_labels': batch_cls_labels,'trajectory_rois':batch_trajectory_rois,
-                            'effi_length': batch_effi_length,
+                            'valid_length': batch_valid_length,
                             }
         else:
             targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
@@ -110,10 +109,9 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
 
         trajectory_rois = batch_dict['trajectory_rois']
         batch_trajectory_rois = rois.new_zeros(batch_size, trajectory_rois.shape[1],self.roi_sampler_cfg.ROI_PER_IMAGE,trajectory_rois.shape[-1])
-        # batch_trajectory_roi_scores = rois.new_zeros(batch_size, trajectory_rois.shape[1],self.roi_sampler_cfg.ROI_PER_IMAGE)
 
-        effi_length = batch_dict['effi_length']
-        batch_effi_length = rois.new_zeros((batch_size, batch_dict['trajectory_rois'].shape[1], self.roi_sampler_cfg.ROI_PER_IMAGE))
+        valid_length = batch_dict['valid_length']
+        batch_valid_length = rois.new_zeros((batch_size, batch_dict['trajectory_rois'].shape[1], self.roi_sampler_cfg.ROI_PER_IMAGE))
 
         for index in range(batch_size):
             if len(batch_dict['rois'].shape)==4:
@@ -121,8 +119,8 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
 
             cur_roi, cur_gt, cur_roi_labels, cur_roi_scores = rois[index],gt_boxes[index], roi_labels[index], roi_scores[index]
 
-            if 'effi_length' in batch_dict.keys():
-                cur_effi_length = effi_length[index]
+            if 'valid_length' in batch_dict.keys():
+                cur_valid_length = valid_length[index]
 
 
 
@@ -150,7 +148,8 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
 
             if self.roi_sampler_cfg.get('USE_ROI_AUG',False):
 
-                fg_rois, fg_iou3d = self.aug_roi_by_noise_torch(cur_roi[fg_inds], cur_gt[gt_assignment[fg_inds]], max_overlaps[fg_inds], aug_times=self.roi_sampler_cfg.ROI_FG_AUG_TIMES)
+                fg_rois, fg_iou3d = self.aug_roi_by_noise_torch(cur_roi[fg_inds], cur_gt[gt_assignment[fg_inds]],
+                                          max_overlaps[fg_inds], aug_times=self.roi_sampler_cfg.ROI_FG_AUG_TIMES)
                 bg_rois = cur_roi[bg_inds]
                 bg_iou3d = max_overlaps[bg_inds]
 
@@ -166,12 +165,12 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
 
             batch_roi_scores[index] = cur_roi_scores[sampled_inds]
 
-            if 'effi_length' in batch_dict.keys():
-                batch_effi_length[index] = cur_effi_length[:,sampled_inds]
+            if 'valid_length' in batch_dict.keys():
+                batch_valid_length[index] = cur_valid_length[:,sampled_inds]
 
             if self.roi_sampler_cfg.get('USE_TRAJ_AUG',False):
                 batch_trajectory_rois_list = []
-                for idx in range(0,batch_dict['rois'].shape[2]):
+                for idx in range(0,batch_dict['num_frames']):
                     if idx== cur_frame_idx:
                         batch_trajectory_rois_list.append(cur_trajectory_rois[cur_frame_idx:cur_frame_idx+1,sampled_inds])
                         continue
@@ -185,7 +184,7 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
                     
 
 
-        return batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, batch_trajectory_rois,batch_effi_length
+        return batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, batch_trajectory_rois,batch_valid_length
 
 
     def subsample_rois(self, max_overlaps):
@@ -375,13 +374,13 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
             raise NotImplementedError
 
 class MPPNetHead(RoIHeadTemplate):
-    def __init__(self, input_channels, model_cfg, voxel_size, point_cloud_range, num_class=1,**kwargs):
+    def __init__(self,model_cfg, num_class=1,**kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
         self.proposal_target_layer = ProposalTargetLayerMPPNet(roi_sampler_cfg=self.model_cfg.TARGET_CONFIG)
-        self.time_stamp = self.model_cfg.get('USE_TIMESTAMP',None)
-        self.num_points = self.model_cfg.Transformer.num_points
-        self.avg_stage1_score = self.model_cfg.get('AVG_STAGE_1', None)
+        self.use_time_stamp = self.model_cfg.get('USE_TIMESTAMP',None)
+        self.num_lidar_points = self.model_cfg.Transformer.num_lidar_points
+        self.avg_stage1_score = self.model_cfg.get('AVG_STAGE1_SCORE', None)
 
         self.nhead = model_cfg.Transformer.nheads
         self.num_enc_layer = model_cfg.Transformer.enc_layers
@@ -392,22 +391,13 @@ class MPPNetHead(RoIHeadTemplate):
         self.grid_size = model_cfg.ROI_GRID_POOL.GRID_SIZE
         self.num_grid_points = model_cfg.ROI_GRID_POOL.GRID_SIZE**3
         self.num_key_points = self.num_grid_points
-        self.seqboxemb = PointNet(8,1,1,model_cfg=self.model_cfg)
-        if self.model_cfg.get('USE_MLP_JOINTEMB',None):
-            self.jointemb = MLP(self.hidden_dim*5, model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
-        else:
-            self.jointemb = PointNet(1,1,1,joint_feat=True,model_cfg=self.model_cfg)
+        self.seqboxembed = PointNet(8,model_cfg=self.model_cfg)
+        self.jointembed = MLP(self.hidden_dim*(self.num_groups+1), model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
 
 
-        dim=30 
-
-        self.up_dimension_voxel = MLP(input_dim = dim, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
-
-        input_dim = 29 
-        if self.model_cfg.Transformer.num_frames==4:
-            self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim =hidden_dim//2, num_layers = 3)
-        else:
-            self.up_dimension = MLP(input_dim = input_dim, hidden_dim = 64, output_dim =hidden_dim, num_layers = 3)
+        num_radius = len(self.model_cfg.ROI_GRID_POOL.POOL_RADIUS)
+        self.up_dimension_geometry = MLP(input_dim = 29, hidden_dim = 64, output_dim =hidden_dim//num_radius, num_layers = 3)
+        self.up_dimension_motion = MLP(input_dim = 30, hidden_dim = 64, output_dim = hidden_dim, num_layers = 3)
 
         self.transformer = build_transformer(model_cfg.Transformer)
 
@@ -419,9 +409,6 @@ class MPPNetHead(RoIHeadTemplate):
                 pool_method=self.model_cfg.ROI_GRID_POOL.POOL_METHOD,
                 )
 
-            
-                    
-
         self.class_embed = nn.ModuleList()
         self.class_embed.append(nn.Linear(model_cfg.Transformer.hidden_dim, 1))
 
@@ -431,10 +418,8 @@ class MPPNetHead(RoIHeadTemplate):
 
         if self.model_cfg.Transformer.use_grid_pos.enabled:
             if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
-                self.gridindex = torch.cat([i.reshape(-1,1)for i in torch.meshgrid(torch.arange(self.grid_size), torch.arange(self.grid_size), torch.arange(self.grid_size))],1).float().cuda()
-
-                self.gridposembeding = MLP(input_dim = 3, hidden_dim = 256, output_dim = hidden_dim, num_layers = 2)
-
+                self.grid_index = torch.cat([i.reshape(-1,1)for i in torch.meshgrid(torch.arange(self.grid_size), torch.arange(self.grid_size), torch.arange(self.grid_size))],1).float().cuda()
+                self.grid_pos_embeded = MLP(input_dim = 3, hidden_dim = 256, output_dim = hidden_dim, num_layers = 2)
             else:
                 self.pos = nn.Parameter(torch.zeros(1, self.num_grid_points, 256))
 
@@ -494,29 +479,20 @@ class MPPNetHead(RoIHeadTemplate):
                           - (local_roi_size.unsqueeze(dim=1) / 2)  
         return roi_grid_points
 
-    def roi_grid_pool(self, batch_size, rois, point_coords, point_features,batch_dict=None,batch_cnt=None,batch_voxel_cnt=None,src=None,effi=False):
-
+    def roi_grid_pool(self, batch_size, rois, point_coords, point_features,batch_dict=None,batch_cnt=None):
 
         num_frames = batch_dict['num_frames']
         num_rois = rois.shape[2]*rois.shape[1]
 
+        global_roi_proxy_points, local_roi_proxy_points = self.get_proxy_points_of_roi(
+            rois.permute(0,2,1,3).contiguous(), grid_size=self.grid_size
+        )  
 
-        if len(point_coords.shape)==3:
-            global_roi_grid_points, local_roi_grid_points = self.get_grid_points_of_roi(
-                rois.permute(0,2,1,3).contiguous(), grid_size=self.grid_size
-            )  
-        else:
-            global_roi_grid_points, local_roi_grid_points = self.get_grid_points_of_roi(
-                rois, grid_size=self.grid_size
-            )  
-
-        global_roi_grid_points = global_roi_grid_points.view(batch_size, -1, 3)
+        global_roi_proxy_points = global_roi_proxy_points.view(batch_size, -1, 3)
   
-        if len(point_coords.shape)==3:
-            point_coords = point_coords.view(point_coords.shape[0]*num_frames,point_coords.shape[1]//num_frames,point_coords.shape[-1])
-            xyz = point_coords[:, :, 0:3].view(-1,3)
-        else:
-            xyz = point_coords[:,:3]
+
+        point_coords = point_coords.view(point_coords.shape[0]*num_frames,point_coords.shape[1]//num_frames,point_coords.shape[-1])
+        xyz = point_coords[:, :, 0:3].view(-1,3)
 
         
         num_points = point_coords.shape[1]
@@ -528,39 +504,23 @@ class MPPNetHead(RoIHeadTemplate):
             xyz_batch_cnt = torch.tensor(batch_cnt).cuda().int()
 
         new_xyz_batch_cnt = torch.tensor([num_key_points]*num_rois*batch_size).cuda().int()
-        new_xyz = global_roi_grid_points.view(-1, 3)
+        new_xyz = global_roi_proxy_points.view(-1, 3)
 
-        pooled_points, pooled_features = self.roi_grid_pool_layer(
+        _, pooled_features = self.roi_grid_pool_layer(
             xyz=xyz.contiguous(),
             xyz_batch_cnt=xyz_batch_cnt,
             new_xyz=new_xyz,
             new_xyz_batch_cnt=new_xyz_batch_cnt,
             features=point_features.view(-1,point_features.shape[-1]).contiguous(),
-        )  # (M1 + M2 ..., C)
+        )  
 
-        if len(point_coords.shape)==3:
-            if effi:
-                features = pooled_features.view(
-                    point_features.shape[0], self.num_key_points,
-                    pooled_features.shape[-1]
-                ).contiguous()  # (BxN, 6x6x6, C)
-            else:
-                features = pooled_features.view(
-                    point_features.shape[0], num_frames*self.num_key_points,
-                    pooled_features.shape[-1]
-                ).contiguous()  # (BxN, 6x6x6, C)
+        features = pooled_features.view(
+            point_features.shape[0], num_frames*self.num_key_points,
+            pooled_features.shape[-1]).contiguous()  
 
+        return features,global_roi_proxy_points.view(batch_size*rois.shape[2], num_frames*num_key_points,3).contiguous()
 
-        elif pooled_features.shape[-1]==256:
-            features = pooled_features.view(batch_size, num_frames, rois.shape[2],num_key_points,256).permute(0,2,1,3,4).contiguous().view(-1,num_frames*num_key_points,256)
-        else:
-            features = pooled_features.view(batch_size, num_frames, rois.shape[2],num_key_points,60).permute(0,2,1,3,4).contiguous() 
-            features = features.view(batch_size*rois.shape[2], num_frames*num_key_points,2,30)
-            features = features.view(batch_size*rois.shape[2], num_frames*num_key_points*2,30).contiguous()  # (BxN, 6x6x6, C)
-        return features,global_roi_grid_points.view(batch_size*rois.shape[2], num_frames*num_key_points,3).contiguous(), None
-
-    def get_grid_points_of_roi(self, rois, grid_size):
-
+    def get_proxy_points_of_roi(self, rois, grid_size):
         rois = rois.view(-1, rois.shape[-1])
         batch_size_rcnn = rois.shape[0]
 
@@ -570,20 +530,7 @@ class MPPNetHead(RoIHeadTemplate):
         global_roi_grid_points = local_roi_grid_points + global_center.unsqueeze(dim=1)
         return global_roi_grid_points, local_roi_grid_points
 
-    @staticmethod
-    def get_batch_corner_points(rois, batch_size_rcnn):
-        faked_features = rois.new_ones((2, 2, 2))
-
-        dense_idx = faked_features.nonzero()  # (N, 3) [x_idx, y_idx, z_idx]
-        dense_idx = dense_idx.repeat(batch_size_rcnn, 1, 1).float()  # (B, 2x2x2, 3)
-
-        local_roi_size = rois.view(batch_size_rcnn, -1)[:, 3:6]
-        roi_grid_points = dense_idx * local_roi_size.unsqueeze(dim=1) \
-                          - (local_roi_size.unsqueeze(dim=1) / 2)  # (B, 2x2x2, 3)
-        return roi_grid_points
-  
     def spherical_coordinate(self, src, diag_dist):
-
         assert (src.shape[-1] == 27)
         device = src.device
         indices_x = torch.LongTensor([0,3,6,9,12,15,18,21,24]).to(device)  #
@@ -599,58 +546,7 @@ class MPPNetHead(RoIHeadTemplate):
         src = torch.cat([dis, phi, the], dim = -1)
         return src
 
-    def box_spherical_coordinate(self, src, diag_dist):
-        assert (src.shape[-1] == 24)
-        device = src.device
-        indices_x = torch.LongTensor([0,3,6,9,12,15,18,21]).to(device)  #
-        indices_y = torch.LongTensor([1,4,7,10,13,16,19,22]).to(device) # 
-        indices_z = torch.LongTensor([2,5,8,11,14,17,20,23]).to(device) 
-        src_x = torch.index_select(src, -1, indices_x)
-        src_y = torch.index_select(src, -1, indices_y)
-        src_z = torch.index_select(src, -1, indices_z)
-        dis = (src_x ** 2 + src_y ** 2 + src_z ** 2) ** 0.5
-        phi = torch.atan(src_y / (src_x + 1e-5))
-        the = torch.acos(src_z / (dis + 1e-5))
-        dis = dis / (diag_dist + 1e-5)
-        src = torch.cat([dis, phi, the], dim = -1)
-        return src
-
-    # def reorder_rois(batch_size, batch_dict):
-    #     moving_mask = batch_dict['moving_mask']
-
-    #     moving_rois = batch_dict['rois'].new_zeros(batch_dict['rois'].shape)
-    #     moving_roi_scores = batch_dict['rois'].new_zeros((batch_size, 128))
-    #     moving_roi_labels = batch_dict['rois'].new_zeros((batch_size, 128)).long()
-
-    #     static_rois = batch_dict['rois'].new_zeros(batch_dict['rois'].shape)
-    #     static_roi_scores = batch_dict['rois'].new_zeros((batch_size, 128))
-    #     static_roi_labels = batch_dict['rois'].new_zeros((batch_size, 128)).long()
-
-    #     for bs_idx in range(batch_size):
-    #         mask = moving_mask[bs_idx]
-
-    #         moving_rois[bs_idx, mask, :] = batch_dict['rois'][bs_idx,mask,:]
-    #         # moving_roi_scores[bs_idx, mask] = batch_dict['rois_scores'][bs_idx]
-    #         moving_roi_labels[bs_idx, mask] = batch_dict['rois_labels'][bs_idx]
-
-    #         static_rois[bs_idx, ~mask, :] = batch_dict['rois'][bs_idx,~mask,:]
-    #         # static_roi_scores[bs_idx, ~mask] = batch_dict['rois_scores'][bs_idx,~mask]
-    #         static_roi_labels[bs_idx, ~mask] = batch_dict['rois_labels'][bs_idx,~mask]
-    #     return moving_rois,moving_roi_labels, static_rois, static_roi_labels
-
-    # def transform_prebox2current(self,pred_boxes3d,pose_pre,pose_cur):
-
-    #     expand_bboxes = np.concatenate([pred_boxes3d[:,:3], np.ones((pred_boxes3d.shape[0], 1))], axis=-1)
-    #     bboxes_global = np.dot(expand_bboxes, pose_pre.T)[:, :3]
-    #     expand_bboxes_global = np.concatenate([bboxes_global[:,:3],np.ones((bboxes_global.shape[0], 1))], axis=-1)
-    #     bboxes_pre2cur = np.dot(expand_bboxes_global, np.linalg.inv(pose_cur.T))[:, :3]
-    #     bboxes_pre2cur = np.concatenate([bboxes_pre2cur, pred_boxes3d[:,3:9]],axis=-1)
-    #     bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] + np.arctan2(pose_pre[..., 1, 0], pose_pre[..., 0,0])
-    #     bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] - np.arctan2(pose_cur[..., 1, 0], pose_cur[..., 0,0])
-
-    #     return torch.from_numpy(bboxes_pre2cur).cuda()
-
-    def crop_current_frame_points(self, src, batch_size,trajectory_rois,num_rois,num_sample, batch_dict):
+    def crop_current_frame_points(self, src, batch_size,trajectory_rois,num_rois,batch_dict):
 
         for bs_idx in range(batch_size):
 
@@ -662,48 +558,20 @@ class MPPNetHead(RoIHeadTemplate):
             
 
             sampled_idx = torch.topk(point_mask.float(),128)[1]
-            sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
+            sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  
             roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
-            sampled_mask = point_mask[roi_idx, sampled_idx]  # (num_rois, 128)
+            sampled_mask = point_mask[roi_idx, sampled_idx] 
             sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
 
-            src = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
+            src = cur_points[sampled_idx_buffer][:,:,:5] 
             empty_flag = sampled_mask.sum(-1)==0
             src[empty_flag] = 0
-
-            # time_mask_list = []
-            # for roi_box_idx in range(0, num_rois):
-            #     start3 = time.time()
-            #     cur_roi_points = cur_points[point_mask[roi_box_idx]]
-            #     time_mask = cur_roi_points[:,-1].abs() < 1e-3
-            #     cur_roi_points = cur_roi_points[time_mask]
-            #     time_mask_list.append(time.time() - start3)
-            #     if cur_roi_points.shape[0] > self.num_points:
-            #         np.random.seed(0)
-            #         choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
-            #         cur_roi_points_sample = cur_roi_points[choice]
-            #         # cur_roi_points_sample = cur_roi_points[:128]
-
-            #     elif cur_roi_points.shape[0] == 0:
-            #         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
-            #         batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
-
-            #     else:
-            #         empty_num = num_sample - cur_roi_points.shape[0]
-            #         add_zeros = cur_roi_points.new_zeros(empty_num, 6)
-            #         add_zeros = cur_roi_points[0].repeat(empty_num, 1)
-            #         cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
-
-            #     if not self.time_stamp:
-            #         cur_roi_points_sample = cur_roi_points_sample[:,:-1]
-
-            #     src[bs_idx, roi_box_idx, :self.num_points, :] = cur_roi_points_sample
 
         src = src.repeat([1,1,trajectory_rois.shape[1],1])
 
         return src
 
-    def crop_previous_frame_points(self,src,batch_size,trajectory_rois,num_rois,effective_length,batch_dict):
+    def crop_previous_frame_points(self,src,batch_size,trajectory_rois,num_rois,valid_length,batch_dict):
         for bs_idx in range(batch_size):
             
             cur_points = batch_dict['points'][(batch_dict['points'][:, 0] == bs_idx)][:,1:]
@@ -730,91 +598,90 @@ class MPPNetHead(RoIHeadTemplate):
 
                 for roi_box_idx in range(0, num_rois):
 
-                    if not effective_length[bs_idx,idx,roi_box_idx]:
+                    if not valid_length[bs_idx,idx,roi_box_idx]:
                             continue
 
                     cur_roi_points = cur_time_points[point_mask[roi_box_idx]]
 
 
 
-                    if cur_roi_points.shape[0] > self.num_points:
+                    if cur_roi_points.shape[0] > self.num_lidar_points:
                         np.random.seed(0)
-                        choice = np.random.choice(cur_roi_points.shape[0], self.num_points, replace=True)
+                        choice = np.random.choice(cur_roi_points.shape[0], self.num_lidar_points, replace=True)
                         cur_roi_points_sample = cur_roi_points[choice]
                         
 
                     elif cur_roi_points.shape[0] == 0:
-                        cur_roi_points_sample = cur_roi_points.new_zeros(self.num_points, 6)
-                        batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
+                        cur_roi_points_sample = cur_roi_points.new_zeros(self.num_lidar_points, 6)
+                        # batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
 
                     else:
-                        empty_num = self.num_points - cur_roi_points.shape[0]
+                        empty_num = self.num_lidar_points - cur_roi_points.shape[0]
                         add_zeros = cur_roi_points.new_zeros(empty_num, 6)
                         add_zeros = cur_roi_points[0].repeat(empty_num, 1)
                         cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
 
-                    if not self.time_stamp:
+                    if not self.use_time_stamp:
                         cur_roi_points_sample = cur_roi_points_sample[:,:-1]
 
-                    src[bs_idx, roi_box_idx, self.num_points*idx:self.num_points*(idx+1), :] = cur_roi_points_sample
+                    src[bs_idx, roi_box_idx, self.num_lidar_points*idx:self.num_lidar_points*(idx+1), :] = cur_roi_points_sample
 
         return src
 
     def get_proposal_aware_geometry_feature(self,src, batch_size,trajectory_rois,num_rois,batch_dict):
-        pos_fea_list = []
-
+        proposal_aware_feat_list = []
         for i in range(trajectory_rois.shape[1]):
 
             corner_points, _ = self.get_corner_points_of_roi(trajectory_rois[:,i,:,:].contiguous()) 
 
             corner_points = corner_points.view(batch_size, num_rois, -1, corner_points.shape[-1]) 
             corner_points = corner_points.view(batch_size * num_rois, -1)
-            corner_add_center_points = torch.cat([corner_points, trajectory_rois[:,i,:,:].contiguous().reshape(batch_size * num_rois, -1)[:,:3]], dim = -1)
-            pos_fea = src[:,i*self.num_points:(i+1)*self.num_points,:3].repeat(1,1,9) - corner_add_center_points.unsqueeze(1).repeat(1,self.num_points,1)  # 27 维
+            trajectory_roi_center = trajectory_rois[:,i,:,:].contiguous().reshape(batch_size * num_rois, -1)[:,:3]
+            corner_add_center_points = torch.cat([corner_points, trajectory_roi_center], dim = -1)
+            proposal_aware_feat = src[:,i*self.num_lidar_points:(i+1)*self.num_lidar_points,:3].repeat(1,1,9) - \
+                                  corner_add_center_points.unsqueeze(1).repeat(1,self.num_lidar_points,1) 
 
+            lwh = trajectory_rois[:,i,:,:].reshape(batch_size * num_rois, -1)[:,3:6].unsqueeze(1).repeat(1,proposal_aware_feat.shape[1],1)
+            diag_dist = (lwh[:,:,0]**2 + lwh[:,:,1]**2 + lwh[:,:,2]**2) ** 0.5
+            proposal_aware_feat = self.spherical_coordinate(proposal_aware_feat, diag_dist = diag_dist.unsqueeze(-1))
+            proposal_aware_feat_list.append(proposal_aware_feat)
 
-            if self.model_cfg.get('USE_SPHERICAL_COOR',True):
-                lwh = trajectory_rois[:,i,:,:].reshape(batch_size * num_rois, -1)[:,3:6].unsqueeze(1).repeat(1,pos_fea.shape[1],1)
-                diag_dist = (lwh[:,:,0]**2 + lwh[:,:,1]**2 + lwh[:,:,2]**2) ** 0.5
-                pos_fea = self.spherical_coordinate(pos_fea, diag_dist = diag_dist.unsqueeze(-1))
-
-            
-            pos_fea_list.append(pos_fea)
-
-        pos_fea = torch.cat(pos_fea_list,dim=1)
-        src_res = torch.cat([pos_fea, src[:,:,3:]], dim = -1)
-        src_gemoetry = self.up_dimension(src_res) 
-        proxy_point_geometry, proxy_points, _ = self.roi_grid_pool(batch_size,trajectory_rois,src,src_gemoetry,batch_dict,batch_cnt=None)
+        proposal_aware_feat = torch.cat(proposal_aware_feat_list,dim=1)
+        proposal_aware_feat = torch.cat([proposal_aware_feat, src[:,:,3:]], dim = -1)
+        src_gemoetry = self.up_dimension_geometry(proposal_aware_feat) 
+        proxy_point_geometry, proxy_points = self.roi_grid_pool(batch_size,trajectory_rois,src,src_gemoetry,batch_dict,batch_cnt=None)
         return proxy_point_geometry,proxy_points
+
+
 
     def get_proposal_aware_motion_feature(self,proxy_point,batch_size,trajectory_rois,num_rois,batch_dict):
 
 
         time_stamp   = torch.ones([proxy_point.shape[0],proxy_point.shape[1],1]).cuda()
         padding_zero = torch.zeros([proxy_point.shape[0],proxy_point.shape[1],2]).cuda()
-        proxy_point_padding = torch.cat([padding_zero,time_stamp],-1)
+        proxy_point_time_padding = torch.cat([padding_zero,time_stamp],-1)
 
-        num_time_coding = trajectory_rois.shape[1]
+        num_frames = trajectory_rois.shape[1]
 
-        for i in range(num_time_coding):
-            proxy_point_padding[:,i*self.num_key_points:(i+1)*self.num_key_points,-1] = i*0.1
+        for i in range(num_frames):
+            proxy_point_time_padding[:,i*self.num_key_points:(i+1)*self.num_key_points,-1] = i*0.1
 
 
-        ######### use T0 to Norm ########
-        corner_points, _ = self.get_corner_points_of_roi(trajectory_rois[:,0,:,:].contiguous())  # (BxN, 2x2x2, 3)
-        corner_points = corner_points.view(batch_size, num_rois, -1, corner_points.shape[-1])  # (B, N, 2x2x2, 3)
+        corner_points, _ = self.get_corner_points_of_roi(trajectory_rois[:,0,:,:].contiguous()) 
+        corner_points = corner_points.view(batch_size, num_rois, -1, corner_points.shape[-1]) 
         corner_points = corner_points.view(batch_size * num_rois, -1)
-        corner_add_center_points = torch.cat([corner_points, trajectory_rois[:,0,:,:].reshape(batch_size * num_rois, -1)[:,:3]], dim = -1)
+        trajectory_roi_center = trajectory_rois[:,0,:,:].reshape(batch_size * num_rois, -1)[:,:3]
+        corner_add_center_points = torch.cat([corner_points, trajectory_roi_center], dim = -1)
 
-        pos_fea = proxy_point[:,:,:3].repeat(1,1,9) - corner_add_center_points.unsqueeze(1) # 
+        proposal_aware_feat = proxy_point[:,:,:3].repeat(1,1,9) - corner_add_center_points.unsqueeze(1) 
 
         lwh = trajectory_rois[:,0,:,:].reshape(batch_size * num_rois, -1)[:,3:6].unsqueeze(1).repeat(1,proxy_point.shape[1],1)
         diag_dist = (lwh[:,:,0]**2 + lwh[:,:,1]**2 + lwh[:,:,2]**2) ** 0.5
-        pos_fea = self.spherical_coordinate(pos_fea, diag_dist = diag_dist.unsqueeze(-1))
-        ######### use T0 to Norm ########
+        proposal_aware_feat = self.spherical_coordinate(proposal_aware_feat, diag_dist = diag_dist.unsqueeze(-1))
 
-        proxy_point_padding = torch.cat([pos_fea,proxy_point_padding],-1)
-        proxy_point_motion_feat = self.up_dimension_voxel(proxy_point_padding)
+
+        proposal_aware_feat = torch.cat([proposal_aware_feat,proxy_point_time_padding],-1)
+        proxy_point_motion_feat = self.up_dimension_motion(proposal_aware_feat)
 
         return proxy_point_motion_feat
 
@@ -826,10 +693,7 @@ class MPPNetHead(RoIHeadTemplate):
 
         box_seq = torch.cat([trajectory_rois[:,:,:,:7],time_stamp],-1)
 
-        if self.model_cfg.USE_BOX_ENCODING.NORM_T0:
-            # canonical transformation
-            box_seq[:, :, :,0:3]  = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
-
+        box_seq[:, :, :,0:3] = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
 
         roi_ry = box_seq[:,:,:,6] % (2 * np.pi)
         roi_ry_t0 = roi_ry[:,0] 
@@ -840,28 +704,22 @@ class MPPNetHead(RoIHeadTemplate):
             points=box_seq.view(-1, 1, box_seq.shape[-1]), angle=-roi_ry_t0.view(-1)
         ).view(box_seq.shape[0],box_seq.shape[1], -1, box_seq.shape[-1])
 
-        if self.model_cfg.USE_BOX_ENCODING.ALL_YAW_T0:
-            box_seq[:, :, :, 6]  =  0
-
-        else:
-            box_seq[:, 0:1, :, 6]  =  0
-            box_seq[:, 1:, :, 6]  =  roi_ry[:, 1:, ] - roi_ry[:,0:1]
-
+        box_seq[:, :, :, 6]  =  0
 
         batch_rcnn = box_seq.shape[0]*box_seq.shape[2]
 
-        box_reg, feat_traj, _ = self.seqboxemb(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
+        box_reg, box_feat, _ = self.seqboxembed(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
         
-        return box_reg, feat_traj
+        return box_reg, box_feat
 
     def generate_trajectory(self,cur_batch_boxes,proposals_list,roi_labels_list,roi_scores_list,batch_dict):
  
         trajectory_rois = cur_batch_boxes[:,None,:,:].repeat(1,batch_dict['rois'].shape[-2],1,1)
-        trajectory_roi_scores = torch.zeros_like(batch_dict['roi_scores'].permute(0,2,1))
+        trajectory_rois_scores = torch.zeros_like(batch_dict['roi_scores'].permute(0,2,1))
         trajectory_rois[:,0,:,:]= cur_batch_boxes
-        trajectory_roi_scores[:,0,:] = batch_dict['roi_scores'][:,:,0]
-        effective_length = torch.zeros([batch_dict['batch_size'],batch_dict['rois'].shape[-2],trajectory_rois.shape[2]])
-        effective_length[:,0] = 1
+        trajectory_rois_scores[:,0,:] = batch_dict['roi_scores'][:,:,0]
+        valid_length = torch.zeros([batch_dict['batch_size'],batch_dict['rois'].shape[-2],trajectory_rois.shape[2]])
+        valid_length[:,0] = 1
         for i in range(1,batch_dict['rois'].shape[-2]):
             frame = torch.zeros_like(cur_batch_boxes)
             frame[:,:,0:2] = trajectory_rois[:,i-1,:,0:2] + trajectory_rois[:,i-1,:,7:9]
@@ -873,14 +731,14 @@ class MPPNetHead(RoIHeadTemplate):
                 
                 fg_inds = ((max_overlaps >= 0.5)).nonzero().view(-1)
                     
-                effective_length[idx,i,fg_inds] = 1
+                valid_length[idx,i,fg_inds] = 1
 
                 trajectory_rois[idx,i,:,:][fg_inds] = proposals_list[idx][i][gt_assignment[fg_inds]]
-                trajectory_roi_scores[idx,i,:][fg_inds] = roi_scores_list[idx][i][gt_assignment[fg_inds]]
+                trajectory_rois_scores[idx,i,:][fg_inds] = roi_scores_list[idx][i][gt_assignment[fg_inds]]
 
-            batch_dict['effi_length'] = effective_length
+            batch_dict['valid_length'] = valid_length
         
-        return trajectory_rois,trajectory_roi_scores,effective_length
+        return trajectory_rois,trajectory_rois_scores,valid_length
 
     def forward(self, batch_dict):
         """
@@ -888,7 +746,6 @@ class MPPNetHead(RoIHeadTemplate):
         :return:
         """
 
-        start_time = time.time()
         batch_dict['rois'] = batch_dict['proposals_list'].permute(0,2,1,3)#[:,:,[4,3,0,2,1]]
         num_rois = batch_dict['rois'].shape[1]
         batch_dict['num_frames'] = batch_dict['rois'].shape[2]
@@ -902,8 +759,7 @@ class MPPNetHead(RoIHeadTemplate):
         cur_batch_boxes = copy.deepcopy(batch_dict['rois'].detach())[:,:,0]
         batch_dict['cur_frame_idx'] = 0
 
-    
-        trajectory_rois,trajectory_roi_scores,effective_length \
+        trajectory_rois,trajectory_roi_scores,valid_length \
              = self.generate_trajectory(cur_batch_boxes,proposals_list,roi_labels_list,roi_scores_list,batch_dict)
 
         batch_dict['traj_memory'] = trajectory_rois
@@ -918,7 +774,7 @@ class MPPNetHead(RoIHeadTemplate):
             batch_dict['roi_labels'] = targets_dict['roi_labels']
             targets_dict['trajectory_rois'][:,batch_dict['cur_frame_idx'],:,:] = batch_dict['rois']
             trajectory_rois = targets_dict['trajectory_rois']
-            effective_length = targets_dict['effi_length']
+            valid_length = targets_dict['valid_length']
             empty_mask = batch_dict['rois'][:,:,:6].sum(-1)==0
 
         else:
@@ -928,16 +784,12 @@ class MPPNetHead(RoIHeadTemplate):
 
         rois = batch_dict['rois']
         num_rois = batch_dict['rois'].shape[1]
-
-        num_sample = self.num_points 
-
+        num_sample = self.num_lidar_points 
         src = rois.new_zeros(batch_size, num_rois, num_sample, 5) 
 
-        batch_dict['nonempty_mask'] = rois.new_ones(batch_size,num_rois).bool()
+        src = self.crop_current_frame_points(src, batch_size, trajectory_rois, num_rois,batch_dict)
 
-        src = self.crop_current_frame_points(src, batch_size, trajectory_rois, num_rois, num_sample, batch_dict)
-
-        src = self.crop_previous_frame_points(src, batch_size,trajectory_rois,num_rois,effective_length,batch_dict)
+        src = self.crop_previous_frame_points(src, batch_size,trajectory_rois,num_rois,valid_length,batch_dict)
 
         src = src.view(batch_size * num_rois, -1, src.shape[-1]) 
 
@@ -953,17 +805,15 @@ class MPPNetHead(RoIHeadTemplate):
             src[empty_mask.view(-1)] = 0
 
         if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
-            pos = self.gridposembeding(self.gridindex.cuda())[None,:,:]
+            pos = self.grid_pos_embeded(self.grid_index.cuda())[None,:,:]
             pos = torch.cat([torch.zeros(1,1,self.hidden_dim).cuda(),pos],1)
 
         else:
             grid_pos = None
             pos=None
 
-        start_time = time.time()
-        hs, tokens, mlp_merge = self.transformer(src,pos=pos, num_frames = batch_dict['num_frames'])
-        batch_dict['casa_time'] = time.time() - start_time
-        head_time = time.time()
+
+        hs, tokens = self.transformer(src,pos=pos, num_frames = batch_dict['num_frames'])
         point_cls_list = []
         point_reg_list = []
 
@@ -979,11 +829,10 @@ class MPPNetHead(RoIHeadTemplate):
         point_reg = torch.cat(point_reg_list,0)
         hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
         
-        if self.model_cfg.get('USE_MLP_JOINTEMB',None):
-            joint_cls = None
-            joint_reg = self.jointemb(torch.cat([hs,feat_box],-1))
-        else:
-            joint_reg, _, _ = self.jointemb(None,torch.cat([hs,feat_box],-1))
+        # if self.model_cfg.get('USE_MLP_JOINTEMB',None):
+        joint_reg = self.jointembed(torch.cat([hs,feat_box],-1))
+        # else:
+        #     joint_reg, _, _ = self.jointembed(None,torch.cat([hs,feat_box],-1))
         
 
         rcnn_cls = point_cls
@@ -1035,14 +884,13 @@ class MPPNetHead(RoIHeadTemplate):
 
         else:
             targets_dict['batch_size'] = batch_size
-            targets_dict['nonempty_mask'] = batch_dict['nonempty_mask']
             targets_dict['rcnn_cls'] = rcnn_cls
             targets_dict['rcnn_reg'] = rcnn_reg
             targets_dict['box_reg'] = box_reg
             targets_dict['point_reg'] = point_reg
             targets_dict['point_cls'] = point_cls
             self.forward_ret_dict = targets_dict
-        batch_dict['transformer_time'] = time.time()- start_time
+
         return batch_dict
 
     def get_loss(self, tb_dict=None):
