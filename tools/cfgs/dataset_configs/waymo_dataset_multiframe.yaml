@@ -24,6 +24,8 @@ SEQUENCE_CONFIG:
     ENABLED: True
     SAMPLE_OFFSET: [-3, 0]
     
+TRAIN_WITH_SPEED: True 
+
 
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']

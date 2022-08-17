@@ -20,7 +20,7 @@ except:
 WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Sign', 'Cyclist']
 
 
-def generate_labels(frame):
+def generate_labels(frame, pose):
     obj_name, difficulty, dimensions, locations, heading_angles = [], [], [], [], []
     tracking_difficulty, speeds, accelerations, obj_ids = [], [], [], []
     num_points_in_gt = []
@@ -51,13 +51,17 @@ def generate_labels(frame):
     annotations['obj_ids'] = np.array(obj_ids)
     annotations['tracking_difficulty'] = np.array(tracking_difficulty)
     annotations['num_points_in_gt'] = np.array(num_points_in_gt)
-    annotations['speed'] = np.array(speeds)
-    annotations['accel'] = np.array(accelerations)
+    annotations['speed_global'] = np.array(speeds)
+    annotations['accel_global'] = np.array(accelerations)
 
     annotations = common_utils.drop_info_with_name(annotations, name='unknown')
     if annotations['name'].__len__() > 0:
+        global_speed = np.pad(annotations['speed_global'], ((0, 0), (0, 1)), mode='constant', constant_values=0)  # (N, 3)
+        speed = np.dot(global_speed, np.linalg.inv(pose[:3, :3].T))
+        speed = speed[:, :2]
+        
         gt_boxes_lidar = np.concatenate([
-            annotations['location'], annotations['dimensions'], annotations['heading_angles'][..., np.newaxis]],
+            annotations['location'], annotations['dimensions'], annotations['heading_angles'][..., np.newaxis], speed],
             axis=1
         )
     else:
@@ -241,7 +245,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
         info['pose'] = pose
 
         if has_label:
-            annotations = generate_labels(frame)
+            annotations = generate_labels(frame, pose=pose)
             info['annos'] = annotations
 
         if update_info_only:
