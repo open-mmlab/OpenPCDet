@@ -62,6 +62,7 @@ POINT_FEATURE_ENCODING: {
 DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
       REMOVE_OUTSIDE_BOXES: True
+      FILTER_Z: False
 
     - NAME: shuffle_points
       SHUFFLE_ENABLED: {
