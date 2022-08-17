@@ -29,7 +29,7 @@ class WaymoDataset(DatasetTemplate):
         self.sample_sequence_list = [x.strip() for x in open(split_dir).readlines()]
 
         self.infos = []
-        self.include_waymo_data(self.mode)
+        self.seq_name_to_infos = self.include_waymo_data(self.mode)
 
         self.use_shared_memory = self.dataset_cfg.get('USE_SHARED_MEMORY', False) and self.training
         if self.use_shared_memory:
@@ -45,11 +45,12 @@ class WaymoDataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_sequence_list = [x.strip() for x in open(split_dir).readlines()]
         self.infos = []
-        self.include_waymo_data(self.mode)
+        self.seq_name_to_infos = self.include_waymo_data(self.mode)
 
     def include_waymo_data(self, mode):
         self.logger.info('Loading Waymo dataset')
         waymo_infos = []
+        seq_name_to_infos = {}
 
         num_skipped_infos = 0
         for k in range(len(self.sample_sequence_list)):
@@ -63,6 +64,8 @@ class WaymoDataset(DatasetTemplate):
                 infos = pickle.load(f)
                 waymo_infos.extend(infos)
 
+            seq_name_to_infos[infos[0]['point_cloud']['lidar_sequence']] = infos
+
         self.infos.extend(waymo_infos[:])
         self.logger.info('Total skipped info %s' % num_skipped_infos)
         self.logger.info('Total samples for Waymo dataset: %d' % (len(waymo_infos)))
@@ -73,6 +76,8 @@ class WaymoDataset(DatasetTemplate):
                 sampled_waymo_infos.append(self.infos[k])
             self.infos = sampled_waymo_infos
             self.logger.info('Total sampled samples for Waymo dataset: %d' % len(self.infos))
+
+        return seq_name_to_infos
 
     def load_data_to_shared_memory(self):
         self.logger.info(f'Loading training data to shared memory (file limit={self.shared_memory_file_limit})')
@@ -134,7 +139,7 @@ class WaymoDataset(DatasetTemplate):
                 sequence_file = found_sequence_file
         return sequence_file
 
-    def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True, sampled_interval=1):
+    def get_infos(self, raw_data_path, save_path, num_workers=multiprocessing.cpu_count(), has_label=True, sampled_interval=1, update_info_only=False):
         from functools import partial
         from . import waymo_utils
         print('---------------The waymo sample interval is %d, total sequecnes is %d-----------------'
@@ -142,7 +147,7 @@ class WaymoDataset(DatasetTemplate):
 
         process_single_sequence = partial(
             waymo_utils.process_single_sequence,
-            save_path=save_path, sampled_interval=sampled_interval, has_label=has_label
+            save_path=save_path, sampled_interval=sampled_interval, has_label=has_label, update_info_only=update_info_only
         )
         sample_sequence_file_list = [
             self.check_sequence_name_with_all_version(raw_data_path / sequence_file)
@@ -166,6 +171,63 @@ class WaymoDataset(DatasetTemplate):
         points_all[:, 3] = np.tanh(points_all[:, 3])
         return points_all
 
+    def get_sequence_data(self, info, points, sequence_name, sample_idx, sequence_cfg):
+        """
+        Args:
+            info:
+            points:
+            sequence_name:
+            sample_idx:
+            sequence_cfg:
+        Returns:
+        """
+
+        def remove_ego_points(points, center_radius=1.0):
+            mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
+            return points[mask]
+
+        pose_cur = info['pose'].reshape((4, 4))
+        num_pts_cur = points.shape[0]
+        sample_idx_pre_list = np.clip(sample_idx + np.arange(
+            sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1]), 0, 0x7FFFFFFF)
+        if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
+            onehot_cur = np.zeros((points.shape[0], len(sample_idx_pre_list) + 1)).astype(points.dtype)
+            onehot_cur[:, 0] = 1
+            points = np.hstack([points, onehot_cur])
+        else:
+            points = np.hstack([points, np.zeros((points.shape[0], 1)).astype(points.dtype)])
+        points_pre_all = []
+        num_points_pre = []
+
+        sequence_info = self.seq_name_to_infos[sequence_name]
+
+        for i, sample_idx_pre in enumerate(sample_idx_pre_list):
+            if sample_idx == sample_idx_pre:
+                continue
+
+            points_pre = self.get_lidar(sequence_name, sample_idx_pre)
+            pose_pre = sequence_info[sample_idx_pre]['pose'].reshape((4, 4))
+            expand_points_pre = np.concatenate([points_pre[:, :3], np.ones((points_pre.shape[0], 1))], axis=-1)
+            points_pre_global = np.dot(expand_points_pre, pose_pre.T)[:, :3]
+            expand_points_pre_global = np.concatenate([points_pre_global,
+                                                       np.ones((points_pre_global.shape[0], 1))], axis=-1)
+            points_pre2cur = np.dot(expand_points_pre_global, np.linalg.inv(pose_cur.T))[:, :3]
+            points_pre = np.concatenate([points_pre2cur, points_pre[:, 3:]], axis=-1)
+            if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
+                onehot_vector = np.zeros((points_pre.shape[0], len(sample_idx_pre_list) + 1))
+                onehot_vector[:, i + 1] = 1
+                points_pre = np.hstack([points_pre, onehot_vector])
+            else:
+                # add timestamp
+                points_pre = np.hstack([points_pre, 0.1 * (sample_idx - sample_idx_pre)
+                                        * np.ones((points_pre.shape[0], 1)).astype(points_pre.dtype)])  # one frame 0.1s
+            points_pre = remove_ego_points(points_pre, 1.0)
+            points_pre_all.append(points_pre)
+            num_points_pre.append(points_pre.shape[0])
+        points = np.concatenate([points] + points_pre_all, axis=0)
+        num_points_all = np.array([num_pts_cur] + num_points_pre).astype(np.int)
+        return points, num_points_all, sample_idx_pre_list
+
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
             return len(self.infos) * self.total_epochs
@@ -186,6 +248,11 @@ class WaymoDataset(DatasetTemplate):
             points = SharedArray.attach(f"shm://{sa_key}").copy()
         else:
             points = self.get_lidar(sequence_name, sample_idx)
+
+        if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
+            points, num_points_all, sample_idx_pre_list = self.get_sequence_data(
+                info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+            )
 
         input_dict = {
             'points': points,
@@ -320,9 +387,20 @@ class WaymoDataset(DatasetTemplate):
 
     def create_groundtruth_database(self, info_path, save_path, used_classes=None, split='train', sampled_interval=10,
                                     processed_data_tag=None):
-        database_save_path = save_path / ('%s_gt_database_%s_sampled_%d' % (processed_data_tag, split, sampled_interval))
-        db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d.pkl' % (processed_data_tag, split, sampled_interval))
-        db_data_save_path = save_path / ('%s_gt_database_%s_sampled_%d_global.npy' % (processed_data_tag, split, sampled_interval))
+
+        use_sequence_data = self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED
+
+        if use_sequence_data:
+            st_frame, ed_frame = self.dataset_cfg.SEQUENCE_CONFIG.SAMPLE_OFFSET[0], self.dataset_cfg.SEQUENCE_CONFIG.SAMPLE_OFFSET[1]
+            st_frame = min(-4, st_frame)  # at least we use 5 frames for generating gt database to support various sequence configs (<= 5 frames)
+            database_save_path = save_path / ('%s_gt_database_%s_sampled_%d_multiframe_%s_to_%s' % (processed_data_tag, split, sampled_interval, st_frame, ed_frame))
+            db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d_multiframe_%s_to_%s.pkl' % (processed_data_tag, split, sampled_interval, st_frame, ed_frame))
+            db_data_save_path = save_path / ('%s_gt_database_%s_sampled_%d_multiframe_%s_to_%s_global.npy' % (processed_data_tag, split, sampled_interval, st_frame, ed_frame))
+        else:
+            database_save_path = save_path / ('%s_gt_database_%s_sampled_%d' % (processed_data_tag, split, sampled_interval))
+            db_info_save_path = save_path / ('%s_waymo_dbinfos_%s_sampled_%d.pkl' % (processed_data_tag, split, sampled_interval))
+            db_data_save_path = save_path / ('%s_gt_database_%s_sampled_%d_global.npy' % (processed_data_tag, split, sampled_interval))
+
         database_save_path.mkdir(parents=True, exist_ok=True)
         all_db_infos = {}
         with open(info_path, 'rb') as f:
@@ -338,6 +416,11 @@ class WaymoDataset(DatasetTemplate):
             sequence_name = pc_info['lidar_sequence']
             sample_idx = pc_info['sample_idx']
             points = self.get_lidar(sequence_name, sample_idx)
+
+            if use_sequence_data:
+                points, num_points_all, sample_idx_pre_list = self.get_sequence_data(
+                    info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+                )
 
             annos = info['annos']
             names = annos['name']
@@ -402,7 +485,7 @@ class WaymoDataset(DatasetTemplate):
 
 def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
                        raw_data_tag='raw_data', processed_data_tag='waymo_processed_data',
-                       workers=min(16, multiprocessing.cpu_count())):
+                       workers=min(16, multiprocessing.cpu_count()), update_info_only=False):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
         training=False, logger=common_utils.create_logger()
@@ -419,7 +502,7 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     waymo_infos_train = dataset.get_infos(
         raw_data_path=data_path / raw_data_tag,
         save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
-        sampled_interval=1
+        sampled_interval=1, update_info_only=update_info_only
     )
     with open(train_filename, 'wb') as f:
         pickle.dump(waymo_infos_train, f)
@@ -429,11 +512,14 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     waymo_infos_val = dataset.get_infos(
         raw_data_path=data_path / raw_data_tag,
         save_path=save_path / processed_data_tag, num_workers=workers, has_label=True,
-        sampled_interval=1
+        sampled_interval=1, update_info_only=update_info_only
     )
     with open(val_filename, 'wb') as f:
         pickle.dump(waymo_infos_val, f)
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
+
+    if update_info_only:
+        return
 
     print('---------------Start create groundtruth database for data augmentation---------------')
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -445,24 +531,47 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     print('---------------Data preparation Done---------------')
 
 
+def create_waymo_gt_database(
+    dataset_cfg, class_names, data_path, save_path, processed_data_tag='waymo_processed_data',
+    workers=min(16, multiprocessing.cpu_count())):
+    dataset = WaymoDataset(
+        dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
+        training=True, logger=common_utils.create_logger()
+    )
+    train_split = 'train'
+    train_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, train_split))
+
+    print('---------------Start create groundtruth database for data augmentation---------------')
+    dataset.set_split(train_split)
+
+    dataset.create_groundtruth_database(
+        info_path=train_filename, save_path=save_path, split='train', sampled_interval=1,
+        used_classes=['Vehicle', 'Pedestrian', 'Cyclist'], processed_data_tag=processed_data_tag
+    )
+    print('---------------Data preparation Done---------------')
+
+
 if __name__ == '__main__':
     import argparse
+    import yaml
+    from easydict import EasyDict
 
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
     parser.add_argument('--processed_data_tag', type=str, default='waymo_processed_data_v0_5_0', help='')
+    parser.add_argument('--update_info_only', action='store_true', default=False, help='')
+
     args = parser.parse_args()
 
+    ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
+
     if args.func == 'create_waymo_infos':
-        import yaml
-        from easydict import EasyDict
         try:
             yaml_config = yaml.safe_load(open(args.cfg_file), Loader=yaml.FullLoader)
         except:
             yaml_config = yaml.safe_load(open(args.cfg_file))
         dataset_cfg = EasyDict(yaml_config)
-        ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
         create_waymo_infos(
             dataset_cfg=dataset_cfg,
@@ -470,5 +579,22 @@ if __name__ == '__main__':
             data_path=ROOT_DIR / 'data' / 'waymo',
             save_path=ROOT_DIR / 'data' / 'waymo',
             raw_data_tag='raw_data',
+            processed_data_tag=args.processed_data_tag,
+            update_info_only=args.update_info_only
+        )
+    elif args.func == 'create_waymo_gt_database':
+        try:
+            yaml_config = yaml.safe_load(open(args.cfg_file), Loader=yaml.FullLoader)
+        except:
+            yaml_config = yaml.safe_load(open(args.cfg_file))
+        dataset_cfg = EasyDict(yaml_config)
+        dataset_cfg.PROCESSED_DATA_TAG = args.processed_data_tag
+        create_waymo_gt_database(
+            dataset_cfg=dataset_cfg,
+            class_names=['Vehicle', 'Pedestrian', 'Cyclist'],
+            data_path=ROOT_DIR / 'data' / 'waymo',
+            save_path=ROOT_DIR / 'data' / 'waymo',
             processed_data_tag=args.processed_data_tag
         )
+    else:
+        raise NotImplementedError
