@@ -536,7 +536,7 @@ def create_waymo_gt_database(
     workers=min(16, multiprocessing.cpu_count())):
     dataset = WaymoDataset(
         dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path,
-        training=True, logger=common_utils.create_logger()
+        training=False, logger=common_utils.create_logger()
     )
     train_split = 'train'
     train_filename = save_path / ('%s_infos_%s.pkl' % (processed_data_tag, train_split))

@@ -212,7 +212,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
             return sequence_infos
         else:
             sequence_infos_old = sequence_infos
-            sequenec_infos = []
+            sequence_infos = []
 
     for cnt, data in enumerate(dataset):
         if cnt % sampled_interval != 0:
