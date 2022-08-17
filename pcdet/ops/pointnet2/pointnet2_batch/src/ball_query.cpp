@@ -7,12 +7,9 @@ All Rights Reserved 2018.
 
 #include <torch/serialize/tensor.h>
 #include <vector>
-#include <THC/THC.h>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include "ball_query_gpu.h"
-
-extern THCState *state;
 
 #define CHECK_CUDA(x) do { \
 	  if (!x.type().is_cuda()) { \
