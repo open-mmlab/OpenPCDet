@@ -65,7 +65,7 @@ def generate_labels(frame, pose):
             axis=1
         )
     else:
-        gt_boxes_lidar = np.zeros((0, 7))
+        gt_boxes_lidar = np.zeros((0, 9))
     annotations['gt_boxes_lidar'] = gt_boxes_lidar
     return annotations
 
