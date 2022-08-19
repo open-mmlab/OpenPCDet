@@ -1,3 +1,31 @@
+
+# Anytime-Lidar
+
+Anytime-lidar deliver anytime perception to lidar-based object detection DNNs. It is implemented on top of the OpenPCDet project. The entire testing environment is packaged in a docker image, which needs to be pulled to Jetson AGX Xavier. The Jetpack version we used is as follows. Make sure yours is not less than this.
+```
+nvidia@devboard-xavier:~$ cat /etc/nv_tegra_release 
+# R32 (release), REVISION: 6.1, GCID: 27863751, BOARD: t186ref, EABI: aarch64, DATE: Mon Jul 26 19:36:31 UTC 2021
+```
+Another thing is that we maximized all CPU and GPU clocks for testing, so please do that as well using `jetson_clocks` and `nvpmodel` tools available by NVIDIA.
+
+Pull the docker image:
+```
+docker pull kucsl/pointpillars:1.1.0
+```
+NOTE: The docker image is HUGE. It has the mini nuScenes dataset included. To pull it to the Jetson AGX Xavier, an NVMe has to be attached to the module, and the docker should be configured to store the images on the NVMe, which is not default. Please follow the steps in the following link on how to do this: https://evodify.com/change-docker-storage-location/ (Change Docker storage location: THE RIGHT WAY!)
+
+After pulling the image, The following command can be used to start a container and attach to it.
+```
+docker run --runtime nvidia -it --privileged --cap-add=ALL  --ulimit rtprio=99 --tmpfs /tmpfs --name pp kucsl/pointpillars:1.1.0
+```
+Then run the following command one by one to make calibration and run the tests. When the last command is done, the results will be plotted and saved at the location `~/OpenPCDet/tools/exp_plots`. You can copy the plots to your local computer to check them.
+```
+cd ~/OpenPCDet/tools
+. env.sh
+. nusc_dataset_prep.sh
+. calib_and_run_tests.sh
+```
+
 <img src="docs/open_mmlab.png" align="right" width="30%">
 
 # OpenPCDet
@@ -6,7 +34,7 @@
 
 It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/1812.04244), [`[Part-A2-Net]`](https://arxiv.org/abs/1907.03670), [`[PV-RCNN]`](https://arxiv.org/abs/1912.13192), [`[Voxel R-CNN]`](https://arxiv.org/abs/2012.15712) and [`[PV-RCNN++]`](https://arxiv.org/abs/2102.00463). 
 
-# Purpose of this fork
+
 
 Adding imprecise computation capability for point pillars.
 =======
