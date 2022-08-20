@@ -94,6 +94,7 @@ and you could refer to `data/waymo/waymo_processed_data_v0_5_0` to see how many 
 ```python 
 python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
     --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
+# Ignore 'CUDA_ERROR_NO_DEVICE' error as this process does not require GPU.
 ```
 
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
