@@ -29,6 +29,12 @@ def create_integrated_db_with_infos(args, root_path):
             obj_points = np.fromfile(str(obj_path), dtype=np.float32).reshape(
                 [-1, args.num_point_features])
             num_points = obj_points.shape[0]
+            if num_points != info['num_points_in_gt']:
+                obj_points = np.fromfile(str(obj_path), dtype=np.float64).reshape([-1, args.num_point_features])
+                num_points = obj_points.shape[0]
+                obj_points = obj_points.astype(np.float32)
+            assert num_points == info['num_points_in_gt']
+                
             db_info_global[category][idx]['global_data_offset'] = (start_idx, start_idx + num_points)
             start_idx += num_points
             global_db_list.append(obj_points)
