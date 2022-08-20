@@ -147,7 +147,8 @@ class SpatialMixerBlock(nn.Module):
 
     def forward(self, src):
 
-        src_3d = src.permute(1,2,0).contiguous().view(src.shape[1],src.shape[2],self.grid_size,self.grid_size,self.grid_size)
+        src_3d = src.permute(1,2,0).contiguous().view(src.shape[1],src.shape[2],
+                                   self.grid_size,self.grid_size,self.grid_size)
         src_3d = src_3d.permute(0,1,4,3,2).contiguous() 
         mixed_x = self.mixer_x(src_3d)
         mixed_x = src_3d + mixed_x
@@ -213,7 +214,6 @@ class Transformer(nn.Module):
     def forward(self, src, src_mask=None,pos=None,num_frames=None):
 
         BS, N, C = src.shape
-  
         if not pos is None:
             pos = pos.permute(1, 0, 2)
         if self.num_frames == 16:
@@ -327,15 +327,15 @@ class TransformerEncoderLayer(nn.Module):
         src_intra_group_fusion = self.mlp_mixer_3d(src[1:])
         src = torch.cat([src[:1],src_intra_group_fusion],0)
 
-        if not pos is None:
-            key = self.with_pos_embed(src_intra_group_fusion, pos[1:])
-        else:
-            key = src_intra_group_fusion
-
         if self.training or self.layer_count == self.config.enc_layers:
             token = src[:1]
-            src_summary = self.self_attn(token, key, value=src_intra_group_fusion, attn_mask=src_mask,
-                                    key_padding_mask=src_key_padding_mask)[0]
+
+            if not pos is None:
+                key = self.with_pos_embed(src_intra_group_fusion, pos[1:])
+            else:
+                key = src_intra_group_fusion
+
+            src_summary = self.self_attn(token, key, value=src_intra_group_fusion)[0]
             token = token + self.dropout1(src_summary)
             token = self.norm1(token)
             src_summary = self.linear2(self.dropout(self.activation(self.linear1(token))))
@@ -356,8 +356,7 @@ class TransformerEncoderLayer(nn.Module):
 
             inter_group_fusion_list = []
             for i in range(self.num_groups):
-                inter_group_fusion = self.cross_attn_layers[i](query_list[i], key, value=src_all_groups_fusion,
-                                              attn_mask=None,key_padding_mask=src_key_padding_mask)[0]
+                inter_group_fusion = self.cross_attn_layers[i](query_list[i], key, value=src_all_groups_fusion)[0]
                 inter_group_fusion = self.ffn(src_groups_list[i],inter_group_fusion)
                 inter_group_fusion_list.append(inter_group_fusion)
 

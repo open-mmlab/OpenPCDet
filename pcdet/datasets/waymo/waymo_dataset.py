@@ -54,7 +54,7 @@ class WaymoDataset(DatasetTemplate):
         waymo_infos_dict = {}
 
         num_skipped_infos = 0
-        for k in range(len(self.sample_sequence_list[:1])):
+        for k in range(len(self.sample_sequence_list[:])):
             sequence_name = os.path.splitext(self.sample_sequence_list[k])[0]
             info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
             info_path = self.check_sequence_name_with_all_version(info_path)
@@ -316,7 +316,9 @@ class WaymoDataset(DatasetTemplate):
             box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx))
 
             try:
-                load_boxes3d = np.load(box_path)
+                load_boxes3d = np.load(box_path)                   
+                # if 'vel_36' in self.dataset_cfg.ROI_BOXES_PATH:
+                #     load_boxes3d = load_boxes3d[:,[0,1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,18,19]]
                 pred_boxes3d = load_boxes3d[:,:9]  #[xyz, lwh,yaw, score, label]
                 pred_supboxes3d = load_boxes3d[:,9:][:,:7] #[xyz,lwh,yaw,]
                 disp = pred_supboxes3d[:,:2] - pred_boxes3d[:,:2] # get x,y motion
@@ -337,6 +339,8 @@ class WaymoDataset(DatasetTemplate):
 
                     box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
                     boxes3d = np.load(box_path)
+                    # if 'vel_36' in self.dataset_cfg.ROI_BOXES_PATH:
+                    #     boxes3d = boxes3d[:,[0,1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,18,19]]
                     pred_boxes3d = boxes3d[:,:9]
 
                     pred_supboxes3d = boxes3d[:,9:]

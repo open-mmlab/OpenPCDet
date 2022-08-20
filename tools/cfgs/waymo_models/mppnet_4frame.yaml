@@ -17,11 +17,17 @@ DATA_CONFIG:
         USE_SPEED: False
 
     USE_PREDBOX: True
-    ROI_BOXES_PATH: centerpoint_4frame_vel_dynmeanvfe
+    ROI_BOXES_PATH: 4frame_1point_normsup_3class_bbox_36
 
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]
         AUG_CONFIG_LIST:
+
+            -   NAME: random_world_flip
+                ALONG_AXIS_LIST: [ 'x', 'y' ]
+
+            -   NAME: random_world_rotation
+                WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
 
             -   NAME: random_world_scaling
                 WORLD_SCALE_RANGE: [ 0.95, 1.05 ]
