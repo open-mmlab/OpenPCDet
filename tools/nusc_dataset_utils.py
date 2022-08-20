@@ -166,8 +166,11 @@ def gen_new_token(table_name):
 
     return new_token
 
-def populate_annos_v2():
+# step defines the time between populated annotations in milliseconds
+# step 50ms, 100ms, 150ms, ...
+def populate_annos_v2(step):
     global nusc
+    step = step//50
     scene_to_sd = {}
     scene_to_sd_cam = {}
     for i, sd_rec in enumerate(nusc.sample_data):
@@ -207,9 +210,6 @@ def populate_annos_v2():
             next_sample = nusc.get('sample', sd_records[end_kf_idx]['sample_token'])
             # if these two are equal, this is a problem for interpolation
             assert cur_sample['token'] != next_sample['token']
-            # The number 2 makes it 100 ms
-            # 3 makes it 150 ms
-            step = 3
             sd_rec_indexes = np.arange(begin_kf_idx+step, end_kf_idx-step+1, step)
 
             new_samples = []
@@ -333,29 +333,38 @@ def populate_annos_v2():
     # Dump the modified scene, sample, sample_data, sample_annotations, and instance tables
     indent_num=0
     print('Dumping the tables')
-    with open('new_tables/scene.json', 'w') as handle:
+    with open('scene.json', 'w') as handle:
         json.dump(nusc.scene, handle, indent=indent_num)
     
     for sd in nusc.sample:
         del sd['anns']
         del sd['data']
-    with open('new_tables/sample.json', 'w') as handle:
+    with open('sample.json', 'w') as handle:
         json.dump(nusc.sample, handle, indent=indent_num)
 
     for sd in nusc.sample_data:
         del sd['sensor_modality']
         del sd['channel']
-    with open('new_tables/sample_data.json', 'w') as handle:
+    with open('sample_data.json', 'w') as handle:
         json.dump(nusc.sample_data, handle, indent=indent_num)
 
     for sd in nusc.sample_annotation:
         del sd['category_name']
-    with open('new_tables/sample_annotation.json', 'w') as handle:
+    with open('sample_annotation.json', 'w') as handle:
         json.dump(nusc.sample_annotation, handle, indent=indent_num)
 
-    with open('new_tables/instance.json', 'w') as handle:
+    with open('instance.json', 'w') as handle:
         json.dump(nusc.instance, handle, indent=indent_num)
 
-#populate_annos_v2()
-generate_anns_dict()
-generate_pose_dict()
+def main():
+    if len(sys.argv) == 3 and sys.argv[1] == 'populate_annos':
+        step = int(sys.argv[2])
+        populate_annos_v2(step)
+    elif len(sys.argv) == 2 and sys.argv[1] == 'generate_dicts':
+        generate_anns_dict()
+        generate_pose_dict()
+    else:
+        print('Usage error, doing nothing.')
+
+if __name__ == "__main__":
+    main()

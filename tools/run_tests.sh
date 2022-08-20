@@ -137,8 +137,8 @@ elif [ $1 == 'methods' ]; then
 		"imprecise" "imprecise" "imprecise" "imprecise" \
 		"imprecise" "imprecise" "imprecise" "imprecise" "imprecise"
 	do
-		if [ $m == 8 ] ; then
-			# I don't need these anymore
+		if [ $m == 5 ] || [ $m == 8 ]; then
+			# These are not needed
 			m=$((m+1))
 			continue
 		fi

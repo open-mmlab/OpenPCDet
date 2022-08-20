@@ -29,7 +29,6 @@ class PointPillar(Detector3DTemplate):
         #self.measure_time_start('MapToBEV')
         batch_dict = self.map_to_bev(batch_dict)
         #self.measure_time_end('MapToBEV')
-        self.measure_time_end('Pre-RPN')
         self.measure_time_start('RPN-total')
         batch_dict = self.backbone_2d(batch_dict)
         self.measure_time_end('RPN-total')

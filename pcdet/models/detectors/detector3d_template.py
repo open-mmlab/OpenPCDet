@@ -32,7 +32,6 @@ class Detector3DTemplate(nn.Module):
 
         self._time_dict = {
                 'End-to-end': [],
-                'Pre-RPN': [],
                 'PreProcess' : [],
                 'GetitemPost' : [],
                 'LoadToGPU' : [],
@@ -203,7 +202,6 @@ class Detector3DTemplate(nn.Module):
         raise NotImplementedError
 
     def load_data_with_ds_index(self, dataset_index):
-        self.measure_time_start('Pre-RPN')
         data_dict = self.dataset.collate_batch([self.dataset[dataset_index]])
         load_data_to_gpu(data_dict)
         return data_dict
@@ -214,7 +212,6 @@ class Detector3DTemplate(nn.Module):
         start_time = time.time()
         torch.cuda.nvtx.range_push('End-to-end')
         self.measure_time_start('End-to-end')
-        self.measure_time_start('Pre-RPN')
         self.measure_time_start('PreProcess')
         self.measure_time_start('GetitemPost')
         data_dict = self.dataset.getitem_post(data_dict)
@@ -615,23 +612,6 @@ class Detector3DTemplate(nn.Module):
 
         if self.model_cfg.get('METHOD', None) is not None:
             self._eval_dict['method'] = self.model_cfg.METHOD
-
-        # Collect timing errors
-        #0.5 1.0 2.0 4.0
-        #1 2 4 8
-        dist_th_to_idx = {'0.5':0, '1.0':1, '2.0':2, '4.0':3}
-        timing_err_dict = {}
-        paths = sorted(glob.glob("./time_err_json_pool/*"))
-        for p in paths:
-            with open(p, 'r') as handle:
-                time_errs = json.load(handle)
-                fname = p.split('/')[-1]
-                cls, dist, _ = fname.split('-')
-                if cls not in timing_err_dict:
-                    timing_err_dict[cls] = [.0] * 4
-                timing_err_dict[cls][dist_th_to_idx[dist]] = time_errs
-            os.remove(p)
-        self._eval_dict['time_err'] = timing_err_dict
 
         print('Dumping evaluation dictionary file')
         current_date_time = datetime.datetime.today()

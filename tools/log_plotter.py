@@ -284,29 +284,31 @@ for exp_name, evals in exps_dict.items():
     NDS_arr = [e['mAP']['NDS'] for e in evals]
     max_NDS = max(max(NDS_arr), max_NDS)
 
-exps_dict1= { nm:exps_dict[nm] for nm in [ \
+print(exps_dict.keys())
+plot_sets=[]
+plot_sets.append({ nm:exps_dict[nm] for nm in [ \
         'PointPillars-3',
         'PointPillars-2',
         'PointPillars-1',
         'MultiStage',
         'Ours',
-]}
+]})
 
-exps_dict2 = { nm:exps_dict[nm] for nm in [ \
+plot_sets.append({ nm:exps_dict[nm] for nm in [ \
         'ClsScrSum-NoPrj',
         'RoundRobin-NoPrj',
         'Ours-NoPrj',
         'NearOptimal-NoPrj',
-]}
+]})
 
-exps_dict3 = { nm:exps_dict[nm] for nm in [ \
+plot_sets.append({ nm:exps_dict[nm] for nm in [ \
         'ClsScrSum',
         'RoundRobin',
         'Ours',
         'NearOptimal',
-]}
+]})
 
-exps_dict4 = { nm:exps_dict[nm] for nm in [ \
+plot_sets.append({ nm:exps_dict[nm] for nm in [ \
         'ClsScrSum-NoPrj',
         'ClsScrSum',
         'RoundRobin-NoPrj',
@@ -315,9 +317,16 @@ exps_dict4 = { nm:exps_dict[nm] for nm in [ \
         'Ours',
         'NearOptimal-NoPrj',
         'NearOptimal',
-]}
+]})
 
-exps_dict=exps_dict4
+plot_set_choice = int(sys.argv[2])
+exps_dict=plot_sets[plot_set_choice]
+out_path="./exp_plots/set" + sys.argv[2]
+for p in ["./exp_plots", out_path]:
+    try:
+        os.mkdir(p)
+    except FileExistsError:
+        pass
 
 plot_head_selection = False
 
@@ -362,7 +371,7 @@ def plot_func_dm(exps_dict):
     ax.set_xlabel('Deadline (msec)', fontsize='x-large')
     ax.grid('True', ls='--')
     #fig.suptitle("Ratio of missed deadlines over a range of deadlines", fontsize=16)
-    plt.savefig("exp_plots/deadlines_missed.jpg")
+    plt.savefig(out_path + "/deadlines_missed.jpg")
 
 
 procs.append(Process(target=plot_func_dm, args=(exps_dict,)))
@@ -388,7 +397,7 @@ def plot_func_eted(exps_dict):
     ax.set_xlabel('Deadline (msec)', fontsize='x-large')
     ax.grid('True', ls='--')
     #fig.suptitle("Average end-to-end time over different deadlines", fontsize=16)
-    plt.savefig("exp_plots/end-to-end_deadlines.jpg")
+    plt.savefig(out_path + "/end-to-end_deadlines.jpg")
 
 
 procs.append(Process(target=plot_func_eted, args=(exps_dict,)))
@@ -424,7 +433,7 @@ def plot_avg_AP(merged_exps_dict):
         for s in cur_cls_names:
             cur_cls_names_str += s + ' '
         fig.suptitle(cur_cls_names_str + " classes, average precision over different deadlines", fontsize=16)
-        plt.savefig(f"exp_plots/AP_deadlines_{filenum}.jpg")
+        plt.savefig(out_path + f"/AP_deadlines_{filenum}.jpg")
 
 #procs.append(Process(target=plot_avg_AP, \
 #                     args=(merged_exps_dict,)))
@@ -460,7 +469,7 @@ def plot_stage_and_head_usage(merged_exps_dict):
         ax.set_ylim(0.0, ylim)
         ylim += 3.0
 
-    plt.savefig("exp_plots/rpn_and_heads_stats.jpg")
+    plt.savefig(out_path + "/rpn_and_heads_stats.jpg")
 #if plot_head_selection:
 #    procs.append(Process(target=plot_stage_and_head_usage, \
 #                         args=(merged_exps_dict,)))
@@ -486,7 +495,7 @@ def plot_instance_data(merged_exps_dict):
         ax.set_xlabel('Deadline (msec)', fontsize='x-large')
         ax.grid('True', ls='--')
     #fig.suptitle("Average end-to-end time over different deadlines", fontsize=16)
-    plt.savefig("exp_plots/instance_data.jpg")
+    plt.savefig(out_path + "/instance_data.jpg")
 
 for exp_name, evals in merged_exps_dict.items():
     evals['mAP']['normalized_NDS'] = np.array(evals['mAP']['NDS']) / max_NDS * 100.
@@ -513,7 +522,7 @@ ax.set_xlabel('Deadline (msec)', fontsize='x-large')
 ax.grid('True', ls='--')
 ax.set_ylim(0.0, 105.)
 
-plt.savefig("exp_plots/normalized_NDS_deadlines.jpg")
+plt.savefig(out_path + "/normalized_NDS_deadlines.jpg")
 
 def autolabel(rects):
     """Attach a text label above each bar in *rects*, displaying its height."""
@@ -549,7 +558,7 @@ ax.set_ylabel('Average accuracy (%)', fontsize='x-large')
 #ax.grid('True', ls='--')
 ax.set_ylim(0.0, 119.)
 
-plt.savefig("exp_plots/normalized_NDS_bar.jpg")
+plt.savefig(out_path + "/normalized_NDS_bar.jpg")
 
 for p in procs:
     p.join()
