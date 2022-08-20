@@ -90,7 +90,7 @@ def corners_rect_to_camera(corners):
     return camera_rect
 
 
-def mask_boxes_outside_range_numpy(boxes, limit_range, min_num_corners=1, filter_z=True):
+def mask_boxes_outside_range_numpy(boxes, limit_range, min_num_corners=1, use_center_to_filter=True):
     """
     Args:
         boxes: (N, 7) [x, y, z, dx, dy, dz, heading, ...], (x, y, z) is the box center
@@ -102,13 +102,14 @@ def mask_boxes_outside_range_numpy(boxes, limit_range, min_num_corners=1, filter
     """
     if boxes.shape[1] > 7:
         boxes = boxes[:, 0:7]
-    corners = boxes_to_corners_3d(boxes)  # (N, 8, 3)
-    if filter_z:
-        mask = ((corners >= limit_range[0:3]) & (corners <= limit_range[3:6])).all(axis=2)
+    if use_center_to_filter:
+        box_centers = boxes[:, 0:3]
+        mask = ((box_centers >= limit_range[0:3]) & (box_centers <= limit_range[3:6])).all(axis=-1)
     else:
+        corners = boxes_to_corners_3d(boxes)  # (N, 8, 3)
         corners = corners[:, :, 0:2]
         mask = ((corners >= limit_range[0:2]) & (corners <= limit_range[3:5])).all(axis=2)
-    mask = mask.sum(axis=1) >= min_num_corners  # (N)
+        mask = mask.sum(axis=1) >= min_num_corners  # (N)
 
     return mask
 
