@@ -47,6 +47,8 @@ def parse_config():
     parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
     parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
     parser.add_argument('--ckpt_save_time_interval', type=int, default=300, help='in terms of seconds')
+    parser.add_argument('--wo_gpu_stat', action='store_true', help='')
+    
 
     args = parser.parse_args()
 
@@ -162,6 +164,7 @@ def main():
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
     train_model(
         model,
         optimizer,
@@ -183,7 +186,8 @@ def main():
         logger=logger, 
         logger_iter_interval=args.logger_iter_interval,
         ckpt_save_time_interval=args.ckpt_save_time_interval,
-        use_logger_to_record=not args.use_tqdm_to_record
+        use_logger_to_record=not args.use_tqdm_to_record, 
+        show_gpu_stat=not args.wo_gpu_stat
     )
 
     if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:
