@@ -1,7 +1,7 @@
 
 # Anytime-Lidar
 
-Anytime-lidar deliver anytime perception to lidar-based object detection DNNs. It is implemented on top of the OpenPCDet project (https://github.com/open-mmlab/OpenPCDet). The entire testing environment is packaged in a docker image, which needs to be pulled to Jetson AGX Xavier. The Jetpack version we used is as follows. Make sure yours is not less than this.
+Anytime-lidar deliver anytime perception to lidar-based object detection DNNs. It is implemented on top of the OpenPCDet project (https://github.com/open-mmlab/OpenPCDet). The entire testing environment is packaged in a docker image, which needs to be pulled to Jetson AGX Xavier. The Jetpack version we used is as follows. Make sure yours is not less than this. 
 ```
 nvidia@devboard-xavier:~$ cat /etc/nv_tegra_release 
 # R32 (release), REVISION: 6.1, GCID: 27863751, BOARD: t186ref, EABI: aarch64, DATE: Mon Jul 26 19:36:31 UTC 2021
@@ -37,7 +37,7 @@ inproceedings{anytimelidar2022,
                Heechul Yun},
   title     = {Anytime-Lidar: Deadline-aware 3D Object Detection},
   booktitle = {28th {IEEE} International Conference on Embedded and Real-Time Computing
-               Systems and Applications, {RTCSA} 2028, Taipei, Taiwan, August 23-25,
+               Systems and Applications, {RTCSA} 2022, Taipei, Taiwan, August 23-25,
                2022},
   publisher = {{IEEE}},
   year      = {2022},
