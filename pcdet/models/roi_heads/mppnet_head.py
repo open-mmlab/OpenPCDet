@@ -1081,5 +1081,5 @@ class MPPNetHead(RoIHeadTemplate):
 
         batch_box_preds[:, 0:3] += roi_xyz
         batch_box_preds = batch_box_preds.view(batch_size, -1, code_size)
-        batch_box_preds = torch.cat([batch_box_preds,rois[:,:,7:]],-1) #for superbox
+        batch_box_preds = torch.cat([batch_box_preds,rois[:,:,7:]],-1) 
         return batch_cls_preds, batch_box_preds

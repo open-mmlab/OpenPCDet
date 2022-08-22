@@ -278,24 +278,6 @@ class Detector3DTemplate(nn.Module):
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
 
-                #########  Car DONOT Using NMS ###### 
-                if post_process_cfg.get('NOT_APPLY_NMS_FOR_VEL',False):
-                    
-                    pedcyc_mask = final_labels !=1 
-                    final_scores_pedcyc = final_scores[pedcyc_mask]
-                    final_labels_pedcyc = final_labels[pedcyc_mask]
-                    final_boxes_pedcyc = final_boxes[pedcyc_mask]
-
-                    car_mask = (label_preds==1) & (cls_preds > post_process_cfg.SCORE_THRESH)
-                    final_scores_car = cls_preds[car_mask]
-                    final_labels_car = label_preds[car_mask]
-                    final_boxes_car = box_preds[car_mask]
-
-                    final_scores  = torch.cat([final_scores_car,final_scores_pedcyc],0)
-                    final_labels  = torch.cat([final_labels_car,final_labels_pedcyc],0)
-                    final_boxes  = torch.cat([final_boxes_car,final_boxes_pedcyc],0)
-
-                #########  Car DONOT Using NMS ######
             if post_process_cfg.POST_PROCESSING.get('SAVE_BBOX',False):
 
                 for bs_idx in range(batch_dict['batch_size']):

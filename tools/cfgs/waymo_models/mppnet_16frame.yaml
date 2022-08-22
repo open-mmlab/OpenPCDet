@@ -43,7 +43,7 @@ DATA_CONFIG:
 
 
     POINT_FEATURE_ENCODING: {
-        encoding_type: absolute_coordinates_encoding, #absolute_coordinates_encoding,
+        encoding_type: absolute_coordinates_encoding,
         used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],
         src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],       
         }

@@ -174,10 +174,13 @@ class WaymoDataset(DatasetTemplate):
     def transform_prebox_to_current(pred_boxes3d,pose_pre,pose_cur):
 
         expand_bboxes = np.concatenate([pred_boxes3d[:,:3], np.ones((pred_boxes3d.shape[0], 1))], axis=-1)
+        expand_vels = np.concatenate([pred_boxes3d[:,9:], np.zeros((pred_boxes3d.shape[0], 1))], axis=-1)
         bboxes_global = np.dot(expand_bboxes, pose_pre.T)[:, :3]
+        vels_global = np.dot(expand_vels, pose_pre[:3,:3].T)
         expand_bboxes_global = np.concatenate([bboxes_global[:,:3],np.ones((bboxes_global.shape[0], 1))], axis=-1)
         bboxes_pre2cur = np.dot(expand_bboxes_global, np.linalg.inv(pose_cur.T))[:, :3]
-        bboxes_pre2cur = np.concatenate([bboxes_pre2cur, pred_boxes3d[:,3:9]],axis=-1)
+        vels_pre2cur = np.dot(vels_global, np.linalg.inv(pose_cur[:3,:3].T))[:,:2]
+        bboxes_pre2cur = np.concatenate([bboxes_pre2cur, pred_boxes3d[:,3:9],vels_pre2cur],axis=-1)
         bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] + np.arctan2(pose_pre[..., 1, 0], pose_pre[..., 0,0])
         bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] - np.arctan2(pose_cur[..., 1, 0], pose_cur[..., 0,0])
 
@@ -216,7 +219,7 @@ class WaymoDataset(DatasetTemplate):
             speeds_cur = info['annos']['speeds']
         except:
             speeds_cur = np.zeros([bboxes_cur.shape[0],2])
-            
+
         if sequence_cfg.USE_SPEED:
             if len(speeds_cur)==0:
                 bboxes_cur = np.concatenate([bboxes_cur, np.zeros((bboxes_cur.shape[0],2))], axis=-1)
@@ -228,6 +231,7 @@ class WaymoDataset(DatasetTemplate):
 
         sample_idx_pre_list = np.array(sample_idx + np.arange(
             sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1])).clip(min=0)
+
         sample_idx_pre_list = sample_idx_pre_list[::-1] 
         if sequence_cfg.get('ONEHOT_TIMESTAMP', False):
             onehot_cur = np.zeros((points.shape[0], len(sample_idx_pre_list) + 1)).astype(points.dtype)
@@ -314,7 +318,6 @@ class WaymoDataset(DatasetTemplate):
                 points = np.hstack([points, np.zeros((points.shape[0], 1)).astype(points.dtype)])
             points_pre_all = []
             pred_bboxs = []
-            pred_superbboxes = []
             pose_all = []
             pose_all.append(pose_cur)
 
@@ -326,15 +329,13 @@ class WaymoDataset(DatasetTemplate):
             try:
                 load_boxes3d = np.load(box_path)                   
                 pred_boxes3d = load_boxes3d[:,:9]  #[xyz, lwh,yaw, score, label]
-                pred_supboxes3d = load_boxes3d[:,9:][:,:7] #[xyz,lwh,yaw,]
-                disp = pred_supboxes3d[:,:2] - pred_boxes3d[:,:2] # get x,y motion
-                pred_boxes3d = np.concatenate([pred_boxes3d,disp],axis=-1)
+                pred_motion = -0.1 * load_boxes3d[:,9:11] # transer speed to negtive motion from t to t-1
+                pred_boxes3d = np.concatenate([pred_boxes3d,pred_motion],axis=-1)
             except:
                 pred_boxes3d = np.zeros([1,11])
-                pred_supboxes3d = np.zeros([1,7])
+
 
             pred_bboxs.append(pred_boxes3d)
-            pred_superbboxes.append(pred_supboxes3d)
 
             for i, sample_idx_pre in enumerate(sample_idx_pre_list):
 
@@ -342,26 +343,16 @@ class WaymoDataset(DatasetTemplate):
                 pose_pre = sequence_info[sample_idx_pre]['pose'].reshape((4, 4))
 
                 try:
-
                     box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
-                    boxes3d = np.load(box_path)
-                    pred_boxes3d = boxes3d[:,:9]
-
-                    pred_supboxes3d = boxes3d[:,9:]
-                    disp = (pred_supboxes3d[:,:2] - pred_boxes3d[:,:2])
-
-                    pred_boxes3d = np.concatenate([pred_boxes3d,disp],axis=-1)
-
+                    pred_boxes3d = np.load(box_path)
                 except:
                     pred_boxes3d = np.zeros([1,9])
-                    pred_supboxes3d = np.zeros([1,7])
+
 
                 bboxes_pre2cur = self.transform_prebox_to_current(pred_boxes3d,pose_pre,pose_cur)
 
-                supbboxes_pre2cur = self.transform_prebox_to_current(pred_supboxes3d,pose_pre,pose_cur)
-
-                motion = supbboxes_pre2cur[:,:2] - bboxes_pre2cur[:,:2]
-                pred_boxes3d = np.concatenate([bboxes_pre2cur, motion], axis=-1)
+                pred_motion = -0.1 * bboxes_pre2cur[:,9:11] # transer speed to negtive motion from t to t-1
+                pred_boxes3d = np.concatenate([bboxes_pre2cur[:,:9],pred_motion],axis=-1)
 
                 expand_points_pre = np.concatenate([points_pre[:, :3], np.ones((points_pre.shape[0], 1))], axis=-1)
                 points_pre_global = np.dot(expand_points_pre, pose_pre.T)[:, :3]
@@ -380,7 +371,6 @@ class WaymoDataset(DatasetTemplate):
                 points_pre = remove_ego_points(points_pre, 1.0)
                 points_pre_all.append(points_pre)
                 pred_bboxs.append(pred_boxes3d)
-                pred_superbboxes.append(supbboxes_pre2cur)
                 pose_all.append(pose_pre)
 
             points = np.concatenate([points] + points_pre_all, axis=0)
