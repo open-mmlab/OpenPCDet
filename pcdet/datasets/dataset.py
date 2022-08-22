@@ -9,6 +9,7 @@ from .augmentor.data_augmentor import DataAugmentor
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
 
+
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
         super().__init__()
@@ -59,20 +60,51 @@ class DatasetTemplate(torch_data.Dataset):
     @staticmethod
     def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
-        To support a custom dataset, implement this function to receive the predicted results from the model, and then
-        transform the unified normative coordinate to your required coordinate, and optionally save them to disk.
-
         Args:
-            batch_dict: dict of original data from the dataloader
-            pred_dicts: dict of predicted results from the model
+            batch_dict:
+                frame_id:
+            pred_dicts: list of pred_dicts
                 pred_boxes: (N, 7), Tensor
                 pred_scores: (N), Tensor
                 pred_labels: (N), Tensor
             class_names:
-            output_path: if it is not None, save the results to this path
+            output_path:
+
         Returns:
 
         """
+
+        def get_template_prediction(num_samples):
+            ret_dict = {
+                'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
+                'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples)
+            }
+            return ret_dict
+
+        def generate_single_sample_dict(box_dict):
+            pred_scores = box_dict['pred_scores'].cpu().numpy()
+            pred_boxes = box_dict['pred_boxes'].cpu().numpy()
+            pred_labels = box_dict['pred_labels'].cpu().numpy()
+            pred_dict = get_template_prediction(pred_scores.shape[0])
+            if pred_scores.shape[0] == 0:
+                return pred_dict
+
+            pred_dict['name'] = np.array(class_names)[pred_labels - 1]
+            pred_dict['score'] = pred_scores
+            pred_dict['boxes_lidar'] = pred_boxes
+            pred_dict['pred_labels'] = pred_labels
+
+            return pred_dict
+
+        annos = []
+        for index, box_dict in enumerate(pred_dicts):
+            single_pred_dict = generate_single_sample_dict(box_dict)
+            single_pred_dict['frame_id'] = batch_dict['frame_id'][index]
+            if 'metadata' in batch_dict:
+                single_pred_dict['metadata'] = batch_dict['metadata'][index]
+            annos.append(single_pred_dict)
+
+        return annos
 
     def merge_all_iters_to_one_epoch(self, merge=True, epochs=None):
         if merge:
