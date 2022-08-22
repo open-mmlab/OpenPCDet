@@ -29,14 +29,9 @@ class ProposalTargetLayer(nn.Module):
                 reg_valid_mask: (B, M)
                 rcnn_cls_labels: (B, M)
         """
-
-        if 'trajectory_rois' in batch_dict.keys():
-            batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, \
-            batch_trajectory_rois,batch_effi_length = self.sample_rois_for_mppnet(batch_dict=batch_dict)
-        else:
-            batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels = self.sample_rois_for_rcnn(
-                batch_dict=batch_dict
-            )
+        batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels = self.sample_rois_for_rcnn(
+            batch_dict=batch_dict
+        )
         # regression valid mask
         reg_valid_mask = (batch_roi_ious > self.roi_sampler_cfg.REG_FG_THRESH).long()
 
@@ -59,18 +54,10 @@ class ProposalTargetLayer(nn.Module):
         else:
             raise NotImplementedError
 
-        if 'trajectory_rois' in batch_dict.keys():
-            targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 
-                            'gt_iou_of_rois': batch_roi_ious,'roi_scores': batch_roi_scores,
-                            'roi_labels': batch_roi_labels,'reg_valid_mask': reg_valid_mask, 
-                            'rcnn_cls_labels': batch_cls_labels,'trajectory_rois':batch_trajectory_rois,
-                            'effi_length': batch_effi_length,
-                            }
-        else:
-            targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
-                            'roi_scores': batch_roi_scores, 'roi_labels': batch_roi_labels,
-                            'reg_valid_mask': reg_valid_mask,
-                            'rcnn_cls_labels': batch_cls_labels}
+        targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
+                        'roi_scores': batch_roi_scores, 'roi_labels': batch_roi_labels,
+                        'reg_valid_mask': reg_valid_mask,
+                        'rcnn_cls_labels': batch_cls_labels}
 
         return targets_dict
 
@@ -84,7 +71,6 @@ class ProposalTargetLayer(nn.Module):
                 gt_boxes: (B, N, 7 + C + 1)
                 roi_labels: (B, num_rois)
         Returns:
-
         """
         batch_size = batch_dict['batch_size']
         rois = batch_dict['rois']
@@ -117,7 +103,7 @@ class ProposalTargetLayer(nn.Module):
                 iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi, cur_gt[:, 0:7])  # (M, N)
                 max_overlaps, gt_assignment = torch.max(iou3d, dim=1)
 
-            sampled_inds, _, _ = self.subsample_rois(max_overlaps=max_overlaps)
+            sampled_inds = self.subsample_rois(max_overlaps=max_overlaps)
 
             batch_rois[index] = cur_roi[sampled_inds]
             batch_roi_labels[index] = cur_roi_labels[sampled_inds]
@@ -158,7 +144,7 @@ class ProposalTargetLayer(nn.Module):
             rand_num = np.floor(np.random.rand(self.roi_sampler_cfg.ROI_PER_IMAGE) * fg_num_rois)
             rand_num = torch.from_numpy(rand_num).type_as(max_overlaps).long()
             fg_inds = fg_inds[rand_num]
-            bg_inds = torch.tensor([]).type_as(fg_inds)
+            bg_inds = fg_inds[fg_inds < 0] # yield empty tensor
 
         elif bg_num_rois > 0 and fg_num_rois == 0:
             # sampling bg
@@ -172,7 +158,7 @@ class ProposalTargetLayer(nn.Module):
             raise NotImplementedError
 
         sampled_inds = torch.cat((fg_inds, bg_inds), dim=0)
-        return sampled_inds.long(), fg_inds.long(), bg_inds.long()
+        return sampled_inds
 
     @staticmethod
     def sample_bg_inds(hard_bg_inds, easy_bg_inds, bg_rois_per_this_image, hard_bg_ratio):
@@ -212,9 +198,7 @@ class ProposalTargetLayer(nn.Module):
             roi_labels: (N)
             gt_boxes: (N, )
             gt_labels:
-
         Returns:
-
         """
         """
         :param rois: (N, 7)

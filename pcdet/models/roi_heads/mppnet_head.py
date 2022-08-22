@@ -3,8 +3,8 @@ import torch.nn as nn
 import torch
 import numpy as np
 import copy
-from pcdet.ops.iou3d_nms import iou3d_nms_utils
 import torch.nn.functional as F
+from pcdet.ops.iou3d_nms import iou3d_nms_utils
 from ...utils import common_utils, loss_utils
 from .roi_head_template import RoIHeadTemplate
 from ..model_utils.mppnet_utils import build_transformer, PointNet, MLP
@@ -36,7 +36,6 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
                 rcnn_cls_labels: (B, M)
         """
 
-        # if 'trajectory_rois' in batch_dict.keys():
         batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, \
         batch_trajectory_rois,batch_valid_length = self.sample_rois_for_mppnet(batch_dict=batch_dict)
 
@@ -62,18 +61,13 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
         else:
             raise NotImplementedError
 
-        # if 'trajectory_rois' in batch_dict.keys():
+
         targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 
                         'gt_iou_of_rois': batch_roi_ious,'roi_scores': batch_roi_scores,
                         'roi_labels': batch_roi_labels,'reg_valid_mask': reg_valid_mask, 
                         'rcnn_cls_labels': batch_cls_labels,'trajectory_rois':batch_trajectory_rois,
                         'valid_length': batch_valid_length,
                         }
-        # else:
-        #     targets_dict = {'rois': batch_rois, 'gt_of_rois': batch_gt_of_rois, 'gt_iou_of_rois': batch_roi_ious,
-        #                     'roi_scores': batch_roi_scores, 'roi_labels': batch_roi_labels,
-        #                     'reg_valid_mask': reg_valid_mask,
-        #                     'rcnn_cls_labels': batch_cls_labels}
 
         return targets_dict
 
@@ -245,7 +239,7 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
             keep = True
             while temp_iou < pos_thresh and cnt < aug_times:
                 if np.random.rand() <= self.roi_sampler_cfg.RATIO:
-                    aug_box3d = roi_box3d  # p=0.2 to keep the original roi box
+                    aug_box3d = roi_box3d  # p=RATIO to keep the original roi box
                     keep = True
                 else:
                     aug_box3d = self.random_aug_box3d(roi_box3d)
@@ -500,79 +494,6 @@ class MPPNetHead(RoIHeadTemplate):
 
         return src
 
-
-    # def crop_previous_frame_points(self,src,batch_size,trajectory_rois,num_rois,valid_length,batch_dict):
-    #     for bs_idx in range(batch_size):
-            
-    #         cur_points = batch_dict['points'][(batch_dict['points'][:, 0] == bs_idx)][:,1:]
-
-
-    #         for idx in range(1,trajectory_rois.shape[1]):
-            
-    #             time_mask = (cur_points[:,-1] - idx*0.1).abs() < 1e-3
-    #             cur_time_points = cur_points[time_mask]
-    #             cur_batch_boxes = trajectory_rois[bs_idx,idx,:,:7].view(-1,7)
-
-    #             cur_radiis = torch.sqrt((cur_batch_boxes[:,3]/2) ** 2 + (cur_batch_boxes[:,4]/2) ** 2) * 1.1
-    #             if not self.training and cur_batch_boxes.shape[0] > 32:
-    #                 length_iter= cur_batch_boxes.shape[0]//32
-    #                 dis_list = []
-    #                 for i in range(length_iter+1):
-    #                     dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - 
-    #                           cur_batch_boxes[32*i:32*(i+1),:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
-    #                     dis_list.append(dis)
-    #                 dis = torch.cat(dis_list,0)
-    #             else:
-    #                 dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - 
-    #                       cur_batch_boxes[:,:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
-                
-    #             point_mask = (dis <= cur_radiis.unsqueeze(-1)).view(trajectory_rois.shape[2],-1)
-
-    #             sampled_idx = torch.topk(point_mask.float(),128)[1]
-    #             sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  
-    #             roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
-    #             sampled_mask = point_mask[roi_idx, sampled_idx] 
-    #             sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
-    #             valid_inds = valid_length[bs_idx,idx].nonzero().reshape(-1)
-    #             src[bs_idx,valid_inds, self.num_lidar_points*idx:self.num_lidar_points*(idx+1),:] = \
-    #                 cur_points[sampled_idx_buffer][valid_inds,:,:5]
-    #             # empty_flag = sampled_mask.sum(-1)==0
-    #             # src[bs_idx,empty_flag] = 0
-
-    #             # for roi_box_idx in range(0, num_rois):
-
-    #             #     if not valid_length[bs_idx,idx,roi_box_idx]:
-    #             #             continue
-
-    #             #     cur_roi_points = cur_time_points[point_mask[roi_box_idx]]
-
-
-
-    #             #     if cur_roi_points.shape[0] > self.num_lidar_points:
-    #             #         np.random.seed(0)
-    #             #         choice = np.random.choice(cur_roi_points.shape[0], self.num_lidar_points, replace=True)
-    #             #         cur_roi_points_sample = cur_roi_points[choice]
-                        
-
-    #             #     elif cur_roi_points.shape[0] == 0:
-    #             #         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_lidar_points, 6)
-    #             #         # batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
-
-    #             #     else:
-    #             #         empty_num = self.num_lidar_points - cur_roi_points.shape[0]
-    #             #         add_zeros = cur_roi_points.new_zeros(empty_num, 6)
-    #             #         add_zeros = cur_roi_points[0].repeat(empty_num, 1)
-    #             #         cur_roi_points_sample = torch.cat([cur_roi_points, add_zeros], dim = 0)
-
-    #             #     if not self.use_time_stamp:
-    #             #         cur_roi_points_sample = cur_roi_points_sample[:,:-1]
-
-    #             #     src[bs_idx, roi_box_idx, self.num_lidar_points*idx:self.num_lidar_points*(idx+1), :] = cur_roi_points_sample
-
-
-    #     return src
-
-    
     def crop_previous_frame_points(self,src,batch_size,trajectory_rois,num_rois,valid_length,batch_dict):
         for bs_idx in range(batch_size):
             
@@ -590,11 +511,13 @@ class MPPNetHead(RoIHeadTemplate):
                     length_iter= cur_batch_boxes.shape[0]//32
                     dis_list = []
                     for i in range(length_iter+1):
-                        dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - cur_batch_boxes[32*i:32*(i+1),:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
+                        dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - \
+                            cur_batch_boxes[32*i:32*(i+1),:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
                         dis_list.append(dis)
                     dis = torch.cat(dis_list,0)
                 else:
-                    dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - cur_batch_boxes[:,:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
+                    dis = torch.norm((cur_time_points[:,:2].unsqueeze(0) - \
+                        cur_batch_boxes[:,:2].unsqueeze(1).repeat(1,cur_time_points.shape[0],1)), dim = 2)
                 
                 point_mask = (dis <= cur_radiis.unsqueeze(-1)).view(trajectory_rois.shape[2],-1)
 
@@ -605,17 +528,13 @@ class MPPNetHead(RoIHeadTemplate):
 
                     cur_roi_points = cur_time_points[point_mask[roi_box_idx]]
 
-
-
                     if cur_roi_points.shape[0] > self.num_lidar_points:
                         np.random.seed(0)
                         choice = np.random.choice(cur_roi_points.shape[0], self.num_lidar_points, replace=True)
                         cur_roi_points_sample = cur_roi_points[choice]
                         
-
                     elif cur_roi_points.shape[0] == 0:
                         cur_roi_points_sample = cur_roi_points.new_zeros(self.num_lidar_points, 6)
-                        # batch_dict['nonempty_mask'][bs_idx, roi_box_idx] = False
 
                     else:
                         empty_num = self.num_lidar_points - cur_roi_points.shape[0]
@@ -748,12 +667,9 @@ class MPPNetHead(RoIHeadTemplate):
         :return:
         """
 
-        batch_dict['rois'] = batch_dict['proposals_list'].permute(0,2,1,3)#[:,:,[4,3,0,2,1]]
+        batch_dict['rois'] = batch_dict['proposals_list'].permute(0,2,1,3)
         num_rois = batch_dict['rois'].shape[1]
         batch_dict['num_frames'] = batch_dict['rois'].shape[2]
-        # roi_scores_list = copy.deepcopy(batch_dict['roi_scores'])
-        # roi_labels_list = copy.deepcopy(batch_dict['roi_labels'])
-
         batch_dict['roi_scores'] = batch_dict['roi_scores'].permute(0,2,1)
         batch_dict['roi_labels'] = batch_dict['roi_labels'][:,0,:].long()
         proposals_list = batch_dict['proposals_list']
@@ -766,9 +682,7 @@ class MPPNetHead(RoIHeadTemplate):
         batch_dict['traj_memory'] = trajectory_rois
         batch_dict['has_class_labels'] = True
         batch_dict['trajectory_rois'] = trajectory_rois
-        # batch_dict['trajectory_roi_scores'] = trajectory_roi_scores
-        # import tools.visual_utils.visualize_utils as V
-        # import pdb;pdb.set_trace()
+
 
         if self.training:
             targets_dict = self.assign_targets(batch_dict)
@@ -941,7 +855,7 @@ class MPPNetHead(RoIHeadTemplate):
 
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
   
-            if self.model_cfg.USE_AUG_LOSS:
+            if self.model_cfg.USE_AUX_LOSS:
                 point_reg = forward_ret_dict['point_reg']
 
                 groups = point_reg.shape[0]//reg_targets.shape[0]
@@ -1024,7 +938,8 @@ class MPPNetHead(RoIHeadTemplate):
                 rcnn_loss_cls = 0
                 slice = rcnn_cls_labels.shape[0]
                 for i in range(groups):
-                    batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat[i*slice:(i+1)*slice]), rcnn_cls_labels.float(), reduction='none')
+                    batch_loss_cls = F.binary_cross_entropy(torch.sigmoid(rcnn_cls_flat[i*slice:(i+1)*slice]), 
+                                     rcnn_cls_labels.float(), reduction='none')
 
                     cls_valid_mask = (rcnn_cls_labels >= 0).float() 
                     rcnn_loss_cls = rcnn_loss_cls + (batch_loss_cls * cls_valid_mask).sum() / torch.clamp(cls_valid_mask.sum(), min=1.0)

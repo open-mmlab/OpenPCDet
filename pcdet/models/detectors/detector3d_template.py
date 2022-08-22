@@ -247,16 +247,8 @@ class Detector3DTemplate(nn.Module):
                 final_labels = torch.cat(pred_labels, dim=0)
                 final_boxes = torch.cat(pred_boxes, dim=0)
             else:
-                try:
-                    cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-                except:
-                    record_dict = {
-                        'pred_boxes': torch.tensor([]),
-                        'pred_scores': torch.tensor([]),
-                        'pred_labels': torch.tensor([])
-                    }
-                    pred_dicts.append(record_dict)
-                    continue
+
+                cls_preds, label_preds = torch.max(cls_preds, dim=-1)
 
                 if batch_dict.get('has_class_labels', False):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
@@ -288,7 +280,8 @@ class Detector3DTemplate(nn.Module):
                         cur_scores = batch_dict['final_box_dicts'][bs_idx]['pred_scores']
                         cur_labels = batch_dict['final_box_dicts'][bs_idx]['pred_labels']
 
-                        path = os.path.join(self.dataset.dataset_cfg.DATA_PATH, self.model_cfg.POST_PROCESSING.BBOX_SAVE_PATH, '%s' % (batch_dict['frame_id'][bs_idx][:-4]))
+                        path = os.path.join(self.dataset.dataset_cfg.DATA_PATH, 
+                               self.model_cfg.POST_PROCESSING.BBOX_SAVE_PATH, '%s' % (batch_dict['frame_id'][bs_idx][:-4]))
 
                         if not os.path.exists(path):
                             try:
@@ -311,7 +304,7 @@ class Detector3DTemplate(nn.Module):
             
 
             record_dict = {
-                'pred_boxes': final_boxes[:,:7],
+                'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels
             }

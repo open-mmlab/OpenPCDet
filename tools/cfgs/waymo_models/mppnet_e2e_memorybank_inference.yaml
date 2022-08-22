@@ -3,8 +3,8 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 DATA_CONFIG: 
 
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    PROCESSED_DATA_TAG: 'waymo_processed_data_v0_3_1'
-    
+    PROCESSED_DATA_TAG: 'waymo_processed_data_v0_5_0'
+
     SAMPLED_INTERVAL: {
         'train': 1,
         'test': 1
@@ -15,7 +15,7 @@ DATA_CONFIG:
     SEQUENCE_CONFIG:
         ENABLED: True
         USE_SPEED: True
-        SAMPLE_OFFSET: [-3, 0]
+        SAMPLE_OFFSET: [-3, 0] #16frame using [-15,0]
 
 
     POINT_FEATURE_ENCODING: {
@@ -133,7 +133,7 @@ MODEL:
             ALL_YAW_T0: True
         AVG_STAGE_1: True
         USE_TRAJ_EMPTY_MASK: True
-        USE_AUG_LOSS: True
+        USE_AUX_LOSS: True
         USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
 
@@ -154,17 +154,15 @@ MODEL:
             dropout: 0.1
             nheads: 4
             pre_norm: False
-            num_frames: 4
+            num_frames: 4 #16frame using 16
             num_groups: 4
+            sequence_stride: 1 #16frame using 4
             use_grid_pos:
                 enabled: True
                 init_type: index
-
             use_mlp_mixer:
                 enabled: True
                 hidden_dim: 16
-                order: xyz
-
 
         TARGET_CONFIG:
             BOX_CODER: ResidualCoder

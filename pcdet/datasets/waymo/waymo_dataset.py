@@ -54,7 +54,7 @@ class WaymoDataset(DatasetTemplate):
         waymo_infos_dict = {}
 
         num_skipped_infos = 0
-        for k in range(len(self.sample_sequence_list[:])):
+        for k in range(len(self.sample_sequence_list)):
             sequence_name = os.path.splitext(self.sample_sequence_list[k])[0]
             info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
             info_path = self.check_sequence_name_with_all_version(info_path)
@@ -66,7 +66,7 @@ class WaymoDataset(DatasetTemplate):
                 waymo_infos.extend(infos)
                 waymo_infos_dict[sequence_name] = infos
 
-        self.infos.extend(waymo_infos)
+        self.infos.extend(waymo_infos[:])
         self.waymo_infos_dict = waymo_infos_dict
         self.logger.info('Total skipped info %s' % num_skipped_infos)
         self.logger.info('Total samples for Waymo dataset: %d' % (len(waymo_infos)))
@@ -328,7 +328,7 @@ class WaymoDataset(DatasetTemplate):
 
             try:
                 load_boxes3d = np.load(box_path)                   
-                pred_boxes3d = load_boxes3d[:,:9]  #[xyz, lwh,yaw, score, label]
+                pred_boxes3d = load_boxes3d[:,:9]  #[xyz, lwh,yaw, score, label,vels]
                 pred_motion = -0.1 * load_boxes3d[:,9:11] # transer speed to negtive motion from t to t-1
                 pred_boxes3d = np.concatenate([pred_boxes3d,pred_motion],axis=-1)
             except:
@@ -344,9 +344,9 @@ class WaymoDataset(DatasetTemplate):
 
                 try:
                     box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
-                    pred_boxes3d = np.load(box_path)
+                    pred_boxes3d = np.load(box_path) #[xyz, lwh,yaw, score, label,vels]
                 except:
-                    pred_boxes3d = np.zeros([1,9])
+                    pred_boxes3d = np.zeros([1,11])
 
 
                 bboxes_pre2cur = self.transform_prebox_to_current(pred_boxes3d,pose_pre,pose_cur)
@@ -397,7 +397,6 @@ class WaymoDataset(DatasetTemplate):
         sequence_name = pc_info['lidar_sequence']
         sample_idx = pc_info['sample_idx']
         input_dict = {
-            'frame_id': info['frame_id'],
             'sample_idx': sample_idx
         }
         if self.use_shared_memory and index < self.shared_memory_file_limit:

@@ -33,10 +33,7 @@ class MPPNet(Detector3DTemplate):
 
             pred_dicts, recall_dicts = self.post_processing(batch_dict)
 
-            if self.model_cfg.POST_PROCESSING.get('USE_MEMORYBANK',False):
-                return pred_dicts, recall_dicts, batch_dict
-            else:
-                return pred_dicts, recall_dicts
+            return pred_dicts, recall_dicts
 
     def get_training_loss(self):
         disp_dict = {}  

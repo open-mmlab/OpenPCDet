@@ -203,55 +203,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
 
         return features,global_roi_proxy_points.view(batch_size*rois.shape[2], num_frames*num_proxy_points,3).contiguous()
 
-    def get_grid_points_of_roi(self, rois, grid_size):
-        # import pdb;pdb.set_trace()
-        rois = rois.view(-1, rois.shape[-1])
-        batch_size_rcnn = rois.shape[0]
-
-        local_roi_grid_points = self.get_dense_grid_points(rois, batch_size_rcnn, grid_size)  # (B, 6x6x6, 3)
-        local_roi_grid_points = common_utils.rotate_points_along_z(local_roi_grid_points.clone(), rois[:, 6]).squeeze(dim=1)
-        global_center = rois[:, 0:3].clone()
-        global_roi_grid_points = local_roi_grid_points + global_center.unsqueeze(dim=1)
-        return global_roi_grid_points, local_roi_grid_points
-
-    @staticmethod
-    def get_batch_corner_points(rois, batch_size_rcnn):
-        faked_features = rois.new_ones((2, 2, 2))
-
-        dense_idx = faked_features.nonzero()  # (N, 3) [x_idx, y_idx, z_idx]
-        dense_idx = dense_idx.repeat(batch_size_rcnn, 1, 1).float()  # (B, 2x2x2, 3)
-
-        local_roi_size = rois.view(batch_size_rcnn, -1)[:, 3:6]
-        roi_grid_points = dense_idx * local_roi_size.unsqueeze(dim=1) \
-                          - (local_roi_size.unsqueeze(dim=1) / 2)  # (B, 2x2x2, 3)
-        return roi_grid_points
-
-    @staticmethod
-    def reorder_rois_by_superbox(batch_size, pred_dicts, use_superbox=False):
-        """
-        Args:
-            final_box_dicts: (batch_size), list of dict
-                pred_boxes: (N, 7 + C)
-                pred_scores: (N)
-                pred_labels: (N)
-            batch_box_preds: (batch_size, num_rois, 7 + C)
-        """
-        num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
-        num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
-        pred_boxes = pred_dicts[0]['pred_boxes']
-
-        rois = pred_boxes.new_zeros((batch_size, num_max_rois, pred_boxes.shape[-1]))
-        roi_scores = pred_boxes.new_zeros((batch_size, num_max_rois))
-        roi_labels = pred_boxes.new_zeros((batch_size, num_max_rois)).long()
-
-        for bs_idx in range(batch_size):
-            num_boxes = len(pred_dicts[bs_idx]['pred_boxes'])
-            if use_superbox:
-                rois[bs_idx, :num_boxes, :] = pred_dicts[bs_idx]['pred_supboxes']
-            else:
-                rois[bs_idx, :num_boxes, :] = pred_dicts[bs_idx]['pred_boxes']
-        return rois
-    
     def spherical_coordinate(self, src, diag_dist):
 
         assert (src.shape[-1] == 27)
@@ -284,58 +235,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
         dis = dis / (diag_dist + 1e-5)
         src = torch.cat([dis, phi, the], dim = -1)
         return src
-
-    def reorder_rois(batch_size, batch_dict):
-        moving_mask = batch_dict['moving_mask']
-
-        moving_rois = batch_dict['rois'].new_zeros(batch_dict['rois'].shape)
-        moving_roi_scores = batch_dict['rois'].new_zeros((batch_size, 128))
-        moving_roi_labels = batch_dict['rois'].new_zeros((batch_size, 128)).long()
-
-        static_rois = batch_dict['rois'].new_zeros(batch_dict['rois'].shape)
-        static_roi_scores = batch_dict['rois'].new_zeros((batch_size, 128))
-        static_roi_labels = batch_dict['rois'].new_zeros((batch_size, 128)).long()
-
-        for bs_idx in range(batch_size):
-            mask = moving_mask[bs_idx]
-
-            moving_rois[bs_idx, mask, :] = batch_dict['rois'][bs_idx,mask,:]
-            # moving_roi_scores[bs_idx, mask] = batch_dict['rois_scores'][bs_idx]
-            moving_roi_labels[bs_idx, mask] = batch_dict['rois_labels'][bs_idx]
-
-            static_rois[bs_idx, ~mask, :] = batch_dict['rois'][bs_idx,~mask,:]
-            # static_roi_scores[bs_idx, ~mask] = batch_dict['rois_scores'][bs_idx,~mask]
-            static_roi_labels[bs_idx, ~mask] = batch_dict['rois_labels'][bs_idx,~mask]
-        return moving_rois,moving_roi_labels, static_rois, static_roi_labels
-
-    def compute_mask(self, xyz, radius, dist=None):
-
-        # import pdb;pdb.set_trace()
-        xyz = xyz.view(xyz.shape[0]*4,xyz.shape[1]//4,-1)
-        with torch.no_grad():
-            if dist is None or dist.shape[1] != xyz.shape[1]:
-                dist = torch.cdist(xyz, xyz, p=2)
-            # entries that are True in the mask do not contribute to self-attention
-            # so points outside the radius are not considered
-            mask = dist >= radius
-            token_mask = torch.ones(mask.shape[0],1,mask.shape[-1]).bool().cuda()
-            mask = torch.cat([token_mask,mask],1)
-            token_mask = torch.ones(mask.shape[0],mask.shape[1],1).bool().cuda()
-            mask = torch.cat([token_mask,mask],-1)
-            mask[:,0,0] = False
-        return mask, dist
-
-    def transform_prebox2current(self,pred_boxes3d,pose_pre,pose_cur):
-
-        expand_bboxes = np.concatenate([pred_boxes3d[:,:3], np.ones((pred_boxes3d.shape[0], 1))], axis=-1)
-        bboxes_global = np.dot(expand_bboxes, pose_pre.T)[:, :3]
-        expand_bboxes_global = np.concatenate([bboxes_global[:,:3],np.ones((bboxes_global.shape[0], 1))], axis=-1)
-        bboxes_pre2cur = np.dot(expand_bboxes_global, np.linalg.inv(pose_cur.T))[:, :3]
-        bboxes_pre2cur = np.concatenate([bboxes_pre2cur, pred_boxes3d[:,3:9]],axis=-1)
-        bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] + np.arctan2(pose_pre[..., 1, 0], pose_pre[..., 0,0])
-        bboxes_pre2cur[:,6]  = bboxes_pre2cur[..., 6] - np.arctan2(pose_cur[..., 1, 0], pose_cur[..., 0,0])
-
-        return torch.from_numpy(bboxes_pre2cur).cuda()
 
     def generate_trajectory(self,cur_batch_boxes,proposals_list,roi_scores_list,batch_dict):
         frame1 = cur_batch_boxes
@@ -381,12 +280,12 @@ class MPPNetHeadE2E(RoIHeadTemplate):
 
             mask = point_mask
             sampled_idx = torch.topk(mask.float(),128)[1]
-            sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  # (num_rois, npoints)
+            sampled_idx_buffer = sampled_idx[:, 0:1].repeat(1, 128)  
             roi_idx = torch.arange(num_rois)[:, None].repeat(1, 128)
-            sampled_mask = mask[roi_idx, sampled_idx]  # (num_rois, 128)
+            sampled_mask = mask[roi_idx, sampled_idx] 
             sampled_idx_buffer[sampled_mask] = sampled_idx[sampled_mask]
 
-            src[bs_idx] = cur_points[sampled_idx_buffer][:,:,:5] # (num_rois, npoints)
+            src[bs_idx] = cur_points[sampled_idx_buffer][:,:,:5] 
             empty_flag = sampled_mask.sum(-1)==0
             src[bs_idx,empty_flag] = 0
 
@@ -429,7 +328,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
         box_reg, box_feat, _ = self.seqboxembed(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
         
         return box_reg, box_feat
-
 
     def get_proposal_aware_motion_feature(self,proxy_point,batch_size,trajectory_rois,num_rois,batch_dict):
 
@@ -538,14 +436,11 @@ class MPPNetHeadE2E(RoIHeadTemplate):
         lwh = trajectory_rois[:,i,:,:].reshape(batch_size * num_rois, -1)[:,3:6].unsqueeze(1).repeat(1,proposal_aware_feat.shape[1],1)
         diag_dist = (lwh[:,:,0]**2 + lwh[:,:,1]**2 + lwh[:,:,2]**2) ** 0.5
         proposal_aware_feat = self.spherical_coordinate(proposal_aware_feat, diag_dist = diag_dist.unsqueeze(-1))
-        # proposal_aware_feat_list.append(proposal_aware_feat)
 
-        # proposal_aware_feat = torch.cat(proposal_aware_feat_list,dim=1)
         proposal_aware_feat = torch.cat([proposal_aware_feat, src[:,:,3:]], dim = -1)
         src_gemoetry = self.up_dimension_geometry(proposal_aware_feat) 
         proxy_point_geometry, proxy_points = self.roi_grid_pool(batch_size,trajectory_rois,src,src_gemoetry,batch_dict,batch_cnt=None)
         return proxy_point_geometry,proxy_points
-
 
     def forward(self, batch_dict):
         """

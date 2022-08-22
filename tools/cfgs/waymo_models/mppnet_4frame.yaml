@@ -60,7 +60,7 @@ MODEL:
             ENABLED: True 
         AVG_STAGE1_SCORE: True
         USE_TRAJ_EMPTY_MASK: True
-        USE_AUG_LOSS: True
+        USE_AUX_LOSS: True
         USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
 
@@ -93,8 +93,6 @@ MODEL:
             use_mlp_mixer:
                 enabled: True
                 hidden_dim: 16
-                order: xyz
-
 
         TARGET_CONFIG:
             BOX_CODER: ResidualCoder
