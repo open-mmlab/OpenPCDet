@@ -119,7 +119,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
         # start evaluation
         cur_result_dir = eval_output_dir / ('epoch_%s' % cur_epoch_id) / cfg.DATA_CONFIG.DATA_SPLIT['test']
         tb_dict = eval_utils.eval_one_epoch(
-            cfg, model, args, test_loader, cur_epoch_id, logger, dist_test=dist_test,
+            cfg, args, model, test_loader, cur_epoch_id, logger, dist_test=dist_test,
             result_dir=cur_result_dir
         )
 
