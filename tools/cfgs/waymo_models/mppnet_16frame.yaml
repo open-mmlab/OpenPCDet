@@ -2,7 +2,7 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
-    PROCESSED_DATA_TAG: 'waymo_processed_data_v0_3_1'
+    PROCESSED_DATA_TAG: 'waymo_processed_data_v0_5_0'
 
     SAMPLED_INTERVAL: {
         'train': 1,
