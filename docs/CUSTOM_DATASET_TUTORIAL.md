@@ -6,7 +6,7 @@ their corresponding annotations. Point clouds are supposed to be stored in `.npy
 We only consider the most basic information -- category and bounding box in the label template.
 Annotations are stored in the `.txt`. Each line represents a box in a given scene as below:
 ```
-[x y z dx dy dz heading_angle category_name]
+# format: [x y z dx dy dz heading_angle category_name]
 1.50 1.46 0.10 5.12 1.85 4.13 1.56 Vehicle
 5.54 0.57 0.41 1.08 0.74 1.95 1.57 Pedestrian
 ```
@@ -35,7 +35,7 @@ Dataset splits need to be pre-defined and placed in `ImageSets`
 ## Hyper-parameters Configurations
 
 ### Point cloud features
-Modify following configurations to in `custom_dataset.yaml` to 
+Modify following configurations in `custom_dataset.yaml` to 
 suit your own point clouds.
 ```yaml
 POINT_FEATURE_ENCODING: {
