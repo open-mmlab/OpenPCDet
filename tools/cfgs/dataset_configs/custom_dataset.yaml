@@ -1,9 +1,13 @@
 DATASET: 'CustomDataset'
 DATA_PATH: '../data/custom'
 
-# If this config file is modified then pcdet/models/detectors/detector3d_template.py:
-# Detector3DTemplate::build_networks:model_info_dict needs to be modified.
-POINT_CLOUD_RANGE: [-70.4, -40, -3, 70.4, 40, 1] # x=[-70.4, 70.4], y=[-40,40], z=[-3,1]
+POINT_CLOUD_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+
+MAP_CLASS_TO_KITTI: {
+    'Vehicle': 'Car',
+    'Pedestrian': 'Pedestrian',
+    'Cyclist': 'Cyclist',
+}
 
 DATA_SPLIT: {
     'train': train,
@@ -15,16 +19,12 @@ INFO_PATH: {
     'test': [custom_infos_val.pkl],
 }
 
-GET_ITEM_LIST: ["points"]
-FOV_POINTS_ONLY: True
-
 POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
     used_feature_list: ['x', 'y', 'z', 'intensity'],
     src_feature_list: ['x', 'y', 'z', 'intensity'],
 }
 
-# Same to pv_rcnn[DATA_AUGMENTOR]
 DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
@@ -33,18 +33,17 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - custom_dbinfos_train.pkl
           PREPARE: {
-             filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
-             filter_by_difficulty: [-1],
+             filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5'],
           }
 
-          SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Cyclist:15']
+          SAMPLE_GROUPS: ['Vehicle:20', 'Pedestrian:15', 'Cyclist:15']
           NUM_POINT_FEATURES: 4
           DATABASE_WITH_FAKELIDAR: False
           REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
           LIMIT_WHOLE_SCENE: True
 
         - NAME: random_world_flip
-          ALONG_AXIS_LIST: ['x']
+          ALONG_AXIS_LIST: ['x', 'y']
 
         - NAME: random_world_rotation
           WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
@@ -63,9 +62,9 @@ DATA_PROCESSOR:
       }
 
     - NAME: transform_points_to_voxels
-      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      VOXEL_SIZE: [0.1, 0.1, 0.15]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
-        'train': 16000,
-        'test': 40000
+        'train': 150000,
+        'test': 150000
       }
