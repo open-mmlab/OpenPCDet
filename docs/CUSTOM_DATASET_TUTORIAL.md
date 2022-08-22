@@ -6,13 +6,11 @@ their corresponding annotations. Point clouds are supposed to be stored in `.npy
 We only consider the most basic information -- category and bounding box in the label template.
 Annotations are stored in the `.txt`. Each line represents a box in a given scene as below:
 ```
-[x y z dx dy dz heading_angle category_id]
-1.50 1.46 0.10 5.12 1.85 4.13 1.56 0
-5.54 0.57 0.41 1.08 0.74 1.95 1.57 1
+[x y z dx dy dz heading_angle category_name]
+1.50 1.46 0.10 5.12 1.85 4.13 1.56 Vehicle
+5.54 0.57 0.41 1.08 0.74 1.95 1.57 Pedestrian
 ```
 The box should in the unified 3D box definition (see [README](../README.md))
-The correspondence between `category_id` and `category_name` need to be pre-defined. 
-
 
 ## Files structure
 Files should be placed as the following folder structure:

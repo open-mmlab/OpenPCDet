@@ -53,8 +53,14 @@ class CustomDataset(DatasetTemplate):
             lines = f.readlines()
 
         # [N, 8]: (x y z dx dy dz heading_angle category_id)
-        gt_boxes = [line.strip().split(' ') for line in lines]
-        return np.array(gt_boxes, dtype=np.float32)
+        gt_boxes = []
+        gt_names = []
+        for line in lines:
+            line_list = line.strip().split(' ')
+            gt_boxes.append(line_list[:-1])
+            gt_names.append(line_list[-1])
+
+        return np.array(gt_boxes, dtype=np.float32), np.array(gt_names)
 
     def get_lidar(self, idx):
         lidar_file = self.root_path / 'points' / ('%s.npy' % idx)
@@ -136,8 +142,6 @@ class CustomDataset(DatasetTemplate):
     def get_infos(self, class_names, num_workers=4, has_label=True, sample_id_list=None, num_features=4):
         import concurrent.futures as futures
 
-        class_names = np.array(class_names)
-
         def process_single_scene(sample_idx):
             print('%s sample_idx: %s' % (self.split, sample_idx))
             info = {}
@@ -146,8 +150,8 @@ class CustomDataset(DatasetTemplate):
 
             if has_label:
                 annotations = {}
-                gt_boxes_lidar = self.get_label(sample_idx)
-                annotations['name'] = class_names[gt_boxes_lidar[:, -1].astype(np.int64)]
+                gt_boxes_lidar, name = self.get_label(sample_idx)
+                annotations['name'] = name
                 annotations['gt_boxes_lidar'] = gt_boxes_lidar[:, :7]
                 info['annos'] = annotations
 
@@ -219,10 +223,9 @@ class CustomDataset(DatasetTemplate):
                 name = gt_names[idx]
                 if name not in class_names:
                     continue
-                category_id = class_names.index(name)
-                line = "{x} {y} {z} {l} {w} {h} {angle} {category_id}\n".format(
+                line = "{x} {y} {z} {l} {w} {h} {angle} {name}\n".format(
                     x=boxes[0], y=boxes[1], z=(boxes[2]), l=boxes[3],
-                    w=boxes[4], h=boxes[5], angle=boxes[6], category_id=category_id
+                    w=boxes[4], h=boxes[5], angle=boxes[6], name=name
                 )
                 f.write(line)
 
