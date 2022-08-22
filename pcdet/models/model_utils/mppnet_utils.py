@@ -2,7 +2,6 @@ from os import getgrouplist
 import torch.nn as nn
 import torch
 import numpy as np
-from numpy import *
 import torch.nn.functional as F
 from typing import Optional, List
 from torch import Tensor
@@ -44,19 +43,6 @@ class PointNet(nn.Module):
         super(PointNet, self).__init__()
         self.joint_feat = joint_feat
         channels = model_cfg.TRANS_INPUT
-
-        # if joint_feat:
-        #     self.feat = None
-        #     times=5
-
-        #     self.fc_s1 = nn.Linear(channels*times, 256)
-        #     self.fc_s2 = nn.Linear(256, 3, bias=False)
-        #     self.fc_ce1 = nn.Linear(channels*times, 256)
-        #     self.fc_ce2 = nn.Linear(256, 3, bias=False)
-        #     self.fc_hr1 = nn.Linear(channels*times, 256)
-        #     self.fc_hr2 = nn.Linear(256, 1, bias=False)
-
-        # else:
 
         times=1
         self.feat = PointNetfeat(input_dim, 1)
@@ -211,7 +197,7 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src, src_mask=None,pos=None,num_frames=None):
+    def forward(self, src, pos=None):
 
         BS, N, C = src.shape
         if not pos is None:
@@ -249,7 +235,7 @@ class Transformer(nn.Module):
             src = torch.cat(src,dim=0)
 
         src = src.permute(1, 0, 2)
-        memory,tokens = self.encoder(src, mask = src_mask,pos=pos) 
+        memory,tokens = self.encoder(src,pos=pos) 
 
         memory = torch.cat(memory[0:1].chunk(4,dim=1),0)
         return memory, tokens
@@ -266,14 +252,12 @@ class TransformerEncoder(nn.Module):
         self.config = config
 
     def forward(self, src,
-                mask: Optional[Tensor] = None,
-                src_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None):
 
         token_list = []
         output = src
         for layer in self.layers:
-            output,tokens = layer(output, src_mask=mask,src_key_padding_mask=src_key_padding_mask, pos=pos)
+            output,tokens = layer(output,pos=pos)
             token_list.append(tokens)
         if self.norm is not None:
             output = self.norm(output)
@@ -320,28 +304,25 @@ class TransformerEncoderLayer(nn.Module):
 
     def forward_post(self,
                      src,
-                     src_mask: Optional[Tensor] = None,
-                     src_key_padding_mask: Optional[Tensor] = None,
                      pos: Optional[Tensor] = None):
 
         src_intra_group_fusion = self.mlp_mixer_3d(src[1:])
         src = torch.cat([src[:1],src_intra_group_fusion],0)
 
-        if self.training or self.layer_count == self.config.enc_layers:
-            token = src[:1]
+        token = src[:1]
 
-            if not pos is None:
-                key = self.with_pos_embed(src_intra_group_fusion, pos[1:])
-            else:
-                key = src_intra_group_fusion
+        if not pos is None:
+            key = self.with_pos_embed(src_intra_group_fusion, pos[1:])
+        else:
+            key = src_intra_group_fusion
 
-            src_summary = self.self_attn(token, key, value=src_intra_group_fusion)[0]
-            token = token + self.dropout1(src_summary)
-            token = self.norm1(token)
-            src_summary = self.linear2(self.dropout(self.activation(self.linear1(token))))
-            token = token + self.dropout2(src_summary)
-            token = self.norm2(token)
-            src = torch.cat([token,src[1:]],0)
+        src_summary = self.self_attn(token, key, value=src_intra_group_fusion)[0]
+        token = token + self.dropout1(src_summary)
+        token = self.norm1(token)
+        src_summary = self.linear2(self.dropout(self.activation(self.linear1(token))))
+        token = token + self.dropout2(src_summary)
+        token = self.norm2(token)
+        src = torch.cat([token,src[1:]],0)
 
         if self.layer_count <= self.config.enc_layers-1:
     
@@ -367,13 +348,10 @@ class TransformerEncoderLayer(nn.Module):
         return src, torch.cat(src[:1].chunk(4,1),0)
 
     def forward_pre(self, src,
-                    src_mask: Optional[Tensor] = None,
-                    src_key_padding_mask: Optional[Tensor] = None,
                     pos: Optional[Tensor] = None):
         src2 = self.norm1(src)
         q = k = self.with_pos_embed(src2, pos)
-        src2 = self.self_attn(q, k, value=src2, attn_mask=src_mask,
-                              key_padding_mask=src_key_padding_mask)[0]
+        src2 = self.self_attn(q, k, value=src2)[0]
         src = src + self.dropout1(src2)
         src2 = self.norm2(src)
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
@@ -381,13 +359,11 @@ class TransformerEncoderLayer(nn.Module):
         return src
 
     def forward(self, src,
-                src_mask: Optional[Tensor] = None,
-                src_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None):
 
         if self.normalize_before:
-            return self.forward_pre(src, src_mask, src_key_padding_mask, pos)
-        return self.forward_post(src, src_mask, src_key_padding_mask, pos)
+            return self.forward_pre(src, pos)
+        return self.forward_post(src,  pos)
 
 def _get_activation_fn(activation):
     """Return an activation function given a string"""

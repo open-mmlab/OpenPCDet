@@ -211,8 +211,12 @@ class WaymoDataset(DatasetTemplate):
             return points[mask]
 
         pose_cur = info['pose'].reshape((4, 4))
-        speeds_cur = info['annos']['speeds']
         bboxes_cur = info['annos']['gt_boxes_lidar']
+        try:
+            speeds_cur = info['annos']['speeds']
+        except:
+            speeds_cur = np.zeros([bboxes_cur.shape[0],2])
+            
         if sequence_cfg.USE_SPEED:
             if len(speeds_cur)==0:
                 bboxes_cur = np.concatenate([bboxes_cur, np.zeros((bboxes_cur.shape[0],2))], axis=-1)
@@ -235,6 +239,8 @@ class WaymoDataset(DatasetTemplate):
         num_points_pre = []
         num_bboxes_pre = []
         bboxes_list_pre = []
+        pose_all = []
+        pose_all.append(pose_cur)
         sequence_info_path = self.data_path / sequence_name / ('%s_with_speed.pkl' % sequence_name)
         sequence_info = pickle.load(open(sequence_info_path, 'rb'))
 
@@ -270,12 +276,14 @@ class WaymoDataset(DatasetTemplate):
             points_pre = remove_ego_points(points_pre, 1.0)
             points_pre_all.append(points_pre)
             bboxes_list_pre.append(bboxes_pre)
+            pose_all.append(pose_pre)
             num_points_pre.append(points_pre.shape[0])
             num_bboxes_pre.append(bboxes_pre.shape[0])
 
         points = np.concatenate([points] + points_pre_all, axis=0)
+        poses = np.concatenate(pose_all, axis=0)
 
-        return points,  bboxes_cur
+        return points,  bboxes_cur, poses
 
 
     def get_sequence_data_with_predbox(self, info, points, sequence_name, sample_idx, sequence_cfg):
@@ -317,8 +325,6 @@ class WaymoDataset(DatasetTemplate):
 
             try:
                 load_boxes3d = np.load(box_path)                   
-                # if 'vel_36' in self.dataset_cfg.ROI_BOXES_PATH:
-                #     load_boxes3d = load_boxes3d[:,[0,1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,18,19]]
                 pred_boxes3d = load_boxes3d[:,:9]  #[xyz, lwh,yaw, score, label]
                 pred_supboxes3d = load_boxes3d[:,9:][:,:7] #[xyz,lwh,yaw,]
                 disp = pred_supboxes3d[:,:2] - pred_boxes3d[:,:2] # get x,y motion
@@ -339,8 +345,6 @@ class WaymoDataset(DatasetTemplate):
 
                     box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx_pre)) 
                     boxes3d = np.load(box_path)
-                    # if 'vel_36' in self.dataset_cfg.ROI_BOXES_PATH:
-                    #     boxes3d = boxes3d[:,[0,1,2,3,4,5,6,9,10,11,12,13,14,15,16,17,18,19]]
                     pred_boxes3d = boxes3d[:,:9]
 
                     pred_supboxes3d = boxes3d[:,9:]
@@ -420,13 +424,14 @@ class WaymoDataset(DatasetTemplate):
                     points, gt_bboxes, pred_bboxes,pred_scores,pred_labels,poses = self.get_sequence_data_with_predbox(
                         info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                     )
-                    input_dict.update({'poses': poses}) 
+                    
 
                 else:
-                    points, gt_bboxes = self.get_sequence_data(
+                    points, gt_bboxes, poses = self.get_sequence_data(
                         info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                     )
 
+                input_dict.update({'poses': poses}) 
 
         input_dict.update({
             'points': points,

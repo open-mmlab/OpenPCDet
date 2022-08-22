@@ -124,7 +124,7 @@ MODEL:
                 'rcnn_cls_weight': 1.0,
                 'rcnn_reg_weight': 1.0,
                 'rcnn_corner_weight': 2.0,
-                'usebox_reg_weight': [2.0, 2.0, 2.0],
+                'traj_reg_weight': [2.0, 2.0, 2.0],
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 

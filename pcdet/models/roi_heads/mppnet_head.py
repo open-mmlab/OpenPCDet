@@ -320,8 +320,7 @@ class MPPNetHead(RoIHeadTemplate):
         self.num_groups = model_cfg.Transformer.num_groups
 
         self.grid_size = model_cfg.ROI_GRID_POOL.GRID_SIZE
-        self.num_grid_points = model_cfg.ROI_GRID_POOL.GRID_SIZE**3
-        self.num_key_points = self.num_grid_points
+        self.num_proxy_points = model_cfg.Transformer.num_proxy_points
         self.seqboxembed = PointNet(8,model_cfg=self.model_cfg)
         self.jointembed = MLP(self.hidden_dim*(self.num_groups+1), model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
 
@@ -427,14 +426,14 @@ class MPPNetHead(RoIHeadTemplate):
 
         
         num_points = point_coords.shape[1]
-        num_key_points = self.num_key_points
+        num_proxy_points = self.num_proxy_points
 
         if batch_cnt is None:
             xyz_batch_cnt = torch.tensor([num_points]*num_rois*batch_size).cuda().int()
         else:
             xyz_batch_cnt = torch.tensor(batch_cnt).cuda().int()
 
-        new_xyz_batch_cnt = torch.tensor([num_key_points]*num_rois*batch_size).cuda().int()
+        new_xyz_batch_cnt = torch.tensor([num_proxy_points]*num_rois*batch_size).cuda().int()
         new_xyz = global_roi_proxy_points.view(-1, 3)
 
         _, pooled_features = self.roi_grid_pool_layer(
@@ -446,10 +445,10 @@ class MPPNetHead(RoIHeadTemplate):
         )  
 
         features = pooled_features.view(
-            point_features.shape[0], num_frames*self.num_key_points,
+            point_features.shape[0], num_frames*self.num_proxy_points,
             pooled_features.shape[-1]).contiguous()  
 
-        return features,global_roi_proxy_points.view(batch_size*rois.shape[2], num_frames*num_key_points,3).contiguous()
+        return features,global_roi_proxy_points.view(batch_size*rois.shape[2], num_frames*num_proxy_points,3).contiguous()
 
     def get_proxy_points_of_roi(self, rois, grid_size):
         rois = rois.view(-1, rois.shape[-1])
@@ -669,7 +668,7 @@ class MPPNetHead(RoIHeadTemplate):
         num_frames = trajectory_rois.shape[1]
 
         for i in range(num_frames):
-            proxy_point_time_padding[:,i*self.num_key_points:(i+1)*self.num_key_points,-1] = i*0.1
+            proxy_point_time_padding[:,i*self.num_proxy_points:(i+1)*self.num_proxy_points,-1] = i*0.1
 
 
         corner_points, _ = self.get_corner_points_of_roi(trajectory_rois[:,0,:,:].contiguous()) 
@@ -810,9 +809,7 @@ class MPPNetHead(RoIHeadTemplate):
         if self.model_cfg.Transformer.use_grid_pos.init_type == 'index':
             pos = self.grid_pos_embeded(self.grid_index.cuda())[None,:,:]
             pos = torch.cat([torch.zeros(1,1,self.hidden_dim).cuda(),pos],1)
-
         else:
-            grid_pos = None
             pos=None
 
 
@@ -820,7 +817,6 @@ class MPPNetHead(RoIHeadTemplate):
         point_cls_list = []
         point_reg_list = []
 
-        # import pdb;pdb.set_trace()
         for i in range(3):
             point_cls_list.append(self.class_embed[0](tokens[i][0]))
 
@@ -941,7 +937,7 @@ class MPPNetHead(RoIHeadTemplate):
                 reg_targets.unsqueeze(dim=0),
             )  # [B, M, 7]
             rcnn_loss_reg = (rcnn_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-            rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][0]
+            rcnn_loss_reg = rcnn_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['traj_reg_weight'][0]
 
             tb_dict['rcnn_loss_reg'] = rcnn_loss_reg.item()
   
@@ -956,7 +952,7 @@ class MPPNetHead(RoIHeadTemplate):
                         point_loss_reg = self.reg_loss_func(
                         point_reg[i*slice:(i+1)*slice].view(slice, -1).unsqueeze(dim=0),reg_targets.unsqueeze(dim=0),) 
                         point_loss_reg = (point_loss_reg.view(slice, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-                        point_loss_reg = point_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][2]
+                        point_loss_reg = point_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['traj_reg_weight'][2]
                         
                         point_loss_regs += point_loss_reg
                     point_loss_regs = point_loss_regs / groups
@@ -966,14 +962,14 @@ class MPPNetHead(RoIHeadTemplate):
                 else:
                     point_loss_reg = self.reg_loss_func(point_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),reg_targets.unsqueeze(dim=0),)  
                     point_loss_reg = (point_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-                    point_loss_reg = point_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][2]
+                    point_loss_reg = point_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['traj_reg_weight'][2]
                     tb_dict['point_loss_reg'] = point_loss_reg.item()
                     rcnn_loss_reg += point_loss_reg
 
                 seqbox_reg = forward_ret_dict['box_reg']  
                 seqbox_loss_reg = self.reg_loss_func(seqbox_reg.view(rcnn_batch_size, -1).unsqueeze(dim=0),reg_targets.unsqueeze(dim=0),)
                 seqbox_loss_reg = (seqbox_loss_reg.view(rcnn_batch_size, -1) * fg_mask.unsqueeze(dim=-1).float()).sum() / max(fg_sum, 1)
-                seqbox_loss_reg = seqbox_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['usebox_reg_weight'][1]
+                seqbox_loss_reg = seqbox_loss_reg * loss_cfgs.LOSS_WEIGHTS['rcnn_reg_weight']*loss_cfgs.LOSS_WEIGHTS['traj_reg_weight'][1]
                 tb_dict['seqbox_loss_reg'] = seqbox_loss_reg.item()
                 rcnn_loss_reg += seqbox_loss_reg
 

@@ -10,7 +10,7 @@ from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
 from .pv_rcnn_plusplus import PVRCNNPlusPlus
 from .mppnet import MPPNet
-# from .mppnet_e2e import MPPNetE2E
+from .mppnet_e2e import MPPNetE2E
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -25,7 +25,7 @@ __all__ = {
     'CenterPoint': CenterPoint,
     'PVRCNNPlusPlus': PVRCNNPlusPlus,
     'MPPNet': MPPNet,
-    # 'MPPNetE2E': MPPNetE2E
+    'MPPNetE2E': MPPNetE2E
 }
 
 
