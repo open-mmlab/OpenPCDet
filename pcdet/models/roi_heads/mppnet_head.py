@@ -11,10 +11,10 @@ from ..model_utils.mppnet_utils import build_transformer, PointNet, MLP
 from .target_assigner.proposal_target_layer import ProposalTargetLayer
 from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 
+
 class ProposalTargetLayerMPPNet(ProposalTargetLayer):
     def __init__(self, roi_sampler_cfg):
         super().__init__(roi_sampler_cfg = roi_sampler_cfg)
-
 
     def forward(self, batch_dict):
         """
@@ -173,10 +173,7 @@ class ProposalTargetLayerMPPNet(ProposalTargetLayer):
             else:
                 batch_trajectory_rois[index] = cur_trajectory_rois[:,sampled_inds]
                     
-
-
         return batch_rois, batch_gt_of_rois, batch_roi_ious, batch_roi_scores, batch_roi_labels, batch_trajectory_rois,batch_valid_length
-
 
     def subsample_rois(self, max_overlaps):
         # sample fg, easy_bg, hard_bg
@@ -683,7 +680,6 @@ class MPPNetHead(RoIHeadTemplate):
         batch_dict['has_class_labels'] = True
         batch_dict['trajectory_rois'] = trajectory_rois
 
-
         if self.training:
             targets_dict = self.assign_targets(batch_dict)
             batch_dict['rois'] = targets_dict['rois']
@@ -725,7 +721,6 @@ class MPPNetHead(RoIHeadTemplate):
             pos = torch.cat([torch.zeros(1,1,self.hidden_dim).cuda(),pos],1)
         else:
             pos=None
-
 
         hs, tokens = self.transformer(src,pos=pos, num_frames = batch_dict['num_frames'])
         point_cls_list = []
@@ -834,8 +829,6 @@ class MPPNetHead(RoIHeadTemplate):
         fg_mask = (reg_valid_mask > 0)
         fg_sum = fg_mask.long().sum().item()
 
-        
-
         tb_dict = {}
 
         if loss_cfgs.REG_LOSS == 'smooth-l1':
@@ -927,7 +920,6 @@ class MPPNetHead(RoIHeadTemplate):
         loss_cfgs = self.model_cfg.LOSS_CONFIG
         rcnn_cls = forward_ret_dict['rcnn_cls']
         rcnn_cls_labels = forward_ret_dict['rcnn_cls_labels'].view(-1)
-
 
         if loss_cfgs.CLS_LOSS == 'BinaryCrossEntropy':
 

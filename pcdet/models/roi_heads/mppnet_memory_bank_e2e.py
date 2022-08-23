@@ -11,6 +11,7 @@ from ..model_utils.mppnet_utils import build_transformer, PointNet, MLP
 from .target_assigner.proposal_target_layer import ProposalTargetLayer
 from pcdet.ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
 
+
 class MPPNetHeadE2E(RoIHeadTemplate):
     def __init__(self,model_cfg, num_class=1,**kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
@@ -30,7 +31,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
  
         self.seqboxembed = PointNet(8,model_cfg=self.model_cfg)
         self.jointembed = MLP(self.hidden_dim*(self.num_groups+1), model_cfg.Transformer.hidden_dim, self.box_coder.code_size * self.num_class, 4)
-
 
         num_radius = len(self.model_cfg.ROI_GRID_POOL.POOL_RADIUS)
         self.up_dimension_geometry = MLP(input_dim = 29, hidden_dim = 64, output_dim =hidden_dim//num_radius, num_layers = 3)
@@ -559,8 +559,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
         for bs_idx in range(len(memory)):
             ordered_memory[bs_idx,:len(memory[bs_idx])] = memory[bs_idx]
         return ordered_memory
-
-
 
     def generate_predicted_boxes(self, batch_size, rois, cls_preds=None, box_preds=None):
         """

@@ -388,6 +388,7 @@ class WaymoDataset(DatasetTemplate):
     def __getitem__(self, index):
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
+            
         info = copy.deepcopy(self.infos[index])
         pc_info = info['point_cloud']
         sequence_name = pc_info['lidar_sequence']
@@ -402,15 +403,10 @@ class WaymoDataset(DatasetTemplate):
             points = self.get_lidar(sequence_name, sample_idx)
 
             if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
-
-
                 if self.dataset_cfg.get('USE_PREDBOX',False):
-   
-                    points, gt_bboxes, pred_bboxes,pred_scores,pred_labels,poses = self.get_sequence_data_with_predbox(
+                    points, gt_bboxes, pred_bboxes, pred_scores, pred_labels, poses = self.get_sequence_data_with_predbox(
                         info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                     )
-                    
-
                 else:
                     points, gt_bboxes, poses = self.get_sequence_data(
                         info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
@@ -430,16 +426,10 @@ class WaymoDataset(DatasetTemplate):
             if self.dataset_cfg.get('INFO_WITH_FAKELIDAR', False):
                 gt_boxes_lidar = box_utils.boxes3d_kitti_fakelidar_to_lidar(annos['gt_boxes_lidar'])
             else:
-                if self.dataset_cfg.get('SEQUENCE_CONFIG',None):
-                    if not self.dataset_cfg.SEQUENCE_CONFIG.USE_SPEED:
-                        gt_boxes_lidar = gt_bboxes[:,:7]
-
-                    else:
-                        gt_boxes_lidar = gt_bboxes 
-
+                if self.dataset_cfg.get('SEQUENCE_CONFIG', None):
+                    gt_boxes_lidar = gt_bboxes[:, :7] if not self.dataset_cfg.SEQUENCE_CONFIG.USE_SPEED else gt_bboxes 
                 else:
                     gt_boxes_lidar = annos['gt_boxes_lidar']
-                
 
             if self.training and self.dataset_cfg.get('FILTER_EMPTY_BOXES_FOR_TRAIN', False):
                 mask = (annos['num_points_in_gt'] > 0)  # filter empty boxes

@@ -163,7 +163,7 @@ class Detector3DTemplate(nn.Module):
         point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](
             model_cfg=self.model_cfg.ROI_HEAD,
             input_channels=model_info_dict['num_point_features'],
-            backbone_channels= model_info_dict.get('backbone_channels',None),
+            backbone_channels= model_info_dict.get('backbone_channels', None),
             point_cloud_range=model_info_dict['point_cloud_range'],
             voxel_size=model_info_dict['voxel_size'],
             num_class=self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
@@ -247,15 +247,12 @@ class Detector3DTemplate(nn.Module):
                 final_labels = torch.cat(pred_labels, dim=0)
                 final_boxes = torch.cat(pred_boxes, dim=0)
             else:
-
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
-
                 if batch_dict.get('has_class_labels', False):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
                 else:
-                    label_preds = label_preds + 1
-                
+                    label_preds = label_preds + 1 
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
@@ -271,9 +268,7 @@ class Detector3DTemplate(nn.Module):
                 final_boxes = box_preds[selected]
 
             if post_process_cfg.POST_PROCESSING.get('SAVE_BBOX',False):
-
                 for bs_idx in range(batch_dict['batch_size']):
-
                     if batch_dict['final_box_dicts'][bs_idx]['pred_boxes'].shape[0] >0:
                         cur_vels = batch_dict['final_box_dicts'][bs_idx]['pred_boxes'][:,7:9]
                         cur_boxes = batch_dict['final_box_dicts'][bs_idx]['pred_boxes']
@@ -290,18 +285,16 @@ class Detector3DTemplate(nn.Module):
                                 pass
                         bbox_path = os.path.join(path, '%s.npy' % (batch_dict['frame_id'][bs_idx][-3:]))
                 
-                        pred_boxes = torch.cat([cur_boxes[:,:7],cur_scores[:,None],cur_labels[:,None],cur_vels],dim=-1)
+                        pred_boxes = torch.cat([cur_boxes[:, :7], cur_scores[:, None], cur_labels[:, None], cur_vels], dim=-1)
                         np.save(bbox_path, pred_boxes.cpu().numpy())
                     else:
                         pass 
-             
-
+                    
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
                 thresh_list=post_process_cfg.RECALL_THRESH_LIST
-            )
-            
+            )        
 
             record_dict = {
                 'pred_boxes': final_boxes,

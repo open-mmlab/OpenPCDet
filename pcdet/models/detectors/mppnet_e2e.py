@@ -8,6 +8,7 @@ from .detector3d_template import Detector3DTemplate
 from pcdet.ops.iou3d_nms import iou3d_nms_utils
 from pcdet.datasets.augmentor import augmentor_utils, database_sampler
 
+
 class MPPNetE2E(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)

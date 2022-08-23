@@ -24,10 +24,7 @@ class PointNetfeat(nn.Module):
         self.bn3 = nn.BatchNorm1d(256 * x)
         self.bn4 = nn.BatchNorm1d(self.output_channel)
 
-
-
     def forward(self, x):
-
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -239,8 +236,7 @@ class Transformer(nn.Module):
 
         memory = torch.cat(memory[0:1].chunk(4,dim=1),0)
         return memory, tokens
-
-
+    
 
 class TransformerEncoder(nn.Module):
 
@@ -263,6 +259,7 @@ class TransformerEncoder(nn.Module):
             output = self.norm(output)
 
         return output,token_list
+
 
 class TransformerEncoderLayer(nn.Module):
     count = 0
@@ -365,6 +362,7 @@ class TransformerEncoderLayer(nn.Module):
             return self.forward_pre(src, pos)
         return self.forward_post(src,  pos)
 
+
 def _get_activation_fn(activation):
     """Return an activation function given a string"""
     if activation == "relu":
@@ -374,6 +372,7 @@ def _get_activation_fn(activation):
     if activation == "glu":
         return F.glu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
+
 
 class FFN(nn.Module):
     def __init__(self, d_model, dim_feedforward=2048, dropout=0.1,dout=None,
@@ -395,8 +394,6 @@ class FFN(nn.Module):
         self.normalize_before = normalize_before
 
     def forward(self, tgt,tgt_input):
-
-
         tgt = tgt + self.dropout2(tgt_input)
         tgt = self.norm2(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
@@ -406,8 +403,6 @@ class FFN(nn.Module):
         return tgt
 
 def build_transformer(args):
-
-
     return Transformer(
         config = args,
         d_model=args.hidden_dim,

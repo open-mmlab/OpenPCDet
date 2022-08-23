@@ -8,16 +8,14 @@ from ...utils import common_utils
 from ..model_utils import model_nms_utils
 from pcdet.datasets.augmentor import augmentor_utils, database_sampler
 
+
 class MPPNet(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict):
-
         batch_dict['proposals_list'] = batch_dict['roi_boxes']
-
-
         for cur_module in self.module_list[:]:
             batch_dict = cur_module(batch_dict)
         
