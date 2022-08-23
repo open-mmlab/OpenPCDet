@@ -17,7 +17,8 @@ class MPPNetE2E(Detector3DTemplate):
             'vfe', 'backbone_3d', 'map_to_bev_module',
             'backbone_2d', 'dense_head','roi_head'
         ]
-        self.num_frames = 1 - self.dataset.dataset_cfg.SEQUENCE_CONFIG.SAMPLE_OFFSET[0]
+        
+        self.num_frames = self.model_cfg.ROI_HEAD.Transformer.num_frames
 
     def reset_memorybank(self):
         self.memory_rois = None
@@ -32,6 +33,11 @@ class MPPNetE2E(Detector3DTemplate):
             batch_dict['memory_bank'] = {}
         else:
             batch_dict['memory_bank'] = {'feature_bank':self.memory_feature}
+
+        if self.num_frames ==16:
+            batch_dict['points_backup'] = batch_dict['points'].clone()
+            time_mask = batch_dict['points'][:,-1] < 0.31 # centerpoint RPN only use 4frames
+            batch_dict['points'] = batch_dict['points'][time_mask]
 
         for idx, cur_module in enumerate(self.module_list):
             batch_dict = cur_module(batch_dict)

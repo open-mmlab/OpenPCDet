@@ -64,10 +64,8 @@ class WaymoDataset(DatasetTemplate):
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
                 waymo_infos.extend(infos)
-                waymo_infos_dict[sequence_name] = infos
-
+     
         self.infos.extend(waymo_infos[:])
-        self.waymo_infos_dict = waymo_infos_dict
         self.logger.info('Total skipped info %s' % num_skipped_infos)
         self.logger.info('Total samples for Waymo dataset: %d' % (len(waymo_infos)))
 
@@ -187,7 +185,7 @@ class WaymoDataset(DatasetTemplate):
         return bboxes_pre2cur
 
     @staticmethod
-    def reorder_rois_for_refining(pred_bboxes,only_car=False):
+    def reorder_rois_for_refining(pred_bboxes):
 
         num_max_rois = max([len(bbox) for bbox in pred_bboxes])
         num_max_rois = max(1, num_max_rois)  # at least one faked rois to avoid error
@@ -245,7 +243,7 @@ class WaymoDataset(DatasetTemplate):
         bboxes_list_pre = []
         pose_all = []
         pose_all.append(pose_cur)
-        sequence_info_path = self.data_path / sequence_name / ('%s_with_speed.pkl' % sequence_name)
+        sequence_info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
         sequence_info = pickle.load(open(sequence_info_path, 'rb'))
 
         for i, sample_idx_pre in enumerate(sample_idx_pre_list):
@@ -321,8 +319,8 @@ class WaymoDataset(DatasetTemplate):
             pose_all = []
             pose_all.append(pose_cur)
 
-            sequence_info = self.waymo_infos_dict[sequence_name]
-
+            sequence_info_path = self.data_path / sequence_name / ('%s.pkl' % sequence_name)
+            sequence_info = pickle.load(open(sequence_info_path, 'rb'))
 
             box_path = self.root_path / self.dataset_cfg.ROI_BOXES_PATH / sequence_name / ('%03d.npy' % (sample_idx))
 
@@ -375,7 +373,7 @@ class WaymoDataset(DatasetTemplate):
 
             points = np.concatenate([points] + points_pre_all, axis=0)
             poses = np.concatenate(pose_all, axis=0)
-            _pred_bboxs = self.reorder_rois_for_refining(pred_bboxs,True)
+            _pred_bboxs = self.reorder_rois_for_refining(pred_bboxs)
             pred_bboxs = _pred_bboxs[...,[0,1,2,3,4,5,6,9,10]]
             pred_scores = _pred_bboxs[...,7]
             pred_labels = _pred_bboxs[...,8]

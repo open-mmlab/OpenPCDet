@@ -202,9 +202,9 @@ class Transformer(nn.Module):
         BS, N, C = src.shape
         if not pos is None:
             pos = pos.permute(1, 0, 2)
+            
         if self.num_frames == 16:
-
-            token_list = [self.token[i:(i+1)].repeat(BS,1,1) for i in self.num_groups]
+            token_list = [self.token[i:(i+1)].repeat(BS,1,1) for i in range(self.num_groups)]
             if self.sequence_stride ==1:
                 src_groups = src.view(src.shape[0],src.shape[1]//self.num_groups ,-1).chunk(4,dim=1)
 
