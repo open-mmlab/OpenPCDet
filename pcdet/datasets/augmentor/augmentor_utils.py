@@ -126,60 +126,6 @@ def random_image_flip_horizontal(image, depth_map, gt_boxes, calib):
     return aug_image, aug_depth_map, aug_gt_boxes
 
 
-def random_translation_along_x(gt_boxes, points, offset_std):
-    """
-    Args:
-        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
-        points: (M, 3 + C),
-        offset_std: float
-    Returns:
-    """
-    offset = np.random.normal(0, offset_std, 1)
-
-    points[:, 0] += offset
-    gt_boxes[:, 0] += offset
-    
-    # if gt_boxes.shape[1] > 7:
-    #     gt_boxes[:, 7] += offset
-    
-    return gt_boxes, points
-
-
-def random_translation_along_y(gt_boxes, points, offset_std):
-    """
-    Args:
-        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
-        points: (M, 3 + C),
-        offset_std: float
-    Returns:
-    """
-    offset = np.random.normal(0, offset_std, 1)
-
-    points[:, 1] += offset
-    gt_boxes[:, 1] += offset
-    
-    # if gt_boxes.shape[1] > 8:
-    #     gt_boxes[:, 8] += offset
-    
-    return gt_boxes, points
-
-
-def random_translation_along_z(gt_boxes, points, offset_std):
-    """
-    Args:
-        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
-        points: (M, 3 + C),
-        offset_std: float
-    Returns:
-    """
-    offset = np.random.normal(0, offset_std, 1)
-    
-    points[:, 2] += offset
-    gt_boxes[:, 2] += offset
-
-    return gt_boxes, points
-
-
 def random_local_translation_along_x(gt_boxes, points, offset_range):
     """
     Args:
