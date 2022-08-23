@@ -3,6 +3,7 @@ import pickle as pkl
 from pathlib import Path
 import tqdm
 import copy
+import os 
 
 
 def create_integrated_db_with_infos(args, root_path):
@@ -13,8 +14,8 @@ def create_integrated_db_with_infos(args, root_path):
 
     """
     # prepare
-    db_infos_path = root_path / args.src_db_info
-    db_info_global_path = str(db_infos_path)[:-4] + '_global' + '.pkl'
+    db_infos_path = args.src_db_info
+    db_info_global_path = db_infos_path
     global_db_path = root_path / (args.new_db_name + '.npy')
 
     db_infos = pkl.load(open(db_infos_path, 'rb'))
@@ -71,17 +72,14 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='arg parser')
-    parser.add_argument('--root_path', type=str, default=None, help='specify the root path')
-    parser.add_argument('--src_db_info', type=str, default='waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1.pkl', help='')
-    parser.add_argument('--new_db_name', type=str, default='waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global', help='')
-    parser.add_argument('--num_point_features', type=int, default=5,
-                        help='number of feature channels for points')
-    parser.add_argument('--class_name', type=str, default='Vehicle',
-                        help='category name for verification')
+    parser.add_argument('--src_db_info', type=str, default='../../data/waymo/waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1_multiframe_-4_to_0_tail_parallel.pkl', help='')
+    parser.add_argument('--new_db_name', type=str, default='waymo_processed_data_v0_5_0_gt_database_train_sampled_1_multiframe_-4_to_0_tail_parallel_global', help='')
+    parser.add_argument('--num_point_features', type=int, default=6, help='number of feature channels for points')
+    parser.add_argument('--class_name', type=str, default='Vehicle', help='category name for verification')
 
     args = parser.parse_args()
 
-    root_path = Path(args.root_path)
+    root_path = Path(os.path.dirname(args.src_db_info))
 
     db_infos_global, whole_db = create_integrated_db_with_infos(args, root_path)
     # simple verify
