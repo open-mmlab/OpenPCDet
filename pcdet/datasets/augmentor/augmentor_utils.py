@@ -84,6 +84,9 @@ def global_scaling(gt_boxes, points, scale_range, return_scale=False):
     noise_scale = np.random.uniform(scale_range[0], scale_range[1])
     points[:, :3] *= noise_scale
     gt_boxes[:, :6] *= noise_scale
+    if gt_boxes.shape[1] > 7:
+        gt_boxes[:, 7:] *= noise_scale
+        
     if return_scale:
         return gt_boxes, points, noise_scale
     return gt_boxes, points
