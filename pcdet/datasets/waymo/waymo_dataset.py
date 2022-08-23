@@ -23,7 +23,6 @@ class WaymoDataset(DatasetTemplate):
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
-
         self.data_path = self.root_path / self.dataset_cfg.PROCESSED_DATA_TAG
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
@@ -51,7 +50,6 @@ class WaymoDataset(DatasetTemplate):
     def include_waymo_data(self, mode):
         self.logger.info('Loading Waymo dataset')
         waymo_infos = []
-        waymo_infos_dict = {}
 
         num_skipped_infos = 0
         for k in range(len(self.sample_sequence_list)):
