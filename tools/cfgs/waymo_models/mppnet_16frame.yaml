@@ -14,8 +14,7 @@ DATA_CONFIG:
     SEQUENCE_CONFIG:
         ENABLED: True
         SAMPLE_OFFSET: [-15,0]
-        USE_SPEED: False
-
+        
     USE_PREDBOX: True
     ROI_BOXES_PATH: ../output/result.pkl  # this is a example
 

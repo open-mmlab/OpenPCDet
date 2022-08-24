@@ -87,14 +87,14 @@ class WaymoDataset(DatasetTemplate):
         return seq_name_to_infos
 
     def load_pred_boxes_to_dict(self, pred_boxes_path):
-        self.logger.info(f'Loading and reorganize pred_boxes to dict from path: {pred_boxes_path}')
+        self.logger.info(f'Loading and reorganizing pred_boxes to dict from path: {pred_boxes_path}')
         with open(pred_boxes_path, 'rb') as f:
             pred_dicts = pickle.load(f)
 
         pred_boxes_dict = {}
         for index, box_dict in enumerate(pred_dicts):
-            seq_name = box_dict['frame_id'][:-4]
-            sample_idx = box_dict['frame_id'][-3:]
+            seq_name = box_dict['frame_id'][:-4].replace('training_', '').replace('validation_', '')
+            sample_idx = int(box_dict['frame_id'][-3:])
 
             if seq_name not in pred_boxes_dict:
                 pred_boxes_dict[seq_name] = {}
@@ -254,14 +254,12 @@ class WaymoDataset(DatasetTemplate):
 
         def load_pred_boxes_from_dict(sequence_name, sample_idx):
             """
-            boxes: (N, 11)  [x, y, z, dx, dy, dz, raw, vx, vy, score, label]
+            boxes: (N, 11)  [x, y, z, dx, dy, dn, raw, vx, vy, score, label]
             """
-            try:
-                load_boxes = self.pred_boxes_dict[sequence_name][sample_idx]
-                assert load_boxes.shape[-1] == 11
-                load_boxes[:, 7:9] = -0.1 * load_boxes[:, 7:9]  # transfer speed to negtive motion from t to t-1
-            except:
-                load_boxes = np.zeros([1,11])
+            sequence_name = sequence_name.replace('training_', '').replace('validation_', '')
+            load_boxes = self.pred_boxes_dict[sequence_name][sample_idx]
+            assert load_boxes.shape[-1] == 11
+            load_boxes[:, 7:9] = -0.1 * load_boxes[:, 7:9]  # transfer speed to negtive motion from t to t-1
             return load_boxes
 
         pose_cur = info['pose'].reshape((4, 4))
@@ -319,9 +317,9 @@ class WaymoDataset(DatasetTemplate):
 
         if load_pred_boxes:
             temp_pred_boxes = self.reorder_rois_for_refining(pred_boxes_all)
-            pred_boxes = temp_pred_boxes[:, 0:9]
-            pred_scores = temp_pred_boxes[:, 9]
-            pred_labels = temp_pred_boxes[:, 10]
+            pred_boxes = temp_pred_boxes[:, :, 0:9]
+            pred_scores = temp_pred_boxes[:, :, 9]
+            pred_labels = temp_pred_boxes[:, :, 10]
         else:
             pred_boxes = pred_scores = pred_labels = None
 
