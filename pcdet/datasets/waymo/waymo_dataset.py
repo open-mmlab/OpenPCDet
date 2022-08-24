@@ -413,16 +413,25 @@ class WaymoDataset(DatasetTemplate):
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['score'] = pred_scores
             pred_dict['boxes_lidar'] = pred_boxes
+            
+            if output_path is not None:
+                save_dir = output_path / batch_dict['frame_id'][index][:-4]
+                save_dir.mkdir(parents=True, exist_ok=True)      
+                pred_boxes = np.concatenate([pred_boxes, pred_scores[:, np.newaxis], pred_labels[:, np.newaxis]], axis=-1)
+                
+                save_path = save_dir / f"{batch_dict['frame_id'][bs_idx][-3:]}.npy"
+                np.save(save_path, pred_boxes)
 
             return pred_dict
 
         annos = []
+        assert len(pred_dicts) == batch_dict['batch_size']
         for index, box_dict in enumerate(pred_dicts):
             single_pred_dict = generate_single_sample_dict(box_dict)
             single_pred_dict['frame_id'] = batch_dict['frame_id'][index]
             single_pred_dict['metadata'] = batch_dict['metadata'][index]
             annos.append(single_pred_dict)
-
+            
         return annos
 
     def evaluation(self, det_annos, class_names, **kwargs):

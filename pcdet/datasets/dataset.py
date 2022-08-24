@@ -73,6 +73,7 @@ class DatasetTemplate(torch_data.Dataset):
         Returns:
 
         """
+        pass 
 
     def merge_all_iters_to_one_epoch(self, merge=True, epochs=None):
         if merge:
