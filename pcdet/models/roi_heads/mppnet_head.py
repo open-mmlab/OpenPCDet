@@ -693,7 +693,7 @@ class MPPNetHead(RoIHeadTemplate):
         else:
             empty_mask = batch_dict['rois'][:,:,0,:6].sum(-1)==0
             batch_dict['valid_traj_mask'] = ~empty_mask
-
+        hs, tokens = self.transformer(src,pos=pos)
         rois = batch_dict['rois']
         num_rois = batch_dict['rois'].shape[1]
         num_sample = self.num_lidar_points 
