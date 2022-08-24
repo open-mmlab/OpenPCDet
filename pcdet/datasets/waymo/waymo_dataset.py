@@ -419,7 +419,7 @@ class WaymoDataset(DatasetTemplate):
                 save_dir.mkdir(parents=True, exist_ok=True)      
                 pred_boxes = np.concatenate([pred_boxes, pred_scores[:, np.newaxis], pred_labels[:, np.newaxis]], axis=-1)
                 
-                save_path = save_dir / f"{batch_dict['frame_id'][bs_idx][-3:]}.npy"
+                save_path = save_dir / f"{batch_dict['frame_id'][index][-3:]}.npy"
                 np.save(save_path, pred_boxes)
 
             return pred_dict
