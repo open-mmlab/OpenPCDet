@@ -17,7 +17,7 @@ DATA_CONFIG:
         USE_SPEED: False
 
     USE_PREDBOX: True
-    ROI_BOXES_PATH: centerpoint_4frame_dynmeanvfe
+    ROI_BOXES_PATH: ../output/result.pkl  # this is a example
 
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]

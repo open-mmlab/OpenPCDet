@@ -144,7 +144,6 @@ MODEL:
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
         SAVE_BBOX: True
-        BBOX_SAVE_PATH: centerpoint_4frame_dynmeanvfe
         EVAL_METRIC: waymo
 
 
