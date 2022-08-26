@@ -16,7 +16,10 @@ DATA_CONFIG:
         SAMPLE_OFFSET: [-3,0]
 
     USE_PREDBOX: True
-    ROI_BOXES_PATH: ../output/result.pkl  # this is a example
+    ROI_BOXES_PATH: {
+        'train': '../output/xxxxx/train/result.pkl',  # example: predicted boxes of RPN in training set
+        'test': '../output/xxxxx/val/result.pkl',  # example: predicted boxes of RPN in evalulation set
+    }
 
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]

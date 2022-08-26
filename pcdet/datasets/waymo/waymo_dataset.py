@@ -39,7 +39,9 @@ class WaymoDataset(DatasetTemplate):
             self.load_data_to_shared_memory()
 
         if self.dataset_cfg.get('USE_PREDBOX', False):
-            self.pred_boxes_dict = self.load_pred_boxes_to_dict(pred_boxes_path=self.dataset_cfg.ROI_BOXES_PATH)
+            self.pred_boxes_dict = self.load_pred_boxes_to_dict(
+                pred_boxes_path=self.dataset_cfg.ROI_BOXES_PATH[self.mode]
+            )
         else:
             self.pred_boxes_dict = {}
 
