@@ -19,8 +19,8 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         batch_time = common_utils.AverageMeter()
         forward_time = common_utils.AverageMeter()
 
+    end = time.time()
     for cur_it in range(total_it_each_epoch):
-        end = time.time()
         try:
             batch = next(dataloader_iter)
         except StopIteration:
@@ -46,16 +46,16 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         loss, tb_dict, disp_dict = model_func(model, batch)
 
-        forward_timer = time.time()
-        cur_forward_time = forward_timer - data_timer
-
         loss.backward()
         clip_grad_norm_(model.parameters(), optim_cfg.GRAD_NORM_CLIP)
         optimizer.step()
 
         accumulated_iter += 1
-
+ 
+        cur_forward_time = time.time() - data_timer
         cur_batch_time = time.time() - end
+        end = time.time()
+
         # average reduce
         avg_data_time = commu_utils.average_reduce_value(cur_data_time)
         avg_forward_time = commu_utils.average_reduce_value(cur_forward_time)
@@ -167,7 +167,13 @@ def save_checkpoint(state, filename='checkpoint'):
         optimizer_state = state['optimizer_state']
         state.pop('optimizer_state', None)
         optimizer_filename = '{}_optim.pth'.format(filename)
-        torch.save({'optimizer_state': optimizer_state}, optimizer_filename)
+        if torch.__version__ >= '1.4':
+            torch.save({'optimizer_state': optimizer_state}, optimizer_filename, _use_new_zipfile_serialization=False)
+        else:
+            torch.save({'optimizer_state': optimizer_state}, optimizer_filename)
 
     filename = '{}.pth'.format(filename)
-    torch.save(state, filename)
+    if torch.__version__ >= '1.4':
+        torch.save(state, filename, _use_new_zipfile_serialization=False)
+    else:
+        torch.save(state, filename)

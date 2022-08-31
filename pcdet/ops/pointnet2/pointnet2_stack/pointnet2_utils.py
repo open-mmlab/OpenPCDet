@@ -35,11 +35,15 @@ class BallQuery(Function):
         pointnet2.ball_query_wrapper(B, M, radius, nsample, new_xyz, new_xyz_batch_cnt, xyz, xyz_batch_cnt, idx)
         empty_ball_mask = (idx[:, 0] == -1)
         idx[empty_ball_mask] = 0
+
+        ctx.mark_non_differentiable(idx)
+        ctx.mark_non_differentiable(empty_ball_mask)
+
         return idx, empty_ball_mask
 
     @staticmethod
-    def backward(ctx, a=None):
-        return None, None, None, None
+    def backward(ctx, a=None, b=None):
+        return None, None, None, None, None, None
 
 
 ball_query = BallQuery.apply
@@ -437,10 +441,11 @@ class VectorPoolWithVoxelQuery(Function):
         point_cnt_of_grid, grouped_idxs, N, num_c_in = ctx.vector_pool_for_backward
         grad_support_features = grad_new_features.new_zeros((N, num_c_in))
 
-        pointnet2.vector_pool_grad_wrapper(
-            grad_new_features.contiguous(), point_cnt_of_grid, grouped_idxs,
-            grad_support_features
-        )
+        if grouped_idxs.shape[0] > 0:
+            pointnet2.vector_pool_grad_wrapper(
+                grad_new_features.contiguous(), point_cnt_of_grid, grouped_idxs,
+                grad_support_features
+            )
 
         return None, None, grad_support_features, None, None, None, None, None, None, None, None, None, None, None, None
 

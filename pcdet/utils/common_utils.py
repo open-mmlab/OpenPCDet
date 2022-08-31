@@ -103,8 +103,18 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def worker_init_fn(worker_id, seed=666):
+    if seed is not None:
+        random.seed(seed + worker_id)
+        np.random.seed(seed + worker_id)
+        torch.manual_seed(seed + worker_id)
+        torch.cuda.manual_seed(seed + worker_id)
+        torch.cuda.manual_seed_all(seed + worker_id)
 
 
 def get_pad_params(desired_size, cur_size):
@@ -161,8 +171,8 @@ def init_dist_slurm(tcp_port, local_rank, backend='nccl'):
 def init_dist_pytorch(tcp_port, local_rank, backend='nccl'):
     if mp.get_start_method(allow_none=True) is None:
         mp.set_start_method('spawn')
-    os.environ['MASTER_PORT'] = str(tcp_port)
-    os.environ['MASTER_ADDR'] = 'localhost'
+    # os.environ['MASTER_PORT'] = str(tcp_port)
+    # os.environ['MASTER_ADDR'] = 'localhost'
     num_gpus = torch.cuda.device_count()
     torch.cuda.set_device(local_rank % num_gpus)
 

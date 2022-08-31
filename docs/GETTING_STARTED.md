@@ -5,7 +5,7 @@ and the model configs are located within [tools/cfgs](../tools/cfgs) for differe
 
 ## Dataset Preparation
 
-Currently we provide the dataloader of KITTI dataset and NuScenes dataset, and the supporting of more datasets are on the way.  
+Currently we provide the dataloader of KITTI, NuScenes, Waymo, Lyft and Pandaset. If you want to use a custom dataset, Please refer to our [custom dataset template](CUSTOM_DATASET_TUTORIAL.md).
 
 ### KITTI Dataset
 * Please download the official [KITTI 3D object detection](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) dataset and organize the downloaded files as follows (the road planes could be downloaded from [[road plane]](https://drive.google.com/file/d/1d5mq0RXRnvHPVeKx6Q612z0YRO1t2wAp/view?usp=sharing), which are optional for data augmentation in the training):
@@ -94,6 +94,7 @@ and you could refer to `data/waymo/waymo_processed_data_v0_5_0` to see how many 
 ```python 
 python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
     --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml
+# Ignore 'CUDA_ERROR_NO_DEVICE' error as this process does not require GPU.
 ```
 
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
@@ -108,7 +109,9 @@ OpenPCDet
 │   ├── lyft
 │   │   │── ImageSets
 │   │   │── trainval
-│   │   │   │── data & maps & images & lidar & train_lidar
+│   │   │   │── data & maps(train_maps) & images(train_images) & lidar(train_lidar) & train_lidar
+│   │   │── test
+│   │   │   │── data & maps(test_maps) & test_images & test_lidar
 ├── pcdet
 ├── tools
 ```
@@ -118,10 +121,15 @@ OpenPCDet
 pip install -U lyft_dataset_sdk==0.0.8
 ```
 
-* Generate the data infos by running the following command (it may take several hours): 
+* Generate the training & validation data infos by running the following command (it may take several hours): 
 ```python 
 python -m pcdet.datasets.lyft.lyft_dataset --func create_lyft_infos \
     --cfg_file tools/cfgs/dataset_configs/lyft_dataset.yaml
+```
+* Generate the test data infos by running the following command: 
+```python 
+python -m pcdet.datasets.lyft.lyft_dataset --func create_lyft_infos \
+    --cfg_file tools/cfgs/dataset_configs/lyft_dataset.yaml --version test
 ```
 
 * You need to check carefully since we don't provide a benchmark for it.
