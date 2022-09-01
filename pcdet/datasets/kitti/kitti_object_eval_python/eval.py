@@ -337,12 +337,12 @@ def fused_compute_statistics(overlaps,
         dc_num += dc_nums[i]
 
 
-def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
+def calculate_iou_partly(dt_annos, gt_annos, metric, num_parts=50):
     """fast iou algorithm. this function can be used independently to
     do result analysis. Must be used in CAMERA coordinate system.
     Args:
-        gt_annos: dict, must from get_label_annos() in kitti_common.py
         dt_annos: dict, must from get_label_annos() in kitti_common.py
+        gt_annos: dict, must from get_label_annos() in kitti_common.py
         metric: eval type. 0: bbox, 1: bev, 2: 3d
         num_parts: int. a parameter for fast calculate algorithm
     """
@@ -411,7 +411,7 @@ def calculate_iou_partly(gt_annos, dt_annos, metric, num_parts=50):
             dt_num_idx += dt_box_num
         example_idx += num_part
 
-    return overlaps, parted_overlaps, total_gt_num, total_dt_num
+    return overlaps, parted_overlaps, total_dt_num, total_gt_num
 
 
 def _prepare_data(gt_annos, dt_annos, current_class, difficulty):
