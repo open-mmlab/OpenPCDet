@@ -1,55 +1,34 @@
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvcr.io/nvidia/l4t-ml:r35.1.0-py3
+ARG CUDA_ARCH
+RUN /bin/bash -c 'apt-get update; \
+        apt-get install -y vim tmux python-is-python3 htop ninja-build tree; \
+        pip install -v pccm wheel'
 
-RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+RUN /bin/bash -c 'cd; \
+        git clone -b v0.2.8 https://github.com/FindDefinition/cumm.git; \
+        cd cumm; \
+        MAX_JOBS=$(nproc) CUMM_CUDA_ARCH_LIST=$CUDA_ARCH CUMM_DISABLE_JIT="1" python setup.py bdist_wheel; \
+        pip install dist/*'
 
-# Install basics
-RUN apt-get update -y \
-    && apt-get install build-essential \
-    && apt-get install -y apt-utils git curl ca-certificates bzip2 tree htop wget \
-    && apt-get install -y libglib2.0-0 libsm6 libxext6 libxrender-dev bmon iotop g++ python3.7 python3.7-dev python3.7-distutils
+RUN /bin/bash -c 'cd; \
+        git clone -b v2.1.22 https://github.com/traveller59/spconv.git; \
+        cd spconv; \
+        MAX_JOBS=$(nproc) CUMM_CUDA_ARCH_LIST=$CUDA_ARCH SPCONV_DISABLE_JIT="1" python setup.py bdist_wheel; \
+        pip install dist/*'
 
-# Install cmake v3.13.2
-RUN apt-get purge -y cmake && \
-    mkdir /root/temp && \
-    cd /root/temp && \
-    wget https://github.com/Kitware/CMake/releases/download/v3.13.2/cmake-3.13.2.tar.gz && \
-    tar -xzvf cmake-3.13.2.tar.gz && \
-    cd cmake-3.13.2 && \
-    bash ./bootstrap && \
-    make && \
-    make install && \
-    cmake --version && \
-    rm -rf /root/temp
+RUN /bin/bash -c 'CPATH=$CPATH:/usr/local/cuda/include TORCH_CUDA_ARCH_LIST=$CUDA_ARCH pip install torch-scatter'
 
-# Install python
-RUN ln -sv /usr/bin/python3.7 /usr/bin/python
-RUN wget https://bootstrap.pypa.io/get-pip.py && \
-	python get-pip.py && \
-	rm get-pip.py
+RUN /bin/bash -c 'cd; \
+        git clone https://github.com/CSL-KU/Anytime-Lidar; \
+        cd Anytime-Lidar; \
+        MAX_JOBS=$(nproc) TORCH_CUDA_ARCH_LIST=$CUDA_ARCH python setup.py develop'
 
-# Install python packages
-RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
-    $PIP_INSTALL numpy==1.19.3 llvmlite numba 
-
-# Install torch and torchvision
-# See https://pytorch.org/ for other options if you use a different version of CUDA
-RUN pip install --user torch==1.6 torchvision==0.7.0 -f https://download.pytorch.org/whl/cu102/torch_stable.html
-
-# Install python packages
-RUN PIP_INSTALL="python -m pip --no-cache-dir install" && \
-    $PIP_INSTALL tensorboardX easydict pyyaml scikit-image tqdm SharedArray six
-
-WORKDIR /root
-
-# Install Boost geometry
-RUN wget https://jaist.dl.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_0.tar.gz && \
-    tar xzvf boost_1_68_0.tar.gz && \
-    cp -r ./boost_1_68_0/boost /usr/include && \
-    rm -rf ./boost_1_68_0 && \
-    rm -rf ./boost_1_68_0.tar.gz 
-
-# A weired problem that hasn't been solved yet
-RUN pip uninstall -y SharedArray && \
-    pip install SharedArray
-
-RUN pip install spconv-cu102
+RUN /bin/bash -c 'cd; \
+	git clone -b v1.1.2 https://github.com/nutonomy/nuscenes-devkit.git; \
+	cd nuscenes-devkit; \
+	sed -i -z "s/opencv-python\n//g" setup/requirements/requirements_base.txt; \
+	pip install -r setup/requirements.txt; \
+	pip install motmetrics; \
+	echo "export PYTHONPATH=\${PYTHONPATH}:\$HOME/nuscenes-devkit/python-sdk" >> ~/.bashrc; \
+	echo "export LD_PRELOAD=\${LD_PRELOAD}:/usr/local/lib/python3.8/dist-packages/sklearn/__check_build/../../scikit_learn.libs/libgomp-d22c30c5.so.1.0.0" >> ~/.bashrc; \
+	source ~/.bashrc'
