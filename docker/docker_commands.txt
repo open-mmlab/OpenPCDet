@@ -1,0 +1,5 @@
+# Use the one suitable for your platform
+
+docker build . --build-arg CUDA_ARCH="7.2" -t anytime-lidar:jetson-agx-xavier
+docker build . --build-arg CUDA_ARCH="7.2" -t anytime-lidar:jetson-xavier-nx
+docker build . --build-arg CUDA_ARCH="8.7" -t anytime-lidar:jetson-agx-orin
