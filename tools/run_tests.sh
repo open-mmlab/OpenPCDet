@@ -1,5 +1,3 @@
-#!/bin/bash
-
 if [ -z $1 ]; then
 	printf "Give cmd line arg, profile, methods, or slices"
 	exit
@@ -23,17 +21,9 @@ if [ $1 == 'profile' ]; then
 	#	--sampling-frequency=50000 --cuda-memory-usage=true"
 fi
 
-#CKPT_FILE="../output/kitti_models/pointpillar_imprecise/abc/ckpt/checkpoint_epoch_80.pth"
-#CFG_FILE="./cfgs/kitti_models/pointpillar_imprecise.yaml"
-
-#CKPT_FILE="../output/kitti_models/pointpillar/default/ckpt/pointpillar_7728.pth"
-#CFG_FILE="./cfgs/kitti_models/pointpillar.yaml"
-
-#CFG_FILE="./cfgs/nuscenes_models/cbgs_pp_multihead_imprecise_caronly.yaml"
-
 # Imprecise model
 CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
-CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/checkpoint_epoch_20.pth"
+CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
 
 #SECOND CBGS
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_second_multihead.yaml"
@@ -100,7 +90,6 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise/default/ckpt/ch
 #NDS:     0.7530   
 
 
-
 # Baseline models
 #CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/cbgs_pp_multihead_1br.yaml"
 #CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/ckpt/checkpoint_epoch_20.pth"
@@ -119,7 +108,7 @@ ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
 sed -i "$ARG" $CFG_FILE
 
-CMD="chrt -r 90 $PROF_CMD $TASKSET python test.py --cfg_file=$CFG_FILE \
+CMD="nice --20 $PROF_CMD $TASKSET python test.py --cfg_file=$CFG_FILE \
 	--ckpt $CKPT_FILE --batch_size=1 --workers 0"
 
 set -x
@@ -145,7 +134,7 @@ elif [ $1 == 'methods' ]; then
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
 		CKPT_FILE="../output/nuscenes_models/$cfg/default/ckpt/checkpoint_epoch_20.pth"
-		CMD="chrt -r 90 $TASKSET python test.py --cfg_file=$CFG_FILE \
+		CMD="nice --20 $TASKSET python test.py --cfg_file=$CFG_FILE \
 			--ckpt $CKPT_FILE --batch_size=1 --workers 0"
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
 		ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"

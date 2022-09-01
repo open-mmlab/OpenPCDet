@@ -1,6 +1,18 @@
 #!/bin/bash
 
-conda activate pointpillars
-ulimit -s 65535
-export LD_LIBRARY_PATH=/root/miniconda3/envs/pointpillars/lib/python3.6/site-packages/spconv/:$LD_LIBRARY_PATH
-export LD_PRELOAD=$HOME/miniconda3/envs/pointpillars/lib/python3.6/site-packages/sklearn/__check_build/../../scikit_learn.libs/libgomp-d22c30c5.so.1.0.0:$LD_PRELOAD
+#Modify these paths if required
+export NUSCENES_MINI_PATH=/root/shared_data/nuscenes/nuscenes-mini/
+export MODELS_PATH=/root/shared_data/models
+export SPLITS_FILE=/root/nuscenes-devkit/python-sdk/nuscenes/utils/splits.py
+
+mkdir -p ../data/nuscenes
+pushd ../data/nuscenes
+ln -s $NUSCENES_MINI_PATH v1.0-mini
+popd
+
+mkdir -p ../output/nuscenes_models
+pushd ../output/nuscenes_models
+for m in $MODELS_PATH/*; do ln -s $m; done
+popd
+
+patch $SPLITS_FILE < splits.patch

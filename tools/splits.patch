@@ -1,0 +1,28 @@
+--- splits.py	2022-08-31 21:04:05.000000000 +0000
++++ splits2.py	2022-09-01 16:24:29.112560851 +0000
+@@ -141,12 +141,23 @@
+      'scene-1030', 'scene-1031', 'scene-1032', 'scene-1033', 'scene-1034', 'scene-1035', 'scene-1036', 'scene-1037',
+      'scene-1038', 'scene-1039', 'scene-1040', 'scene-1041', 'scene-1042', 'scene-1043']
+ 
++#CALIBRATION
++# MODIFIED : moved 0553, 0655, 0796 from mini train to mini val
+ mini_train = \
+-    ['scene-0061', 'scene-0553', 'scene-0655', 'scene-0757', 'scene-0796', 'scene-1077', 'scene-1094', 'scene-1100']
++    ['scene-0061', 'scene-0757', 'scene-1077', 'scene-1094', 'scene-1100']
++# ACTUAL
++#    ['scene-0061', 'scene-0553', 'scene-0655', 'scene-0757', 'scene-0796', 'scene-1077', 'scene-1094', 'scene-1100']
+ 
++
++#TESTING
++# MODIFIED
+ mini_val = \
+-    ['scene-0103', 'scene-0916']
++    ['scene-0103', 'scene-0916', 'scene-0553', 'scene-0655', 'scene-0796']
++# ACTUAL
++#    ['scene-0103', 'scene-0916']
+ 
++# Comment next line for test, uncomment for calib
++#mini_train, mini_val = mini_val, mini_train
+ 
+ def create_splits_logs(split: str, nusc: 'NuScenes') -> List[str]:
+     """
