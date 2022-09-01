@@ -19,7 +19,7 @@ RUN /bin/bash -c 'cd; \
 RUN /bin/bash -c 'cd; \
         git clone -b 2.0.9 https://github.com/rusty1s/pytorch_scatter.git; \
         cd pytorch_scatter; \
-        CPATH=$CPATH:/usr/local/cuda/include TORCH_CUDA_ARCH_LIST=$CUDA_ARCH pip install -v .'
+        CPATH=$CPATH:/usr/local/cuda/include TORCH_CUDA_ARCH_LIST=$CUDA_ARCH FORCE_CUDA=1 pip install -v .'
 
 RUN /bin/bash -c 'cd; \
         git clone https://github.com/CSL-KU/Anytime-Lidar; \
