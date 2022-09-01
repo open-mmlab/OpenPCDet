@@ -16,7 +16,10 @@ RUN /bin/bash -c 'cd; \
         MAX_JOBS=$(nproc) CUMM_CUDA_ARCH_LIST=$CUDA_ARCH SPCONV_DISABLE_JIT="1" python setup.py bdist_wheel; \
         pip install dist/*'
 
-RUN /bin/bash -c 'CPATH=$CPATH:/usr/local/cuda/include TORCH_CUDA_ARCH_LIST=$CUDA_ARCH pip install torch-scatter'
+RUN /bin/bash -c 'cd; \
+        git clone -b 2.0.9 https://github.com/rusty1s/pytorch_scatter.git; \
+        cd pytorch_scatter; \
+        CPATH=$CPATH:/usr/local/cuda/include TORCH_CUDA_ARCH_LIST=$CUDA_ARCH pip install -v .'
 
 RUN /bin/bash -c 'cd; \
         git clone https://github.com/CSL-KU/Anytime-Lidar; \
