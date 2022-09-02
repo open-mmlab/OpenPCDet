@@ -153,7 +153,7 @@ elif [ $1 == 'methods' ]; then
 		m=$((m+1))
 	done
 elif [ $1 == 'single' ]; then
-        $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" $2
+        $CMD
 elif [ $1 == 'single2' ]; then
         $CMD --set "MODEL.DEADLINE_SEC" 0.090 "MODEL.METHOD" $2
 fi
