@@ -94,15 +94,14 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
                                 f'time_cost(all): {tbar.format_interval(trained_time_past_all)}/{tbar.format_interval(remaining_second_all)}, '
                                 f'{disp_str}')
                     if show_gpu_stat and accumulated_iter % (3 * logger_iter_interval) == 0:
-                        try:
-                            os.system('gpustat')
-                        except:
-                            print('To show the GPU utilization, please install gpustat through "pip install gpustat"')
+                        # To show the GPU utilization, please install gpustat through "pip install gpustat"
+                        gpu_info = os.popen('gpustat').read()
+                        logger.info(gpu_info)
             else:                
                 pbar.update()
                 pbar.set_postfix(dict(total_it=accumulated_iter))
                 tbar.set_postfix(disp_dict)
-                tbar.refresh()
+                # tbar.refresh()
 
             if tb_log is not None:
                 tb_log.add_scalar('train/loss', loss, accumulated_iter)
