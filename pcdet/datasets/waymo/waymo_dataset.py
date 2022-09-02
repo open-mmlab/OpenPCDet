@@ -78,7 +78,10 @@ class WaymoDataset(DatasetTemplate):
                 sampled_waymo_infos.append(self.infos[k])
             self.infos = sampled_waymo_infos
             self.logger.info('Total sampled samples for Waymo dataset: %d' % len(self.infos))
-
+            
+        use_sequence_data = self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED
+        if not use_sequence_data:
+            seq_name_to_infos = None 
         return seq_name_to_infos
 
     def load_data_to_shared_memory(self):
