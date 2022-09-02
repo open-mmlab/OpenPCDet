@@ -35,7 +35,7 @@ DATA_AUGMENTOR:
           DB_INFO_PATH:
               - waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1_multiframe_-4_to_0.pkl
 
-          USE_SHARED_MEMORY: True  # set it to True to speed up (it costs about 15GB shared memory)
+          USE_SHARED_MEMORY: False  # set it to True to speed up (it costs about 50GB? shared memory)
           DB_DATA_PATH:
               - waymo_processed_data_v0_5_0_gt_database_train_sampled_1_multiframe_-4_to_0_global.npy
 
@@ -84,6 +84,6 @@ DATA_PROCESSOR:
       VOXEL_SIZE: [0.1, 0.1, 0.15]
       MAX_POINTS_PER_VOXEL: 5
       MAX_NUMBER_OF_VOXELS: {
-        'train': 150000,
-        'test': 150000
+        'train': 180000,
+        'test': 400000
       }
