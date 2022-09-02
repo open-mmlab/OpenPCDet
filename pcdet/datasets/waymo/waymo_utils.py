@@ -20,11 +20,12 @@ except:
 WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Sign', 'Cyclist']
 
 
-def generate_labels(frame):
+def generate_labels(frame, pose):
     obj_name, difficulty, dimensions, locations, heading_angles = [], [], [], [], []
     tracking_difficulty, speeds, accelerations, obj_ids = [], [], [], []
     num_points_in_gt = []
     laser_labels = frame.laser_labels
+
     for i in range(len(laser_labels)):
         box = laser_labels[i].box
         class_ind = laser_labels[i].type
@@ -37,6 +38,8 @@ def generate_labels(frame):
         locations.append(loc)
         obj_ids.append(laser_labels[i].id)
         num_points_in_gt.append(laser_labels[i].num_lidar_points_in_box)
+        speeds.append([laser_labels[i].metadata.speed_x, laser_labels[i].metadata.speed_y])
+        accelerations.append([laser_labels[i].metadata.accel_x, laser_labels[i].metadata.accel_y])
 
     annotations = {}
     annotations['name'] = np.array(obj_name)
@@ -48,15 +51,21 @@ def generate_labels(frame):
     annotations['obj_ids'] = np.array(obj_ids)
     annotations['tracking_difficulty'] = np.array(tracking_difficulty)
     annotations['num_points_in_gt'] = np.array(num_points_in_gt)
+    annotations['speed_global'] = np.array(speeds)
+    annotations['accel_global'] = np.array(accelerations)
 
     annotations = common_utils.drop_info_with_name(annotations, name='unknown')
     if annotations['name'].__len__() > 0:
+        global_speed = np.pad(annotations['speed_global'], ((0, 0), (0, 1)), mode='constant', constant_values=0)  # (N, 3)
+        speed = np.dot(global_speed, np.linalg.inv(pose[:3, :3].T))
+        speed = speed[:, :2]
+        
         gt_boxes_lidar = np.concatenate([
-            annotations['location'], annotations['dimensions'], annotations['heading_angles'][..., np.newaxis]],
+            annotations['location'], annotations['dimensions'], annotations['heading_angles'][..., np.newaxis], speed],
             axis=1
         )
     else:
-        gt_boxes_lidar = np.zeros((0, 7))
+        gt_boxes_lidar = np.zeros((0, 9))
     annotations['gt_boxes_lidar'] = gt_boxes_lidar
     return annotations
 
@@ -158,8 +167,12 @@ def convert_range_image_to_point_cloud(frame, range_images, camera_projections, 
 
 
 def save_lidar_points(frame, cur_save_path, use_two_returns=True):
-    range_images, camera_projections, range_image_top_pose = \
-        frame_utils.parse_range_image_and_camera_projection(frame)
+    ret_outputs = frame_utils.parse_range_image_and_camera_projection(frame)
+    if len(ret_outputs) == 4:
+        range_images, camera_projections, seg_labels, range_image_top_pose = ret_outputs
+    else:
+        assert len(ret_outputs) == 3
+        range_images, camera_projections, range_image_top_pose = ret_outputs
 
     points, cp_points, points_in_NLZ_flag, points_intensity, points_elongation = convert_range_image_to_point_cloud(
         frame, range_images, camera_projections, range_image_top_pose, ri_index=(0, 1) if use_two_returns else (0,)
@@ -181,7 +194,7 @@ def save_lidar_points(frame, cur_save_path, use_two_returns=True):
     return num_points_of_each_lidar
 
 
-def process_single_sequence(sequence_file, save_path, sampled_interval, has_label=True, use_two_returns=True):
+def process_single_sequence(sequence_file, save_path, sampled_interval, has_label=True, use_two_returns=True, update_info_only=False):
     sequence_name = os.path.splitext(os.path.basename(sequence_file))[0]
 
     # print('Load record (sampled_interval=%d): %s' % (sampled_interval, sequence_name))
@@ -197,8 +210,13 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
     sequence_infos = []
     if pkl_file.exists():
         sequence_infos = pickle.load(open(pkl_file, 'rb'))
-        print('Skip sequence since it has been processed before: %s' % pkl_file)
-        return sequence_infos
+        sequence_infos_old = None
+        if not update_info_only:
+            print('Skip sequence since it has been processed before: %s' % pkl_file)
+            return sequence_infos
+        else:
+            sequence_infos_old = sequence_infos
+            sequence_infos = []
 
     for cnt, data in enumerate(dataset):
         if cnt % sampled_interval != 0:
@@ -227,12 +245,16 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
         info['pose'] = pose
 
         if has_label:
-            annotations = generate_labels(frame)
+            annotations = generate_labels(frame, pose=pose)
             info['annos'] = annotations
 
-        num_points_of_each_lidar = save_lidar_points(
-            frame, cur_save_dir / ('%04d.npy' % cnt), use_two_returns=use_two_returns
-        )
+        if update_info_only and sequence_infos_old is not None:
+            assert info['frame_id'] == sequence_infos_old[cnt]['frame_id']
+            num_points_of_each_lidar = sequence_infos_old[cnt]['num_points_of_each_lidar']
+        else:
+            num_points_of_each_lidar = save_lidar_points(
+                frame, cur_save_dir / ('%04d.npy' % cnt), use_two_returns=use_two_returns
+            )
         info['num_points_of_each_lidar'] = num_points_of_each_lidar
 
         sequence_infos.append(info)

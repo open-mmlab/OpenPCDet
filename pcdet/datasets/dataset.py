@@ -57,14 +57,13 @@ class DatasetTemplate(torch_data.Dataset):
     def __setstate__(self, d):
         self.__dict__.update(d)
 
-    @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def generate_prediction_dicts(self, batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
                 frame_id:
             pred_dicts: list of pred_dicts
-                pred_boxes: (N, 7), Tensor
+                pred_boxes: (N, 7 or 9), Tensor
                 pred_scores: (N), Tensor
                 pred_labels: (N), Tensor
             class_names:
@@ -75,9 +74,10 @@ class DatasetTemplate(torch_data.Dataset):
         """
 
         def get_template_prediction(num_samples):
+            box_dim = 9 if self.dataset_cfg.get('TRAIN_WITH_SPEED', False) else 7
             ret_dict = {
                 'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
-                'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples)
+                'boxes_lidar': np.zeros([num_samples, box_dim]), 'pred_labels': np.zeros(num_samples)
             }
             return ret_dict
 
