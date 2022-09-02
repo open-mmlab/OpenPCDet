@@ -133,6 +133,10 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         points[:, :3] += noise_translate
         gt_boxes[:, :3] += noise_translate
+                
+        if 'roi_boxes' in data_dict.keys():
+            data_dict['roi_boxes'][:, :3] += noise_translate
+        
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict

@@ -1,7 +1,5 @@
 from .detector3d_template import Detector3DTemplate
-import os
-import torch
-import numpy as np
+
 
 class CenterPoint(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):

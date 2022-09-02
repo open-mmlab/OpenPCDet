@@ -72,8 +72,7 @@ class DatasetTemplate(torch_data.Dataset):
         Returns:
 
         """
-        pass 
-
+        
         def get_template_prediction(num_samples):
             box_dim = 9 if self.dataset_cfg.get('TRAIN_WITH_SPEED', False) else 7
             ret_dict = {
