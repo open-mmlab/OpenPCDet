@@ -32,6 +32,12 @@ DATA_AUGMENTOR:
           DB_DATA_PATH:
               - waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global.npy
 
+          BACKUP_DB_INFO:
+              # if the above DB_INFO cannot be found, will use this backup one
+              DB_INFO_PATH: waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1_multiframe_-4_to_0.pkl
+              DB_DATA_PATH: waymo_processed_data_v0_5_0_gt_database_train_sampled_1_multiframe_-4_to_0_global.npy
+              NUM_POINT_FEATURES: 6
+
           PREPARE: {
              filter_by_min_points: ['Vehicle:5', 'Pedestrian:5', 'Cyclist:5'],
              filter_by_difficulty: [-1],

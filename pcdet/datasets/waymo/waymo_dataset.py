@@ -155,6 +155,7 @@ class WaymoDataset(DatasetTemplate):
             for sequence_file in self.sample_sequence_list
         ]
 
+        # process_single_sequence(sample_sequence_file_list[0])
         with multiprocessing.Pool(num_workers) as p:
             sequence_infos = list(tqdm(p.imap(process_single_sequence, sample_sequence_file_list),
                                        total=len(sample_sequence_file_list)))
@@ -369,7 +370,7 @@ class WaymoDataset(DatasetTemplate):
         point_offset_cnt = 0
         stacked_gt_points = []
         for k in tqdm(range(0, len(infos), sampled_interval)):
-            print('gt_database sample: %d/%d' % (k + 1, len(infos)))
+            # print('gt_database sample: %d/%d' % (k + 1, len(infos)))
             info = infos[k]
 
             pc_info = info['point_cloud']

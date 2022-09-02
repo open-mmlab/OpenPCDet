@@ -9,9 +9,8 @@
         ```
         python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos --cfg_file tools/cfgs/dataset_configs/waymo_dataset.yaml --update_info_only
         ```   
-       * Generate multi-frame GT database for copy-paste augmentation of multi-frame training
+       * Generate multi-frame GT database for copy-paste augmentation of multi-frame training. There is also a faster version with parallel data generation by adding `--use_parallel`, but you need to read the codes and rename the file after getting the results.
         ```
-        # There is also a faster version with parallel data generation by adding `--use_parallel`, but you need to read the codes and rename the file after getting the results  
         python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_gt_database --cfg_file tools/cfgs/dataset_configs/waymo_dataset_multiframe.yaml 
         ```
         This will generate the new files like the following (the last three lines under `data/waymo`): 

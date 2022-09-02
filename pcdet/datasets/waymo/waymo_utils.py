@@ -210,7 +210,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
     sequence_infos = []
     if pkl_file.exists():
         sequence_infos = pickle.load(open(pkl_file, 'rb'))
-
+        sequence_infos_old = None
         if not update_info_only:
             print('Skip sequence since it has been processed before: %s' % pkl_file)
             return sequence_infos
@@ -248,7 +248,7 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
             annotations = generate_labels(frame, pose=pose)
             info['annos'] = annotations
 
-        if update_info_only:
+        if update_info_only and sequence_infos_old is not None:
             assert info['frame_id'] == sequence_infos_old[cnt]['frame_id']
             num_points_of_each_lidar = sequence_infos_old[cnt]['num_points_of_each_lidar']
         else:
