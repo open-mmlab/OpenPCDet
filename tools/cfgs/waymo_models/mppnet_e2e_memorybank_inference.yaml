@@ -91,13 +91,12 @@ MODEL:
             ENABLED: True 
             NORM_T0: True
             ALL_YAW_T0: True
-        AVG_STAGE_1: True
+        AVG_STAGE1_SCORE: True
         USE_TRAJ_EMPTY_MASK: True
         USE_AUX_LOSS: True
-        USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
 
-        ROI_GRID_POOL: #if using 16frame, change to corresponding setting 
+        ROI_GRID_POOL: #if using 16frame, change to the corresponding setting 
             GRID_SIZE: 4
             MLPS: [[128,128], [128,128]]
             POOL_RADIUS: [0.8, 1.6]

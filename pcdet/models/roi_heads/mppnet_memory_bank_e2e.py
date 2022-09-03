@@ -225,10 +225,7 @@ class MPPNetHeadE2E(RoIHeadTemplate):
             time_stamp[:,i,:] = i*0.1 
 
         box_seq = torch.cat([trajectory_rois[:,:,:,:7],time_stamp],-1)
-
-        if self.model_cfg.USE_BOX_ENCODING.NORM_T0:
-            # canonical transformation
-            box_seq[:, :, :,0:3]  = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
+        box_seq[:, :, :,0:3]  = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
 
 
         roi_ry = box_seq[:,:,:,6] % (2 * np.pi)
