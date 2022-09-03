@@ -2,58 +2,18 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
 
-    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset_multiframe.yaml
     PROCESSED_DATA_TAG: 'waymo_processed_data_v0_5_0'
-
-    SAMPLED_INTERVAL: {
-        'train': 1,
-        'test': 1
-    }
-    FILTER_EMPTY_BOXES_FOR_TRAIN: True
-    DISABLE_NLZ_FLAG_ON_POINTS: True
 
     SEQUENCE_CONFIG:
         ENABLED: True
-        USE_SPEED: True
         SAMPLE_OFFSET: [-3, 0] #16frame using [-15,0]
-
 
     POINT_FEATURE_ENCODING: {
     encoding_type: absolute_coordinates_encoding,
     used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation','time'],
-    src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation','time'],       
+    src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation','time'],
     }
-
-    DATA_AUGMENTOR:
-        DISABLE_AUG_LIST: [ 'placeholder' ]
-        AUG_CONFIG_LIST:
-
-            -   NAME: random_world_flip
-                ALONG_AXIS_LIST: [ 'x', 'y' ]
-
-            -   NAME: random_world_rotation
-                WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
-
-            -   NAME: random_world_scaling
-                WORLD_SCALE_RANGE: [ 0.95, 1.05 ]
-
-    DATA_PROCESSOR:
-        -   NAME: mask_points_and_boxes_outside_range
-            REMOVE_OUTSIDE_BOXES: True
-
-        -   NAME: shuffle_points
-            SHUFFLE_ENABLED: {
-                'train': True,
-                'test': True
-            }
-
-        -   NAME: transform_points_to_voxels
-            VOXEL_SIZE: [ 0.1, 0.1, 0.15 ]
-            MAX_POINTS_PER_VOXEL: 5
-            MAX_NUMBER_OF_VOXELS: {
-                'train': 150000,
-                'test': 150000
-            }
 
 
 MODEL:
@@ -137,7 +97,7 @@ MODEL:
         USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
 
-        ROI_GRID_POOL:
+        ROI_GRID_POOL: #if using 16frame, change to corresponding setting 
             GRID_SIZE: 4
             MLPS: [[128,128], [128,128]]
             POOL_RADIUS: [0.8, 1.6]
@@ -214,8 +174,8 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 36
+    BATCH_SIZE_PER_GPU: 2
+    NUM_EPOCHS: 6
 
     OPTIMIZER: adam_onecycle
     LR: 0.003

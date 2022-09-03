@@ -13,8 +13,8 @@ DATA_CONFIG:
 
     SEQUENCE_CONFIG:
         ENABLED: True
-        SAMPLE_OFFSET: [-3,0]
-
+        SAMPLE_OFFSET: [-15,0]
+        
     USE_PREDBOX: True
     ROI_BOXES_PATH: {
         'train': '../output/xxxxx/train/result.pkl',  # example: predicted boxes of RPN in training set
@@ -24,7 +24,6 @@ DATA_CONFIG:
     DATA_AUGMENTOR:
         DISABLE_AUG_LIST: [ 'placeholder' ]
         AUG_CONFIG_LIST:
-
             -   NAME: random_world_flip
                 ALONG_AXIS_LIST: [ 'x', 'y' ]
 
@@ -44,10 +43,11 @@ DATA_CONFIG:
                 'test': True
             }
 
+
     POINT_FEATURE_ENCODING: {
-        encoding_type: absolute_coordinates_encoding, 
-        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation','time'],
-        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation','time'],       
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],       
         }
 
 
@@ -56,25 +56,21 @@ MODEL:
 
     ROI_HEAD:
         NAME: MPPNetHead
-        TRANS_INPUT: 256
+        TRANS_INPUT: 64
         CLASS_AGNOSTIC: True
         USE_BOX_ENCODING:
             ENABLED: True 
         AVG_STAGE1_SCORE: True
         USE_TRAJ_EMPTY_MASK: True
         USE_AUX_LOSS: True
-        USE_MLP_JOINTEMB: True
         IOU_WEIGHT: [0.5,0.4]
-
-
 
         ROI_GRID_POOL:
             GRID_SIZE: 4
-            MLPS: [[128,128], [128,128]]
-            POOL_RADIUS: [0.8, 1.6]
-            NSAMPLE: [16, 16]
+            MLPS: [[64,64]]
+            POOL_RADIUS: [0.8]
+            NSAMPLE: [16]
             POOL_METHOD: max_pool
-            
 
         Transformer:
             num_lidar_points: 128
@@ -82,16 +78,16 @@ MODEL:
             pos_hidden_dim: 64
             enc_layers: 3
             dim_feedforward: 512
-            hidden_dim: 256 #equal to ROI_HEAD.TRANS_INPUT
+            hidden_dim: 64 #equal to ROI_HEAD.TRANS_INPUT
             dropout: 0.1
             nheads: 4
             pre_norm: False
-            num_frames: 4
+            num_frames: 16
             num_groups: 4
+            sequence_stride: 4
             use_grid_pos:
                 enabled: True
                 init_type: index
-
             use_mlp_mixer:
                 enabled: True
                 hidden_dim: 16
@@ -144,10 +140,9 @@ MODEL:
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
-
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 3
+    BATCH_SIZE_PER_GPU: 2
+    NUM_EPOCHS: 6
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
@@ -165,4 +160,3 @@ OPTIMIZATION:
     WARMUP_EPOCH: 1
 
     GRAD_NORM_CLIP: 10
-
