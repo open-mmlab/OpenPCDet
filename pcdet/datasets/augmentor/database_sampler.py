@@ -36,7 +36,7 @@ class DataBaseSampler(object):
                 sampler_cfg.DB_DATA_PATH[0] = sampler_cfg.BACKUP_DB_INFO['DB_DATA_PATH']
                 db_info_path = self.root_path.resolve() / sampler_cfg.DB_INFO_PATH[0]
                 sampler_cfg.NUM_POINT_FEATURES = sampler_cfg.BACKUP_DB_INFO['NUM_POINT_FEATURES']
-                    
+
             with open(str(db_info_path), 'rb') as f:
                 infos = pickle.load(f)
                 [self.db_infos[cur_class].extend(infos[cur_class]) for cur_class in class_names]
@@ -391,10 +391,14 @@ class DataBaseSampler(object):
                 obj_points = copy.deepcopy(gt_database_data[start_offset:end_offset])
             else:
                 file_path = self.root_path / info['path']
+
                 obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
                     [-1, self.sampler_cfg.NUM_POINT_FEATURES])
+                if obj_points.shape[0] != info['num_points_in_gt']:
+                    obj_points = np.fromfile(str(file_path), dtype=np.float64).reshape(-1, self.sampler_cfg.NUM_POINT_FEATURES)
 
-            obj_points[:, :3] += info['box3d_lidar'][:3]
+            assert obj_points.shape[0] == info['num_points_in_gt']
+            obj_points[:, :3] += info['box3d_lidar'][:3].astype(np.float32)
 
             if self.sampler_cfg.get('USE_ROAD_PLANE', False):
                 # mv height
@@ -417,7 +421,7 @@ class DataBaseSampler(object):
             else:
                 assert obj_points.shape[-1] == points.shape[-1] + 1
                 # transform multi-frame GT points to single-frame GT points
-                min_time = max_time = 0.0 
+                min_time = max_time = 0.0
 
             time_mask = np.logical_and(obj_points[:, -1] < max_time + 1e-6, obj_points[:, -1] > min_time - 1e-6)
             obj_points = obj_points[time_mask]

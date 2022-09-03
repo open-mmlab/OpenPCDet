@@ -50,6 +50,12 @@ class DataAugmentor(object):
                 gt_boxes, points, return_flip=True
             )
             data_dict['flip_%s'%cur_axis] = enable
+            if 'roi_boxes' in data_dict.keys():
+                num_frame, num_rois,dim = data_dict['roi_boxes'].shape
+                roi_boxes, _, _ = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
+                data_dict['roi_boxes'].reshape(-1,dim), np.zeros([1,3]), return_flip=True, enable=enable
+                )
+                data_dict['roi_boxes'] = roi_boxes.reshape(num_frame, num_rois,dim)
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -64,6 +70,11 @@ class DataAugmentor(object):
         gt_boxes, points, noise_rot = augmentor_utils.global_rotation(
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range, return_rot=True
         )
+        if 'roi_boxes' in data_dict.keys():
+            num_frame, num_rois,dim = data_dict['roi_boxes'].shape
+            roi_boxes, _, _ = augmentor_utils.global_rotation(
+            data_dict['roi_boxes'].reshape(-1, dim), np.zeros([1, 3]), rot_range=rot_range, return_rot=True, noise_rotation=noise_rot)
+            data_dict['roi_boxes'] = roi_boxes.reshape(num_frame, num_rois,dim)
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -73,9 +84,16 @@ class DataAugmentor(object):
     def random_world_scaling(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_scaling, config=config)
-        gt_boxes, points, noise_scale = augmentor_utils.global_scaling(
-            data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE'], return_scale=True
-        )
+        
+        if 'roi_boxes' in data_dict.keys():
+            gt_boxes, roi_boxes, points, noise_scale = augmentor_utils.global_scaling_with_roi_boxes(
+                data_dict['gt_boxes'], data_dict['roi_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE'], return_scale=True
+            )
+            data_dict['roi_boxes'] = roi_boxes
+        else:
+            gt_boxes, points, noise_scale = augmentor_utils.global_scaling(
+                data_dict['gt_boxes'], data_dict['points'], config['WORLD_SCALE_RANGE'], return_scale=True
+            )
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
@@ -115,6 +133,10 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         points[:, :3] += noise_translate
         gt_boxes[:, :3] += noise_translate
+                
+        if 'roi_boxes' in data_dict.keys():
+            data_dict['roi_boxes'][:, :3] += noise_translate
+        
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
         return data_dict

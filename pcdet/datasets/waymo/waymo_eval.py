@@ -68,7 +68,7 @@ class OpenPCDetWaymoDetectionMetricsEstimator(tf.test.TestCase):
                 num_boxes = len(info['boxes_lidar'])
                 difficulty.append([0] * num_boxes)
                 score.append(info['score'])
-                boxes3d.append(np.array(info['boxes_lidar']))
+                boxes3d.append(np.array(info['boxes_lidar'][:, :7]))
                 box_name = info['name']
                 if boxes3d[-1].shape[-1] == 9:
                     boxes3d[-1] = boxes3d[-1][:, 0:7]

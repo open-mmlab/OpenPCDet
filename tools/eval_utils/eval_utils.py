@@ -63,6 +63,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
 
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
+
         disp_dict = {}
 
         if getattr(args, 'infer_time', False):

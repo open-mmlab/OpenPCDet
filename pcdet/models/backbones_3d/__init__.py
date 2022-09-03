@@ -9,5 +9,5 @@ __all__ = {
     'PointNet2Backbone': PointNet2Backbone,
     'PointNet2MSG': PointNet2MSG,
     'VoxelResBackBone8x': VoxelResBackBone8x,
-    'VoxelBackBone8xFocal': VoxelBackBone8xFocal,
+    'VoxelBackBone8xFocal': VoxelBackBone8xFocal
 }

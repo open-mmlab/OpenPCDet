@@ -72,7 +72,7 @@ class DatasetTemplate(torch_data.Dataset):
         Returns:
 
         """
-
+        
         def get_template_prediction(num_samples):
             box_dim = 9 if self.dataset_cfg.get('TRAIN_WITH_SPEED', False) else 7
             ret_dict = {
@@ -216,6 +216,21 @@ class DatasetTemplate(torch_data.Dataset):
                     for k in range(batch_size):
                         batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
                     ret[key] = batch_gt_boxes3d
+
+                elif key in ['roi_boxes']:
+                    max_gt = max([x.shape[1] for x in val])
+                    batch_gt_boxes3d = np.zeros((batch_size, val[0].shape[0], max_gt, val[0].shape[-1]), dtype=np.float32)
+                    for k in range(batch_size):
+                        batch_gt_boxes3d[k,:, :val[k].shape[1], :] = val[k]
+                    ret[key] = batch_gt_boxes3d
+
+                elif key in ['roi_scores', 'roi_labels']:
+                    max_gt = max([x.shape[1] for x in val])
+                    batch_gt_boxes3d = np.zeros((batch_size, val[0].shape[0], max_gt), dtype=np.float32)
+                    for k in range(batch_size):
+                        batch_gt_boxes3d[k,:, :val[k].shape[1]] = val[k]
+                    ret[key] = batch_gt_boxes3d
+
                 elif key in ['gt_boxes2d']:
                     max_boxes = 0
                     max_boxes = max([len(x) for x in val])
