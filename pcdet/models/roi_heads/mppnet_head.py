@@ -726,11 +726,11 @@ class MPPNetHead(RoIHeadTemplate):
         point_cls_list = []
         point_reg_list = []
 
-        for i in range(3):
+        for i in range(self.num_enc_layer):
             point_cls_list.append(self.class_embed[0](tokens[i][0]))
 
         for i in range(hs.shape[0]):
-            for j in range(3):
+            for j in range(self.num_enc_layer):
                 point_reg_list.append(self.bbox_embed[i](tokens[j][i]))
 
         point_cls = torch.cat(point_cls_list,0)

@@ -225,11 +225,7 @@ class MPPNetHeadE2E(RoIHeadTemplate):
             time_stamp[:,i,:] = i*0.1 
 
         box_seq = torch.cat([trajectory_rois[:,:,:,:7],time_stamp],-1)
-        # box_seq_time = box_seq
-
-        if self.model_cfg.USE_BOX_ENCODING.NORM_T0:
-            # canonical transformation
-            box_seq[:, :, :,0:3]  = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
+        box_seq[:, :, :,0:3]  = box_seq[:, :, :,0:3] - box_seq[:, 0:1, :, 0:3]
 
 
         roi_ry = box_seq[:,:,:,6] % (2 * np.pi)
@@ -241,16 +237,9 @@ class MPPNetHeadE2E(RoIHeadTemplate):
             points=box_seq.view(-1, 1, box_seq.shape[-1]), angle=-roi_ry_t0.view(-1)
         ).view(box_seq.shape[0],box_seq.shape[1], -1, box_seq.shape[-1])
 
-        if self.model_cfg.USE_BOX_ENCODING.ALL_YAW_T0:
-            box_seq[:, :, :, 6]  =  0
-
-        else:
-            box_seq[:, 0:1, :, 6]  =  0
-            box_seq[:, 1:, :, 6]  =  roi_ry[:, 1:, ] - roi_ry[:,0:1]
-
+        box_seq[:,:,:,6]  =  0
 
         batch_rcnn = box_seq.shape[0]*box_seq.shape[2]
-
 
         box_reg, box_feat, _ = self.seqboxembed(box_seq.permute(0,2,3,1).contiguous().view(batch_rcnn,box_seq.shape[-1],box_seq.shape[1]))
         
@@ -387,7 +376,6 @@ class MPPNetHeadE2E(RoIHeadTemplate):
 
                 rois_list.append(rois)
 
-
             batch_rois = self.reorder_rois_for_refining(rois_list)
             batch_dict['roi_scores'] = batch_rois[None,:,:,9]
             batch_dict['roi_labels'] = batch_rois[None,:,:,10]
@@ -493,11 +481,10 @@ class MPPNetHeadE2E(RoIHeadTemplate):
         hs, tokens = self.transformer(src,pos=pos)
         point_cls_list = []
 
-        for i in range(3):
+        for i in range(self.num_enc_layer):
             point_cls_list.append(self.class_embed[0](tokens[i][0]))
 
         point_cls = torch.cat(point_cls_list,0)
-
 
         hs = hs.permute(1,0,2).reshape(hs.shape[1],-1)
     
