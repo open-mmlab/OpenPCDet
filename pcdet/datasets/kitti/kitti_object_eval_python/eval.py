@@ -360,7 +360,7 @@ def calculate_iou_partly(dt_annos, gt_annos, metric, num_parts=50):
         if metric == 0:
             gt_boxes = np.concatenate([a["bbox"] for a in gt_annos_part], 0)
             dt_boxes = np.concatenate([a["bbox"] for a in dt_annos_part], 0)
-            overlap_part = image_box_overlap(gt_boxes, dt_boxes)
+            overlap_part = image_box_overlap(dt_boxes, gt_boxes)
         elif metric == 1:
             loc = np.concatenate(
                 [a["location"][:, [0, 2]] for a in gt_annos_part], 0)
@@ -376,7 +376,7 @@ def calculate_iou_partly(dt_annos, gt_annos, metric, num_parts=50):
             rots = np.concatenate([a["rotation_y"] for a in dt_annos_part], 0)
             dt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
-            overlap_part = bev_box_overlap(gt_boxes, dt_boxes).astype(
+            overlap_part = bev_box_overlap(dt_boxes, gt_boxes).astype(
                 np.float64)
         elif metric == 2:
             loc = np.concatenate([a["location"] for a in gt_annos_part], 0)
@@ -389,7 +389,7 @@ def calculate_iou_partly(dt_annos, gt_annos, metric, num_parts=50):
             rots = np.concatenate([a["rotation_y"] for a in dt_annos_part], 0)
             dt_boxes = np.concatenate(
                 [loc, dims, rots[..., np.newaxis]], axis=1)
-            overlap_part = d3_box_overlap(gt_boxes, dt_boxes).astype(
+            overlap_part = d3_box_overlap(dt_boxes, gt_boxes).astype(
                 np.float64)
         else:
             raise ValueError("unknown metric")
@@ -405,8 +405,8 @@ def calculate_iou_partly(dt_annos, gt_annos, metric, num_parts=50):
             gt_box_num = total_gt_num[example_idx + i]
             dt_box_num = total_dt_num[example_idx + i]
             overlaps.append(
-                parted_overlaps[j][gt_num_idx:gt_num_idx + gt_box_num,
-                                   dt_num_idx:dt_num_idx + dt_box_num])
+                parted_overlaps[j][dt_num_idx:dt_num_idx + dt_box_num,
+                                   gt_num_idx:gt_num_idx + gt_box_num])
             gt_num_idx += gt_box_num
             dt_num_idx += dt_box_num
         example_idx += num_part
