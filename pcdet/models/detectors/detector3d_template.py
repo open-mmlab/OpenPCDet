@@ -32,10 +32,10 @@ class Detector3DTemplate(nn.Module):
 
         self._time_dict = {
                 'End-to-end': [],
-                'PreProcess' : [],
-                'GetitemPost' : [],
-                'LoadToGPU' : [],
-                'CollateBatch' : []}
+                'PreProcess' : [],}
+#                'GetitemPost' : [],
+#                'LoadToGPU' : [],
+#                'CollateBatch' : []}
         self.update_time_dict(dict())
 
         self._eval_dict = {'gt_counts':[]}
@@ -213,15 +213,15 @@ class Detector3DTemplate(nn.Module):
         torch.cuda.nvtx.range_push('End-to-end')
         self.measure_time_start('End-to-end')
         self.measure_time_start('PreProcess')
-        self.measure_time_start('GetitemPost')
+        #self.measure_time_start('GetitemPost')
         data_dict = self.dataset.getitem_post(data_dict)
-        self.measure_time_end('GetitemPost')
-        self.measure_time_start('CollateBatch')
+        #self.measure_time_end('GetitemPost')
+        #self.measure_time_start('CollateBatch')
         data_dict = self.dataset.collate_batch([data_dict])
-        self.measure_time_end('CollateBatch')
-        self.measure_time_start('LoadToGPU')
+        #self.measure_time_end('CollateBatch')
+        #self.measure_time_start('LoadToGPU')
         load_data_to_gpu(data_dict)
-        self.measure_time_end('LoadToGPU')
+        #self.measure_time_end('LoadToGPU')
         data_dict['deadline_sec'] = self._eval_dict['deadline_sec']
         data_dict.update(extra_data)  # deadline, method, etc.
         data_dict['abs_deadline_sec'] = start_time + data_dict['deadline_sec']
@@ -571,11 +571,14 @@ class Detector3DTemplate(nn.Module):
         max_len=0
         for name in self.get_time_dict_stats().keys():
             max_len = max(len(name), max_len)
-        print((" " * max_len),"Min\tAvrg\t95perc\t99perc\tMax\tStd_dev")
+        #print((" " * max_len),"Min,Avrg,95perc,99perc,Max,Std_dev")
+        print(" ,Min,Avrg,95perc,99perc,Max,Std_dev")
         for name, val in self.get_time_dict_stats().items():
             spaces = " " * (max_len - len(name)+1)
-            print(f"{name}{spaces}{val[0]:.2f}\t{val[1]:.2f}"
-                    f"\t{val[2]:.2f}\t{val[3]:.2f}\t{val[4]:.2f}\t{val[5]:.2f} ms")
+            #print(f"{name}{spaces}{val[0]:.2f},{val[1]:.2f}"
+            print(f"{name},{val[0]:.2f},{val[1]:.2f}"
+                    f",{val[2]:.2f},{val[3]:.2f},{val[4]:.2f},{val[5]:.2f}")
+        print('All numbers are in milliseconds')
 
     # Does not allow same events to be nested
     def measure_time_start(self, event_name_str, cuda_event=True):

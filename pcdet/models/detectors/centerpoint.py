@@ -1,14 +1,57 @@
 from .detector3d_template import Detector3DTemplate
-
+import torch
 
 class CenterPoint(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
+        torch.backends.cudnn.benchmark = True
+        torch.cuda.manual_seed(0)
+        self.is_voxel_enc=True
+
+        if self.model_cfg.get('BACKBONE_3D', None) is None:
+            #pillar
+            self.is_voxel_enc=False
+            self.vfe, self.map_to_bev, self.backbone_2d, \
+                    self.center_head = self.module_list
+            self.update_time_dict( {
+                    'VFE': [],
+                    'MapToBEV': [],
+                    'Backbone2D': [],
+                    'CenterHead': [],})
+        else:
+            #voxel
+            self.vfe, self.backbone_3d, self.map_to_bev, self.backbone_2d, \
+                    self.center_head = self.module_list
+            self.update_time_dict( {
+                    'VFE': [],
+                    'Backbone3D':[],
+                    'MapToBEV': [],
+                    'Backbone2D': [],
+                    'CenterHead': [],})
+
     def forward(self, batch_dict):
-        for cur_module in self.module_list:
-            batch_dict = cur_module(batch_dict)
+        #for cur_module in self.module_list:
+        #    batch_dict = cur_module(batch_dict)
+
+        self.measure_time_start('VFE')
+        batch_dict = self.vfe(batch_dict)
+        self.measure_time_end('VFE')
+        if self.is_voxel_enc:
+            self.measure_time_start('Backbone3D')
+            batch_dict = self.backbone_3d(batch_dict)
+            self.measure_time_end('Backbone3D')
+         
+        self.measure_time_start('MapToBEV')
+        batch_dict = self.map_to_bev(batch_dict)
+        self.measure_time_end('MapToBEV')
+        self.measure_time_start('Backbone2D')
+        batch_dict = self.backbone_2d(batch_dict)
+        self.measure_time_end('Backbone2D')
+        self.measure_time_start('CenterHead')
+        batch_dict = self.dense_head(batch_dict)
+        self.measure_time_end('CenterHead')
 
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
