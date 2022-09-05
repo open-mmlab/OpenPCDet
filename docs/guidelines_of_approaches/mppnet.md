@@ -66,8 +66,8 @@ The default parameters in mppnet_e2e_memorybank_inference.yaml is for 4-frame an
 ## Performance
 |    Model          | Vec_L1 | Vec_L2 | Ped_L1 | Ped_L2 | Cyc_L1 | Cyc_L2 |  
 |:---------------------------------------------:|:----------:|:-------:|:-------:|:-------:|:-------:|:-------:|
-|  [centerpoint_4frame](tools/cfgs/waymo_models/centerpoint_4frames.yaml) | 76.71/76.17 | 69.13/68.63 | 78.88/75.55 | 71.73/68.61 | 73.73/72.96 | 71.63/70.89 |
-|  [mppnet_4frame](tools/cfgs/waymo_models/mppnet_4frame.yaml) | 81.54/81.06 | 74.07/73.61 | 84.56/81.94 | 77.20/74.67 | 77.15/76.50 | 75.01/74.38 |
-| [mppnet_16frame](tools/cfgs/waymo_models/mppnet_16frame.yaml) | 82.74/82.28 | 75.41/74.96 | 84.69/82.25 | 77.43/75.06 | 77.28/76.66 | 75.13/74.52 |
+|  [centerpoint_4frames](../../tools/cfgs/waymo_models/centerpoint_4frames.yaml) | 76.71/76.17 | 69.13/68.63 | 78.88/75.55 | 71.73/68.61 | 73.73/72.96 | 71.63/70.89 |
+|  [mppnet_4frames](../../tools/cfgs/waymo_models/mppnet_4frames.yaml) | 81.54/81.06 | 74.07/73.61 | 84.56/81.94 | 77.20/74.67 | 77.15/76.50 | 75.01/74.38 |
+| [mppnet_16frames](../../tools/cfgs/waymo_models/mppnet_16frames.yaml) | 82.74/82.28 | 75.41/74.96 | 84.69/82.25 | 77.43/75.06 | 77.28/76.66 | 75.13/74.52 |
 
 The reported performance of MPPNet is trained with 6 epoch with  `USE_ROI_AUG`  and  `USE_TRAJ_AUG`  flags enabled.
