@@ -22,7 +22,7 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 ## Changelog
 [2022-09-02] **NEW:** Update `OpenPCDet` to v0.6.0:
-* Official code release of [MPPNet](https://arxiv.org/abs/2205.05979) for temporal 3D object detection, which supports long-term multi-frame 3D object detection and ranks 1st place on [3D detection learderboard](https://waymo.com/open/challenges/2020/3d-detection) of Waymo Open Dataset on Sept. 2th, 2022 (see the [guideline](docs/guidelines_of_approaches/mppnet.md) on how to train/test with MPPNet).
+* Official code release of [MPPNet](https://arxiv.org/abs/2205.05979) for temporal 3D object detection, which supports long-term multi-frame 3D object detection and ranks 1st place on [3D detection learderboard](https://waymo.com/open/challenges/2020/3d-detection) of Waymo Open Dataset on Sept. 2th, 2022. For validation dataset, MPPNet achieves 74.96%, 75.06% and 74.52% for vehicle, pedestrian and cyclist classes in terms of mAPH@Level_2. (see the [guideline](docs/guidelines_of_approaches/mppnet.md) on how to train/test with MPPNet).
 * Support multi-frame training/testing on Waymo Open Dataset (see the [change log](docs/changelog.md) for more details on how to process data).
 * Support to save changing training details (e.g., loss, iter, epoch) to file (previous tqdm progress bar is still supported by using `--use_tqdm_to_record`). Please use `pip install gpustat` if you also want to log the GPU related information.
 * Support to save latest model every 5 mintues, so you can restore the model training from latest status instead of previous epoch.   
