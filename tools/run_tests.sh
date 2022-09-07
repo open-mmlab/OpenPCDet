@@ -23,87 +23,39 @@ fi
 
 # Imprecise model
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
+#CKPT_FILE="../models/cbgs_pp_multihead_imprecise.pth"
 
 #SECOND CBGS
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_second_multihead.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_second_multihead_nds6229_updated.pth"
+#CKPT_FILE="../models/cbgs_second_multihead_nds6229_updated.pth"
 
 # PointPillars Single Head
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_singlehead.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_dyn_pp_singlehead/default/ckpt/checkpoint_epoch_20.pth"
+#CKPT_FILE="../models/cbgs_dyn_pp_singlehead/default/ckpt/checkpoint_epoch_20.pth"
 
 #PointPillars Multihead
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_3br.yaml"
-#CKPT_FILE="../output/nuscenes_models/pp_multihead_nds5823_updated.pth"
-#             Min        Avrg    95perc  99perc  Max
-#End-to-end   121.88     127.65  130.65  131.99  133.54 ms
-#--------------average performance-------------
-#trans_err:       0.2564
-#scale_err:       0.2191
-#orient_err:      0.1841
-#vel_err:         0.5472
-#attr_err:        0.2503
-#mAP:     0.5024
-#NDS:     0.6055
+#CKPT_FILE="../models/pp_multihead_nds5823_updated.pth"
 
 # Centerpoint-pointpillar
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_centerpoint.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_pp_centerpoint_nds6070.pth"
-#             Min        Avrg    95perc  99perc  Max
-#End-to-end   136.60     141.26  143.79  144.84  148.17 ms
-#--------------average performance-------------
-#trans_err:       0.2484
-#scale_err:       0.2414
-#orient_err:      0.2774
-#vel_err:         0.4299
-#attr_err:        0.2241
-#mAP:     0.6264
-#NDS:     0.6711
+#CKPT_FILE="../models/cbgs_pp_centerpoint_nds6070.pth"
 
 # Centerpoint-voxel01
-CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
-CKPT_FILE="../output/nuscenes_models/cbgs_voxel01_centerpoint_nds_6454.pth"
-#             Min        Avrg    95perc  99perc  Max
-#End-to-end   169.16     202.05  228.21  238.90  249.01 ms
-#--------------average performance-------------
-#trans_err:       0.2798
-#scale_err:       0.1978
-#orient_err:      0.2328
-#vel_err:         0.3187
-#attr_err:        0.2023
-#mAP:     0.6758
-#NDS:     0.7147
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
+#CKPT_FILE="../models/cbgs_voxel01_centerpoint_nds_6454.pth"
 
 # Centerpoint-voxel0075
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_voxel0075_centerpoint_nds_6648.pth"
-#             Min        Avrg    95perc  99perc  Max
-#End-to-end   273.41     322.60  356.90  372.49  386.75 ms
-#--------------average performance-------------
-#trans_err:       0.2190
-#scale_err:       0.2236
-#orient_err:      0.1877
-#vel_err:         0.3065
-#attr_err:        0.1980
-#mAP:     0.7329
-#NDS:     0.7530   
+#CKPT_FILE="../models/cbgs_voxel0075_centerpoint_nds_6648.pth"
 
 # Centerpoint-KITTI-voxel
 CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
-CKPT_FILE="../output/kitti_models/centerpoint/default/ckpt/checkpoint_epoch_80.pth"
+CKPT_FILE="../models/centerpoint_kitti.pth"
 
-# Baseline models
-#CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/cbgs_pp_multihead_1br.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/ckpt/checkpoint_epoch_20.pth"
-#CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_2br/default/cbgs_pp_multihead_2br.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_2br/default/ckpt/checkpoint_epoch_20.pth"
-#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_3br.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_3br/default/ckpt/checkpoint_epoch_20.pth"
 export OMP_NUM_THREADS=2
-
 #TASKSET=""
-TASKSET="taskset 0xfff"
+TASKSET="taskset -c $(($(nproc)-2)),$(($(nproc)-1))"
 
 #DATASET="nuscenes_dataset.yaml"
 #DATASET="nuscenes_mini_dataset.yaml"
@@ -136,7 +88,7 @@ elif [ $1 == 'methods' ]; then
 		fi
 		cfg="$prfx""$model"
 		CFG_FILE="./cfgs/nuscenes_models/$cfg.yaml"
-		CKPT_FILE="../output/nuscenes_models/$cfg/default/ckpt/checkpoint_epoch_20.pth"
+		CKPT_FILE="../models/$cfg/default/ckpt/checkpoint_epoch_20.pth"
 		CMD="nice --20 $TASKSET python test.py --cfg_file=$CFG_FILE \
 			--ckpt $CKPT_FILE --batch_size=1 --workers 0"
 		ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
@@ -157,6 +109,4 @@ elif [ $1 == 'methods' ]; then
 	done
 elif [ $1 == 'single' ]; then
         $CMD
-elif [ $1 == 'single2' ]; then
-        $CMD --set "MODEL.DEADLINE_SEC" 0.090 "MODEL.METHOD" $2
 fi
