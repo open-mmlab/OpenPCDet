@@ -3,13 +3,12 @@ if [ -z $1 ]; then
 	exit
 fi
 
-export CUDA_LAUNCH_BLOCKING=0
-
 PROF_CMD=""
 if [ $1 == 'profile' ]; then
 	PROF_CMD="nsys profile -w true \
-		--trace cuda,nvtx,cudnn,osrt \
+		--trace cuda,nvtx \
 		--process-scope=process-tree"
+	# osrt and cudnn doesn't work :(
 	#--sampling-trigger=timer,sched,cuda \
 
 	# if want to trace stage2 only
@@ -42,16 +41,16 @@ fi
 #CKPT_FILE="../models/cbgs_pp_centerpoint_nds6070.pth"
 
 # Centerpoint-voxel01
-CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
-CKPT_FILE="../models/cbgs_voxel01_centerpoint_nds_6454.pth"
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
+#CKPT_FILE="../models/cbgs_voxel01_centerpoint_nds_6454.pth"
 
 # Centerpoint-voxel0075
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml"
 #CKPT_FILE="../models/cbgs_voxel0075_centerpoint_nds_6648.pth"
 
 # Centerpoint-KITTI-voxel
-#CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
-#CKPT_FILE="../models/centerpoint_kitti.pth"
+CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
+CKPT_FILE="../models/centerpoint_kitti.pth"
 
 TASKSET="taskset -c 2,3"
 export OMP_NUM_THREADS=2
@@ -67,9 +66,9 @@ CMD="nice --20 $PROF_CMD $TASKSET python test.py --cfg_file=$CFG_FILE \
 
 set -x
 if [ $1 == 'profile' ]; then
-        #export CUDA_LAUNCH_BLOCKING=1
+        export CUDA_LAUNCH_BLOCKING=1
         $CMD 
-        #export CUDA_LAUNCH_BLOCKING=0
+        export CUDA_LAUNCH_BLOCKING=0
 elif [ $1 == 'methods' ]; then
 	mv -f eval_dict_* backup
 	OUT_DIR=exp_data_nsc

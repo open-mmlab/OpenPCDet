@@ -341,11 +341,13 @@ class CenterHead(nn.Module):
         #event_arr.append(self.rec_event())
 
         #event_arr.append(self.rec_event())
-        torch.cuda.nvtx.range_push('CenterHead')
+        #torch.cuda.synchronize()
+        #torch.cuda.nvtx.range_push('CenterHead')
         pred_dicts = []
         for head in self.heads_list:
             pred_dicts.append(head(x))
-        torch.cuda.nvtx.range_pop()
+        #torch.cuda.synchronize()
+        #torch.cuda.nvtx.range_pop()
         #event_arr.append(self.rec_event())
 
         #event_arr.append(self.rec_event())
