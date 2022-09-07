@@ -8,8 +8,8 @@ export CUDA_LAUNCH_BLOCKING=0
 PROF_CMD=""
 if [ $1 == 'profile' ]; then
 	PROF_CMD="nsys profile -w true \
-		--trace cuda,osrt,cublas,nvtx,cudnn \
-		--sampling-trigger=timer,sched,cuda \
+		--trace cuda,nvtx,cudnn \
+		--sampling-trigger=timer,sched \
 		--process-scope=process-tree"
 
 	# if want to trace stage2 only
@@ -22,8 +22,8 @@ if [ $1 == 'profile' ]; then
 fi
 
 # Imprecise model
-CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
-CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
+#CFG_FILE="./cfgs/nuscenes_models/cbgs_dyn_pp_multihead_imprecise.yaml"
+#CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
 
 #SECOND CBGS
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_second_multihead.yaml"
@@ -62,8 +62,8 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
 #NDS:     0.6711
 
 # Centerpoint-voxel01
-#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
-#CKPT_FILE="../output/nuscenes_models/cbgs_voxel01_centerpoint_nds_6454.pth"
+CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
+CKPT_FILE="../output/nuscenes_models/cbgs_voxel01_centerpoint_nds_6454.pth"
 #             Min        Avrg    95perc  99perc  Max
 #End-to-end   169.16     202.05  228.21  238.90  249.01 ms
 #--------------average performance-------------
@@ -89,6 +89,9 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
 #mAP:     0.7329
 #NDS:     0.7530   
 
+# Centerpoint-KITTI-voxel
+CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
+CKPT_FILE="../output/kitti_models/centerpoint/default/ckpt/checkpoint_epoch_80.pth"
 
 # Baseline models
 #CFG_FILE="../output/nuscenes_models/cbgs_pp_multihead_1br/default/cbgs_pp_multihead_1br.yaml"
@@ -100,13 +103,13 @@ CKPT_FILE="../output/nuscenes_models/cbgs_pp_multihead_imprecise.pth"
 export OMP_NUM_THREADS=2
 
 #TASKSET=""
-TASKSET="taskset 0xff"
+TASKSET="taskset 0xfff"
 
 #DATASET="nuscenes_dataset.yaml"
-DATASET="nuscenes_mini_dataset.yaml"
-ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
-ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
-sed -i "$ARG" $CFG_FILE
+#DATASET="nuscenes_mini_dataset.yaml"
+#ARG="s/_BASE_CONFIG_: cfgs\/dataset_configs.*$"
+#ARG=$ARG"/_BASE_CONFIG_: cfgs\/dataset_configs\/$DATASET/g"
+#sed -i "$ARG" $CFG_FILE
 
 CMD="nice --20 $PROF_CMD $TASKSET python test.py --cfg_file=$CFG_FILE \
 	--ckpt $CKPT_FILE --batch_size=1 --workers 0"
@@ -114,7 +117,7 @@ CMD="nice --20 $PROF_CMD $TASKSET python test.py --cfg_file=$CFG_FILE \
 set -x
 if [ $1 == 'profile' ]; then
         #export CUDA_LAUNCH_BLOCKING=1
-        $CMD --set "MODEL.DEADLINE_SEC" 10.0 "MODEL.METHOD" 3
+        $CMD 
         #export CUDA_LAUNCH_BLOCKING=0
 elif [ $1 == 'methods' ]; then
 	mv -f eval_dict_* backup

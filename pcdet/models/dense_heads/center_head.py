@@ -321,14 +321,34 @@ class CenterHead(nn.Module):
             roi_labels[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_labels']
         return rois, roi_scores, roi_labels
 
+    def rec_event(self, event=None):
+        event = torch.cuda.Event(enable_timing=True)
+        event.record()
+        return event
+
+    def calc_event_times(self, event_arr):
+        times_ms=[]
+        for e in range(len(event_arr)//2):
+            times_ms.append(round(event_arr[e*2].elapsed_time(event_arr[e*2+1]), 3))
+
+        return times_ms
+
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
+        #event_arr=[]
+        #event_arr.append(self.rec_event())
         x = self.shared_conv(spatial_features_2d)
+        #event_arr.append(self.rec_event())
 
+        #event_arr.append(self.rec_event())
+        torch.cuda.nvtx.range_push('CenterHead')
         pred_dicts = []
         for head in self.heads_list:
             pred_dicts.append(head(x))
+        torch.cuda.nvtx.range_pop()
+        #event_arr.append(self.rec_event())
 
+        #event_arr.append(self.rec_event())
         if self.training:
             target_dict = self.assign_targets(
                 data_dict['gt_boxes'], feature_map_size=spatial_features_2d.size()[2:],
@@ -351,5 +371,7 @@ class CenterHead(nn.Module):
                 data_dict['has_class_labels'] = True
             else:
                 data_dict['final_box_dicts'] = pred_dicts
-
+        #event_arr.append(self.rec_event())
+        #torch.cuda.synchronize()
+        #print(self.calc_event_times(event_arr))
         return data_dict

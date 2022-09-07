@@ -68,7 +68,7 @@ DATA_PROCESSOR:
     - NAME: shuffle_points
       SHUFFLE_ENABLED: {
         'train': True,
-        'test': True
+        'test': False
       }
 
     - NAME: transform_points_to_voxels
