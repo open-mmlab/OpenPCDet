@@ -19,7 +19,7 @@ ln -s $KITTI_PATH/testing
 for m in $KITTI_PATH/generated_data/*; do ln -s $m; done
 popd
 
-cd ..
+pushd ..
 ln -s $MODELS_PATH
 popd
 

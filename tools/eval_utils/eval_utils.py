@@ -78,8 +78,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         with torch.no_grad():
             model.calibrate()
 
-    #if cfg.LOCAL_RANK == 0:
-    #    progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
+    if cfg.LOCAL_RANK == 0:
+        progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
 
     start_time = time.time()
     gc.disable()
@@ -106,9 +106,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             output_path=final_output_dir if save_to_file else None
         )
         det_annos += annos
-        #if cfg.LOCAL_RANK == 0:
-        #    progress_bar.set_postfix(disp_dict)
-        #    progress_bar.update()
+        if cfg.LOCAL_RANK == 0:
+            progress_bar.set_postfix(disp_dict)
+            progress_bar.update()
 
     if 'post_eval' in dir(model):
         model.post_eval()
@@ -116,8 +116,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     gc.collect()
     gc.enable()
 
-    #if cfg.LOCAL_RANK == 0:
-    #    progress_bar.close()
+    if cfg.LOCAL_RANK == 0:
+        progress_bar.close()
 
     if dist_test:
         rank, world_size = common_utils.get_dist_info()

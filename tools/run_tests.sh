@@ -8,9 +8,9 @@ export CUDA_LAUNCH_BLOCKING=0
 PROF_CMD=""
 if [ $1 == 'profile' ]; then
 	PROF_CMD="nsys profile -w true \
-		--trace cuda,nvtx,cudnn \
-		--sampling-trigger=timer,sched \
+		--trace cuda,nvtx,cudnn,osrt \
 		--process-scope=process-tree"
+	#--sampling-trigger=timer,sched,cuda \
 
 	# if want to trace stage2 only
 	#NUM_SAMPLES=5
@@ -42,20 +42,19 @@ fi
 #CKPT_FILE="../models/cbgs_pp_centerpoint_nds6070.pth"
 
 # Centerpoint-voxel01
-#CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
-#CKPT_FILE="../models/cbgs_voxel01_centerpoint_nds_6454.pth"
+CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml"
+CKPT_FILE="../models/cbgs_voxel01_centerpoint_nds_6454.pth"
 
 # Centerpoint-voxel0075
 #CFG_FILE="./cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml"
 #CKPT_FILE="../models/cbgs_voxel0075_centerpoint_nds_6648.pth"
 
 # Centerpoint-KITTI-voxel
-CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
-CKPT_FILE="../models/centerpoint_kitti.pth"
+#CFG_FILE="./cfgs/kitti_models/centerpoint.yaml"
+#CKPT_FILE="../models/centerpoint_kitti.pth"
 
+TASKSET="taskset -c 2,3"
 export OMP_NUM_THREADS=2
-#TASKSET=""
-TASKSET="taskset -c $(($(nproc)-2)),$(($(nproc)-1))"
 
 #DATASET="nuscenes_dataset.yaml"
 #DATASET="nuscenes_mini_dataset.yaml"

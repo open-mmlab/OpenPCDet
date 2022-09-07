@@ -199,5 +199,5 @@ def main():
 
 
 if __name__ == '__main__':
-    os.sched_setaffinity(0, [2,3])
+#    os.sched_setaffinity(0, [2,3])
     main()
