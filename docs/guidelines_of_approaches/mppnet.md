@@ -1,5 +1,5 @@
 ## NOTE
-**If you want to quickly develop your own model based on MPPNet, our recommended setting is to use mppnet_4frames.yaml, disable `USE_ROI_AUG` and `USE_TRAJ_AUG` flags in yaml and train 3 epoch. A reference time cost for this setting is about 5 hours, using 8 A100 GPUs.  After finishing your development, you can get stable gains when using mppnet_16frames.yaml, enabling `USE_ROI_AUG` and `USE_TRAJ_AUG` flags and training 6 epoch.**
+**If you want to quickly develop your own model based on MPPNet, our recommended setting is to use mppnet_4frames.yaml, disable `USE_ROI_AUG` and `USE_TRAJ_AUG` flags in the yaml and train 3 epoch. A reference time cost for this setting is about 5 hours, using 8 A100 GPUs.  After finishing your development, you can get stable gains when using mppnet_16frames.yaml, enabling `USE_ROI_AUG` and `USE_TRAJ_AUG` flags and training 6 epoch.**
 
 ## Installation
 
@@ -10,32 +10,32 @@ Please refer to [GETTING_STARTED.md](docs/GETTING_STARTED.md) to process the Way
 
 ## Training
 
-1.  Train the RPN model  for MPPNet (centerpoint_4frames is employed in the paper)
+1.  Train the RPN model for MPPNet (centerpoint_4frames is employed in the paper)
 ```shell
 bash scripts/dist_train.sh ${NUM_GPUS} --cfg_file cfgs/waymo_models/centerpoint_4frames.yaml
 ```
 The ckpt will be saved in ../output/waymo_models/centerpoint_4frames/default/ckpt.
 
-2.  Save the RPN model's prediction results of  training and val dataset
+2.  Save the RPN model's prediction results of training and val dataset
 ```shell
 # training
-bash scripts/dist_test.sh ${NUM_GPUS}  --cfg_file cfgs/waymo_models/mppnet_4frames.yaml \
---ckpt   ../output/waymo_models/centerpoint_4frames/default/ckpt/checkpoint_epoch_36.pth \
---set   DATA_CONFIG.DATA_SPLIT.test train
+bash scripts/dist_test.sh ${NUM_GPUS}  --cfg_file cfgs/waymo_models/centerpoint_4frames.yaml \
+--ckpt ../output/waymo_models/centerpoint_4frames/default/ckpt/checkpoint_epoch_36.pth \
+--set DATA_CONFIG.DATA_SPLIT.test train
 # val
-bash scripts/dist_test.sh ${NUM_GPUS}  --cfg_file cfgs/waymo_models/mppnet_4frames.yaml \
---ckpt   ../output/waymo_models/centerpoint_4frames/default/ckpt/checkpoint_epoch_36.pth \
---set   DATA_CONFIG.DATA_SPLIT.test val
+bash scripts/dist_test.sh ${NUM_GPUS}  --cfg_file cfgs/waymo_models/centerpoint_4frames.yaml \
+--ckpt ../output/waymo_models/centerpoint_4frames/default/ckpt/checkpoint_epoch_36.pth \
+--set DATA_CONFIG.DATA_SPLIT.test val
 ```
-The prediction results of train and val dataset will be saved in
+The prediction results of train and val dataset will be saved in \
 ../output/waymo_models/centerpoint_4frames/default/eval/epoch_36/train/default/result.pkl,
 ../output/waymo_models/centerpoint_4frames/default/eval/epoch_36/val/default/result.pkl.
 
 3.  Train MPPNet (using mppnet_4frames as an example)
 ```shell
-bash scripts/dist_train.sh ${NUM_GPUS} --cfg_file cfgs/waymo_models/mppnet_4frames.yaml - --batch_size  2  \
+bash scripts/dist_train.sh ${NUM_GPUS} --cfg_file cfgs/waymo_models/mppnet_4frames.yaml --batch_size  2  \
 --set DATA_CONFIG.ROI_BOXES_PATH.train  ../output/waymo_models/centerpoint_4frames/default/eval/epoch_36/train/default/result.pkl \
-      DATA_CONFIG.ROI_BOXES_PATH.test  ../output/waymo_models/centerpoint_4frames/default/eval/epoch_36/val/default/result.pkl
+ DATA_CONFIG.ROI_BOXES_PATH.test  ../output/waymo_models/centerpoint_4frames/default/eval/epoch_36/val/default/result.pkl
 ```
 When using 16-frame, we can just change the `cfg_file` to mpppnet_16frames.yaml and the `DATA_CONFIG.ROI_BOXES_PATH` is same with 4-frame.\
 We can also save the paths of train and val results to ROI_BOXES_PATH in mppnet_4frames.yaml and mppnet_16frames.yaml to avoid using the `set` flag.\
