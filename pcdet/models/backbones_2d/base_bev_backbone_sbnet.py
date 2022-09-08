@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, ReduceMask
+from sbnet.layers import SparseBlock_ConvChain, SparseBlock_Conv2d_BN_ReLU, ReduceMask
 
 class BaseBEVBackboneSbnet(nn.Module):
     def __init__(self, model_cfg, input_channels):
@@ -42,7 +42,11 @@ class BaseBEVBackboneSbnet(nn.Module):
                         bias=False, bn_eps=1e-3, bn_momentum=0.01,
                         bcount=self.tcount, transpose=True)
                 )
-            self.blocks.append(nn.Sequential(*cur_layers))
+            #self.blocks.append(nn.Sequential(*cur_layers))
+            sbcc = SparseBlock_ConvChain()
+            for l in cur_layers:
+                sbcc.append_conv(l)
+            self.blocks.append(sbcc)
             if len(upsample_strides) > 0:
                 stride = upsample_strides[idx]
                 if stride >= 1:
