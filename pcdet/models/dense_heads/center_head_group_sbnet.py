@@ -377,6 +377,8 @@ class CenterHeadGroupSbnet(nn.Module):
         } for k in range(batch_size)]
         for idx, pred_dict in enumerate(pred_dicts):
             # this loop runs only once for kitti but multiple times for nuscenes (single vs multihead)
+            if pred_dict['is_empty']:
+                continue
             if 'topk_outp' in pred_dict:
                 batch_hm = pred_dict['hm']
             else:
@@ -544,6 +546,11 @@ class CenterHeadGroupSbnet(nn.Module):
 
             # Slice for all batches
             num_slc_per_batch = [t.size(0) for t in batch_id_tensors]
+            no_inp = all([num_slc == 0 for num_slc in num_slc_per_batch])
+            pd['is_empty'] = no_inp
+            if no_inp:
+                continue
+
             b_id_cat = torch.cat(batch_id_tensors)
             ys_cat = torch.cat([to[3] for to in topk_outp]) + pad_size
             xs_cat = torch.cat([to[4] for to in topk_outp]) + pad_size
