@@ -133,7 +133,7 @@ def _transpose_and_gather_feat(feat, ind):
     return feat
 
 
-def _topk(scores, K=40):
+def _topk(scores, K=40, using_slicing=False):
     batch, num_class, height, width = scores.size()
 
     topk_scores, topk_inds = torch.topk(scores.flatten(2, 3), K)
@@ -143,8 +143,10 @@ def _topk(scores, K=40):
     topk_xs = (topk_inds % width).int().float()
 
     topk_score, topk_ind = torch.topk(topk_scores.view(batch, -1), K)
-    topk_classes = (topk_ind // K).int()
-    topk_inds = _gather_feat(topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
+    topk_classes = (topk_ind // K)
+    topk_classes = topk_classes.int() if not using_slicing else topk_classes.float()
+    topk_inds = _gather_feat(topk_inds.view(batch, -1, 1), topk_ind).view(batch, K) \
+            if not using_slicing else None
     topk_ys = _gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_xs = _gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)
     return topk_score, topk_inds, topk_classes, topk_ys, topk_xs
@@ -164,7 +166,7 @@ def decode_bbox_from_heatmap_sliced(heatmap, rot_cos, rot_sin, center, center_z,
 
     ret_pred_dicts = []
     for k in range(batch_size):
-        (scores, inds, class_ids, ys, xs) = topk_outp[k]
+        (scores, _, class_ids, ys, xs) = topk_outp[k]
 
         angle = torch.atan2(rot_sin[k], rot_cos[k])
         xs += center[k][:, 0]
@@ -189,7 +191,7 @@ def decode_bbox_from_heatmap_sliced(heatmap, rot_cos, rot_sin, center, center_z,
         ret_pred_dicts.append({
             'pred_boxes': box_preds[mask],
             'pred_scores': scores[mask],
-            'pred_labels': class_ids[mask]
+            'pred_labels': class_ids.int()[mask]
         })
     return ret_pred_dicts
 

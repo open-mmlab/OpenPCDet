@@ -505,7 +505,6 @@ class CenterHeadGroupSbnet(nn.Module):
 
     def forward_eval(self, data_dict):
         data_dict['sbnet_x'] = data_dict['spatial_features_2d']
-
         data_dict = self.shared_conv(data_dict)
         shr_conv_outp = data_dict['sbnet_y']
 
@@ -527,20 +526,22 @@ class CenterHeadGroupSbnet(nn.Module):
         for det_head, pd in zip(self.det_heads, pred_dicts):
             heatmap = pd['hm']
             topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
-                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample)
+                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample, using_slicing=True)
 
             final_outputs, topk_outp, batch_id_tensors = [], [], []
 
             masks = topk_score > score_thres
             # This loop runs for each batch
-            for scores, inds, classes, ys, xs, mask in zip(\
-                    topk_score, topk_inds, topk_classes, topk_ys, topk_xs, masks):
-                # IDK if this mask ig going to make it slower a lot
-                scores, inds, classes, ys, xs = \
-                        scores[mask], inds[mask], classes[mask], ys[mask], xs[mask]
+            for scores, classes, ys, xs, mask in zip(\
+                    topk_score, topk_classes, topk_ys, topk_xs, masks):
+                # stack all of these and then apply the mask
+                topk_vals = torch.stack((scores, classes, ys, xs))
+                masked_topk_vals = topk_vals[:,mask]
+                tensors = torch.chunk(masked_topk_vals, 4)
+                scores, classes, ys, xs = (t.flatten() for t in tensors)
                 batch_id_tensors.append(torch.full((scores.size(0),),
                     len(batch_id_tensors), dtype=torch.short, device=scores.device))
-                topk_outp.append((scores, inds, classes, ys, xs))
+                topk_outp.append((scores, None, classes, ys, xs))
 
             pd['topk_outp'] = topk_outp
 
@@ -552,23 +553,23 @@ class CenterHeadGroupSbnet(nn.Module):
                 continue
 
             b_id_cat = torch.cat(batch_id_tensors)
-            ys_cat = torch.cat([to[3] for to in topk_outp]) + pad_size
-            xs_cat = torch.cat([to[4] for to in topk_outp]) + pad_size
+            # thanks to padding, xs and ys now give us the corner position instead of center
+            ys_cat = torch.cat([to[3] for to in topk_outp])
+            xs_cat = torch.cat([to[4] for to in topk_outp])
             indices = torch.stack((b_id_cat, ys_cat.short(), xs_cat.short()), dim=1)
             slices = cuda_slicer.slice_and_batch_nhwc(padded_x, indices, self.slice_size)
             outp = det_head(slices)
-
             # finally, split the output according to the batches they belong
             for name, inds in self.attr_outp_inds.items():
                 #turn it to (num_slices x C) from (num_slices x C x 1 x 1)
                 outp_slices = outp[:, inds[0]:inds[1]].flatten(-3)
                 outp_slices_split, idx = [], 0
                 for num_slc in num_slc_per_batch:
-                    outp_slices_split.append(outp_slices[idx:(idx+num_slc),:])
+                    outp_slices_split.append(outp_slices[idx:(idx+num_slc)])
                     idx += num_slc
                 pd[name] = outp_slices_split
 
-        self.forward_ret_dict['pred_dicts'] = pred_dicts
+        #self.forward_ret_dict['pred_dicts'] = pred_dicts
 
         pred_dicts = self.generate_predicted_boxes_eval(
             data_dict['batch_size'], pred_dicts
