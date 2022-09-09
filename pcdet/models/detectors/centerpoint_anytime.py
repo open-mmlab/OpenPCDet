@@ -1,14 +1,14 @@
 from .detector3d_template import Detector3DTemplate
 import torch
+from sbnet.layers import ReduceMask
 
 class CenterPointAnytime(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
+        self.model_cfg.BACKBONE_2D.TILE_COUNT = self.model_cfg.TILE_COUNT
         self.module_list = self.build_networks()
-
         # Enabling benchmark gives a small boost (5ms)
         torch.backends.cudnn.benchmark = True
-        # Enabling these doesnt speed up...
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
         torch.cuda.manual_seed(0)
@@ -37,7 +37,7 @@ class CenterPointAnytime(Detector3DTemplate):
         self.post_processing_func = self.post_processing
 
         ################################################################################
-        self.tcount= torch.tensor(self.model_cfg.BACKBONE_2D.TILE_COUNT).long().cuda()
+        self.tcount= torch.tensor(self.model_cfg.TILE_COUNT).long().cuda()
         self.total_num_tiles = self.tcount[0] * self.tcount[1]
 
         #Tile prios are going to be updated dynamically, initially all tiles have equal priority
@@ -48,9 +48,22 @@ class CenterPointAnytime(Detector3DTemplate):
 
         # This number will be determined by the scheduling algorithm initially for each input
         self.num_tiles_to_process = self.total_num_tiles.cpu().item()
+        self.reduce_mask_stream = torch.cuda.Stream()
         ################################################################################
+        #print(self)
 
-        print(self)
+    def produce_reduce_mask(self, data_dict):
+        tile_coords = data_dict['chosen_tile_coords']
+        total_num_tiles = data_dict['total_num_tiles']
+        tcount = self.model_cfg.TILE_COUNT
+        batch_idx = torch.div(tile_coords, total_num_tiles, rounding_mode='trunc').short()
+        row_col_idx = tile_coords - batch_idx * total_num_tiles
+        row_idx = torch.div(row_col_idx, tcount[0], rounding_mode='trunc').short()
+        col_idx = (row_col_idx - row_idx * tcount[1]).short()
+        inds = torch.stack((batch_idx, col_idx, row_idx), dim=1) # should this stay as col row?
+        counts = torch.full((1,), inds.size(0), dtype=torch.int32)
+        return ReduceMask(inds, counts)
+
 
     def forward(self, batch_dict):
         for v in ('tcount','tile_prios','num_tiles_to_process', 'total_num_tiles'):
@@ -60,6 +73,10 @@ class CenterPointAnytime(Detector3DTemplate):
         batch_dict = self.vfe(batch_dict)
         self.measure_time_end('VFE')
 
+        # Produce the reduce mask in parallel in a seperate stream
+        with torch.cuda.stream(self.reduce_mask_stream):
+            batch_dict['reduce_mask'] = self.produce_reduce_mask(batch_dict)
+
         if self.is_voxel_enc:
             self.measure_time_start('Backbone3D')
             batch_dict = self.backbone_3d(batch_dict)
@@ -68,6 +85,9 @@ class CenterPointAnytime(Detector3DTemplate):
         self.measure_time_start('MapToBEV')
         batch_dict = self.map_to_bev(batch_dict)
         self.measure_time_end('MapToBEV')
+
+        self.reduce_mask_stream.synchronize()
+
         self.measure_time_start('Backbone2D')
         batch_dict = self.backbone_2d(batch_dict)
         self.measure_time_end('Backbone2D')
@@ -123,9 +143,12 @@ class CenterPointAnytime(Detector3DTemplate):
             batch_dict[v] = getattr(self, v)
 
         batch_dict = self.vfe(batch_dict)
+        with torch.cuda.stream(self.reduce_mask_stream):
+            batch_dict['reduce_mask'] = self.produce_reduce_mask(batch_dict)
         if self.is_voxel_enc:
             batch_dict = self.backbone_3d(batch_dict)
         batch_dict = self.map_to_bev(batch_dict)
+        self.reduce_mask_stream.synchronize()
         batch_dict = self.backbone_2d(batch_dict)
         self.dense_head.calibrate(batch_dict)
         self.clear_stats()

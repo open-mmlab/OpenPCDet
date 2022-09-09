@@ -42,10 +42,9 @@ MODEL:
         NUM_FILTERS: [128]
         UPSAMPLE_STRIDES: [2]
         NUM_UPSAMPLE_FILTERS: [256]
-        TILE_COUNT: [20, 20]
 
     DENSE_HEAD:
-        NAME: CenterHead
+        NAME: CenterHeadSliced
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
@@ -99,6 +98,8 @@ MODEL:
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
+
+    TILE_COUNT: [20, 20]
 
 
 OPTIMIZATION:

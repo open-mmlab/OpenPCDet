@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from sbnet.layers import SparseBlock_ConvChain, SparseBlock_Conv2d_BN_ReLU, ReduceMask
+from sbnet.layers import SparseBlock_ConvChain, SparseBlock_Conv2d_BN_ReLU
 
 class BaseBEVBackboneSbnet(nn.Module):
     def __init__(self, model_cfg, input_channels):
@@ -42,7 +42,6 @@ class BaseBEVBackboneSbnet(nn.Module):
                         bias=False, bn_eps=1e-3, bn_momentum=0.01,
                         bcount=self.tcount, transpose=True)
                 )
-            #self.blocks.append(nn.Sequential(*cur_layers))
             sbcc = SparseBlock_ConvChain()
             for l in cur_layers:
                 sbcc.append_conv(l)
@@ -82,20 +81,13 @@ class BaseBEVBackboneSbnet(nn.Module):
                 spatial_features
         Returns:
         """
-        spatial_features = data_dict['spatial_features']
-        tile_coords = data_dict['chosen_tile_coords']
-        total_num_tiles = data_dict['total_num_tiles']
-        batch_idx = torch.div(tile_coords, total_num_tiles, rounding_mode='trunc').short()
-        row_col_idx = tile_coords - batch_idx * total_num_tiles
-        row_idx = torch.div(row_col_idx, self.tcount[0], rounding_mode='trunc').short()
-        col_idx = (row_col_idx - row_idx*self.tcount[1]).short()
-        inds = torch.stack((batch_idx, col_idx, row_idx), dim=1)
-        counts = torch.full((1,), inds.size(0), dtype=torch.int32)
-        reduce_mask = ReduceMask(inds, counts)
 
         ups = []
         ret_dict = {}
-        x = spatial_features.to(memory_format=torch.channels_last)
+        spatial_features = data_dict['spatial_features']
+        reduce_mask = data_dict['reduce_mask']
+        #x = spatial_features.to(memory_format=torch.channels_last)
+        x = spatial_features
         for i in range(len(self.blocks)):
             #torch.cuda.nvtx.range_push(f'Block_{i+1}')
             x, _ = self.blocks[i]((x, reduce_mask))
@@ -111,7 +103,7 @@ class BaseBEVBackboneSbnet(nn.Module):
             #torch.cuda.nvtx.range_pop()
 
         if len(ups) > 1:
-            x = torch.cat(ups, dim=1)
+            x = torch.cat(ups, dim=-1)
         elif len(ups) == 1:
             x = ups[0]
 
@@ -119,7 +111,6 @@ class BaseBEVBackboneSbnet(nn.Module):
             x, _ = self.deblocks[-1]((x, reduce_mask))
 
         # NOTE if centerhead is going to use sbnet, do not do this here!
-        data_dict['spatial_features_2d'] = x.to(memory_format=torch.contiguous_format)
-        data_dict['reduce_mask'] = reduce_mask
+        data_dict['spatial_features_2d'] = x.permute(0,3,1,2).contiguous()
 
         return data_dict
