@@ -10,6 +10,57 @@ from ...ops.cuda_slicer import cuda_slicer
 
 from sbnet.layers import SparseBlock_Conv2d_BN_ReLU
 import time
+from collections import Counter
+
+# Divides input channels equally to convolutions
+class AdaptiveGroupConv(nn.Module):
+    def __init__(self, input_channels, output_channels_list, ksize, stride, padding, bias):
+        super().__init__()
+
+        # Output channels should be sorted in the config file
+        assert output_channels_list == sorted(output_channels_list)
+
+        outp_ch_l = np.array(output_channels_list)
+        self.num_outp = len(outp_ch_l)
+        self.inp_ch_per_conv = input_channels // self.num_outp
+        all_counts = Counter(outp_ch_l)
+        convs, inp_outp_indexes, total_outp_channels = [], [], []
+        for ch, count in all_counts.items():
+            convs.append(nn.Conv2d(self.inp_ch_per_conv * count,
+                    ch * count, kernel_size=ksize,stride=stride,
+                    padding=padding, groups=count, bias=bias))
+            idx = output_channels_list.index(ch)
+            inp_outp_indexes.append((idx, idx + count))
+            total_outp_channels.append(ch * count)
+
+        # Run the convolutions which has higher computational demand first
+        conv_run_order = np.argsort(-np.array(total_outp_channels))
+        self.inp_outp_indexes = [inp_outp_indexes[i] for i in conv_run_order]
+        self.convs = nn.ModuleList([convs[i] for i in conv_run_order])
+
+    def fill_bias(self, bias):
+        for m in self.convs:
+            if hasattr(m, "bias") and m.bias is not None:
+                m.bias.data.fill_(bias)
+
+    def init_kaiming(self):
+        for m in self.convs:
+            kaiming_normal_(m.weight.data)
+            if hasattr(m, "bias") and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, inp):
+        outp = [None] * self.num_outp
+        C = self.inp_ch_per_conv
+        # TODO try out cuda streams here
+        for conv, indexes in zip(self.convs, self.inp_outp_indexes):
+            x = conv(inp[:, (indexes[0]*C):(indexes[1]*C)])
+            chunks = torch.chunk(x, indexes[1] - indexes[0], dim=1)
+            for c, o in enumerate(range(indexes[0], indexes[1])):
+                outp[o] = chunks[c]
+        
+        return outp
+
 
 class CenterHeadGroupSbnet(nn.Module):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range, voxel_size,
@@ -49,12 +100,6 @@ class CenterHeadGroupSbnet(nn.Module):
                 bias=use_bias, bn_eps=1e-05, bn_momentum=0.1,
                 bcount=self.tcount, transpose=True)
 
-        #############
-        # We are not going to construct seperate heads. Instead, we will utilize group convolution to merge
-        # all heads. However, the heatmaps has to be merged seperately, as their output can be used to
-        # slice the input of other convolutions.
-        #############
-
         hm_list = []
         inp_channels = self.model_cfg.SHARED_CONV_CHANNEL
         outp_channels, groups = inp_channels * num_heads, 1
@@ -70,26 +115,18 @@ class CenterHeadGroupSbnet(nn.Module):
         if self.model_cfg.NUM_HM_CONV <= 1:
             outp_channels = inp_channels
 
-        hm_outp_channels = [len(cur_class_names) for cur_class_names in self.class_names_each_head]
-        hm_max_ch = max(hm_outp_channels)
-        hm_total_outp_channels = hm_max_ch * num_heads
-        hm_list.append(nn.Conv2d(outp_channels, hm_total_outp_channels, kernel_size=ksize,
-            stride=1, padding=1, groups=groups, bias=True))
-        hm_list[-1].bias.data.fill_(-2.19)
+        hm_outp_channels = [len(cur_class_names) \
+                for cur_class_names in self.class_names_each_head]
 
-        #TODO simple hack for now
-        # out_C x in_C x ksize x ksize
-        #hm_list[-1].weight.data[[1,7],...] = 0.
-        #hm_list[-1].bias.data[[1,7],...] = 0.
+        hm_list.append(AdaptiveGroupConv(outp_channels, hm_outp_channels, \
+                ksize, stride=1, padding=1, bias=True))
+
+        hm_list[-1].fill_bias(-2.19)
 
         if len(hm_list) > 1:
             self.heatmap_convs = nn.Sequential(*hm_list)
         else:
             self.heatmap_convs = hm_list[0]
-        self.heatmap_outp_inds = [(i*hm_max_ch, i*hm_max_ch+ch) \
-                for i, ch in enumerate(hm_outp_channels)]
-        # The channels that fall outside of these indices are useless, don't train their filters
-        print('Heatmap output indices:', self.heatmap_outp_inds)
 
         # Now, we need seperate merged conv and group conv for each head because their inputs
         # will be different.
@@ -100,11 +137,9 @@ class CenterHeadGroupSbnet(nn.Module):
         num_convs = num_convs[0]
 
         attr_outp_channels = [v['out_channels'] for v in head_dict.values()]
-        attr_max_ch = max(attr_outp_channels)
-        attr_total_outp_channels = attr_max_ch * len(head_dict)
 
         self.det_heads=nn.ModuleList()
-        attr_conv_names = self.model_cfg.SEPARATE_HEAD_CFG.HEAD_ORDER
+        self.attr_conv_names = self.model_cfg.SEPARATE_HEAD_CFG.HEAD_ORDER
         self.slice_size = 1
         for head_idx in range(num_heads):
             inp_channels = self.model_cfg.SHARED_CONV_CHANNEL
@@ -125,8 +160,8 @@ class CenterHeadGroupSbnet(nn.Module):
             if num_convs <= 1:
                 outp_channels = inp_channels
 
-            attr_list.append(nn.Conv2d(outp_channels, attr_total_outp_channels,
-                kernel_size=ksize, stride=1, padding=0, groups=groups, bias=True))
+            attr_list.append(AdaptiveGroupConv(outp_channels, attr_outp_channels, \
+                    ksize, stride=1, padding=0, bias=True))
 
             attr_convs = nn.Sequential(*attr_list)
             if head_idx == 0:
@@ -137,22 +172,9 @@ class CenterHeadGroupSbnet(nn.Module):
                     kaiming_normal_(m.weight.data)
                     if hasattr(m, "bias") and m.bias is not None:
                         nn.init.constant_(m.bias, 0)
-
-            #TODO simple hack for now
-            #attr_convs[-1].weight.data[[2,4,5,11,14],...] = 0.
-            #attr_convs[-1].bias.data[[2,4,5,11,14],...] = 0.
+            attr_convs[-1].init_kaiming()
 
             self.det_heads.append(attr_convs)
-
-        name_ind_dict = {}
-        for conv_idx, conv_name in enumerate(attr_conv_names):
-            tmp1 = conv_idx * attr_max_ch
-            # BEWARE OF ORDER
-            name_ind_dict[conv_name] = (tmp1, tmp1 + attr_outp_channels[conv_idx])
-        self.attr_outp_inds = name_ind_dict
-
-        print('Attribute output indices:', self.attr_outp_inds)
-        #############
 
         self.predict_boxes_when_training = predict_boxes_when_training
         self.forward_ret_dict = {}
@@ -466,8 +488,7 @@ class CenterHeadGroupSbnet(nn.Module):
         shr_conv_outp_nchw = shr_conv_outp.permute(0,3,1,2).contiguous()
         heatmaps = self.heatmap_convs(shr_conv_outp_nchw)
 
-        pred_dicts = [{'hm' : heatmaps[:, inds[0]:inds[1]]} \
-                for inds in self.heatmap_outp_inds]
+        pred_dicts = [{'hm' : hm} for hm in heatmaps]
 
         # default padding is 1
         pad_size = p = 1
@@ -476,12 +497,12 @@ class CenterHeadGroupSbnet(nn.Module):
         for det_head, pd in zip(self.det_heads, pred_dicts):
             x = shr_conv_outp_nchw
             for m in det_head:
-                if isinstance(m, nn.Conv2d):
+                if isinstance(m, nn.Conv2d) or isinstance(m, AdaptiveGroupConv):
                     x = torch.nn.functional.pad(x, (p,p,p,p))
                 x = m(x)
 
-            for name, inds in self.attr_outp_inds.items():
-                pd[name] = x[:, inds[0]:inds[1], :, :].contiguous()
+            for name, attr in zip(self.attr_conv_names, x):
+                pd[name] = attr
 
         feature_map_size=spatial_features_2d.size()[1:3]
         target_dict = self.assign_targets(
@@ -510,15 +531,13 @@ class CenterHeadGroupSbnet(nn.Module):
 
         # Run heatmap convolutions and gather the actual channels
         shr_conv_outp_nchw = shr_conv_outp.permute(0,3,1,2).contiguous()
-        heatmaps = self.sigmoid(self.heatmap_convs(shr_conv_outp_nchw))
+        heatmaps = self.heatmap_convs(shr_conv_outp_nchw)
         # Convert to NCHW
-        pred_dicts = [{'hm' : heatmaps[:, inds[0]:inds[1]]} \
-                for inds in self.heatmap_outp_inds]
+        pred_dicts = [{'hm' : self.sigmoid(hm)} for hm in heatmaps]
 
         ##########
         # For each heatmap, do slicing and forwarding
         # Every head has a pred dict,
-        # TODO Definetely try cuda streams here
         post_process_cfg = self.model_cfg.POST_PROCESSING
         score_thres = post_process_cfg.SCORE_THRESH
         p = pad_size = self.slice_size//2
@@ -559,16 +578,15 @@ class CenterHeadGroupSbnet(nn.Module):
             indices = torch.stack((b_id_cat, ys_cat.short(), xs_cat.short()), dim=1)
             slices = cuda_slicer.slice_and_batch_nhwc(padded_x, indices, self.slice_size)
             outp = det_head(slices)
+
             # finally, split the output according to the batches they belong
-            for name, inds in self.attr_outp_inds.items():
-                #turn it to (num_slices x C) from (num_slices x C x 1 x 1)
-                outp_slices = outp[:, inds[0]:inds[1]].flatten(-3)
+            for name, attr in zip(self.attr_conv_names, outp):
+                outp_slices = attr.flatten(-3)
                 outp_slices_split, idx = [], 0
                 for num_slc in num_slc_per_batch:
                     outp_slices_split.append(outp_slices[idx:(idx+num_slc)])
                     idx += num_slc
                 pd[name] = outp_slices_split
-
         #self.forward_ret_dict['pred_dicts'] = pred_dicts
 
         pred_dicts = self.generate_predicted_boxes_eval(
