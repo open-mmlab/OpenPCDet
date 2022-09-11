@@ -123,6 +123,7 @@ if __name__ == '__main__':
                 sources=[
                     'src/slice_and_batch.cpp',
                     'src/slice_and_batch_cuda.cu',
+                    'src/slice_and_batch_nhwc_cuda.cu',
                 ],
             ),
             make_cuda_ext(
