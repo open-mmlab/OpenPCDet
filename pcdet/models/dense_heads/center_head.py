@@ -14,21 +14,23 @@ class SeparateHead(nn.Module):
         self.sep_head_dict = sep_head_dict
 
         group_convs = []
-        num_convs = [self.sep_head_dict[cur_name]['num_conv'] for cur_name in self.sep_head_dict]
-        while all(np.array(num_convs)>1):
-            # Use group convolution
-            grp_inp_channels = len(self.sep_head_dict) * input_channels
-            group_convs.append(nn.Sequential(
-                nn.Conv2d(grp_inp_channels, grp_inp_channels, kernel_size=3, stride=1, padding=1,
-                    bias=use_bias, groups=len(self.sep_head_dict)),
-                nn.BatchNorm2d(grp_inp_channels),
-                nn.ReLU()
-            ))
-            num_convs = []
-            for cur_name in self.sep_head_dict:
-                nc = self.sep_head_dict[cur_name]['num_conv'] -1
-                num_convs.append(nc)
-                self.sep_head_dict[cur_name]['num_conv'] = nc
+        disable_group_conv = True
+        if not disable_group_conv:
+            num_convs = [self.sep_head_dict[cur_name]['num_conv'] for cur_name in self.sep_head_dict]
+            while all(np.array(num_convs)>1):
+                # Use group convolution
+                grp_inp_channels = len(self.sep_head_dict) * input_channels
+                group_convs.append(nn.Sequential(
+                    nn.Conv2d(grp_inp_channels, grp_inp_channels, kernel_size=3, stride=1, padding=1,
+                        bias=use_bias, groups=len(self.sep_head_dict)),
+                    nn.BatchNorm2d(grp_inp_channels),
+                    nn.ReLU()
+                ))
+                num_convs = []
+                for cur_name in self.sep_head_dict:
+                    nc = self.sep_head_dict[cur_name]['num_conv'] -1
+                    num_convs.append(nc)
+                    self.sep_head_dict[cur_name]['num_conv'] = nc
 
         gc_len = len(group_convs)
         if gc_len > 1:
@@ -61,6 +63,8 @@ class SeparateHead(nn.Module):
                             nn.init.constant_(m.bias, 0)
 
             self.__setattr__(cur_name, fc)
+
+        print(self)
 
     def forward(self, x):
         ret_dict = {}

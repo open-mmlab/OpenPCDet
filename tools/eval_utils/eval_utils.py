@@ -9,6 +9,8 @@ import gc
 from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
+speed_test=False
+
 visualize=False
 if visualize:
     import open3d
@@ -76,17 +78,22 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     # Forward once for initialization and calibration
     if 'calibrate' in dir(model):
         with torch.no_grad():
+            #torch.cuda.cudart().cudaProfilerStop()
             model.calibrate()
+            #torch.cuda.cudart().cudaProfilerStart()
+            print("Calibration complete.")
 
-    if cfg.LOCAL_RANK == 0:
-        progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
 
     start_time = time.time()
     gc.disable()
     # Currently, batch size of 1 is supported only
     #if cfg.MODEL.get('DEADLINE_SEC', None) is not None:
     #    dl = float(cfg.MODEL.DEADLINE_SEC)
-    for i in range(len(dataset)):
+    global speed_test
+    num_samples = 100 if speed_test and len(dataset) >= 100 else len(dataset)
+    if cfg.LOCAL_RANK == 0:
+        progress_bar = tqdm.tqdm(total=num_samples, leave=True, desc='eval', dynamic_ncols=True)
+    for i in range(num_samples):
         with torch.no_grad():
             batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
         #            {'deadline_sec':dl})
@@ -132,6 +139,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         return {}
 
     model.print_time_stats()
+
+    if speed_test:
+        return {}
 
     ret_dict = {}
     if dist_test:
