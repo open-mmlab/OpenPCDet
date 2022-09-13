@@ -30,6 +30,7 @@ class BaseBEVBackboneSbnet(nn.Module):
         self.deblocks = nn.ModuleList()
         kernel_size=3
         self.tcount=self.model_cfg.TILE_COUNT
+        chain_masks = self.model_cfg.get('SBNET_BLOCK_CHAIN_MASKS', [None]*num_levels)
         for idx in range(num_levels):
             cur_layers = [
                 SparseBlock_Conv2d_BN_ReLU(c_in_list[idx], num_filters[idx], kernel_size,
@@ -42,7 +43,7 @@ class BaseBEVBackboneSbnet(nn.Module):
                         bias=False, bn_eps=1e-3, bn_momentum=0.01,
                         bcount=self.tcount, transpose=True)
                 )
-            sbcc = SparseBlock_ConvChain()
+            sbcc = SparseBlock_ConvChain(chain_masks[idx])
             for l in cur_layers:
                 sbcc.append_conv(l)
             self.blocks.append(sbcc)
@@ -83,14 +84,15 @@ class BaseBEVBackboneSbnet(nn.Module):
         """
 
         ups = []
-        ret_dict = {}
+        #ret_dict = {}
         data_dict['sbnet_x'] = data_dict['spatial_features']
         for i in range(len(self.blocks)):
             #torch.cuda.nvtx.range_push(f'Block_{i+1}')
             data_dict = self.blocks[i](data_dict)
             data_dict['sbnet_x'] = data_dict['sbnet_y']
-            #stride = int(spatial_features.shape[2] / x.shape[2])
-            #ret_dict['spatial_features_%dx' % stride] = x
+            #if self.training:
+            #    stride = int(spatial_features.shape[2] / x.shape[2])
+            #    ret_dict['spatial_features_%dx' % stride] = x
             #torch.cuda.nvtx.range_pop()
             #torch.cuda.nvtx.range_push(f'Deblock_{i+1}')
             if len(self.deblocks) > 0:
@@ -99,14 +101,15 @@ class BaseBEVBackboneSbnet(nn.Module):
             #torch.cuda.nvtx.range_pop()
 
         if len(ups) > 1:
-            x = torch.cat(ups, dim=-1)
-        elif len(ups) == 1:
-            x = ups[0]
+            data_dict['sbnet_x'] = torch.cat(ups, dim=-1)
+        else:
+            data_dict['sbnet_x'] = ups[0]
 
         if len(self.deblocks) > len(self.blocks):
             data_dict = self.deblocks[-1](data_dict)
+        else:
+            data_dict['sbnet_y'] = data_dict['sbnet_x']
 
-        # NOTE if centerhead is going to use sbnet, do not do this here!
-        data_dict['spatial_features_2d'] = data_dict['sbnet_y'].permute(0,3,1,2).contiguous()
+        data_dict['spatial_features_2d'] = data_dict['sbnet_y']
 
         return data_dict

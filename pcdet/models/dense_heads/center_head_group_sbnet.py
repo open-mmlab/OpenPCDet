@@ -6,8 +6,9 @@ from torch.nn.init import kaiming_normal_
 from ..model_utils import model_nms_utils
 from ..model_utils import centernet_utils
 from ...utils import loss_utils
+from ...ops.cuda_slicer import cuda_slicer
 
-from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, SparseBlock_Conv2d
+from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, SparseBlock_Conv2d, SparseBlock_ConvChain
 import time
 
 class CenterHeadGroupSbnet(nn.Module):
@@ -21,10 +22,13 @@ class CenterHeadGroupSbnet(nn.Module):
         self.voxel_size = voxel_size
         self.feature_map_stride = self.model_cfg.TARGET_ASSIGNER_CONFIG.get('FEATURE_MAP_STRIDE', None)
         self.tcount=self.model_cfg.TILE_COUNT # There should be a better way but its fine for now
+        post_process_cfg = self.model_cfg.POST_PROCESSING
+        self.max_obj_per_sample = post_process_cfg.MAX_OBJ_PER_SAMPLE
 
         self.class_names = class_names
         self.class_names_each_head = []
         self.class_id_mapping_each_head = []
+        ksize=3
 
         for cur_class_names in self.model_cfg.CLASS_NAMES_EACH_HEAD:
             self.class_names_each_head.append([x for x in cur_class_names if x in class_names])
@@ -35,12 +39,13 @@ class CenterHeadGroupSbnet(nn.Module):
 
         num_heads = len(self.class_names_each_head)
         total_classes = sum([len(x) for x in self.class_names_each_head])
-        assert total_classes == len(self.class_names), f'class_names_each_head={self.class_names_each_head}'
+        assert total_classes == len(self.class_names), \
+                f'class_names_each_head={self.class_names_each_head}'
         use_bias = self.model_cfg.get('USE_BIAS_BEFORE_NORM', False)
 
         # This is not a group or merged conv
         self.shared_conv = SparseBlock_Conv2d_BN_ReLU(input_channels,
-                self.model_cfg.SHARED_CONV_CHANNEL, 3, stride=1, 
+                self.model_cfg.SHARED_CONV_CHANNEL, ksize, stride=1, 
                 bias=use_bias, bn_eps=1e-05, bn_momentum=0.1,
                 bcount=self.tcount, transpose=True)
 
@@ -54,7 +59,7 @@ class CenterHeadGroupSbnet(nn.Module):
         outp_channels, groups = inp_channels * num_heads, 1
         for k in range(self.model_cfg.NUM_HM_CONV - 1):
             hm_list.append(SparseBlock_Conv2d_BN_ReLU(inp_channels, outp_channels,
-                kernel_size=3, stride=1, groups=groups, norm_groups=num_heads,
+                kernel_size=ksize, stride=1, groups=groups, norm_groups=num_heads,
                 bias=use_bias, bcount=self.tcount, transpose=True))
             if k == 0:
                 inp_channels = outp_channels
@@ -66,62 +71,75 @@ class CenterHeadGroupSbnet(nn.Module):
         hm_outp_channels = [len(cur_class_names) for cur_class_names in self.class_names_each_head]
         hm_max_ch = max(hm_outp_channels)
         hm_total_outp_channels = hm_max_ch * num_heads
-        hm_list.append(SparseBlock_Conv2d(outp_channels, hm_total_outp_channels, kernel_size=3, 
+        hm_list.append(SparseBlock_Conv2d(outp_channels, hm_total_outp_channels, kernel_size=ksize,
             stride=1, groups=groups, bias=True, bcount=self.tcount, transpose=True))
-        self.heatmap_convs = nn.Sequential(*hm_list)
-        self.heatmap_convs[-1].fill_bias(-2.19)
+        hm_list[-1].fill_bias(-2.19)
+        if len(hm_list) > 1:
+            chain_mask = self.model_cfg.get('SBNET_HM_CHAIN_MASK', None)
+            self.heatmap_convs = SparseBlock_ConvChain(chain_mask)
+            for hm_conv in hm_list:
+                self.heatmap_convs.append_conv(hm_conv)
+        else:
+            self.heatmap_convs = nn.Sequential(*hm_list)
         self.heatmap_outp_inds = [(i*hm_max_ch, i*hm_max_ch+ch) \
                 for i, ch in enumerate(hm_outp_channels)]
         # The channels that fall outside of these indices are useless, don't train their filters
         print('Heatmap output indices:', self.heatmap_outp_inds)
 
-        # Now we need to merge all attribute convolutions of all heads... crazy!
-        attr_list = []
+        # Now, we need seperate merged conv and group conv for each head because their inputs
+        # will be different.
         self.separate_head_cfg = self.model_cfg.SEPARATE_HEAD_CFG
         head_dict = self.separate_head_cfg.HEAD_DICT
         num_convs = [v['num_conv'] for v in head_dict.values()]
         assert all([num_convs[0] == nc for nc in num_convs])
         num_convs = num_convs[0]
 
-        inp_channels = self.model_cfg.SHARED_CONV_CHANNEL
-        outp_channels, groups = inp_channels * num_heads * len(head_dict), 1
-
-        # For now, use sparse conv for this one as well, later, we might try some slicing
-        for k in range(num_convs - 1):
-            attr_list.append(SparseBlock_Conv2d_BN_ReLU(inp_channels, outp_channels,
-                kernel_size=3, stride=1, groups=groups,norm_groups = num_heads * len(head_dict),
-                bias=use_bias, bcount=self.tcount, transpose=True))
-            if k == 0:
-                inp_channels = outp_channels
-                groups = num_heads * len(head_dict)
-
-        if num_convs <= 1:
-            outp_channels = inp_channels
-
         attr_outp_channels = [v['out_channels'] for v in head_dict.values()]
         attr_max_ch = max(attr_outp_channels)
-        attr_total_outp_channels = attr_max_ch * len(head_dict) * num_heads
-        attr_list.append(SparseBlock_Conv2d(outp_channels, attr_total_outp_channels, kernel_size=3, 
-            stride=1, groups=groups, bias=True, bcount=self.tcount, transpose=True))
-        self.attr_convs = nn.Sequential(*attr_list)
+        attr_total_outp_channels = attr_max_ch * len(head_dict)
 
-        for m in self.attr_convs.modules():
-            if isinstance(m, nn.Conv2d):
-                print('Conv2d set!')
-                kaiming_normal_(m.weight.data)
-                if hasattr(m, "bias") and m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-        
-        self.attr_outp_inds = []
+        self.det_heads=nn.ModuleList()
         attr_conv_names = self.model_cfg.SEPARATE_HEAD_CFG.HEAD_ORDER
+        self.slice_size = 1
         for head_idx in range(num_heads):
-            name_ind_dict = {}
-            for conv_idx, conv_name in enumerate(attr_conv_names):
-                tmp1 = head_idx * len(head_dict) * attr_max_ch
-                tmp2 = conv_idx * attr_max_ch
-                # BEWARE OF ORDER
-                name_ind_dict[conv_name] = (tmp1 + tmp2, tmp1 + tmp2 + attr_outp_channels[conv_idx])
-            self.attr_outp_inds.append(name_ind_dict)
+            inp_channels = self.model_cfg.SHARED_CONV_CHANNEL
+            outp_channels, groups = inp_channels * len(head_dict), 1
+            attr_list = []
+
+            for k in range(num_convs - 1):
+                attr_list.append(nn.Conv2d(inp_channels, outp_channels, kernel_size=ksize,
+                        stride=1, padding=0, groups=groups, bias=use_bias))
+                attr_list.append(nn.GroupNorm(len(head_dict), outp_channels))
+                attr_list.append(nn.ReLU())
+                if k == 0:
+                    inp_channels = outp_channels
+                    groups = len(head_dict)
+                if head_idx == 0:
+                    self.slice_size = (self.slice_size-1) + ksize
+
+            if num_convs <= 1:
+                outp_channels = inp_channels
+
+            attr_list.append(nn.Conv2d(outp_channels, attr_total_outp_channels,
+                kernel_size=ksize, stride=1, padding=0, groups=groups, bias=True))
+            attr_convs = nn.Sequential(*attr_list)
+            if head_idx == 0:
+                self.slice_size = (self.slice_size-1) + ksize
+
+            for m in attr_convs.modules():
+                if isinstance(m, nn.Conv2d):
+                    kaiming_normal_(m.weight.data)
+                    if hasattr(m, "bias") and m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
+
+            self.det_heads.append(attr_convs)
+
+        name_ind_dict = {}
+        for conv_idx, conv_name in enumerate(attr_conv_names):
+            tmp1 = conv_idx * attr_max_ch
+            # BEWARE OF ORDER
+            name_ind_dict[conv_name] = (tmp1, tmp1 + attr_outp_channels[conv_idx])
+        self.attr_outp_inds = name_ind_dict
 
         print('Attribute output indices:', self.attr_outp_inds)
         #############
@@ -337,6 +355,71 @@ class CenterHeadGroupSbnet(nn.Module):
 
         return ret_dict
 
+    # give topk_outps to this guy if it is available!
+    def generate_predicted_boxes_eval(self, batch_size, pred_dicts):
+        post_process_cfg = self.model_cfg.POST_PROCESSING
+        post_center_limit_range = torch.tensor(post_process_cfg.POST_CENTER_LIMIT_RANGE).cuda().float()
+
+        ret_dict = [{
+            'pred_boxes': [],
+            'pred_scores': [],
+            'pred_labels': [],
+        } for k in range(batch_size)]
+        for idx, pred_dict in enumerate(pred_dicts):
+            # this loop runs only once for kitti but multiple times for nuscenes (single vs multihead)
+            if 'topk_outp' in pred_dict:
+                batch_hm = pred_dict['hm']
+            else:
+                batch_hm = pred_dict['hm'].sigmoid()
+            batch_center = pred_dict['center']
+            batch_center_z = pred_dict['center_z']
+            batch_dim = [d.exp() for d in pred_dict['dim']]
+
+            # This part might not work
+            #batch_rot_cos = pred_dict['rot'][:, 0].unsqueeze(dim=1)
+            #batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1)
+            batch_rot_cos = [r[..., 0].unsqueeze(dim=-1) for r in pred_dict['rot']]
+            batch_rot_sin = [r[..., 1].unsqueeze(dim=-1) for r in pred_dict['rot']]
+
+            batch_vel = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
+
+            final_pred_dicts = centernet_utils.decode_bbox_from_heatmap_sliced(
+                heatmap=batch_hm, rot_cos=batch_rot_cos, rot_sin=batch_rot_sin,
+                center=batch_center, center_z=batch_center_z, dim=batch_dim, vel=batch_vel,
+                point_cloud_range=self.point_cloud_range, voxel_size=self.voxel_size,
+                feature_map_stride=self.feature_map_stride,
+                K=post_process_cfg.MAX_OBJ_PER_SAMPLE,
+                circle_nms=(post_process_cfg.NMS_CONFIG.NMS_TYPE == 'circle_nms'),
+                score_thresh=post_process_cfg.SCORE_THRESH,
+                post_center_limit_range=post_center_limit_range,
+                topk_outp=(pred_dict['topk_outp'] if 'topk_outp' in pred_dict else None)
+            )
+
+            for k, final_dict in enumerate(final_pred_dicts):
+                final_dict['pred_labels'] = self.class_id_mapping_each_head[idx][final_dict['pred_labels'].long()]
+                if post_process_cfg.NMS_CONFIG.NMS_TYPE != 'circle_nms':
+                    selected, selected_scores = model_nms_utils.class_agnostic_nms(
+                        box_scores=final_dict['pred_scores'], box_preds=final_dict['pred_boxes'],
+                        nms_config=post_process_cfg.NMS_CONFIG,
+                        score_thresh=None
+                    )
+
+                    final_dict['pred_boxes'] = final_dict['pred_boxes'][selected]
+                    final_dict['pred_scores'] = selected_scores
+                    final_dict['pred_labels'] = final_dict['pred_labels'][selected]
+
+                ret_dict[k]['pred_boxes'].append(final_dict['pred_boxes'])
+                ret_dict[k]['pred_scores'].append(final_dict['pred_scores'])
+                ret_dict[k]['pred_labels'].append(final_dict['pred_labels'])
+
+        for k in range(batch_size):
+            ret_dict[k]['pred_boxes'] = torch.cat(ret_dict[k]['pred_boxes'], dim=0)
+            ret_dict[k]['pred_scores'] = torch.cat(ret_dict[k]['pred_scores'], dim=0)
+            ret_dict[k]['pred_labels'] = torch.cat(ret_dict[k]['pred_labels'], dim=0) + 1
+
+        return ret_dict
+
+
     @staticmethod
     def reorder_rois_for_refining(batch_size, pred_dicts):
         num_max_rois = max([len(cur_dict['pred_boxes']) for cur_dict in pred_dicts])
@@ -356,55 +439,128 @@ class CenterHeadGroupSbnet(nn.Module):
         return rois, roi_scores, roi_labels
 
     def forward(self, data_dict):
-        spatial_features_2d = data_dict['spatial_features_2d']
-        reduce_mask = data_dict['reduce_mask']
+        if not self.training:
+            return self.forward_eval(data_dict)
+        else:
+            return self.forward_train(data_dict)
 
-        #torch.cuda.synchronize()
-        #t1=time.time()
-        if not spatial_features_2d.is_contiguous(memory_format=torch.channels_last):
-            spatial_features_2d = spatial_features_2d.to(memory_format=torch.channels_last)
+    def forward_train(self, data_dict):
+        data_dict['sbnet_x'] = data_dict['spatial_features_2d']
+        data_dict = self.shared_conv(data_dict)
+        shr_conv_outp = data_dict['sbnet_y']
 
-        x, _ = self.shared_conv((spatial_features_2d, reduce_mask))
+        data_dict['sbnet_x'] = shr_conv_outp
+        data_dict = self.heatmap_convs(data_dict)
+        heatmaps = data_dict['sbnet_y']
 
-        #NOTE the conversions to contigous format might be unnecessary
-        # Run heatmap convolutions and gather the actual channels
-        heatmaps, _ = self.heatmap_convs((x, reduce_mask))
-        heatmaps = heatmaps.to(memory_format=torch.contiguous_format)
-        pred_dicts = [{'hm' : heatmaps[:, inds[0]:inds[1]]} \
+        pred_dicts = [{'hm' : heatmaps[..., inds[0]:inds[1]].permute(0,3,1,2).contiguous()} \
                 for inds in self.heatmap_outp_inds]
 
-        # Run rest of the convolutions and gather the actual channels
-        attributes, _ = self.attr_convs((x, reduce_mask))
-        attributes = attributes.to(memory_format=torch.contiguous_format)
-        for pd, inds_dict in zip(pred_dicts, self.attr_outp_inds):
-            for name, inds in inds_dict.items():
-                pd[name] = attributes[:, inds[0]:inds[1]]
+        # default padding is 1
+        pad_size = p = 1
+        # Change is to NCHW
+        padded_x = torch.nn.functional.pad(shr_conv_outp, \
+                (0,0,p,p,p,p)).permute(0,3,1,2).contiguous()
 
-        #torch.cuda.synchronize()
-        #t2=time.time()
-        #print('Convolutions time:', round((t2-t1)*1000,3), 'ms')
-        if self.training:
-            target_dict = self.assign_targets(
-                data_dict['gt_boxes'], feature_map_size=spatial_features_2d.size()[2:],
-                feature_map_stride=data_dict.get('spatial_features_2d_strides', None)
-            )
-            self.forward_ret_dict['target_dicts'] = target_dict
+        # Forward through all heads one by one
+        for det_head, pd in zip(self.det_heads, pred_dicts):
+            x = padded_x
+            for m in det_head.modules():
+                if isinstance(m, nn.Conv2d):
+                    x = torch.nn.functional.pad(x, \
+                            (0,0,p,p,p,p)).permute(0,3,1,2).contiguous()
+                x = m(x)
 
+            for name, inds in self.attr_outp_inds.items():
+                pd[name] = outp[:, inds[0]:inds[1], :, :]
+
+        target_dict = self.assign_targets(
+            data_dict['gt_boxes'], feature_map_size=spatial_features_2d.size()[2:],
+            feature_map_stride=data_dict.get('spatial_features_2d_strides', None)
+        )
+        self.forward_ret_dict['target_dicts'] = target_dict
         self.forward_ret_dict['pred_dicts'] = pred_dicts
 
-        if not self.training or self.predict_boxes_when_training:
+        if self.predict_boxes_when_training:
             pred_dicts = self.generate_predicted_boxes(
                 data_dict['batch_size'], pred_dicts
             )
+            rois, roi_scores, roi_labels = self.reorder_rois_for_refining(data_dict['batch_size'], pred_dicts)
+            data_dict['rois'] = rois
+            data_dict['roi_scores'] = roi_scores
+            data_dict['roi_labels'] = roi_labels
+            data_dict['has_class_labels'] = True
 
-            if self.predict_boxes_when_training:
-                rois, roi_scores, roi_labels = self.reorder_rois_for_refining(data_dict['batch_size'], pred_dicts)
-                data_dict['rois'] = rois
-                data_dict['roi_scores'] = roi_scores
-                data_dict['roi_labels'] = roi_labels
-                data_dict['has_class_labels'] = True
-            else:
-                data_dict['final_box_dicts'] = pred_dicts
+        return data_dict
+
+    def forward_eval(self, data_dict):
+        data_dict['sbnet_x'] = data_dict['spatial_features_2d']
+
+        data_dict = self.shared_conv(data_dict)
+        shr_conv_outp = data_dict['sbnet_y']
+
+        # Run heatmap convolutions and gather the actual channels
+        data_dict['sbnet_x'] = shr_conv_outp
+        data_dict = self.heatmap_convs(data_dict)
+        heatmaps = self.sigmoid(data_dict['sbnet_y'])
+        # Convert to NCHW
+        pred_dicts = [{'hm' : heatmaps[..., inds[0]:inds[1]].permute(0,3,1,2).contiguous()} \
+                for inds in self.heatmap_outp_inds]
+
+        ##########
+        # For each heatmap, do slicing and forwarding
+        # Every head has a pred dict,
+        # TODO Definetely try cuda streams here
+        post_process_cfg = self.model_cfg.POST_PROCESSING
+        score_thres = post_process_cfg.SCORE_THRESH
+        pad_size = self.slice_size//2
+        for det_head, pd in zip(self.det_heads, pred_dicts):
+            heatmap = pd['hm']
+            topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
+                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample)
+
+            final_outputs, topk_outp, batch_id_tensors = [], [], []
+
+            masks = topk_score > score_thres
+            # This loop runs for each batch
+            for scores, inds, classes, ys, xs, mask in zip(\
+                    topk_score, topk_inds, topk_classes, topk_ys, topk_xs, masks):
+                # IDK if this mask ig going to make it slower a lot
+                scores, inds, classes, ys, xs = \
+                        scores[mask], inds[mask], classes[mask], ys[mask], xs[mask]
+                batch_id_tensors.append(torch.full((scores.size(0),),
+                    len(batch_id_tensors), dtype=torch.short, device=scores.device))
+                topk_outp.append((scores, inds, classes, ys, xs))
+
+            pd['topk_outp'] = topk_outp
+
+            # Slice for all batches
+            num_slc_per_batch = [t.size(0) for t in batch_id_tensors]
+            b_id_cat = torch.cat(batch_id_tensors)
+            ys_cat = torch.cat([to[3] for to in topk_outp]) + pad_size
+            xs_cat = torch.cat([to[4] for to in topk_outp]) + pad_size
+            indices = torch.stack((b_id_cat, ys_cat.short(), xs_cat.short()), dim=1)
+            p = pad_size
+            padded_x = torch.nn.functional.pad(shr_conv_outp, (0,0,p,p,p,p))
+            slices = cuda_slicer.slice_and_batch_nhwc(padded_x, indices, self.slice_size)
+            outp = det_head(slices)
+
+            # finally, split the output according to the batches they belong
+            for name, inds in self.attr_outp_inds.items():
+                #turn it to (num_slices x C) from (num_slices x C x 1 x 1)
+                outp_slices = outp[:, inds[0]:inds[1]].flatten(-3)
+                outp_slices_split, idx = [], 0
+                for num_slc in num_slc_per_batch:
+                    outp_slices_split.append(outp_slices[idx:(idx+num_slc),:])
+                    idx += num_slc
+                pd[name] = outp_slices_split
+
+        self.forward_ret_dict['pred_dicts'] = pred_dicts
+
+        pred_dicts = self.generate_predicted_boxes_eval(
+            data_dict['batch_size'], pred_dicts
+        )
+        data_dict['final_box_dicts'] = pred_dicts
 
         return data_dict
 

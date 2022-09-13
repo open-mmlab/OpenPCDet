@@ -2,7 +2,7 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
               'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_mini_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
     POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
 
     DATA_AUGMENTOR:
@@ -82,9 +82,10 @@ MODEL:
         NUM_FILTERS: [128, 256]
         UPSAMPLE_STRIDES: [1, 2]
         NUM_UPSAMPLE_FILTERS: [256, 256]
+        SBNET_BLOCK_CHAIN_MASKS: [18, 31]
 
     DENSE_HEAD:
-        NAME: CenterHead
+        NAME: CenterHeadGroupSbnet
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
@@ -99,6 +100,7 @@ MODEL:
         SHARED_CONV_CHANNEL: 64
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
+        SBNET_HM_CHAIN_MASK: 0
         SEPARATE_HEAD_CFG:
             HEAD_ORDER: ['center', 'center_z', 'dim', 'rot', 'vel']
             HEAD_DICT: {

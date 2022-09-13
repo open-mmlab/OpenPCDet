@@ -6,6 +6,7 @@ class CenterPointAnytime(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.model_cfg.BACKBONE_2D.TILE_COUNT = self.model_cfg.TILE_COUNT
+        self.model_cfg.DENSE_HEAD.TILE_COUNT = self.model_cfg.TILE_COUNT
         self.module_list = self.build_networks()
         torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
