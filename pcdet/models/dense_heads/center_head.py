@@ -13,6 +13,31 @@ class SeparateHead(nn.Module):
         super().__init__()
         self.sep_head_dict = sep_head_dict
 
+        group_convs = []
+        num_convs = [self.sep_head_dict[cur_name]['num_conv'] for cur_name in self.sep_head_dict]
+        while all(np.array(num_convs)>1):
+            # Use group convolution
+            grp_inp_channels = len(self.sep_head_dict) * input_channels
+            group_convs.append(nn.Sequential(
+                nn.Conv2d(grp_inp_channels, grp_inp_channels, kernel_size=3, stride=1, padding=1,
+                    bias=use_bias, groups=len(self.sep_head_dict)),
+                nn.BatchNorm2d(grp_inp_channels),
+                nn.ReLU()
+            ))
+            num_convs = []
+            for cur_name in self.sep_head_dict:
+                nc = self.sep_head_dict[cur_name]['num_conv'] -1
+                num_convs.append(nc)
+                self.sep_head_dict[cur_name]['num_conv'] = nc
+
+        gc_len = len(group_convs)
+        if gc_len > 1:
+            self.group_convs = nn.Sequential(*group_convs)
+        elif gc_len == 1:
+            self.group_convs = group_convs[0]
+        else:
+            self.group_convs = None
+
         for cur_name in self.sep_head_dict:
             output_channels = self.sep_head_dict[cur_name]['out_channels']
             num_conv = self.sep_head_dict[cur_name]['num_conv']
@@ -39,8 +64,16 @@ class SeparateHead(nn.Module):
 
     def forward(self, x):
         ret_dict = {}
-        for cur_name in self.sep_head_dict:
-            ret_dict[cur_name] = self.__getattr__(cur_name)(x)
+        if self.group_convs is not None:
+            x_dim1_size = x.size()[1]
+            x = x.repeat(1, len(self.sep_head_dict), 1, 1)
+            x = self.group_convs(x)
+            x_list = torch.split(x, x_dim1_size, dim=1)
+            for x, cur_name in zip(x_list, self.sep_head_dict):
+                ret_dict[cur_name] = self.__getattr__(cur_name)(x)
+        else:
+            for cur_name in self.sep_head_dict:
+                ret_dict[cur_name] = self.__getattr__(cur_name)(x)
 
         return ret_dict
 
