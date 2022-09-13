@@ -490,7 +490,7 @@ class WaymoDataset(DatasetTemplate):
             points = self.get_lidar(sequence_name, sample_idx)
 
             if use_sequence_data:
-                points, num_points_all, sample_idx_pre_list = self.get_sequence_data(
+                points, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
                     info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                 )
 
@@ -568,7 +568,7 @@ class WaymoDataset(DatasetTemplate):
         points = self.get_lidar(sequence_name, sample_idx)
 
         if use_sequence_data:
-            points, num_points_all, sample_idx_pre_list = self.get_sequence_data(
+            points, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
                 info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
             )
 
