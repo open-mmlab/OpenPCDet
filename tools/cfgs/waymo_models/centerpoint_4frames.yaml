@@ -3,6 +3,11 @@ CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset_multiframe.yaml
 
+    SAMPLED_INTERVAL: {
+        'train': 1,
+        'test': 1
+    }
+
 MODEL:
     NAME: CenterPoint
 
