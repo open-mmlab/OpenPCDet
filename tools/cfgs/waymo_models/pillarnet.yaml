@@ -7,7 +7,7 @@ MODEL:
     NAME: PillarNet
 
     VFE:
-        NAME: DynamicPillarPFE
+        NAME: DynamicPillarVFESimple2D
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_CLUSTER_XYZ: False

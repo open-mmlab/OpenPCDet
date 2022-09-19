@@ -137,12 +137,12 @@ class DynamicPillarVFE(VFETemplate):
                                    ), dim=1)
         voxel_coords = voxel_coords[:, [0, 3, 2, 1]]
 
-        batch_dict['pillar_features'] = features
+        batch_dict['voxel_features'] = batch_dict['pillar_features'] = features
         batch_dict['voxel_coords'] = voxel_coords
         return batch_dict
 
 
-class DynamicPillarPFE(VFETemplate):
+class DynamicPillarVFESimple2D(VFETemplate):
     def __init__(self, model_cfg, num_point_features, voxel_size, grid_size, point_cloud_range, **kwargs):
         super().__init__(model_cfg=model_cfg)
 
