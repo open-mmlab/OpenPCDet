@@ -27,7 +27,8 @@ __all__ = {
     'PillarNet': PillarNet,
     'PVRCNNPlusPlus': PVRCNNPlusPlus,
     'MPPNet': MPPNet,
-    'MPPNetE2E': MPPNetE2E
+    'MPPNetE2E': MPPNetE2E,
+    'PillarNet': PillarNet
 }
 
 
