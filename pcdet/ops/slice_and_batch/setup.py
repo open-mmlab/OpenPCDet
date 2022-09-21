@@ -1,6 +1,14 @@
-from setuptools import setup, Extension
-from torch.utils import cpp_extension
+from setuptools import setup
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
-setup(name='slice_and_batch',
-      ext_modules=[cpp_extension.CppExtension('slice_and_batch', ['slice_and_batch.cpp'])],
-      cmdclass={'build_ext': cpp_extension.BuildExtension})
+setup(
+    name='slice_and_batch',
+    ext_modules=[
+        CUDAExtension('slice_and_batch_cuda', [
+            'slice_and_batch.cpp',
+            'slice_and_batch_cuda.cu',
+        ])
+    ],
+    cmdclass={
+        'build_ext': BuildExtension
+    })
