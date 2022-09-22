@@ -5,10 +5,9 @@
 
 #include <vector>
 
-// Let each thread copy a line of a slice. For example, a 5x5 slice will be copied by
-// five CUDA threads
+// Jetson AGX Orin has 16 SMs, each can run 1536 threads
 
-// Orin has 16 SMs, each can run 1536 threads
+// Each CUDA thread copies a channel of a slice
 
 // input and output has the same number of channels
 // input= (1 x C x H x W) output (len(slice_indices) x C x slice_size x slice_size)
