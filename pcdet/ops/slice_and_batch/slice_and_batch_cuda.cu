@@ -72,5 +72,3 @@ void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
       outp.data<scalar_t>());
   }));
 }
-
-
