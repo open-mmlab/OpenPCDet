@@ -170,6 +170,9 @@ class CenterHeadGroupSbnet(nn.Module):
         self.forward_ret_dict = {}
         self.build_losses()
 
+        self.det_dict_copy = None
+        self.calibrated = False
+
     def build_losses(self):
         self.add_module('hm_loss_func', loss_utils.FocalLossCenterNet())
         self.add_module('reg_loss_func', loss_utils.RegLossCenterNet())
@@ -437,9 +440,12 @@ class CenterHeadGroupSbnet(nn.Module):
                 ret_dict[k]['pred_labels'].append(final_dict['pred_labels'])
 
         for k in range(batch_size):
-            ret_dict[k]['pred_boxes'] = torch.cat(ret_dict[k]['pred_boxes'], dim=0)
-            ret_dict[k]['pred_scores'] = torch.cat(ret_dict[k]['pred_scores'], dim=0)
-            ret_dict[k]['pred_labels'] = torch.cat(ret_dict[k]['pred_labels'], dim=0) + 1
+            if not ret_dict[k]['pred_boxes']:
+                ret_dict[k] = self.get_empty_det_dict()
+            else:
+                ret_dict[k]['pred_boxes'] = torch.cat(ret_dict[k]['pred_boxes'], dim=0)
+                ret_dict[k]['pred_scores'] = torch.cat(ret_dict[k]['pred_scores'], dim=0)
+                ret_dict[k]['pred_labels'] = torch.cat(ret_dict[k]['pred_labels'], dim=0) + 1
 
         return ret_dict
 
@@ -463,6 +469,8 @@ class CenterHeadGroupSbnet(nn.Module):
         return rois, roi_scores, roi_labels
 
     def forward(self, data_dict):
+        if not self.calibrated:
+            self.calibrate(data_dict)
         if self.training:
             return self.forward_train(data_dict)
         else:
@@ -593,4 +601,22 @@ class CenterHeadGroupSbnet(nn.Module):
         return data_dict
 
     def calibrate(self, data_dict):
-        return self(data_dict) # just forward it
+        self.calibrated = True
+        data_dict = self(data_dict) # just forward it
+
+        det_dict_example = data_dict['final_box_dicts'][0]
+        self.det_dict_copy = {
+            "pred_boxes": torch.zeros([0, det_dict_example["pred_boxes"].size()[1]],
+            dtype=det_dict_example["pred_boxes"].dtype,
+            device=det_dict_example["pred_boxes"].device),
+            "pred_scores": torch.zeros([0], dtype=det_dict_example["pred_scores"].dtype,
+            device=det_dict_example["pred_scores"].device),
+            "pred_labels": torch.zeros([0], dtype=det_dict_example["pred_labels"].dtype,
+            device=det_dict_example["pred_labels"].device),
+        }
+
+    def get_empty_det_dict(self):
+        det_dict = {}
+        for k,v in self.det_dict_copy.items():
+            det_dict[k] = v.clone().detach()
+        return det_dict
