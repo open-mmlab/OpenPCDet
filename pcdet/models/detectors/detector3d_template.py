@@ -676,6 +676,7 @@ class Detector3DTemplate(nn.Module):
 
         # just do a regular forward first
         #data_dict["abs_deadline_sec"] = time.time () + 10.0
+        training = self.training
         self.eval()
         pred_dicts, recall_dict = self([i for i in range(batch_size)]) # this calls forward!
 
@@ -696,5 +697,9 @@ class Detector3DTemplate(nn.Module):
             det = pred_dicts
         self.init_empty_det_dict(det)
 
+        self.clear_stats()
         print('Num params:', sum(p.numel() for p in self.parameters()))
         print('Num params trainable:', sum(p.numel() for p in self.parameters() if p.requires_grad))
+        if training:
+            self.train()
+        return pred_dicts
