@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import numba
-
+import sys
 
 def gaussian_radius(height, width, min_overlap=0.5):
     """
@@ -138,7 +138,7 @@ def _topk(scores, K=40):
 
     topk_scores, topk_inds = torch.topk(scores.flatten(2, 3), K)
 
-    topk_inds = topk_inds % (height * width)
+    topk_inds = topk_inds % (height * width) # this seems like meaningless
     topk_ys = (topk_inds // width).float()
     topk_xs = (topk_inds % width).int().float()
 
@@ -147,13 +147,12 @@ def _topk(scores, K=40):
     topk_inds = _gather_feat(topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_ys = _gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_xs = _gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)
-
     return topk_score, topk_inds, topk_classes, topk_ys, topk_xs
 
 
 def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
                              point_cloud_range=None, voxel_size=None, feature_map_stride=None, vel=None, K=100,
-                             circle_nms=False, score_thresh=None, post_center_limit_range=None):
+                             circle_nms=False, score_thresh=None, post_center_limit_range=None, topk_outp=None):
     batch_size, num_class, _, _ = heatmap.size()
 
     if circle_nms:
@@ -161,7 +160,10 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
         assert False, 'not checked yet'
         heatmap = _nms(heatmap)
 
-    scores, inds, class_ids, ys, xs = _topk(heatmap, K=K)
+    if topk_outp is None:
+        scores, inds, class_ids, ys, xs = _topk(heatmap, K=K)
+    else:
+        (scores, inds, class_ids, ys, xs) = topk_outp
     center = _transpose_and_gather_feat(center, inds).view(batch_size, K, 2)
     rot_sin = _transpose_and_gather_feat(rot_sin, inds).view(batch_size, K, 1)
     rot_cos = _transpose_and_gather_feat(rot_cos, inds).view(batch_size, K, 1)

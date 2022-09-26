@@ -43,10 +43,9 @@ for i in range(11):
         if not torch.equal(slice1, slice2):
             print('Slicing error!', ind, w, h, slice1.size(), slice2.size())
 
-    x = inp.unsqueeze(0)
     torch.cuda.synchronize()
     t1 = time.time()
-    x = torch.nn.functional.conv2d(x, rand_weight1, stride=1, padding=1)
+    x = torch.nn.functional.conv2d(inp.unsqueeze(0), rand_weight1, stride=1, padding=1)
     x = torch.nn.functional.conv2d(x, rand_weight2, stride=1, padding=1)
     torch.cuda.synchronize()
     t2 = time.time()
