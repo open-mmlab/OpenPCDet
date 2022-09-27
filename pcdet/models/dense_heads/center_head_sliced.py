@@ -94,11 +94,12 @@ class SeparateHead(nn.Module):
                         self.slices_tensor)
 
                 # This part could be faster with multiple streams
+                slices = self.slices_tensor[:inds.size(0)]
                 for cur_name in self.sep_head_dict:
                     if cur_name == 'hm':
                         continue
                     with torch.cuda.stream(self.cuda_streams[cur_name]):
-                        sliced_outp = self.__getattr__(cur_name)(self.slices_tensor[:inds.size(0)]).flatten(-2)
+                        sliced_outp = self.__getattr__(cur_name)(slices).flatten(-2)
 
                         # We have the output of all slices. Now we need to scatter them to their
                         # correspoinding batch id and positions
@@ -118,6 +119,8 @@ class SeparateHead(nn.Module):
                 continue
             fwd_dict[cur_name] = torch.cat([fp[cur_name] for fp in final_outputs])
 
+        torch.cuda.synchronize()
+
         return fwd_dict
 
     def forward(self, x):
@@ -136,13 +139,16 @@ class SeparateHead(nn.Module):
         self.outp_tensors={}
         H, W = shr_conv_outp.size(2), shr_conv_outp.size(3)
         for cur_name in self.sep_head_dict:
-            output_channels = self.sep_head_dict[cur_name]['out_channels']
-            self.outp_tensors[cur_name] = torch.zeros((1, output_channels, H * W), dtype=shr_conv_outp.dtype,
-                    device=shr_conv_outp.device)
+            with torch.cuda.stream(self.cuda_streams[cur_name]):
+                output_channels = self.sep_head_dict[cur_name]['out_channels']
+                self.outp_tensors[cur_name] = torch.zeros((1, output_channels, H * W), dtype=shr_conv_outp.dtype,
+                        device=shr_conv_outp.device)
 
-            # Now, I need to invoke different batch sizes of slices for cudnn benchmarking
-            for i in range(1,self.max_obj_per_sample+1):
-                self.__getattr__(cur_name)(self.slices_tensor[:i])
+                # Now, I need to invoke different batch sizes of slices for cudnn benchmarking
+                for i in range(1,self.max_obj_per_sample+1):
+                    self.__getattr__(cur_name)(self.slices_tensor[:i])
+
+            torch.cuda.synchronize()
 
 
 class CenterHead(nn.Module):
@@ -449,8 +455,6 @@ class CenterHead(nn.Module):
 
         for i, head in enumerate(self.heads_list):
             pred_dicts[i] = head.forward_rest_sliced(x_padded, pred_dicts[i])
-
-        torch.cuda.synchronize()
 
         if self.training:
             target_dict = self.assign_targets(
