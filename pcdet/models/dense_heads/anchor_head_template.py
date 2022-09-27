@@ -181,9 +181,7 @@ class AnchorHeadTemplate(nn.Module):
         else:
             anchors = self.anchors
         anchors = anchors.view(1, -1, anchors.shape[-1]).repeat(batch_size, 1, 1)
-        box_preds = box_preds.view(batch_size, -1,
-                                   box_preds.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
-                                   box_preds.shape[-1])
+        box_preds = box_preds.view(batch_size, -1, box_preds.shape[-1] // self.num_anchors_per_location)
         # sin(a - b) = sinacosb-cosasinb
         box_preds_sin, reg_targets_sin = self.add_sin_difference(box_preds, box_reg_targets)
         loc_loss_src = self.reg_loss_func(box_preds_sin, reg_targets_sin, weights=reg_weights)  # [N, M]
