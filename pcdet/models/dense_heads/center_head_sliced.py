@@ -10,6 +10,7 @@ import slice_and_batch_cuda
 import sys
 import IPython
 
+# try multiple streams within the same head and cudnn benchmarking for different batch sizes
 class SeparateHead(nn.Module):
     def __init__(self, input_channels, sep_head_dict, init_bias=-2.19, use_bias=False, 
             post_process_cfg=None):
@@ -21,6 +22,7 @@ class SeparateHead(nn.Module):
         self.kernel_size=3
 
         self.num_conv_per_branch = []
+        self.cuda_streams = {}
         for cur_name in self.sep_head_dict:
             output_channels = self.sep_head_dict[cur_name]['out_channels']
             num_conv = self.sep_head_dict[cur_name]['num_conv']
@@ -44,8 +46,9 @@ class SeparateHead(nn.Module):
                     if isinstance(m, nn.Conv2d):
                         kaiming_normal_(m.weight.data)
                         if hasattr(m, "bias") and m.bias is not None:
-                            nn.init.constant_(m.bias, 0)            
+                            nn.init.constant_(m.bias, 0)
 
+            self.cuda_streams[cur_name] = torch.cuda.Stream()
             self.__setattr__(cur_name, fc)
 
         # This is what we support for now
@@ -56,7 +59,9 @@ class SeparateHead(nn.Module):
         self.pad_size = self.slice_size//2
 
     def forward_heatmap(self, x):
-        return {'hm': self.__getattr__('hm')(x)}
+        #with torch.cuda.stream(self.cuda_streams['hm']):
+        d = {'hm': self.__getattr__('hm')(x)}
+        return d
 
     # Forward rest of the convolutions (the ones other than heatmap) on batches of slices,
     # then scatter them to the output tensor
@@ -70,51 +75,41 @@ class SeparateHead(nn.Module):
             fwd_dict['topk_outp'] = (topk_score, topk_inds, topk_classes, topk_ys, topk_xs)
         else:
             assert False # Not supported yet
-
         # Now we need to individually slice each frame in the batch
         # because shared conv output is different for each of them
         H, W = heatmap.size(-2), heatmap.size(-1)
         final_outputs=[]
+        # This loop runs for each batch
         for scores, inds, shr_conv_outp in zip(topk_score, topk_inds, x):
             tmp_dict={}
-            #WARNING, I COMMENTED THIS PART FOR NOW
-            #if self.score_thres is not None:
-            #    mask = scores > self.score_thres
-            #    inds = torch.masked_select(inds, mask)
+            #WARNING, CALIBRATION MUST BE DONE BEFOREHAND FOR THIS PART TO WORK CORRECTLY
+            if self.score_thres is not None:
+                mask = scores > self.score_thres
+                inds = torch.masked_select(inds, mask)
             if inds.size(0) > 0:
                 # Recalculate the indices for the padded input, div by W and mult by ps and 2
                 inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
                 # Allocate space for slices, could be optimized
-                num_channels = shr_conv_outp.size(0)
-                outp = shr_conv_outp.new_empty((inds_p.size(-1), num_channels, self.slice_size, self.slice_size))
-                slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size, outp)
-
+                slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size, \
+                        self.slices_tensor)
 
                 # This part could be faster with multiple streams
                 for cur_name in self.sep_head_dict:
                     if cur_name == 'hm':
                         continue
-                    # WARNING! Since the batch size here can change for each sample, cudnn
-                    # benchmarking might get invoked for different batch sizes that
-                    # haven't been tested before. We might wanna run that beforehand
-                    # for all possibilities (1 to 500) to avoid unexpected delays
+                    with torch.cuda.stream(self.cuda_streams[cur_name]):
+                        sliced_outp = self.__getattr__(cur_name)(self.slices_tensor[:inds.size(0)]).flatten(-2)
 
-                    # last two dimensions will be just one, flatten the last one
-                    sliced_outp = self.__getattr__(cur_name)(outp).flatten(-2)
-
-                    # We have the output of all slices. Now we need to scatter them to their
-                    # correspoinding batch id and positions
-                    num_outp_channels = sliced_outp.size(1)
-                    final_outp = sliced_outp.new_zeros((1, num_outp_channels, H * W))
-                    final_outp[..., inds] = sliced_outp.permute(2,1,0)
-                    
-                    tmp_dict[cur_name] = final_outp.view(1, num_outp_channels, H, W)
-
+                        # We have the output of all slices. Now we need to scatter them to their
+                        # correspoinding batch id and positions
+                        output_channels = self.sep_head_dict[cur_name]['out_channels']
+                        self.outp_tensors[cur_name][..., inds] = sliced_outp.permute(2,1,0)
+                        tmp_dict[cur_name] = self.outp_tensors[cur_name].view(1, output_channels, H, W)
             else:
                 for cur_name in self.sep_head_dict:
                     if cur_name != 'hm':
-                        num_outp_channels = self.sep_head_dict[cur_name]['out_channels']
-                        tmp_dict[cur_name] = heatmap.new_zeros(1, num_outp_channels, H, W)
+                        output_channels = self.sep_head_dict[cur_name]['out_channels']
+                        tmp_dict[cur_name] = self.outp_tensors[cur_name].view(1, output_channels, H, W)
 
             final_outputs.append(tmp_dict)
 
@@ -125,13 +120,29 @@ class SeparateHead(nn.Module):
 
         return fwd_dict
 
-
     def forward(self, x):
         ret_dict = {}
         for cur_name in self.sep_head_dict:
             ret_dict[cur_name] = self.__getattr__(cur_name)(x)
 
         return ret_dict
+
+    def calibrate(self, shr_conv_outp):
+        # Preallocate space for shared_conv_output slices
+        self.slices_tensor = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
+            self.slice_size, self.slice_size), dtype=shr_conv_outp.dtype, device=shr_conv_outp.device)
+
+        # Preallocate space for outputs
+        self.outp_tensors={}
+        H, W = shr_conv_outp.size(2), shr_conv_outp.size(3)
+        for cur_name in self.sep_head_dict:
+            output_channels = self.sep_head_dict[cur_name]['out_channels']
+            self.outp_tensors[cur_name] = torch.zeros((1, output_channels, H * W), dtype=shr_conv_outp.dtype,
+                    device=shr_conv_outp.device)
+
+            # Now, I need to invoke different batch sizes of slices for cudnn benchmarking
+            for i in range(1,self.max_obj_per_sample+1):
+                self.__getattr__(cur_name)(self.slices_tensor[:i])
 
 
 class CenterHead(nn.Module):
@@ -421,10 +432,8 @@ class CenterHead(nn.Module):
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
         x = self.shared_conv(spatial_features_2d)
-
         pred_dicts = []
-        pred_dicts2 = []
-        
+
         # Do padding prior to convolutions
         x_padded = torch.nn.functional.pad(x, (self.heads_list[0].pad_size,)*4)
 
@@ -437,8 +446,11 @@ class CenterHead(nn.Module):
             pd = head.forward_heatmap(x_padded)
             pd['hm'] = self.sigmoid(pd['hm'])
             pred_dicts.append(pd)
+
         for i, head in enumerate(self.heads_list):
             pred_dicts[i] = head.forward_rest_sliced(x_padded, pred_dicts[i])
+
+        torch.cuda.synchronize()
 
         if self.training:
             target_dict = self.assign_targets(
@@ -464,3 +476,8 @@ class CenterHead(nn.Module):
                 data_dict['final_box_dicts'] = pred_dicts
 
         return data_dict
+
+    def calibrate(self, data_dict):
+        x = self.shared_conv(data_dict['spatial_features_2d'])
+        for head in self.heads_list:
+            head.calibrate(x)

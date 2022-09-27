@@ -14,7 +14,7 @@ class CenterPoint(Detector3DTemplate):
             #pillar
             self.is_voxel_enc=False
             self.vfe, self.map_to_bev, self.backbone_2d, \
-                    self.center_head = self.module_list
+                    self.dense_head = self.module_list
             self.update_time_dict( {
                     'VFE': [],
                     'MapToBEV': [],
@@ -23,7 +23,7 @@ class CenterPoint(Detector3DTemplate):
         else:
             #voxel
             self.vfe, self.backbone_3d, self.map_to_bev, self.backbone_2d, \
-                    self.center_head = self.module_list
+                    self.dense_head = self.module_list
             self.update_time_dict( {
                     'VFE': [],
                     'Backbone3D':[],
@@ -91,3 +91,16 @@ class CenterPoint(Detector3DTemplate):
             )
 
         return final_pred_dict, recall_dict
+
+    def calibrate(self):
+        batch_dict = self.load_data_with_ds_index(0)
+        batch_dict = self.vfe(batch_dict)
+        if self.is_voxel_enc:
+            batch_dict = self.backbone_3d(batch_dict)
+        batch_dict = self.map_to_bev(batch_dict)
+        batch_dict = self.backbone_2d(batch_dict)
+        self.dense_head.calibrate(batch_dict)
+        self.clear_stats()
+
+        # I should't do that first because I need the tensors of center head to be preallocated
+        super().calibrate()
