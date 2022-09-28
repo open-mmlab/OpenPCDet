@@ -9,6 +9,7 @@ from ...utils import loss_utils
 import slice_and_batch_cuda
 import sys
 import IPython
+import time
 
 # try multiple streams within the same head and cudnn benchmarking for different batch sizes
 class SeparateHead(nn.Module):
@@ -22,7 +23,7 @@ class SeparateHead(nn.Module):
         self.kernel_size=3
 
         self.num_conv_per_branch = []
-        self.cuda_streams = {}
+        #self.cuda_streams = {}
         for cur_name in self.sep_head_dict:
             output_channels = self.sep_head_dict[cur_name]['out_channels']
             num_conv = self.sep_head_dict[cur_name]['num_conv']
@@ -48,8 +49,8 @@ class SeparateHead(nn.Module):
                         if hasattr(m, "bias") and m.bias is not None:
                             nn.init.constant_(m.bias, 0)
 
-            self.cuda_streams[cur_name] = torch.cuda.Stream()
             self.__setattr__(cur_name, fc)
+            #self.cuda_streams[cur_name] = torch.cuda.Stream()
 
         # This is what we support for now
         nc0 = self.num_conv_per_branch[0]
@@ -59,7 +60,6 @@ class SeparateHead(nn.Module):
         self.pad_size = self.slice_size//2
 
     def forward_heatmap(self, x):
-        #with torch.cuda.stream(self.cuda_streams['hm']):
         d = {'hm': self.__getattr__('hm')(x)}
         return d
 
@@ -72,7 +72,7 @@ class SeparateHead(nn.Module):
             topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
                     centernet_utils._topk(heatmap, K=self.max_obj_per_sample)
             # save this, we will need it later
-            fwd_dict['topk_outp'] = (topk_score, topk_inds, topk_classes, topk_ys, topk_xs)
+            topk_outp = []
         else:
             assert False # Not supported yet
         # Now we need to individually slice each frame in the batch
@@ -80,46 +80,52 @@ class SeparateHead(nn.Module):
         H, W = heatmap.size(-2), heatmap.size(-1)
         final_outputs=[]
         # This loop runs for each batch
-        for scores, inds, shr_conv_outp in zip(topk_score, topk_inds, x):
+        for scores, inds, classes, ys, xs, shr_conv_outp in zip(
+                topk_score, topk_inds, topk_classes, topk_ys, topk_xs, x):
             tmp_dict={}
             #WARNING, CALIBRATION MUST BE DONE BEFOREHAND FOR THIS PART TO WORK CORRECTLY
             if self.score_thres is not None:
                 mask = scores > self.score_thres
-                inds = torch.masked_select(inds, mask)
+                topk_outp.append([torch.masked_select(t, mask) for t in (scores, inds, classes, ys, xs)])
+                inds = topk_outp[-1][1]
             if inds.size(0) > 0:
+                #torch.cuda.synchronize()
+                #t1 = time.time()
                 # Recalculate the indices for the padded input, div by W and mult by ps and 2
                 inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
-                # Allocate space for slices, could be optimized
+                
+                # Allocate space for slices, preallocating it doesn't really benefit on orin
+                slices = torch.empty((inds_p.size(0), shr_conv_outp.size(0), \
+                    self.slice_size, self.slice_size), dtype=shr_conv_outp.dtype, device=shr_conv_outp.device)
+                
                 slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size, \
-                        self.slices_tensor)
+                        slices)
 
-                # This part could be faster with multiple streams
-                slices = self.slices_tensor[:inds.size(0)]
+                #slices: (num_slices x C x 1 x 1) 
                 for cur_name in self.sep_head_dict:
                     if cur_name == 'hm':
                         continue
-                    with torch.cuda.stream(self.cuda_streams[cur_name]):
-                        sliced_outp = self.__getattr__(cur_name)(slices).flatten(-2)
-
-                        # We have the output of all slices. Now we need to scatter them to their
-                        # correspoinding batch id and positions
-                        output_channels = self.sep_head_dict[cur_name]['out_channels']
-                        self.outp_tensors[cur_name][..., inds] = sliced_outp.permute(2,1,0)
-                        tmp_dict[cur_name] = self.outp_tensors[cur_name].view(1, output_channels, H, W)
+                    tmp_dict[cur_name] = self.__getattr__(cur_name)(slices)
+                #torch.cuda.synchronize()
+                #t2 = time.time()
+                #print(f'{inds.size(0)} slices processing time:', round((t2-t1)*1000,3), 'ms')
             else:
                 for cur_name in self.sep_head_dict:
                     if cur_name != 'hm':
-                        output_channels = self.sep_head_dict[cur_name]['out_channels']
-                        tmp_dict[cur_name] = self.outp_tensors[cur_name].view(1, output_channels, H, W)
+                        tmp_dict[cur_name] = torch.zeros((0,  #self.max_obj_per_sample,
+                            self.sep_head_dict[cur_name]['out_channels'], 1, 1), device=heatmap.device)
 
             final_outputs.append(tmp_dict)
+        fwd_dict['topk_outp'] = topk_outp
+
+        #torch.cuda.synchronize()
 
         for cur_name in self.sep_head_dict:
             if cur_name == 'hm':
                 continue
-            fwd_dict[cur_name] = torch.cat([fp[cur_name] for fp in final_outputs])
+            #turn it to (num_slices x C) from (num_slices x C x 1 x 1)
+            fwd_dict[cur_name] = [fp[cur_name].flatten(-3) for fp in final_outputs]
 
-        torch.cuda.synchronize()
 
         return fwd_dict
 
@@ -132,23 +138,16 @@ class SeparateHead(nn.Module):
 
     def calibrate(self, shr_conv_outp):
         # Preallocate space for shared_conv_output slices
-        self.slices_tensor = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
+        slices_tensor = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
             self.slice_size, self.slice_size), dtype=shr_conv_outp.dtype, device=shr_conv_outp.device)
 
         # Preallocate space for outputs
-        self.outp_tensors={}
         H, W = shr_conv_outp.size(2), shr_conv_outp.size(3)
         for cur_name in self.sep_head_dict:
-            with torch.cuda.stream(self.cuda_streams[cur_name]):
-                output_channels = self.sep_head_dict[cur_name]['out_channels']
-                self.outp_tensors[cur_name] = torch.zeros((1, output_channels, H * W), dtype=shr_conv_outp.dtype,
-                        device=shr_conv_outp.device)
-
+            if cur_name != 'hm':
                 # Now, I need to invoke different batch sizes of slices for cudnn benchmarking
                 for i in range(1,self.max_obj_per_sample+1):
-                    self.__getattr__(cur_name)(self.slices_tensor[:i])
-
-            torch.cuda.synchronize()
+                    self.__getattr__(cur_name)(slices_tensor[:i])
 
 
 class CenterHead(nn.Module):
@@ -376,9 +375,14 @@ class CenterHead(nn.Module):
                 batch_hm = pred_dict['hm'].sigmoid()
             batch_center = pred_dict['center']
             batch_center_z = pred_dict['center_z']
-            batch_dim = pred_dict['dim'].exp()
-            batch_rot_cos = pred_dict['rot'][:, 0].unsqueeze(dim=1)
-            batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1)
+            batch_dim = [d.exp() for d in pred_dict['dim']]
+
+            # This part might not work
+            #batch_rot_cos = pred_dict['rot'][:, 0].unsqueeze(dim=1)
+            #batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1)
+            batch_rot_cos = [r[..., 0].unsqueeze(dim=-1) for r in pred_dict['rot']]
+            batch_rot_sin = [r[..., 1].unsqueeze(dim=-1) for r in pred_dict['rot']]
+
             batch_vel = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
 
             final_pred_dicts = centernet_utils.decode_bbox_from_heatmap(
@@ -454,7 +458,9 @@ class CenterHead(nn.Module):
             pred_dicts.append(pd)
 
         for i, head in enumerate(self.heads_list):
+            torch.cuda.nvtx.range_push('Forward_rest_sliced')
             pred_dicts[i] = head.forward_rest_sliced(x_padded, pred_dicts[i])
+            torch.cuda.nvtx.range_pop()
 
         if self.training:
             target_dict = self.assign_targets(

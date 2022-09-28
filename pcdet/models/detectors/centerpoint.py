@@ -6,7 +6,11 @@ class CenterPoint(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
+        # Enabling benchmark gives a small boost (5ms)
         torch.backends.cudnn.benchmark = True
+        # Enabling these doesnt speed up...
+        #torch.backends.cuda.matmul.allow_tf32 = True
+        #torch.backends.cudnn.allow_tf32 = True
         torch.cuda.manual_seed(0)
         self.is_voxel_enc=True
 

@@ -155,64 +155,38 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
                              circle_nms=False, score_thresh=None, post_center_limit_range=None, topk_outp=None):
     batch_size, num_class, _, _ = heatmap.size()
 
+    assert topk_outp is not None
+
     if circle_nms:
         # TODO: not checked yet
         assert False, 'not checked yet'
         heatmap = _nms(heatmap)
 
-    if topk_outp is None:
-        scores, inds, class_ids, ys, xs = _topk(heatmap, K=K)
-    else:
-        (scores, inds, class_ids, ys, xs) = topk_outp
-    center = _transpose_and_gather_feat(center, inds).view(batch_size, K, 2)
-    rot_sin = _transpose_and_gather_feat(rot_sin, inds).view(batch_size, K, 1)
-    rot_cos = _transpose_and_gather_feat(rot_cos, inds).view(batch_size, K, 1)
-    center_z = _transpose_and_gather_feat(center_z, inds).view(batch_size, K, 1)
-    dim = _transpose_and_gather_feat(dim, inds).view(batch_size, K, 3)
-
-    angle = torch.atan2(rot_sin, rot_cos)
-    xs = xs.view(batch_size, K, 1) + center[:, :, 0:1]
-    ys = ys.view(batch_size, K, 1) + center[:, :, 1:2]
-
-    xs = xs * feature_map_stride * voxel_size[0] + point_cloud_range[0]
-    ys = ys * feature_map_stride * voxel_size[1] + point_cloud_range[1]
-
-    box_part_list = [xs, ys, center_z, dim, angle]
-    if vel is not None:
-        vel = _transpose_and_gather_feat(vel, inds).view(batch_size, K, 2)
-        box_part_list.append(vel)
-
-    final_box_preds = torch.cat((box_part_list), dim=-1)
-    final_scores = scores.view(batch_size, K)
-    final_class_ids = class_ids.view(batch_size, K)
-
-    assert post_center_limit_range is not None
-    mask = (final_box_preds[..., :3] >= post_center_limit_range[:3]).all(2)
-    mask &= (final_box_preds[..., :3] <= post_center_limit_range[3:]).all(2)
-
-    if score_thresh is not None:
-        mask &= (final_scores > score_thresh)
-
     ret_pred_dicts = []
     for k in range(batch_size):
-        cur_mask = mask[k]
-        cur_boxes = final_box_preds[k, cur_mask]
-        cur_scores = final_scores[k, cur_mask]
-        cur_labels = final_class_ids[k, cur_mask]
+        (scores, inds, class_ids, ys, xs) = topk_outp[k]
 
-        if circle_nms:
-            assert False, 'not checked yet'
-            centers = cur_boxes[:, [0, 1]]
-            boxes = torch.cat((centers, scores.view(-1, 1)), dim=1)
-            keep = _circle_nms(boxes, min_radius=min_radius, post_max_size=nms_post_max_size)
+        angle = torch.atan2(rot_sin[k], rot_cos[k])
+        xs += center[k][:, 0]
+        ys += center[k][:, 1]
 
-            cur_boxes = cur_boxes[keep]
-            cur_scores = cur_scores[keep]
-            cur_labels = cur_labels[keep]
+        xs = xs * feature_map_stride * voxel_size[0] + point_cloud_range[0]
+        ys = ys * feature_map_stride * voxel_size[1] + point_cloud_range[1]
+
+        box_part_list = [xs.unsqueeze(dim=-1), ys.unsqueeze(dim=-1), center_z[k], dim[k], angle]
+
+        if vel is not None:
+            box_part_list.append(vel[k])
+
+        box_preds = torch.cat((box_part_list), dim=-1)
+
+        assert post_center_limit_range is not None
+        mask = (box_preds[..., :3] >= post_center_limit_range[:3]).all(1)
+        mask &= (box_preds[..., :3] <= post_center_limit_range[3:]).all(1)
 
         ret_pred_dicts.append({
-            'pred_boxes': cur_boxes,
-            'pred_scores': cur_scores,
-            'pred_labels': cur_labels
+            'pred_boxes': box_preds[mask],
+            'pred_scores': scores[mask],
+            'pred_labels': class_ids[mask]
         })
     return ret_pred_dicts
