@@ -184,6 +184,8 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
         mask = (box_preds[..., :3] >= post_center_limit_range[:3]).all(1)
         mask &= (box_preds[..., :3] <= post_center_limit_range[3:]).all(1)
 
+        mask &= scores > score_thresh
+
         ret_pred_dicts.append({
             'pred_boxes': box_preds[mask],
             'pred_scores': scores[mask],
