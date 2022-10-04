@@ -21,7 +21,7 @@ def limit_period(val, offset=0.5, period=np.pi):
 
 
 class OpenPCDetWaymoDetectionMetricsEstimator(tf.test.TestCase):
-    WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Truck', 'Cyclist']
+    WAYMO_CLASSES = ['unknown', 'Vehicle', 'Pedestrian', 'Sign', 'Cyclist']
 
     def generate_waymo_type_results(self, infos, class_names, is_gt=False, fake_gt_infos=True):
         def boxes3d_kitti_fakelidar_to_lidar(boxes3d_lidar):
