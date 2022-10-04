@@ -18,6 +18,7 @@ class SeparateHead(nn.Module):
         super().__init__()
         self.sep_head_dict = sep_head_dict
         self.use_circle_nms = (post_process_cfg.NMS_CONFIG.NMS_TYPE == 'circle_nms')
+        assert not self.use_circle_nms # Not supported yet
         self.max_obj_per_sample = post_process_cfg.MAX_OBJ_PER_SAMPLE
         self.score_thres = post_process_cfg.SCORE_THRESH
         self.kernel_size=3
@@ -63,29 +64,23 @@ class SeparateHead(nn.Module):
         d = {'hm': self.__getattr__('hm')(x)}
         return d
 
+    def sliced_convolutions(self, slices_tensor):
+        tmp_dict={}
+        for cur_name in self.sep_head_dict:
+            if cur_name != 'hm':
+                tmp_dict[cur_name] = self.__getattr__(cur_name)(slices_tensor)
+        return tmp_dict
+
     # Forward rest of the convolutions (the ones other than heatmap) on batches of slices,
     # then scatter them to the output tensor
     def forward_rest_sliced(self, x, fwd_dict):
         # First, get the slice indicies for all heapmaps in the batch
         heatmap = fwd_dict['hm']
 
-        #torch.cuda.synchronize()
-        #t1 = time.time()
-        #for cur_name in self.sep_head_dict:
-        #    if cur_name == 'hm':
-        #        continue
-        #    self.__getattr__(cur_name)(x)
-        #torch.cuda.synchronize()
-        #t2 = time.time()
-        #print(f'regular conv time:', round((t2-t1)*1000,3), 'ms')
-
-        if not self.use_circle_nms:
-            topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
-                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample)
-            # save this, we will need it later
-            topk_outp = []
-        else:
-            assert False # Not supported yet
+        topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
+                centernet_utils._topk(heatmap, K=self.max_obj_per_sample)
+        # save this, we will need it later
+        topk_outp = []
         # Now we need to individually slice each frame in the batch
         # because shared conv output is different for each of them
         H, W = heatmap.size(-2), heatmap.size(-1)
@@ -93,41 +88,29 @@ class SeparateHead(nn.Module):
         # This loop runs for each batch
         for scores, inds, classes, ys, xs, shr_conv_outp in zip(
                 topk_score, topk_inds, topk_classes, topk_ys, topk_xs, x):
-            tmp_dict={}
             topk_outp.append((scores, inds, classes, ys, xs))
-            if inds.size(0) > 0:
-                # Recalculate the indices for the padded input, div by W and mult by ps and 2
-                inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
-                
-                slices = slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size)
+            #if inds.size(0) > 0:
+            # Recalculate the indices for the padded input, div by W and mult by ps and 2
+            inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
+            
+            slices = slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size)
+            self.static_slices.copy_(slices)
+            self.g.replay()
+            #tmp_dict = self.sliced_convolutions(slices)
+            #else:
+            #    for cur_name in self.sep_head_dict:
+            #        if cur_name != 'hm':
+            #            tmp_dict[cur_name] = torch.zeros((0, self.sep_head_dict[cur_name]['out_channels'],
+            #                1, 1), device=heatmap.device)
 
-                #torch.cuda.synchronize()
-                #t1 = time.time()
-                #slices: (num_slices x C x 1 x 1) 
-                for cur_name in self.sep_head_dict:
-                    if cur_name == 'hm':
-                        continue
-                    tmp_dict[cur_name] = self.__getattr__(cur_name)(slices)
-                #torch.cuda.synchronize()
-                #t2 = time.time()
-                #print(f'{inds.size(0)} slices processing time:', round((t2-t1)*1000,3), 'ms')
-            else:
-                for cur_name in self.sep_head_dict:
-                    if cur_name != 'hm':
-                        tmp_dict[cur_name] = torch.zeros((0, self.sep_head_dict[cur_name]['out_channels'],
-                            1, 1), device=heatmap.device)
-
-            final_outputs.append(tmp_dict)
+            final_outputs.append(self.static_tmp_dict)
         fwd_dict['topk_outp'] = topk_outp
-
-        #torch.cuda.synchronize()
 
         for cur_name in self.sep_head_dict:
             if cur_name == 'hm':
                 continue
             #turn it to (num_slices x C) from (num_slices x C x 1 x 1)
             fwd_dict[cur_name] = [fp[cur_name].flatten(-3) for fp in final_outputs]
-
 
         return fwd_dict
 
@@ -140,15 +123,30 @@ class SeparateHead(nn.Module):
 
     def calibrate(self, shr_conv_outp):
         # Preallocate space for shared_conv_output slices
-        slices_tensor = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
+        self.static_slices = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
             self.slice_size, self.slice_size), dtype=shr_conv_outp.dtype, device=shr_conv_outp.device)
 
-        H, W = shr_conv_outp.size(2), shr_conv_outp.size(3)
-        for cur_name in self.sep_head_dict:
-            if cur_name != 'hm':
-                self.__getattr__(cur_name)(slices_tensor)
+        # Invoke cudnn benchmarking
+        self._static_tmp_dict = self.sliced_convolutions(self.static_slices)
 
+        # Crate a cuda graph
+        self.g = torch.cuda.CUDAGraph()
 
+        s = torch.cuda.Stream()
+        s.wait_stream(torch.cuda.current_stream())
+        with torch.cuda.stream(s):
+            for _ in range(3):
+                self.static_tmp_dict = self.sliced_convolutions(self.static_slices)
+        torch.cuda.current_stream().wait_stream(s)
+        
+        with torch.cuda.graph(self.g):
+            self.static_tmp_dict = self.sliced_convolutions(self.static_slices)
+
+        self.g.replay()
+        for k,v in self.static_tmp_dict.items():
+            print(k, v.size())
+
+       
 class CenterHead(nn.Module):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range, voxel_size,
                  predict_boxes_when_training=True):
@@ -457,10 +455,10 @@ class CenterHead(nn.Module):
             pred_dicts.append(pd)
 
         for i, head in enumerate(self.heads_list):
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             torch.cuda.nvtx.range_push('Forward_rest_sliced')
             pred_dicts[i] = head.forward_rest_sliced(x_padded, pred_dicts[i])
-            #torch.cuda.synchronize()
+            torch.cuda.synchronize()
             torch.cuda.nvtx.range_pop()
 
         if self.training:
