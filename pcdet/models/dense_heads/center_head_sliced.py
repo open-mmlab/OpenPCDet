@@ -99,12 +99,7 @@ class SeparateHead(nn.Module):
                 # Recalculate the indices for the padded input, div by W and mult by ps and 2
                 inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
                 
-                # Allocate space for slices, preallocating it doesn't really benefit on orin
-                slices = torch.empty((inds_p.size(0), shr_conv_outp.size(0), \
-                    self.slice_size, self.slice_size), dtype=shr_conv_outp.dtype, device=shr_conv_outp.device)
-                
-                slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size, \
-                        slices)
+                slices = slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size)
 
                 #torch.cuda.synchronize()
                 #t1 = time.time()

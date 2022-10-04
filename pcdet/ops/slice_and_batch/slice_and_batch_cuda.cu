@@ -53,14 +53,23 @@ __global__ void slice_and_batch_cuda_kernel(
 // inp has size (C x H x W)
 // outp has size (len(slice_indices) x C x slice_size x slice_size)
 // slice indices are the corner indices (not center)
-void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
-                const int64_t slice_size, torch::Tensor outp) {
+torch::Tensor slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
+                const int64_t slice_size) {
 
   const auto inp_H = inp.size(1);
   const auto inp_W = inp.size(2);
   const auto blocks = inp.size(0); // channel size, for example 64
   const auto threads_per_block = slice_indices.size(0); // number of slices, max 500
-  
+ 
+  auto tensor_options = torch::TensorOptions()
+      .layout(torch::kStrided)
+      .dtype(inp.dtype())
+      .device(inp.device().type())
+      .requires_grad(inp.requires_grad());
+
+  torch::Tensor outp = torch::empty({slice_indices.size(0), blocks, slice_size, slice_size},
+      tensor_options);
+
   AT_DISPATCH_FLOATING_TYPES(outp.type(), "slice_and_batch_cuda", ([&] {
     slice_and_batch_cuda_kernel<scalar_t><<<blocks, threads_per_block>>>(
       inp.data<scalar_t>(),
@@ -70,4 +79,6 @@ void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
       slice_size,
       outp.data<scalar_t>());
   }));
+
+  return outp;
 }

@@ -7,8 +7,11 @@
 using namespace torch::indexing;
 namespace py = pybind11;
 
-void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
-		const int64_t slice_size, torch::Tensor outp);
+torch::Tensor slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
+		const int64_t slice_size);
+torch::Tensor slice_and_batch_cuda_v2(torch::Tensor inp, torch::Tensor heatmap,
+                const int64_t slice_size, const float score_threshold,
+	       	torch::Tensor outp);
 
 // ONLY SUPPORTS BATCH SIZE 1 FOR NOW
 // First two inputs may have batch size higher than 1
@@ -49,14 +52,6 @@ void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
 //    //std::cout << "Type of w: " << w.dtype() << std::endl;
 //    //auto h_a = h.accessor<int64_t,1>();
 //    //auto w_a = w.accessor<int64_t,1>();
-//    // This part is the bottleneck
-//    //for(auto i=0; i< num_slices; ++i){
-//        // BxCxHxW <- BxCxHxW
-//        //std::cout << "h_a[" << i << "]=" << h_a[i] << std::endl;
-//        //std::cout << "w_a[" << i << "]=" << w_a[i] << std::endl;
-//        //outp.index_put_({i}, inp.index({"...", Slice(h_a[i]-hsw, h_a[i]+hsw+1), 
-//        //            Slice(w_a[i]-hsw, w_a[i]+hsw+1)}));
-//    //}
 //    
 //    return std::make_pair(outp, num_slices_per_batch);
 //}
@@ -64,4 +59,5 @@ void slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     //m.def("slice_and_batch", &slice_and_batch, "Slice and Batch");
     m.def("slice_and_batch_cuda", &slice_and_batch_cuda, "Slice and Batch CUDA");
+    m.def("slice_and_batch_cuda_v2", &slice_and_batch_cuda_v2, "Slice and Batch CUDA v2");
 }
