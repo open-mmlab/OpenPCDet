@@ -168,8 +168,8 @@ def decode_bbox_from_heatmap_sliced(heatmap, rot_cos, rot_sin, center, center_z,
         (scores, _, class_ids, ys, xs) = topk_outp[k]
 
         angle = torch.atan2(rot_sin[k], rot_cos[k])
-        xs += center[k][:, 0]
-        ys += center[k][:, 1]
+        xs = xs + center[k][:, 0]
+        ys = ys + center[k][:, 1]
 
         xs = xs * feature_map_stride * voxel_size[0] + point_cloud_range[0]
         ys = ys * feature_map_stride * voxel_size[1] + point_cloud_range[1]
