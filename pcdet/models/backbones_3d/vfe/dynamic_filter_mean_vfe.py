@@ -36,6 +36,8 @@ class DynamicFilterMeanVFE(VFETemplate):
         self.scale_yz = grid_size[1] * grid_size[2]
         self.scale_z = grid_size[2]
 
+        self.tile_begin_idx=0
+
     def get_output_feature_dim(self):
         return self.num_point_features
 
@@ -82,15 +84,21 @@ class DynamicFilterMeanVFE(VFETemplate):
                 tile_coords[...,0] * tcount[1] + tile_coords[...,1]
 
         # TODO There could be a way to avoid this unique, duplicate indexes appears working
-        nonempty_tile_coords = torch.unique(tile_coords, sorted=False)
+        nonempty_tile_coords = torch.unique(tile_coords, sorted=True)
 
         if not self.training and nonempty_tile_coords.size(0) > num_tiles_to_process * batch_size:
             # Point filtering is needed
             # supress empty tiles by temporarily increasing the priority of nonempty tiles
-            tile_prios[nonempty_tile_coords] += total_num_tiles
-            highest_prios, chosen_tile_coords = \
-                    torch.topk(tile_prios, num_tiles_to_process, sorted=False)
-            tile_prios[nonempty_tile_coords] -= total_num_tiles
+            #tile_prios[nonempty_tile_coords] += total_num_tiles
+            #highest_prios, chosen_tile_coords = \
+            #        torch.topk(tile_prios, num_tiles_to_process, sorted=False)
+            #tile_prios[nonempty_tile_coords] -= total_num_tiles
+
+            #TODO this adhoc algorithm assumes the size nonempty tiles doesn't change much
+            ntc = torch.cat((nonempty_tile_coords, nonempty_tile_coords))
+            tl_end = self.tile_begin_idx+num_tiles_to_process
+            chosen_tile_coords = ntc[self.tile_begin_idx:tl_end]
+            self.tile_begin_idx = tl_end % nonempty_tile_coords.size(0)
 
             tile_filter = cuda_point_tile_mask.point_tile_mask(tile_coords, chosen_tile_coords)
             #TODO this masking could be done together with the initial masking
@@ -99,6 +107,7 @@ class DynamicFilterMeanVFE(VFETemplate):
             batch_dict['chosen_tile_coords'] = chosen_tile_coords
         else:
             # No filtering, process all nonempty tiles
+            self.tile_begin_idx=0
             batch_dict['num_tiles_to_process'] = nonempty_tile_coords.size(0)
             batch_dict['chosen_tile_coords'] = nonempty_tile_coords
             #print('points and coords aft filtering', points.size(), point_coords.size())

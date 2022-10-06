@@ -134,7 +134,13 @@ if __name__ == '__main__':
                     'src/point_tile_mask_cuda.cu',
                 ],
             ),
-
-
+            make_cuda_ext(
+                name='cuda_projection',
+                module='pcdet.ops.cuda_projection',
+                sources=[
+                    'src/projection.cpp',
+                    'src/projection_cuda.cu',
+                ],
+            ),
         ],
     )

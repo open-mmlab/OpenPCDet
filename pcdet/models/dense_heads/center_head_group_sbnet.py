@@ -7,6 +7,7 @@ from ..model_utils import model_nms_utils
 from ..model_utils import centernet_utils
 from ...utils import loss_utils
 from ...ops.cuda_slicer import cuda_slicer
+from ...ops.cuda_point_tile_mask import cuda_point_tile_mask
 
 from sbnet.layers import SparseBlock_Conv2d_BN_ReLU
 import time
@@ -592,11 +593,26 @@ class CenterHeadGroupSbnet(nn.Module):
                     idx += num_slc
                 pd[name] = outp_slices_split
         #self.forward_ret_dict['pred_dicts'] = pred_dicts
-
         pred_dicts = self.generate_predicted_boxes_eval(
             data_dict['batch_size'], pred_dicts
         )
         data_dict['final_box_dicts'] = pred_dicts
+
+        ctc = data_dict['chosen_tile_coords']
+        pcr = self.point_cloud_range
+        for pd in pred_dicts:
+            x = pd['pred_boxes'][:, 0]
+            y = pd['pred_boxes'][:, 1]
+            # NOTE I am not sure about the indices of pcr ant tcount
+            # but it is fine since tcount[0] == tcount[1]
+            x_inds =  ((x - pcr[0]) / (pcr[3] - pcr[0]) * self.tcount[0]).trunc().long()
+            y_inds =  ((y - pcr[1]) / (pcr[4] - pcr[1]) * self.tcount[1]).trunc().long()
+            inds = x_inds * self.tcount[1] + y_inds
+            tile_filter = cuda_point_tile_mask.point_tile_mask(inds, ctc)
+            inds = inds[tile_filter]
+            for k,v in pd.items():
+                pd[k] = v[tile_filter]
+            pd['tile_inds'] = inds
 
         return data_dict
 
