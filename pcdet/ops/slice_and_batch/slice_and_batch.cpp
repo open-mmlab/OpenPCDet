@@ -9,6 +9,8 @@ namespace py = pybind11;
 
 torch::Tensor slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
 		const int64_t slice_size);
+void slice_and_batch_cuda_inplace(torch::Tensor inp, torch::Tensor slice_indices,
+		const int64_t slice_size, torch::Tensor outp);
 torch::Tensor slice_and_batch_cuda_v2(torch::Tensor inp, torch::Tensor heatmap,
                 const int64_t slice_size, const float score_threshold,
 	       	torch::Tensor outp);
@@ -59,5 +61,6 @@ torch::Tensor slice_and_batch_cuda_v2(torch::Tensor inp, torch::Tensor heatmap,
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     //m.def("slice_and_batch", &slice_and_batch, "Slice and Batch");
     m.def("slice_and_batch_cuda", &slice_and_batch_cuda, "Slice and Batch CUDA");
+    m.def("slice_and_batch_cuda_inplace", &slice_and_batch_cuda_inplace, "Slice and Batch CUDA inplace");
     m.def("slice_and_batch_cuda_v2", &slice_and_batch_cuda_v2, "Slice and Batch CUDA v2");
 }

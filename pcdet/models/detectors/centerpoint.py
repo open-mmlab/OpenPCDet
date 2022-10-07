@@ -34,6 +34,9 @@ class CenterPoint(Detector3DTemplate):
                     'MapToBEV': [],
                     'Backbone2D': [],
                     'CenterHead': [],})
+        self.post_processing_func = self.post_processing
+        self.save_voxels = True
+        self.sample_counter = 0
 
     def forward(self, batch_dict):
         #for cur_module in self.module_list:
@@ -42,6 +45,17 @@ class CenterPoint(Detector3DTemplate):
         self.measure_time_start('VFE')
         batch_dict = self.vfe(batch_dict)
         self.measure_time_end('VFE')
+        #print('points', batch_dict['points'].size())
+        #print('voxels', batch_dict['voxels'].size())
+        #print('voxel_coords', batch_dict['voxel_coords'].size())
+        #print(batch_dict['voxel_coords'])
+        #print(torch.sum(batch_dict['voxel_coords'][:,0]))
+
+        if self.save_voxels:
+            torch.save(batch_dict['voxel_coords'].cpu(),
+                f'/root/shared_data/voxel_coords/voxelcoords_{self.sample_counter}.pt')
+            self.sample_counter += 1
+
         if self.is_voxel_enc:
             self.measure_time_start('Backbone3D')
             batch_dict = self.backbone_3d(batch_dict)
@@ -65,8 +79,10 @@ class CenterPoint(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            pred_dicts, recall_dicts = self.post_processing(batch_dict)
-            return pred_dicts, recall_dicts
+            # I don't wanna do this before final syncronization
+            #pred_dicts, recall_dicts = self.post_processing(batch_dict)
+            #return pred_dicts, recall_dicts
+            return batch_dict
 
     def get_training_loss(self):
         disp_dict = {}

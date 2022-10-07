@@ -50,6 +50,7 @@ class Detector3DTemplate(nn.Module):
         print('Default deadline is:', self._eval_dict['deadline_sec'])
 
         self._use_empty_det_dict_for_eval = False
+        self.post_processing_func = None
 
     @property
     def mode(self):
@@ -226,11 +227,17 @@ class Detector3DTemplate(nn.Module):
         data_dict.update(extra_data)  # deadline, method, etc.
         data_dict['abs_deadline_sec'] = start_time + data_dict['deadline_sec']
         self.measure_time_end('PreProcess')
-        pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        #torch.cuda.synchronize()
+        if self.post_processing_func is not None:
+            data_dict = self(data_dict)
+        else:
+            pred_dicts, recall_dict = self(data_dict) # this calls forward!
+        torch.cuda.synchronize() # If I don't synchronize, how can I measure the finish time?
         finish_time = time.time()
         self.measure_time_end('End-to-end')
         torch.cuda.nvtx.range_pop()
+
+        if self.post_processing_func is not None:
+            pred_dicts, recall_dict = self.post_processing_func(data_dict) # this calls forward!
 
         tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
         self._eval_dict['deadline_diffs'].append(tdiff)
@@ -659,7 +666,12 @@ class Detector3DTemplate(nn.Module):
 
         # just do a regular forward first
         data_dict["abs_deadline_sec"] = time.time () + 10.0
-        pred_dicts, recall_dict = self(data_dict) # this calls forward!
+
+        if self.post_processing_func is not None:
+            data_dict = self(data_dict)
+            pred_dicts, recall_dict = self.post_processing_func(data_dict)
+        else:
+            pred_dicts, recall_dict = self(data_dict) # this calls forward!
         torch.cuda.synchronize()
 
         #Print full tensor sizes
@@ -681,3 +693,11 @@ class Detector3DTemplate(nn.Module):
 
         print('Num params:', sum(p.numel() for p in self.parameters()))
         print('Num params trainable:', sum(p.numel() for p in self.parameters() if p.requires_grad))
+
+        # Profile
+        #with torch.cuda.profiler.profile():
+        #    self(data_dict)
+        #    torch.cuda.synchronize()
+        #    with torch.autograd.profiler.emit_nvtx():
+        #        self(data_dict)
+        #        torch.cuda.synchronize()
