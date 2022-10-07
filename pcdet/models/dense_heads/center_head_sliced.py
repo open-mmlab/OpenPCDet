@@ -6,7 +6,7 @@ from torch.nn.init import kaiming_normal_
 from ..model_utils import model_nms_utils
 from ..model_utils import centernet_utils
 from ...utils import loss_utils
-import slice_and_batch_cuda
+from ...ops.cuda_slicer import cuda_slicer
 import sys
 import IPython
 import time
@@ -93,7 +93,7 @@ class SeparateHead(nn.Module):
             # Recalculate the indices for the padded input, div by W and mult by ps and 2
             inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
             
-            slices = slice_and_batch_cuda.slice_and_batch_cuda(shr_conv_outp, inds_p, self.slice_size)
+            slices = cuda_slicer.slice_and_batch(shr_conv_outp, inds_p, self.slice_size)
             self.static_slices.copy_(slices)
             self.g.replay()
             #tmp_dict = self.sliced_convolutions(slices)

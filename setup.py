@@ -117,5 +117,14 @@ if __name__ == '__main__':
 
                 ],
             ),
+            make_cuda_ext(
+                name='cuda_slicer',
+                module='pcdet.ops.cuda_slicer',
+                sources=[
+                    'src/slice_and_batch.cpp',
+                    'src/slice_and_batch_cuda.cu',
+                ],
+            ),
+
         ],
     )
