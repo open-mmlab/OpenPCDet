@@ -53,7 +53,7 @@ __global__ void slice_and_batch_cuda_kernel(
 // inp has size (C x H x W)
 // outp has size (len(slice_indices) x C x slice_size x slice_size)
 // slice indices are the corner indices (not center)
-torch::Tensor slice_and_batch_cuda(torch::Tensor inp, torch::Tensor slice_indices,
+torch::Tensor slice_and_batch(torch::Tensor inp, torch::Tensor slice_indices,
                 const int64_t slice_size) {
 
   const auto inp_H = inp.size(1);
