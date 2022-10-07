@@ -9,9 +9,9 @@ namespace py = pybind11;
 
 torch::Tensor slice_and_batch(torch::Tensor inp, torch::Tensor slice_indices,
 		const int64_t slice_size);
-torch::Tensor slice_and_batch_v2(torch::Tensor inp, torch::Tensor heatmap,
-                const int64_t slice_size, const float score_threshold,
-	       	torch::Tensor outp);
+//torch::Tensor slice_and_batch_v2(torch::Tensor inp, torch::Tensor heatmap,
+//                const int64_t slice_size, const float score_threshold,
+//	       	torch::Tensor outp);
 
 // ONLY SUPPORTS BATCH SIZE 1 FOR NOW
 // First two inputs may have batch size higher than 1

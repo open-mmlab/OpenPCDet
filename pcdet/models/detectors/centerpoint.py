@@ -35,7 +35,7 @@ class CenterPoint(Detector3DTemplate):
                     'Backbone2D': [],
                     'CenterHead': [],})
         self.post_processing_func = self.post_processing
-        self.save_voxels = True
+        self.save_voxels = False
         self.sample_counter = 0
 
     def forward(self, batch_dict):
