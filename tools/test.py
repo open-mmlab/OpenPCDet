@@ -26,6 +26,7 @@ def parse_config():
     parser.add_argument('--workers', type=int, default=4, help='number of workers for dataloader')
     parser.add_argument('--extra_tag', type=str, default='default', help='extra tag for this experiment')
     parser.add_argument('--ckpt', type=str, default=None, help='checkpoint to start from')
+    parser.add_argument('--pretrained_model', type=str, default=None, help='pretrained_model')
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none')
     parser.add_argument('--tcp_port', type=int, default=18888, help='tcp port for distrbuted training')
     parser.add_argument('--local_rank', type=int, default=0, help='local rank for distributed training')
@@ -38,6 +39,7 @@ def parse_config():
     parser.add_argument('--eval_all', action='store_true', default=False, help='whether to evaluate all checkpoints')
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
+    parser.add_argument('--infer_time', action='store_true', default=False, help='calculate inference latency')
 
     args = parser.parse_args()
 
@@ -55,13 +57,14 @@ def parse_config():
 
 def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=False):
     # load checkpoint
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test)
+    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test, 
+                                pre_trained_path=args.pretrained_model)
     model.cuda()
-
+    
     # start evaluation
     eval_utils.eval_one_epoch(
-        cfg, model, test_loader, epoch_id, logger, dist_test=dist_test,
-        result_dir=eval_output_dir, save_to_file=args.save_to_file
+        cfg, args, model, test_loader, epoch_id, logger, dist_test=dist_test,
+        result_dir=eval_output_dir
     )
 
 
@@ -118,8 +121,8 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
         # start evaluation
         cur_result_dir = eval_output_dir / ('epoch_%s' % cur_epoch_id) / cfg.DATA_CONFIG.DATA_SPLIT['test']
         tb_dict = eval_utils.eval_one_epoch(
-            cfg, model, test_loader, cur_epoch_id, logger, dist_test=dist_test,
-            result_dir=cur_result_dir, save_to_file=args.save_to_file
+            cfg, args, model, test_loader, cur_epoch_id, logger, dist_test=dist_test,
+            result_dir=cur_result_dir
         )
 
         if cfg.LOCAL_RANK == 0:
@@ -134,6 +137,10 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
 def main():
     args, cfg = parse_config()
+
+    if args.infer_time:
+        os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
     if args.launcher == 'none':
         dist_test = False
         total_gpus = 1

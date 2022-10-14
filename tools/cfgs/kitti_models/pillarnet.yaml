@@ -2,93 +2,31 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
-    POINT_CLOUD_RANGE: [0, -39.68, -3, 69.12, 39.68, 1]
-    DATA_PROCESSOR:
-        - NAME: mask_points_and_boxes_outside_range
-          REMOVE_OUTSIDE_BOXES: True
 
-        - NAME: shuffle_points
-          SHUFFLE_ENABLED: {
-            'train': True,
-            'test': False
-          }
-
-        - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.16, 0.16, 4]
-          MAX_POINTS_PER_VOXEL: 32
-          MAX_NUMBER_OF_VOXELS: {
-            'train': 16000,
-            'test': 40000
-          }
-    DATA_AUGMENTOR:
-        DISABLE_AUG_LIST: ['random_world_frustum_dropout', 'random_local_frustum_dropout', 'random_local_translation']
-        AUG_CONFIG_LIST:
-            - NAME: gt_sampling
-              USE_ROAD_PLANE: False
-              DB_INFO_PATH:
-                  - kitti_dbinfos_train.pkl
-              PREPARE: {
-                 filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Cyclist:5'],
-                 filter_by_difficulty: [-1, 2],
-              }
-
-              SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Cyclist:15']
-              NUM_POINT_FEATURES: 4
-              DATABASE_WITH_FAKELIDAR: False
-              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
-              LIMIT_WHOLE_SCENE: False
-
-            - NAME: random_local_rotation
-              LOCAL_ROT_ANGLE: [-0.15707963267, 0.15707963267]
-
-            - NAME: random_local_scaling
-              LOCAL_SCALE_RANGE: [0.95, 1.05]
-
-            - NAME: random_world_flip
-              ALONG_AXIS_LIST: ['x']
-
-            - NAME: random_world_rotation
-              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
-
-            - NAME: random_world_scaling
-              WORLD_SCALE_RANGE: [0.95, 1.05]
-
-            - NAME: random_world_translation
-              NOISE_TRANSLATE_STD: [0.5, 0.5, 0.5]
-
-            - NAME: random_local_translation
-              LOCAL_TRANSLATION_RANGE: [0.95, 1.05]
-              ALONG_AXIS_LIST: ['x', 'y', 'z']
-
-            - NAME: random_world_frustum_dropout
-              INTENSITY_RANGE: [ 0, 0.2 ]
-              DIRECTION: ['top']
-
-            - NAME: random_local_frustum_dropout
-              INTENSITY_RANGE: [ 0, 0.2 ]
-              DIRECTION: ['top']
 
 MODEL:
-    NAME: PointPillar
+    NAME: PillarNet
 
     VFE:
-        NAME: PillarVFE
+        NAME: DynamicPillarVFESimple2D
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
+        USE_CLUSTER_XYZ: False
         USE_NORM: True
-        NUM_FILTERS: [64]
+        NUM_FILTERS: [32]
 
-    MAP_TO_BEV:
-        NAME: PointPillarScatter
-        NUM_BEV_FEATURES: 64
+    BACKBONE_3D:
+        NAME: PillarBackBone8x
+   
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
-        LAYER_NUMS: [3, 5, 5]
-        LAYER_STRIDES: [2, 2, 2]
-        NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4]
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+        NAME: BaseBEVBackboneV1
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [256, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [128, 128]
 
     DENSE_HEAD:
         NAME: AnchorHeadSingle
@@ -106,7 +44,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-1.78],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             },
@@ -116,7 +54,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -126,7 +64,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.6],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             }

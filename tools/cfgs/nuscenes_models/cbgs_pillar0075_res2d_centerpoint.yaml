@@ -61,26 +61,27 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: PillarNet
 
     VFE:
-        NAME: MeanVFE
+        NAME: DynamicPillarVFESimple2D
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_CLUSTER_XYZ: False
+        USE_NORM: True
+        NUM_FILTERS: [ 32 ]
 
     BACKBONE_3D:
-        NAME: VoxelResBackBone8x
-
-    MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+        NAME: PillarRes18BackBone8x
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
+      NAME: BaseBEVBackboneV1
 
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
+      LAYER_NUMS: [ 5, 5 ]
+      LAYER_STRIDES: [ 1, 2 ]
+      NUM_FILTERS: [ 256, 256 ]
+      UPSAMPLE_STRIDES: [ 1, 2 ]
+      NUM_UPSAMPLE_FILTERS: [ 128, 128 ]
 
     DENSE_HEAD:
         NAME: CenterHead
