@@ -10,8 +10,8 @@ from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
 speed_test=False
+visualize=True
 
-visualize=False
 if visualize:
     import open3d
     from visual_utils import open3d_vis_utils as V
@@ -93,18 +93,34 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     num_samples = 100 if speed_test and len(dataset) >= 100 else len(dataset)
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=num_samples, leave=True, desc='eval', dynamic_ncols=True)
+
+    ###################################
+    # Code for drawing the input region
+#    vs_ = 0.2
+#    gs_ = 102.4 / vs_
+#    grid_size = gs_ * gs_
+#    prev_z_vals = torch.zeros(int(grid_size), device='cuda')
+#    prev_mask = torch.full((int(grid_size),), True, device='cuda')
+#
+#    grid2d = open3d.geometry.LineSet()
+#    grid2d.points = open3d.utility.Vector3dVector( \
+#            np.array(((-51.2, -51.2, -3), (51.2, -51.2, -3), \
+#            (-51.2, 51.2, -3), (51.2, 51.2, -3)), dtype=np.double))
+#    grid2d.lines = open3d.utility.Vector2iVector( \
+#            np.array(((0,1),(1,3),(3,2),(2,0)), dtype=np.int))
+#    grid2d.colors =  open3d.utility.Vector3dVector(np.ones((4, 3)))
+    ###################################
+
     for i in range(num_samples):
         with torch.no_grad():
             batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
         #            {'deadline_sec':dl})
-
         if visualize:
-            #print('labels:', pred_dicts[0]['pred_labels'])
-            #print('boxes:', pred_dicts[0]['pred_boxes'])
             V.draw_scenes(
-                points=batch_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                points=batch_dict['points'][:, 1:], ref_boxes=batch_dict['gt_boxes'][0],
+                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels'],
             )
+            #point_colors=point_colors, grid2d=grid2d,
 
         disp_dict = {}
         statistics_info(cfg, ret_dict, metric, disp_dict)
