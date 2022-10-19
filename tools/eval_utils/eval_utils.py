@@ -10,7 +10,7 @@ from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
 speed_test=False
-visualize=True
+visualize=False
 
 if visualize:
     import open3d

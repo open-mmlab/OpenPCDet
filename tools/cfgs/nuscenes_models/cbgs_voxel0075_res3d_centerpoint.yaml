@@ -10,7 +10,7 @@ DATA_CONFIG:
         AUG_CONFIG_LIST:
             - NAME: gt_sampling
               DB_INFO_PATH:
-                - nuscenes_dbinfos_5sweeps_withvelo.pkl
+                - nuscenes_dbinfos_10sweeps_withvelo.pkl
               PREPARE: {
                 filter_by_min_points: [
                     'car:5','truck:5', 'construction_vehicle:5', 'bus:5', 'trailer:5',
@@ -128,7 +128,7 @@ MODEL:
             MAX_OBJ_PER_SAMPLE: 500
             NMS_CONFIG:
                 NMS_TYPE: nms_gpu
-                NMS_THRESH: 0.2
+                NMS_THRESH: 0.01
                 NMS_PRE_MAXSIZE: 1000
                 NMS_POST_MAXSIZE: 83
 
