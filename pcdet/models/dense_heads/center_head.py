@@ -13,33 +13,6 @@ class SeparateHead(nn.Module):
         super().__init__()
         self.sep_head_dict = sep_head_dict
 
-        group_convs = []
-        disable_group_conv = True
-        if not disable_group_conv:
-            num_convs = [self.sep_head_dict[cur_name]['num_conv'] for cur_name in self.sep_head_dict]
-            while all(np.array(num_convs)>1):
-                # Use group convolution
-                grp_inp_channels = len(self.sep_head_dict) * input_channels
-                group_convs.append(nn.Sequential(
-                    nn.Conv2d(grp_inp_channels, grp_inp_channels, kernel_size=3, stride=1, padding=1,
-                        bias=use_bias, groups=len(self.sep_head_dict)),
-                    nn.BatchNorm2d(grp_inp_channels),
-                    nn.ReLU()
-                ))
-                num_convs = []
-                for cur_name in self.sep_head_dict:
-                    nc = self.sep_head_dict[cur_name]['num_conv'] -1
-                    num_convs.append(nc)
-                    self.sep_head_dict[cur_name]['num_conv'] = nc
-
-        gc_len = len(group_convs)
-        if gc_len > 1:
-            self.group_convs = nn.Sequential(*group_convs)
-        elif gc_len == 1:
-            self.group_convs = group_convs[0]
-        else:
-            self.group_convs = None
-
         for cur_name in self.sep_head_dict:
             output_channels = self.sep_head_dict[cur_name]['out_channels']
             num_conv = self.sep_head_dict[cur_name]['num_conv']
@@ -64,22 +37,15 @@ class SeparateHead(nn.Module):
 
             self.__setattr__(cur_name, fc)
 
-        print(self)
-
     def forward(self, x):
         ret_dict = {}
-        if self.group_convs is not None:
-            x_dim1_size = x.size()[1]
-            x = x.repeat(1, len(self.sep_head_dict), 1, 1)
-            x = self.group_convs(x)
-            x_list = torch.split(x, x_dim1_size, dim=1)
-            for x, cur_name in zip(x_list, self.sep_head_dict):
-                ret_dict[cur_name] = self.__getattr__(cur_name)(x)
-        else:
-            for cur_name in self.sep_head_dict:
-                ret_dict[cur_name] = self.__getattr__(cur_name)(x)
+        for cur_name in self.sep_head_dict:
+            ret_dict[cur_name] = self.__getattr__(cur_name)(x)
 
         return ret_dict
+
+    def calibrate(self, shr_conv_outp):
+        pass
 
 
 class CenterHead(nn.Module):
@@ -358,36 +324,14 @@ class CenterHead(nn.Module):
             roi_labels[bs_idx, :num_boxes] = pred_dicts[bs_idx]['pred_labels']
         return rois, roi_scores, roi_labels
 
-    def rec_event(self, event=None):
-        event = torch.cuda.Event(enable_timing=True)
-        event.record()
-        return event
-
-    def calc_event_times(self, event_arr):
-        times_ms=[]
-        for e in range(len(event_arr)//2):
-            times_ms.append(round(event_arr[e*2].elapsed_time(event_arr[e*2+1]), 3))
-
-        return times_ms
-
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
-        #event_arr=[]
-        #event_arr.append(self.rec_event())
         x = self.shared_conv(spatial_features_2d)
-        #event_arr.append(self.rec_event())
 
-        #event_arr.append(self.rec_event())
-        #torch.cuda.synchronize()
-        #torch.cuda.nvtx.range_push('CenterHead')
         pred_dicts = []
         for head in self.heads_list:
             pred_dicts.append(head(x))
-        #torch.cuda.synchronize()
-        #torch.cuda.nvtx.range_pop()
-        #event_arr.append(self.rec_event())
 
-        #event_arr.append(self.rec_event())
         if self.training:
             target_dict = self.assign_targets(
                 data_dict['gt_boxes'], feature_map_size=spatial_features_2d.size()[2:],
@@ -410,7 +354,10 @@ class CenterHead(nn.Module):
                 data_dict['has_class_labels'] = True
             else:
                 data_dict['final_box_dicts'] = pred_dicts
-        #event_arr.append(self.rec_event())
-        #torch.cuda.synchronize()
-        #print(self.calc_event_times(event_arr))
+
         return data_dict
+
+    def calibrate(self, data_dict):
+        x = self.shared_conv(data_dict['spatial_features_2d'])
+        for head in self.heads_list:
+            head.calibrate(x)

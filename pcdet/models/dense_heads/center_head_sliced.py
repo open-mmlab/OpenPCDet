@@ -382,7 +382,7 @@ class CenterHead(nn.Module):
 
             batch_vel = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
 
-            final_pred_dicts = centernet_utils.decode_bbox_from_heatmap(
+            final_pred_dicts = centernet_utils.decode_bbox_from_heatmap_sliced(
                 heatmap=batch_hm, rot_cos=batch_rot_cos, rot_sin=batch_rot_sin,
                 center=batch_center, center_z=batch_center_z, dim=batch_dim, vel=batch_vel,
                 point_cloud_range=self.point_cloud_range, voxel_size=self.voxel_size,
