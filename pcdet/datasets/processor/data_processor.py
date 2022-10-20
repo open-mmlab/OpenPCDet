@@ -22,7 +22,8 @@ class VoxelGeneratorWrapper():
                 from spconv.utils import VoxelGenerator
                 self.spconv_ver = 1
             except:
-                from spconv.utils import Point2VoxelCPU3d as VoxelGenerator
+#                from spconv.utils import Point2VoxelCPU3d as VoxelGenerator
+                from spconv.utils import Point2VoxelGPU3d as VoxelGenerator
                 self.spconv_ver = 2
 
         if self.spconv_ver == 1:
@@ -41,6 +42,7 @@ class VoxelGeneratorWrapper():
                 max_num_voxels=max_num_voxels
             )
 
+
     def generate(self, points):
         if self.spconv_ver == 1:
             voxel_output = self._voxel_generator.generate(points)
@@ -51,13 +53,15 @@ class VoxelGeneratorWrapper():
                 voxels, coordinates, num_points = voxel_output
         else:
             assert tv is not None, f"Unexpected error, library: 'cumm' wasn't imported properly."
-            voxel_output = self._voxel_generator.point_to_voxel(tv.from_numpy(points))
+#            voxel_output = self._voxel_generator.point_to_voxel(tv.from_numpy(points))
+            voxel_output = self._voxel_generator.point_to_voxel_hash(tv.from_numpy(points).cuda())
             tv_voxels, tv_coordinates, tv_num_points = voxel_output
             # make copy with numpy(), since numpy_view() will disappear as soon as the generator is deleted
-            voxels = tv_voxels.numpy()
-            coordinates = tv_coordinates.numpy()
-            num_points = tv_num_points.numpy()
-        return voxels, coordinates, num_points
+            voxels = tv_voxels.cpu()
+            coordinates = tv_coordinates.cpu()
+            num_points = tv_num_points.cpu()
+
+        return voxels.numpy(), coordinates.numpy(), num_points.numpy()
 
 
 class DataProcessor(object):
