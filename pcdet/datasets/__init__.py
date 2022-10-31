@@ -21,7 +21,7 @@ __all__ = {
     'WaymoDataset': WaymoDataset,
     'PandasetDataset': PandasetDataset,
     'LyftDataset': LyftDataset,
-    'ONCEDataset': ONCEDataset
+    'ONCEDataset': ONCEDataset,
     'CustomDataset': CustomDataset
 }
 
