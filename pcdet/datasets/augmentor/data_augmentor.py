@@ -1,10 +1,8 @@
 from functools import partial
-
 import numpy as np
 
 from ...utils import common_utils
 from . import augmentor_utils, database_sampler
-
 
 class DataAugmentor(object):
     def __init__(self, root_path, augmentor_configs, class_names, logger=None):
@@ -39,7 +37,6 @@ class DataAugmentor(object):
 
     def __setstate__(self, d):
         self.__dict__.update(d)
-
     def random_world_flip(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.random_world_flip, config=config)

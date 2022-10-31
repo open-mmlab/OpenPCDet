@@ -25,7 +25,6 @@ All Rights Reserved 2019-2020.
 } while (0)
 #define CHECK_INPUT(x) CHECK_CUDA(x);CHECK_CONTIGUOUS(x)
 
-
 int ball_query_wrapper_stack(int B, int M, float radius, int nsample,
     at::Tensor new_xyz_tensor, at::Tensor new_xyz_batch_cnt_tensor,
     at::Tensor xyz_tensor, at::Tensor xyz_batch_cnt_tensor, at::Tensor idx_tensor) {
