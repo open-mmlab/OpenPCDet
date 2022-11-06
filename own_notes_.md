@@ -1,4 +1,31 @@
 
+#
+<br>
+
+> PRIMARY PAPER - “Pointrcnn: 3d object proposal generation
+and detection from point cloud,”
+
+- https://arxiv.org/abs/1907.03670
+- https://github.com/sshaoshuai/PointRCNN
+
+
+> S. Shi, X. Wang, and H. Li, “Pointrcnn: 3d object proposal generation
+and detection from point cloud,”
+- Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition, 2019, pp. 770–779.
+- https://ieeexplore.ieee.org/document/8954080
+> PointRCNN: 3D Object Proposal Generation and Detection From Point Cloud
+#
+> Abstract:
+In this paper, we propose PointRCNN for 3D object detection from raw point cloud. The whole framework is composed of two stages: stage-1 for the bottom-up 3D proposal generation and stage-2 for refining proposals in the canonical coordinates to obtain the final detection results. Instead of generating proposals from RGB image or projecting point cloud to bird's view or voxels as previous methods do, our stage-1 sub-network directly generates a small number of high-quality 3D proposals from point cloud in a bottom-up manner via segmenting the point cloud of the whole scene into foreground points and background. The stage-2 sub-network transforms the pooled points of each proposal to canonical coordinates to learn better local spatial features, which is combined with global semantic features of each point learned in stage-1 for accurate box refinement and confidence prediction. Extensive experiments on the 3D detection benchmark of KITTI dataset show that our proposed architecture outperforms state-of-the-art methods with remarkable margins by using only point cloud as input. The code is available at https://github.com/sshaoshuai/PointRCNN.
+
+#
+<br>
+
+> PRIMARY PAPER CITATIONS -- 
+- https://ieeexplore.ieee.org/document/8954080/citations?tabFilter=papers#citations
+
+
+
 
 #
 <br>

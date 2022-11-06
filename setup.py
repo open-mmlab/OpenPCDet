@@ -11,6 +11,7 @@ def get_git_commit_number():
 
     cmd_out = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)
     git_commit_number = cmd_out.stdout.decode('utf-8')[:7]
+    print("---[INFO--OriginalCode]---git_commit_number-",git_commit_number)
     return git_commit_number
 
 
@@ -19,6 +20,7 @@ def make_cuda_ext(name, module, sources):
         name='%s.%s' % (module, name),
         sources=[os.path.join(*module.split('.'), src) for src in sources]
     )
+    print("---[INFO--OriginalCode]---cuda_ext-",cuda_ext)
     return cuda_ext
 
 
