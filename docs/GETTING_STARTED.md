@@ -111,7 +111,8 @@ Note that you do not need to install `waymo-open-dataset` if you have already pr
 
 ### ONCE Dataset
 * Please download train/val/test of the official [ONCE Dataset](https://once-for-auto-driving.github.io/download.html#downloads) and 
-organize the downloaded files as follows: 
+organize the downloaded files as follows:
+* Note that the whole dataset is large (2TB) and most scenes are unlabeled, so if you only need ONCE for supervised 3D object detection and model development, you can just download the training/validation/testing split. If you use ONCE for semi-supervised/self-supervised 3D object detection, you can choose to download the respective unlabeled splits (unlabeled small split: 100k unlabeled scenes; unlabeled medium split: 500k unlabeled scenes; unlabeled large split: 1M unlabeled scenes).
 ```
 ONCE_Benchmark
 ├── data
