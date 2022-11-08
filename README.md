@@ -210,14 +210,14 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 ### ONCE 3D Object Detection Baselines
 All models are trained with 8 GPUs.
 
-| Method        | Vehicle | Pedestrian | Cyclist | mAP   |
-| :-------------: | :-------: | :----------: | :-------: | :-----: |
-| [PointRCNN](tools/cfgs/once_models/pointrcnn.yaml)    | 52.09   | 4.28       | 29.84   | 28.74 |
-| [PointPillar](tools/cfgs/once_models/pointpillar.yaml)  | 68.57   | 17.63      | 46.81   | 44.34 |
-| [SECOND](tools/cfgs/once_models/second.yaml)        | 71.19   | 26.44      | 58.04   | 51.89 |
-| [PV-RCNN](tools/cfgs/once_models/pv_rcnn.yaml)       | 77.77   | 23.50      | 59.37   | 53.55 |
-| [CenterPoint](tools/cfgs/once_models/centerpoint.yaml)  | 66.79   | 49.90      | 63.45   | 60.05 |
-
+|                                                        | Vehicle | Pedestrian | Cyclist | mAP    |
+| ------------------------------------------------------ | :-----: | :--------: | :-----: | :----: |
+| [PointRCNN](tools/cfgs/once_models/pointrcnn.yaml)     | 52.09   | 4.28       | 29.84   | 28.74  |
+| [PointPillar](tools/cfgs/once_models/pointpillar.yaml) | 68.57   | 17.63      | 46.81   | 44.34  |
+| [SECOND](tools/cfgs/once_models/second.yaml)           | 71.19   | 26.44      | 58.04   | 51.89  |
+| [PV-RCNN](tools/cfgs/once_models/pv_rcnn.yaml)         | 77.77   | 23.50      | 59.37   | 53.55  |
+| [CenterPoint](tools/cfgs/once_models/centerpoint.yaml) | 66.79*   | 49.90*    | 63.45*  | 60.05* |
+*Results are not reproductible with this version of the code
 
 ### Other datasets
 Welcome to support other datasets by submitting pull request. 
