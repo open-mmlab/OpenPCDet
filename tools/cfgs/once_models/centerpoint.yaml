@@ -37,10 +37,10 @@ MODEL:
         USE_BIAS_BEFORE_NORM: True  # TODO
         NUM_HM_CONV: 2  # TODO
         SEPARATE_HEAD_CFG:
-            HEAD_ORDER: ['reg', 'height', 'dim', 'rot']
+            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot']
             HEAD_DICT: {
-                'reg': {'out_channels': 2, 'num_conv': 2},
-                'height': {'out_channels': 1, 'num_conv': 2},
+                'center': {'out_channels': 2, 'num_conv': 2},
+                'center_z': {'out_channels': 1, 'num_conv': 2},
                 'dim': {'out_channels': 3, 'num_conv': 2},
                 'rot': {'out_channels': 2, 'num_conv': 2},
             }
@@ -72,47 +72,48 @@ MODEL:
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 
-        TEST_CONFIG:
-          post_center_limit_range: [-75.2, -75.2, -5.0, 75.2, 75.2, 3.0]
-          max_per_img: 500
-          score_threshold: 0.1
-          pc_range: [-75.2, -75.2]
-          out_size_factor: 8
-          voxel_size: [0.1, 0.1]
-          double_flip: False
-          nms:
-            train:
-              use_iou_3d_nms: True
-              use_rotate_nms: False
-              use_maxpool_nms: False
-              use_circle_nms: False
-              min_radius: [4, 10, 12, 0.175, 0.85]
-              nms_iou_threshold: 0.8
-              nms_pre_max_size: 1500
-              nms_post_max_size: 80
-            test:
-              use_iou_3d_nms: True
-              use_rotate_nms: False
-              use_maxpool_nms: False
-              use_circle_nms: False
-              min_radius: [4, 10, 12, 0.175, 0.85]
-              nms_iou_threshold: 0.01
-              nms_pre_max_size: 500
-              nms_post_max_size: 83
+        # TEST_CONFIG:
+        #   pc_range: [-75.2, -75.2]
+        #   out_size_factor: 8
+        #   voxel_size: [0.1, 0.1]
+        #   nms:
+        #     train:
+        #       use_iou_3d_nms: True
+        #       use_rotate_nms: False
+        #       use_maxpool_nms: False
+        #       use_circle_nms: False
+        #       min_radius: [4, 10, 12, 0.175, 0.85]
+        #       nms_iou_threshold: 0.8
+        #       nms_pre_max_size: 1500
+        #       nms_post_max_size: 80
+        #     test:
+        #       use_iou_3d_nms: True
+        #       use_rotate_nms: False
+        #       use_maxpool_nms: False
+        #       use_circle_nms: False
+        #       min_radius: [4, 10, 12, 0.175, 0.85]
+        #       nms_iou_threshold: 0.01
+        #       nms_pre_max_size: 500
+        #       nms_post_max_size: 83
+
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [-75.2, -75.2, -5.0, 75.2, 75.2, 3.0]
+            MAX_OBJ_PER_SAMPLE: 500
+            NMS_CONFIG:
+                MULTI_CLASSES_NMS: False
+                NMS_TYPE: nms_gpu
+                NMS_THRESH: 0.01
+                NMS_PRE_MAXSIZE: 4096
+                NMS_POST_MAXSIZE: 500
+            
 
     POST_PROCESSING:
       RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-      SCORE_THRESH: 0.1
+
       OUTPUT_RAW_SCORE: False
 
       EVAL_METRIC: once
-
-      NMS_CONFIG:
-        MULTI_CLASSES_NMS: False
-        NMS_TYPE: nms_gpu
-        NMS_THRESH: 0.01
-        NMS_PRE_MAXSIZE: 4096
-        NMS_POST_MAXSIZE: 500
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
