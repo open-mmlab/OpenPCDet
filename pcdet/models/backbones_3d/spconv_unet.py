@@ -52,6 +52,7 @@ class UNetV2(nn.Module):
     Reference Paper: https://arxiv.org/abs/1907.03670 (Shaoshuai Shi, et. al)
     From Points to Parts: 3D Object Detection from Point Cloud with Part-aware and Part-aggregation Network
     """
+
     def __init__(self, model_cfg, input_channels, grid_size, voxel_size, point_cloud_range, **kwargs):
         super().__init__()
         self.model_cfg = model_cfg

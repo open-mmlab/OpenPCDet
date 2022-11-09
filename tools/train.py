@@ -164,6 +164,7 @@ def main():
     # -----------------------start training---------------------------
     logger.info('**********************Start training %s/%s(%s)**********************'
                 % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
     train_model(
         model,
         optimizer,
@@ -214,6 +215,7 @@ def main():
     )
     logger.info('**********************End evaluation %s/%s(%s)**********************' %
                 (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag))
+
 
 if __name__ == '__main__':
     main()

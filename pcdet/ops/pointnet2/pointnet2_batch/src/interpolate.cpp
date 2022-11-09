@@ -40,6 +40,7 @@ void three_interpolate_wrapper_fast(int b, int c, int m, int n,
     three_interpolate_kernel_launcher_fast(b, c, m, n, points, idx, weight, out);
 }
 
+
 void three_interpolate_grad_wrapper_fast(int b, int c, int n, int m,
                             at::Tensor grad_out_tensor,
                             at::Tensor idx_tensor,
