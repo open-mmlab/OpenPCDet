@@ -1,4 +1,56 @@
 
+
+- https://github.com/open-mmlab/OpenPCDet/blob/master/docs/INSTALL.md
+
+#
+<br>
+
+##### SPCONV INstall and checks for previous versions 
+
+- https://github.com/traveller59/spconv#install
+
+> Install - You need to install python >= 3.7 first to use spconv 2.x.
+You need to install CUDA toolkit first before using prebuilt binaries or build from source.
+You need at least CUDA 11.0 to build and run spconv 2.x. We won't offer any support for CUDA < 11.0.
+
+#
+<br>
+
+```bash
+(env_point_net) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep spconv
+(env_point_net) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep torch
+torch               1.10.1
+torchaudio          0.10.1
+torchvision         0.11.2
+(env_point_net) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep cuda
+(env_point_net) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep cumm
+```
+#
+<br>
+- Move to diff CONDA Env -- env2_det2
+
+```bash
+(env_point_net) dhankar@dhankar-1:~/.../OpenPCDet$ conda activate env2_det2
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep cumm
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep torch
+torch                       1.12.1
+torchaudio                  0.10.1
+torchvision                 0.13.1
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep cuda
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip list | grep spconv
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ 
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ python
+Python 3.9.13 (main, Oct 13 2022, 21:15:33) 
+[GCC 11.2.0] :: Anaconda, Inc. on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> 
+[2]+  Stopped                 python
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ 
+
+```
+
+
+
 #
 <br>
 
