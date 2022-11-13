@@ -14,6 +14,53 @@ You need to install CUDA toolkit first before using prebuilt binaries or build f
 You need at least CUDA 11.0 to build and run spconv 2.x. We won't offer any support for CUDA < 11.0.
 
 #
+#
+<br>
+
+- pip install spconv-cu117
+
+#
+
+```bash
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip install spconv-cu117
+Collecting spconv-cu117
+  Downloading spconv_cu117-2.2.6-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (69.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 69.5/69.5 MB 7.4 MB/s eta 0:00:00
+Collecting ccimport>=0.4.0
+  Downloading ccimport-0.4.2-py3-none-any.whl (27 kB)
+Collecting pybind11>=2.6.0
+  Downloading pybind11-2.10.1-py3-none-any.whl (216 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 216.1/216.1 kB 4.5 MB/s eta 0:00:00
+Collecting cumm-cu117>=0.3.7
+  Downloading cumm_cu117-0.3.7-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (23.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 14.6 MB/s eta 0:00:00
+Requirement already satisfied: numpy in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from spconv-cu117) (1.23.4)
+Collecting pccm>=0.4.0
+  Downloading pccm-0.4.4-py3-none-any.whl (68 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.8/68.8 kB 1.5 MB/s eta 0:00:00
+Collecting fire
+  Using cached fire-0.4.0-py2.py3-none-any.whl
+Collecting ninja
+  Downloading ninja-1.11.1-py2.py3-none-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (145 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 146.0/146.0 kB 2.9 MB/s eta 0:00:00
+Requirement already satisfied: requests in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from ccimport>=0.4.0->spconv-cu117) (2.28.1)
+Collecting lark>=1.0.0
+  Downloading lark-1.1.4-py3-none-any.whl (107 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 107.8/107.8 kB 2.2 MB/s eta 0:00:00
+Requirement already satisfied: portalocker>=2.3.2 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from pccm>=0.4.0->spconv-cu117) (2.6.0)
+Requirement already satisfied: termcolor in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from fire->spconv-cu117) (2.0.1)
+Requirement already satisfied: six in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from fire->spconv-cu117) (1.16.0)
+Requirement already satisfied: idna<4,>=2.5 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from requests->ccimport>=0.4.0->spconv-cu117) (3.4)
+Requirement already satisfied: certifi>=2017.4.17 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from requests->ccimport>=0.4.0->spconv-cu117) (2022.9.24)
+Requirement already satisfied: charset-normalizer<3,>=2 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from requests->ccimport>=0.4.0->spconv-cu117) (2.1.1)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from requests->ccimport>=0.4.0->spconv-cu117) (1.26.12)
+Installing collected packages: ninja, lark, pybind11, fire, ccimport, pccm, cumm-cu117, spconv-cu117
+Successfully installed ccimport-0.4.2 cumm-cu117-0.3.7 fire-0.4.0 lark-1.1.4 ninja-1.11.1 pccm-0.4.4 pybind11-2.10.1 spconv-cu117-2.2.6
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ 
+
+```
+
+#
 <br>
 
 ```bash
