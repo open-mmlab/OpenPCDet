@@ -1,5 +1,156 @@
 
 
+
+
+##### DEMO 
+
+#
+<br>
+
+- got the KITTI data from here -->
+- https://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d
+
+
+> python demo.py --cfg_file cfgs/kitti_models/pv_rcnn.yaml \
+    --ckpt /home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/data/pv_rcnn_8369.pth \
+    --data_path /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/000009.bin
+
+#
+<br>
+
+
+##### DEMO -1 
+
+#
+<br>
+
+
+```bash
+(env2_det2) dhankar@dhankar-1:~/.../tools$ 
+(env2_det2) dhankar@dhankar-1:~/.../tools$ python demo.py --cfg_file cfgs/kitti_models/pv_rcnn.yaml \
+>     --ckpt /home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/data/pv_rcnn_8369.pth \
+>     --data_path /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/000009.bin
+
+2022-11-14 00:00:35,770   INFO  -----------------Quick Demo of OpenPCDet-------------------------
+2022-11-14 00:00:35,770   INFO  Total number of samples: 	1
+/home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages/torch/functional.py:445: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at  /opt/conda/conda-bld/pytorch_1639180487213/work/aten/src/ATen/native/TensorShape.cpp:2157.)
+  return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+2022-11-14 00:01:15,667   INFO  ==> Loading parameters from checkpoint /home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/data/pv_rcnn_8369.pth to CPU
+2022-11-14 00:01:16,370   INFO  ==> Done (loaded 367/367)
+2022-11-14 00:01:16,649   INFO  Visualized sample index: 	1
+Traceback (most recent call last):
+  File "/home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/tools/demo.py", line 112, in <module>
+    main()
+  File "/home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/tools/demo.py", line 100, in main
+    V.draw_scenes(
+  File "/home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/tools/visual_utils/visualize_utils.py", line 154, in draw_scenes
+    fig = visualize_pts(points)
+  File "/home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/tools/visual_utils/visualize_utils.py", line 77, in visualize_pts
+    fig = mlab.figure(figure=None, bgcolor=bgcolor, fgcolor=fgcolor, engine=None, size=size)
+  File "/home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages/mayavi/tools/figure.py", line 64, in figure
+    engine = get_engine()
+  File "/home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages/mayavi/tools/engine_manager.py", line 94, in get_engine
+    return self.new_engine()
+  File "/home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages/mayavi/tools/engine_manager.py", line 139, in new_engine
+    check_backend()
+  File "/home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages/mayavi/tools/engine_manager.py", line 42, in check_backend
+    raise ImportError(msg)
+ImportError: Could not import backend for traitsui.  Make sure you
+        have a suitable UI toolkit like PyQt/PySide or wxPython
+        installed.
+(env2_det2) dhankar@dhankar-1:~/.../tools$ 
+
+```
+
+# 000009.png - /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/image_2/
+# 000009.bin - /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+# 000009.txt - /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/calib/
+
+cp /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/testing/velodyne/000009.bin /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+cp /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/testing/velodyne/000094.bin /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+cp /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/testing/velodyne/000039.bin /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+cp /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/testing/velodyne/000011.bin /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+cp /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/testing/velodyne/000028.bin /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+cd /home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data/KITTI/object/testing/velodyne/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(env2_det2) dhankar@dhankar-1:~/.../data$ 
+(env2_det2) dhankar@dhankar-1:~/.../data$ tree -d
+.
+├── KITTI
+│   ├── ImageSets
+│   └── object
+│       ├── 11
+│       │   ├── testing
+│       │   │   └── image_2
+│       │   └── training
+│       │       └── image_2
+│       ├── testing
+│       │   ├── calib
+│       │   ├── image_2
+│       │   └── velodyne
+│       └── training
+│           ├── calib
+│           ├── calib1
+│           │   └── training
+│           ├── image_2
+│           ├── label_2
+│           └── velodyne
+├── testing
+│   └── velodyne
+└── training
+    └── velodyne
+
+23 directories
+(env2_det2) dhankar@dhankar-1:~/.../data$ pwd
+/home/dhankar/temp/11_22/original_PointRCNN/PointRCNN/data
+(env2_det2) dhankar@dhankar-1:~/.../data$ 
+
+
+#
+<br>
+
+> python demo.py --cfg_file cfgs/kitti_models/pv_rcnn.yaml \
+    --ckpt /home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/data/pv_rcnn_8369.pth \
+    --data_path ${POINT_CLOUD_DATA}
+
+#
+<br>
+
+
+```bash
+/home/dhankar/temp/11_22/original_open_pc_det/OpenPCDet/data
+(base) dhankar@dhankar-1:~/.../data$ ls -lahtr
+total 69M
+drwxrwxr-x  3 dhankar dhankar 4.0K Nov  6 15:11 waymo
+drwxrwxr-x  3 dhankar dhankar 4.0K Nov  6 15:11 lyft
+drwxrwxr-x  3 dhankar dhankar 4.0K Nov  6 15:11 kitti
+drwxrwxr-x 11 dhankar dhankar 4.0K Nov 13 20:31 ..
+-rw-rw-r--  1 dhankar dhankar  19M Nov 13 21:14 pointpillar_7728.pth
+-rw-rw-r--  1 dhankar dhankar  51M Nov 13 21:24 pv_rcnn_8369.pth
+drwxrwxr-x  5 dhankar dhankar 4.0K Nov 13 21:25 .
+(base) dhankar@dhankar-1:~/.../data$ 
+```
+
+
 #
 <br>
 
@@ -9,6 +160,7 @@
 - This is posted here within the FORK repo so that dont malign the code of the Original Repo 
 - this here FORK is being used to Document own Process / Experiments 
 - Search below with -- [1/13] , [2/13] ... etc etc ...
+- Terminal Prints for -- MAYAVI_Install
 
 #
 <br>
@@ -3865,3 +4017,94 @@ Finished processing dependencies for pcdet==0.6.0+f221374
 ###### Terminal Print Ends for -- Init_Install_Setup.py_develop
 
 > (env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ python setup.py develop
+
+
+
+###### Terminal Prints STARTS for -- MAYAVI_Install
+
+- pip install mayavi
+
+#
+<br>
+
+#
+```bash
+
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ 
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ pip install mayavi
+Collecting mayavi
+  Downloading mayavi-4.8.1.tar.gz (20.6 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 20.6/20.6 MB 12.8 MB/s eta 0:00:00
+  Installing build dependencies ... done
+  Getting requirements to build wheel ... done
+  Preparing metadata (pyproject.toml) ... done
+Requirement already satisfied: packaging in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from mayavi) (21.3)
+Collecting envisage
+  Downloading envisage-6.1.0-py3-none-any.whl (280 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 280.8/280.8 kB 3.9 MB/s eta 0:00:00
+Collecting traits>=6.0.0
+  Downloading traits-6.4.1-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (5.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 16.1 MB/s eta 0:00:00
+Collecting traitsui>=7.0.0
+  Downloading traitsui-7.4.2-py3-none-any.whl (1.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.5/1.5 MB 14.6 MB/s eta 0:00:00
+Requirement already satisfied: pygments in /home/dhankar/.local/lib/python3.9/site-packages (from mayavi) (2.10.0)
+Collecting pyface>=6.1.1
+  Downloading pyface-7.4.2-py3-none-any.whl (1.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 12.2 MB/s eta 0:00:00
+Collecting vtk
+  Using cached vtk-9.2.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (79.3 MB)
+Collecting apptools
+  Downloading apptools-5.2.0-py3-none-any.whl (229 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.2/229.2 kB 2.8 MB/s eta 0:00:00
+Requirement already satisfied: numpy in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from mayavi) (1.23.4)
+Collecting configobj
+  Using cached configobj-5.0.6.tar.gz (33 kB)
+  Preparing metadata (setup.py) ... done
+Requirement already satisfied: setuptools in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from envisage->mayavi) (59.5.0)
+Requirement already satisfied: pyparsing!=3.0.5,>=2.0.2 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from packaging->mayavi) (3.0.9)
+Collecting wslink>=1.0.4
+  Using cached wslink-1.9.1-py3-none-any.whl (28 kB)
+Requirement already satisfied: matplotlib>=2.0.0 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from vtk->mayavi) (3.6.1)
+Requirement already satisfied: python-dateutil>=2.7 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (2.8.2)
+Requirement already satisfied: contourpy>=1.0.1 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (1.0.5)
+Requirement already satisfied: pillow>=6.2.0 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (9.2.0)
+Requirement already satisfied: kiwisolver>=1.0.1 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (1.4.4)
+Requirement already satisfied: fonttools>=4.22.0 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (4.38.0)
+Requirement already satisfied: cycler>=0.10 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from matplotlib>=2.0.0->vtk->mayavi) (0.11.0)
+Collecting aiohttp<4
+  Using cached aiohttp-3.8.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.0 MB)
+Requirement already satisfied: six in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from configobj->apptools->mayavi) (1.16.0)
+Collecting aiosignal>=1.1.2
+  Using cached aiosignal-1.3.1-py3-none-any.whl (7.6 kB)
+Collecting attrs>=17.3.0
+  Using cached attrs-22.1.0-py2.py3-none-any.whl (58 kB)
+Collecting yarl<2.0,>=1.0
+  Using cached yarl-1.8.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (264 kB)
+Collecting frozenlist>=1.1.1
+  Using cached frozenlist-1.3.3-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (158 kB)
+Requirement already satisfied: charset-normalizer<3.0,>=2.0 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from aiohttp<4->wslink>=1.0.4->vtk->mayavi) (2.1.1)
+Collecting multidict<7.0,>=4.5
+  Using cached multidict-6.0.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (114 kB)
+Collecting async-timeout<5.0,>=4.0.0a3
+  Using cached async_timeout-4.0.2-py3-none-any.whl (5.8 kB)
+Requirement already satisfied: idna>=2.0 in /home/dhankar/anaconda3/envs/env2_det2/lib/python3.9/site-packages (from yarl<2.0,>=1.0->aiohttp<4->wslink>=1.0.4->vtk->mayavi) (3.4)
+Building wheels for collected packages: mayavi, configobj
+  Building wheel for mayavi (pyproject.toml) ... done
+  Created wheel for mayavi: filename=mayavi-4.8.1-cp39-cp39-linux_x86_64.whl size=16135190 sha256=898daed6fdf1aace901c1c1dd14bf1d04836a319d96a49db88b9731106cd08c7
+  Stored in directory: /home/dhankar/.cache/pip/wheels/5e/9c/2b/fa9f58121e0d2c709417504c8ebe52b07e4d859537fa52eda9
+  Building wheel for configobj (setup.py) ... done
+  Created wheel for configobj: filename=configobj-5.0.6-py3-none-any.whl size=34547 sha256=6c6d9180c3e4631442f455dc4622058d231f10c685428f4fecae2df2661392d7
+  Stored in directory: /home/dhankar/.cache/pip/wheels/4b/35/53/dfa4d3a4196794cb0a777a97c68dcf02b073d33de9c135d72a
+
+Successfully built mayavi configobj
+
+Installing collected packages: traits, multidict, frozenlist, configobj, attrs, async-timeout, yarl, pyface, aiosignal, traitsui, aiohttp, wslink, apptools, vtk, envisage, mayavi
+
+Successfully installed aiohttp-3.8.3 aiosignal-1.3.1 apptools-5.2.0 async-timeout-4.0.2 attrs-22.1.0 configobj-5.0.6 envisage-6.1.0 frozenlist-1.3.3 mayavi-4.8.1 multidict-6.0.2 pyface-7.4.2 traits-6.4.1 traitsui-7.4.2 vtk-9.2.2 wslink-1.9.1 yarl-1.8.1
+
+(env2_det2) dhankar@dhankar-1:~/.../OpenPCDet$ 
+```
+
+###### Terminal Prints ENDS for -- MAYAVI_Install
+
