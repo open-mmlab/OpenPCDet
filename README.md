@@ -207,6 +207,17 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 | [CenterPoint (voxel_size=0.075)](tools/cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml) | 28.80 |	25.43 |	37.27 | 21.55 | 18.24 | 59.22 | 66.48 | [model-34M](https://drive.google.com/file/d/1XOHAWm1MPkCKr1gqmc3TWi5AYZgPsgxU/view?usp=sharing) |
 
 
+### ONCE 3D Object Detection Baselines
+All models are trained with 8 GPUs.
+
+|                                                        | Vehicle | Pedestrian | Cyclist | mAP    |
+| ------------------------------------------------------ | :-----: | :--------: | :-----: | :----: |
+| [PointRCNN](tools/cfgs/once_models/pointrcnn.yaml)     | 52.09   | 4.28       | 29.84   | 28.74  |
+| [PointPillar](tools/cfgs/once_models/pointpillar.yaml) | 68.57   | 17.63      | 46.81   | 44.34  |
+| [SECOND](tools/cfgs/once_models/second.yaml)           | 71.19   | 26.44      | 58.04   | 51.89  |
+| [PV-RCNN](tools/cfgs/once_models/pv_rcnn.yaml)         | 77.77   | 23.50      | 59.37   | 53.55  |
+| [CenterPoint](tools/cfgs/once_models/centerpoint.yaml) | 66.79   | 49.90      | 63.45   | 60.05  |
+
 ### Other datasets
 Welcome to support other datasets by submitting pull request. 
 
