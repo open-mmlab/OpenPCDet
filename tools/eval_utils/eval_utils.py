@@ -131,7 +131,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
     logger.info(result_str)
     ret_dict.update(result_dict)
 
-    logger.info('Result is save to %s' % result_dir)
+    logger.info('Result is saved to %s' % result_dir)
     logger.info('****************Evaluation done.*****************')
     return ret_dict
 
