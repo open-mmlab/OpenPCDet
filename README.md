@@ -217,7 +217,6 @@ All models are trained with 8 GPUs.
 | [SECOND](tools/cfgs/once_models/second.yaml)           | 71.19   | 26.44      | 58.04   | 51.89  |
 | [PV-RCNN](tools/cfgs/once_models/pv_rcnn.yaml)         | 77.77   | 23.50      | 59.37   | 53.55  |
 | [CenterPoint](tools/cfgs/once_models/centerpoint.yaml) | 78.02   | 49.74      | 67.22   | 64.99  |
-*Results are not reproductible with this version of the code
 
 ### Other datasets
 Welcome to support other datasets by submitting pull request. 
