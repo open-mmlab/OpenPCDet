@@ -109,6 +109,41 @@ python -m pcdet.datasets.waymo.waymo_dataset --func create_waymo_infos \
 Note that you do not need to install `waymo-open-dataset` if you have already processed the data before and do not need to evaluate with official Waymo Metrics. 
 
 
+### ONCE Dataset
+* Please download train/val/test of the official [ONCE Dataset](https://once-for-auto-driving.github.io/download.html#downloads) and 
+organize the downloaded files as follows:
+* Note that the whole dataset is large (2TB) and most scenes are unlabeled, so if you only need ONCE for supervised 3D object detection and model development, you can just download the training/validation/testing split. If you use ONCE for semi-supervised/self-supervised 3D object detection, you can choose to download the respective unlabeled splits (unlabeled small split: 100k unlabeled scenes; unlabeled medium split: 500k unlabeled scenes; unlabeled large split: 1M unlabeled scenes).
+```
+ONCE_Benchmark
+├── data
+│   ├── once
+│   │   │── ImageSets
+|   |   |   ├──train.txt
+|   |   |   ├──val.txt
+|   |   |   ├──test.txt
+|   |   |   ├──raw_small.txt (100k unlabeled)
+|   |   |   ├──raw_medium.txt (500k unlabeled)
+|   |   |   ├──raw_large.txt (1M unlabeled)
+│   │   │── data
+│   │   │   ├──000000
+|   |   |   |   |──000000.json (infos)
+|   |   |   |   |──lidar_roof (point clouds)
+|   |   |   |   |   |──frame_timestamp_1.bin
+|   |   |   |   |  ...
+|   |   |   |   |──cam0[1-9] (images)
+|   |   |   |   |   |──frame_timestamp_1.jpg
+|   |   |   |   |  ...
+|   |   |   |  ...
+├── pcdet
+├── tools
+```
+
+* Generate the data infos by running the following command: 
+```python 
+python -m pcdet.datasets.once.once_dataset --func create_once_infos --cfg_file tools/cfgs/dataset_configs/once_dataset.yaml
+```
+
+
 ### Lyft Dataset
 * Please download the official [Lyft Level5 perception dataset](https://level-5.global/data/perception) and 
 organize the downloaded files as follows: 
