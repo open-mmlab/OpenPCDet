@@ -48,6 +48,7 @@ def parse_config():
     parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
     parser.add_argument('--ckpt_save_time_interval', type=int, default=300, help='in terms of seconds')
     parser.add_argument('--wo_gpu_stat', action='store_true', help='')
+    parser.add_argument('--use_amp', action='store_true', help='use mix precision training')
     
 
     args = parser.parse_args()
@@ -55,6 +56,8 @@ def parse_config():
     cfg_from_yaml_file(args.cfg_file, cfg)
     cfg.TAG = Path(args.cfg_file).stem
     cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
+    
+    args.use_amp = args.use_amp or cfg.OPTIMIZATION.get('USE_AMP', False)
 
     if args.set_cfgs is not None:
         cfg_from_list(args.set_cfgs, cfg)
@@ -187,7 +190,8 @@ def main():
         logger_iter_interval=args.logger_iter_interval,
         ckpt_save_time_interval=args.ckpt_save_time_interval,
         use_logger_to_record=not args.use_tqdm_to_record, 
-        show_gpu_stat=not args.wo_gpu_stat
+        show_gpu_stat=not args.wo_gpu_stat,
+        use_amp=args.use_amp
     )
 
     if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:
