@@ -21,7 +21,7 @@ DATA_AUGMENTOR:
         - NAME: gt_sampling
           USE_ROAD_PLANE: False
           DB_INFO_PATH:
-              - once_dbinfos_train.pkl
+              - once_infos_train.pkl
           PREPARE: {
              filter_by_min_points: ['Car:5', 'Bus:5', 'Truck:5', 'Pedestrian:5', 'Cyclist:5'],
           }
