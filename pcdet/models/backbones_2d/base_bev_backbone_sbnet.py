@@ -29,28 +29,15 @@ class BaseBEVBackbone(nn.Module):
         self.blocks = nn.ModuleList()
         self.deblocks = nn.ModuleList()
         kernel_size=3
-        self.bcount=[32,32] # for now, use this
+        self.bcount=[16,16] # nuscenes
+        #self.bcount=[25,22] # kitti
         for idx in range(num_levels):
-            #cur_layers = [
-            #    nn.ZeroPad2d(1),
-            #    nn.Conv2d(
-            #        c_in_list[idx], num_filters[idx], kernel_size=3,
-            #        stride=layer_strides[idx], padding=0, bias=False
-            #    ),
-            #    nn.BatchNorm2d(num_filters[idx], eps=1e-3, momentum=0.01),
-            #    nn.ReLU()
-            #]
             cur_layers = [
                 SparseBlock_Conv2d_BN_ReLU(c_in_list[idx], num_filters[idx], kernel_size,
                     stride=layer_strides[idx], bias=False, bn_eps=1e-3, bn_momentum=0.01,
                     bcount=self.bcount)
             ]
             for k in range(layer_nums[idx]):
-                #cur_layers.extend([
-                    #nn.Conv2d(num_filters[idx], num_filters[idx], kernel_size=3, padding=1, bias=False),
-                    #nn.BatchNorm2d(num_filters[idx], eps=1e-3, momentum=0.01),
-                    #nn.ReLU()
-                #])
                 cur_layers.append(
                     SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_filters[idx], kernel_size,
                         bias=False, bn_eps=1e-3, bn_momentum=0.01,
@@ -60,15 +47,6 @@ class BaseBEVBackbone(nn.Module):
             if len(upsample_strides) > 0:
                 stride = upsample_strides[idx]
                 if stride >= 1:
-                    #self.deblocks.append(nn.Sequential(
-                    #    nn.ConvTranspose2d(
-                    #        num_filters[idx], num_upsample_filters[idx],
-                    #        upsample_strides[idx],
-                    #        stride=upsample_strides[idx], bias=False
-                    #    ),
-                    #    nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
-                    #    nn.ReLU()
-                    #))
                     self.deblocks.append(
                         SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_upsample_filters[idx],
                             upsample_strides[idx], stride=upsample_strides[idx], bias=False,
@@ -77,15 +55,6 @@ class BaseBEVBackbone(nn.Module):
                     )
                 else:
                     stride = np.round(1 / stride).astype(np.int)
-                    #self.deblocks.append(nn.Sequential(
-                    #    nn.Conv2d(
-                    #        num_filters[idx], num_upsample_filters[idx],
-                    #        stride,
-                    #        stride=stride, bias=False
-                    #    ),
-                    #    nn.BatchNorm2d(num_upsample_filters[idx], eps=1e-3, momentum=0.01),
-                    #    nn.ReLU()
-                    #))
                     self.deblocks.append(
                         SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_upsample_filters[idx],
                             stride, stride=stride, bias=False, bn_eps=1e-3, bn_momentum=0.01,
@@ -94,11 +63,6 @@ class BaseBEVBackbone(nn.Module):
 
         c_in = sum(num_upsample_filters)
         if len(upsample_strides) > num_levels:
-            #self.deblocks.append(nn.Sequential(
-            #    nn.ConvTranspose2d(c_in, c_in, upsample_strides[-1], stride=upsample_strides[-1], bias=False),
-            #    nn.BatchNorm2d(c_in, eps=1e-3, momentum=0.01),
-            #    nn.ReLU(),
-            #))
             self.deblocks.append(
                 SparseBlock_Conv2d_BN_ReLU(c_in, c_in,
                     upsample_strides[-1], stride=upsample_strides[-1], bias=False,
@@ -108,7 +72,7 @@ class BaseBEVBackbone(nn.Module):
 
         self.num_bev_features = c_in
         self.tmp_reduce_mask = gen_full_reducemask(self.bcount)
-        self.tmp_reduce_mask.bin_counts[0] //= 2
+        self.tmp_reduce_mask.bin_counts[0] //= 4
 
     def forward(self, data_dict):
         """
