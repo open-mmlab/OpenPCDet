@@ -455,11 +455,7 @@ class CenterHead(nn.Module):
             pred_dicts.append(pd)
 
         for i, head in enumerate(self.heads_list):
-            torch.cuda.synchronize()
-            torch.cuda.nvtx.range_push('Forward_rest_sliced')
             pred_dicts[i] = head.forward_rest_sliced(x_padded, pred_dicts[i])
-            torch.cuda.synchronize()
-            torch.cuda.nvtx.range_pop()
 
         if self.training:
             target_dict = self.assign_targets(
