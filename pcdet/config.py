@@ -49,8 +49,11 @@ def cfg_from_list(cfg_list, config):
 
 
 def merge_new_config(config, new_config):
+    # fix maybe?
+    import os
+    openpcdet_path = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
     if '_BASE_CONFIG_' in new_config:
-        with open(new_config['_BASE_CONFIG_'], 'r') as f:
+        with open(os.path.join(openpcdet_path, 'tools', new_config['_BASE_CONFIG_']), 'r') as f:
             try:
                 yaml_config = yaml.safe_load(f, Loader=yaml.FullLoader)
             except:
