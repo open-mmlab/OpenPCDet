@@ -1,3 +1,22 @@
+This repo is modified by Kin, check the commit to see the modification.
+
+
+
+Tutorials:
+
+- **ROS Inference**: [https://github.com/Kin-Zhang/OpenPCDet_ros](https://github.com/Kin-Zhang/OpenPCDet_ros)
+
+- Chinese Video: [https://www.bilibili.com/video/BV1xe4y1j72q](https://www.bilibili.com/video/BV1xe4y1j72q)
+
+- Chiese Blog: [【点云检测】OpenPCDet 教程系列 安装 与 ROS运行](https://www.cnblogs.com/kin-zhang/p/17002980.html))
+
+  
+
+---
+<details>
+  <summary>[Please check the official repo or below origin read for more detail]</summary>
+
+
 <img src="docs/open_mmlab.png" align="right" width="30%">
 
 # OpenPCDet
@@ -264,3 +283,5 @@ If you find this project useful in your research, please consider cite:
 Welcome to be a member of the OpenPCDet development team by contributing to this repo, and feel free to contact us for any potential contributions. 
 
 
+
+</details>

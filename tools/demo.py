@@ -44,10 +44,14 @@ class DemoDataset(DatasetTemplate):
         return len(self.sample_file_list)
 
     def __getitem__(self, index):
-        if self.ext == '.bin':
+        file_postfix = self.sample_file_list[index].as_posix().split(".")[-1]
+        if file_postfix == 'bin':
             points = np.fromfile(self.sample_file_list[index], dtype=np.float32).reshape(-1, 4)
-        elif self.ext == '.npy':
+        elif file_postfix == 'npy':
             points = np.load(self.sample_file_list[index])
+        elif file_postfix == 'pcd':
+            print("\033[93mPlease run the pcd2bin file first!\033[0m Check the file in this folder, \n\ror click here: https://github.com/Kin-Zhang/OpenPCDet/blob/master/tools/pcd2bin.py \n\r")
+            raise NotImplementedError
         else:
             raise NotImplementedError
 
