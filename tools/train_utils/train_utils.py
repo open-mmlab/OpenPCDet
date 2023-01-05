@@ -101,11 +101,11 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
                         'LR: {lr:.3e}  '
                         f'Time cost: {tbar.format_interval(trained_time_each_epoch)}/{tbar.format_interval(remaining_second_each_epoch)} ' 
                         f'[{tbar.format_interval(trained_time_past_all)}/{tbar.format_interval(remaining_second_all)}]  '
-                        'Acc_iter{acc_iter:>10d}  '
+                        'Acc_iter {acc_iter:<10d}  '
                         'Data time: {data_time.val:.2f}({data_time.avg:.2f})  '
                         'Forward time: {forward_time.val:.2f}({forward_time.avg:.2f})  '
                         'Batch time: {batch_time.val:.2f}({batch_time.avg:.2f})'.format(
-                            cur_epoch,total_epochs, 100. * cur_epoch / total_epochs,
+                            cur_epoch+1,total_epochs, 100. * (cur_epoch+1) / total_epochs,
                             cur_it,total_it_each_epoch, 100. * cur_it / total_it_each_epoch,
                             loss=losses_m,
                             lr=cur_lr,
