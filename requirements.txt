@@ -9,5 +9,4 @@ scikit-image
 tqdm
 torchvision
 SharedArray
-json
-cv2
+opencv-python
