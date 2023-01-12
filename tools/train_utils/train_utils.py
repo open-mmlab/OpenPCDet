@@ -25,6 +25,7 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
         data_time = common_utils.AverageMeter()
         batch_time = common_utils.AverageMeter()
         forward_time = common_utils.AverageMeter()
+        losses_m = common_utils.AverageMeter()
 
     end = time.time()
     for cur_it in range(start_it, total_it_each_epoch):
@@ -73,9 +74,12 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         # log to console and tensorboard
         if rank == 0:
+            batch_size = batch.get('batch_size', None)
+            
             data_time.update(avg_data_time)
             forward_time.update(avg_forward_time)
             batch_time.update(avg_batch_time)
+            losses_m.update(loss.item() , batch_size)
             
             disp_dict.update({
                 'loss': loss.item(), 'lr': cur_lr, 'd_time': f'{data_time.val:.2f}({data_time.avg:.2f})',
@@ -90,14 +94,28 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
                     trained_time_each_epoch = pbar.format_dict['elapsed']
                     remaining_second_each_epoch = second_each_iter * (total_it_each_epoch - cur_it)
                     remaining_second_all = second_each_iter * ((total_epochs - cur_epoch) * total_it_each_epoch - cur_it)
-
-                    disp_str = ', '.join([f'{key}={val}' for key, val in disp_dict.items() if key != 'lr'])
-                    disp_str += f', lr={disp_dict["lr"]}'
-                    batch_size = batch.get('batch_size', None)
-                    logger.info(f'epoch: {cur_epoch}/{total_epochs}, acc_iter={accumulated_iter}, cur_iter={cur_it}/{total_it_each_epoch}, batch_size={batch_size}, '
-                                f'time_cost(epoch): {tbar.format_interval(trained_time_each_epoch)}/{tbar.format_interval(remaining_second_each_epoch)}, '
-                                f'time_cost(all): {tbar.format_interval(trained_time_past_all)}/{tbar.format_interval(remaining_second_all)}, '
-                                f'{disp_str}')
+                    
+                    logger.info(
+                        'Train: {:>4d}/{} ({:>3.0f}%) [{:>4d}/{} ({:>3.0f}%)]  '
+                        'Loss: {loss.val:#.4g} ({loss.avg:#.3g})  '
+                        'LR: {lr:.3e}  '
+                        f'Time cost: {tbar.format_interval(trained_time_each_epoch)}/{tbar.format_interval(remaining_second_each_epoch)} ' 
+                        f'[{tbar.format_interval(trained_time_past_all)}/{tbar.format_interval(remaining_second_all)}]  '
+                        'Acc_iter {acc_iter:<10d}  '
+                        'Data time: {data_time.val:.2f}({data_time.avg:.2f})  '
+                        'Forward time: {forward_time.val:.2f}({forward_time.avg:.2f})  '
+                        'Batch time: {batch_time.val:.2f}({batch_time.avg:.2f})'.format(
+                            cur_epoch+1,total_epochs, 100. * (cur_epoch+1) / total_epochs,
+                            cur_it,total_it_each_epoch, 100. * cur_it / total_it_each_epoch,
+                            loss=losses_m,
+                            lr=cur_lr,
+                            acc_iter=accumulated_iter,
+                            data_time=data_time,
+                            forward_time=forward_time,
+                            batch_time=batch_time
+                            )
+                    )
+                    
                     if show_gpu_stat and accumulated_iter % (3 * logger_iter_interval) == 0:
                         # To show the GPU utilization, please install gpustat through "pip install gpustat"
                         gpu_info = os.popen('gpustat').read()
