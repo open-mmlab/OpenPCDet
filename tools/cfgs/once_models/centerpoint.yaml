@@ -45,56 +45,19 @@ MODEL:
                 'rot': {'out_channels': 2, 'num_conv': 2},
             }
 
-
-        # DATASET: once
-        # MODE: 3d
-
         TARGET_ASSIGNER_CONFIG:
             FEATURE_MAP_STRIDE: 8
             NUM_MAX_OBJS: 500
             GAUSSIAN_OVERLAP: 0.1
             MIN_RADIUS: 2
-            # tasks: *tasks_head
             DENSE_REG: 1
-            # mapping: {
-            #   "Car": 1,
-            #   "Bus": 2,
-            #   "Truck": 3,
-            #   "Pedestrian": 4,
-            #   "Cyclist": 5
-            # }
 
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
                 'loc_weight': 1.0,
-                # weight: 0.25
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
-
-        # TEST_CONFIG:
-        #   pc_range: [-75.2, -75.2]
-        #   out_size_factor: 8
-        #   voxel_size: [0.1, 0.1]
-        #   nms:
-        #     train:
-        #       use_iou_3d_nms: True
-        #       use_rotate_nms: False
-        #       use_maxpool_nms: False
-        #       use_circle_nms: False
-        #       min_radius: [4, 10, 12, 0.175, 0.85]
-        #       nms_iou_threshold: 0.8
-        #       nms_pre_max_size: 1500
-        #       nms_post_max_size: 80
-        #     test:
-        #       use_iou_3d_nms: True
-        #       use_rotate_nms: False
-        #       use_maxpool_nms: False
-        #       use_circle_nms: False
-        #       min_radius: [4, 10, 12, 0.175, 0.85]
-        #       nms_iou_threshold: 0.01
-        #       nms_pre_max_size: 500
-        #       nms_post_max_size: 83
 
         POST_PROCESSING:
             SCORE_THRESH: 0.1
