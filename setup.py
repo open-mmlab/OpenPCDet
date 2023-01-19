@@ -125,6 +125,15 @@ if __name__ == '__main__':
                     'src/slice_and_batch_cuda.cu',
                 ],
             ),
+            make_cuda_ext(
+                name='cuda_point_tile_mask',
+                module='pcdet.ops.cuda_point_tile_mask',
+                sources=[
+                    'src/point_tile_mask.cpp',
+                    'src/point_tile_mask_cuda.cu',
+                ],
+            ),
+
 
         ],
     )
