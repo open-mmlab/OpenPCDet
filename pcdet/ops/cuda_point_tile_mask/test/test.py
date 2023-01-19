@@ -38,5 +38,5 @@ def do_speed_test():
     #    mask2 |= tc == tile_coords
 
 
-#do_sanity_check()
+do_sanity_check()
 do_speed_test()
