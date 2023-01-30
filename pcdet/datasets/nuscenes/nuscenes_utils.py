@@ -261,8 +261,8 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
     for scene in nusc.scene:
         progress_bar.update()
         sample = nusc.get('sample', scene['first_sample_token'])
-        if sample['scene_token'] not in val_scenes:
-            continue
+        #if sample['scene_token'] not in val_scenes:
+        #    continue
         while True:
             ref_sd_token = sample['data'][ref_chan]
             ref_sd_rec = nusc.get('sample_data', ref_sd_token)
