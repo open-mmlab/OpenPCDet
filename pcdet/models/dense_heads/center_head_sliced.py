@@ -92,16 +92,10 @@ class SeparateHead(nn.Module):
             #if inds.size(0) > 0:
             # Recalculate the indices for the padded input, div by W and mult by ps and 2
             inds_p = inds + (torch.div(inds, W, rounding_mode='trunc') * self.pad_size * 2)
-            
+            #TODO accelarate slice_and_batch, not mandatory
             slices = cuda_slicer.slice_and_batch(shr_conv_outp, inds_p, self.slice_size)
             self.static_slices.copy_(slices)
             self.g.replay()
-            #tmp_dict = self.sliced_convolutions(slices)
-            #else:
-            #    for cur_name in self.sep_head_dict:
-            #        if cur_name != 'hm':
-            #            tmp_dict[cur_name] = torch.zeros((0, self.sep_head_dict[cur_name]['out_channels'],
-            #                1, 1), device=heatmap.device)
 
             final_outputs.append(self.static_tmp_dict)
         fwd_dict['topk_outp'] = topk_outp
@@ -121,6 +115,10 @@ class SeparateHead(nn.Module):
 
         return ret_dict
 
+    ########
+    # When cuda graph is being used, the number of slices has to be fixed. This is
+    # okay as changing the number of slices doesn't really accelerate execution.
+    ########
     def calibrate(self, shr_conv_outp):
         # Preallocate space for shared_conv_output slices
         self.static_slices = torch.empty((self.max_obj_per_sample, shr_conv_outp.size(1), \
@@ -147,7 +145,7 @@ class SeparateHead(nn.Module):
             print(k, v.size())
 
        
-class CenterHead(nn.Module):
+class CenterHeadSliced(nn.Module):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range, voxel_size,
                  predict_boxes_when_training=True):
         super().__init__()
@@ -443,10 +441,6 @@ class CenterHead(nn.Module):
 
         # Do padding prior to convolutions
         x_padded = torch.nn.functional.pad(x, (self.heads_list[0].pad_size,)*4)
-
-        # Old version, saving it for testing if required
-        #for head in self.heads_list:
-        #    pred_dicts.append(head(x_padded))
 
         #I could try using multiple streams here
         for head in self.heads_list:

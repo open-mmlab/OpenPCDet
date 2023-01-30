@@ -24,10 +24,10 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: CenterPointAnytime
 
     VFE:
-        NAME: DynMeanVFE
+        NAME: DynFilterMeanVFE
 
     BACKBONE_3D:
         NAME: VoxelResBackBone8x
@@ -37,13 +37,14 @@ MODEL:
         NUM_BEV_FEATURES: 256
 
     BACKBONE_2D:
-        NAME: BaseBEVBackbone
+        NAME: BaseBEVBackboneSbnet
 
         LAYER_NUMS: [5, 5]
         LAYER_STRIDES: [1, 2]
         NUM_FILTERS: [128, 256]
         UPSAMPLE_STRIDES: [1, 2]
         NUM_UPSAMPLE_FILTERS: [256, 256]
+        TILE_COUNT: [16, 16]
 
     DENSE_HEAD:
         NAME: CenterHead

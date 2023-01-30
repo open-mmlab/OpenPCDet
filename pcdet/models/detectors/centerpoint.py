@@ -9,8 +9,8 @@ class CenterPoint(Detector3DTemplate):
         # Enabling benchmark gives a small boost (5ms)
         torch.backends.cudnn.benchmark = True
         # Enabling these doesnt speed up...
-        #torch.backends.cuda.matmul.allow_tf32 = True
-        #torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
         torch.cuda.manual_seed(0)
         self.is_voxel_enc=True
 
@@ -35,8 +35,8 @@ class CenterPoint(Detector3DTemplate):
                     'Backbone2D': [],
                     'CenterHead': [],})
         self.post_processing_func = self.post_processing
-        self.save_voxels = False
-        self.sample_counter = 0
+
+        print(self)
 
     def forward(self, batch_dict):
         #for cur_module in self.module_list:
@@ -51,16 +51,11 @@ class CenterPoint(Detector3DTemplate):
         #print(batch_dict['voxel_coords'])
         #print(torch.sum(batch_dict['voxel_coords'][:,0]))
 
-        if self.save_voxels:
-            torch.save(batch_dict['voxel_coords'].cpu(),
-                f'/root/shared_data/voxel_coords/voxelcoords_{self.sample_counter}.pt')
-            self.sample_counter += 1
-
         if self.is_voxel_enc:
             self.measure_time_start('Backbone3D')
             batch_dict = self.backbone_3d(batch_dict)
             self.measure_time_end('Backbone3D')
-         
+
         self.measure_time_start('MapToBEV')
         batch_dict = self.map_to_bev(batch_dict)
         self.measure_time_end('MapToBEV')
@@ -122,5 +117,5 @@ class CenterPoint(Detector3DTemplate):
         self.dense_head.calibrate(batch_dict)
         self.clear_stats()
 
-        # I should't do that first because I need the tensors of center head to be preallocated
+        # I should't do this first because I need the tensors of center head to be preallocated
         super().calibrate()

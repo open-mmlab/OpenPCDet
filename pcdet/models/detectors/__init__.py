@@ -10,6 +10,7 @@ from .second_net_iou import SECONDNetIoU
 from .caddn import CaDDN
 from .voxel_rcnn import VoxelRCNN
 from .centerpoint import CenterPoint
+from .centerpoint_anytime import CenterPointAnytime
 from .pv_rcnn_plusplus import PVRCNNPlusPlus
 
 __all__ = {
@@ -24,6 +25,7 @@ __all__ = {
     'CaDDN': CaDDN,
     'VoxelRCNN': VoxelRCNN,
     'CenterPoint': CenterPoint,
+    'CenterPointAnytime': CenterPointAnytime,
     'PVRCNNPlusPlus': PVRCNNPlusPlus
 }
 

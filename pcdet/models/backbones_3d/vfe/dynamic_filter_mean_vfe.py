@@ -36,20 +36,6 @@ class DynamicFilterMeanVFE(VFETemplate):
         self.scale_yz = grid_size[1] * grid_size[2]
         self.scale_z = grid_size[2]
 
-        ######
-        self.bcount = torch.tensor([16, 16]).long().cuda()
-        self.prio_grid_size = (self.grid_size[:2] / self.bcount).long() # [64, 64]
-        self.prio_voxel_size = (self.voxel_size[:2] * self.bcount).long() # [1.6, 1.6]
-
-        # TODO Tile prios are actually going to be defined in centerpoint but for
-        # now, I will use some random priorities.
-        self.tile_prios = torch.randint(0, 16*16, (16*16,), dtype=torch.int, \
-                device='cuda')
-        self.K = 65
-        print('Tile priorities')
-        print(self.tile_prios)
-        ######
-
     def get_output_feature_dim(self):
         return self.num_point_features
 
@@ -83,21 +69,38 @@ class DynamicFilterMeanVFE(VFETemplate):
         # and do not filter any point. Otherwise, we will filter the points that fall outside of
         # selected tiles. Finally, we will update points and point_coords according to new filter
         # if needed. This part appears to have 3-4 ms overhead
-        tile_coords = point_coords[..., :2] // self.prio_grid_size
-        tile_coords = tile_coords[...,0] * self.bcount[1] + tile_coords[...,1]
+
+        tcount, tile_prios, num_tiles_to_process, total_num_tiles = \
+                batch_dict['tcount'], batch_dict['tile_prios'], \
+                batch_dict['num_tiles_to_process'], batch_dict['total_num_tiles']
+
+        tile_size_voxels = (self.grid_size[:2] / tcount).long() # [64, 64]
+
+        # points[...,0] batch id
+        tile_coords = torch.div(point_coords[..., :2], tile_size_voxels, rounding_mode='trunc')
+        tile_coords = points[:, 0].long() * total_num_tiles + \
+                tile_coords[...,0] * tcount[1] + tile_coords[...,1]
+
         # TODO There could be a way to avoid this unique, duplicate indexes appears working
         nonempty_tile_coords = torch.unique(tile_coords, sorted=False)
 
-        # check if point filtering is needed
-        if nonempty_tile_coords.size(0) > self.K:
+        if nonempty_tile_coords.size(0) > num_tiles_to_process:
+            # Point filtering is needed
             # supress empty tiles by temporarily increasing the priority of nonempty tiles
-            self.tile_prios[nonempty_tile_coords] += self.bcount[0] * self.bcount[1]
-            highest_prios, chosen_tile_coords = torch.topk(self.tile_prios, self.K, sorted=False)
-            self.tile_prios[nonempty_tile_coords] -= self.bcount[0] * self.bcount[1]
+            tile_prios[nonempty_tile_coords] += total_num_tiles
+            highest_prios, chosen_tile_coords = \
+                    torch.topk(tile_prios, num_tiles_to_process, sorted=False)
+            tile_prios[nonempty_tile_coords] -= total_num_tiles
 
             tile_filter = cuda_point_tile_mask.point_tile_mask(tile_coords, chosen_tile_coords)
+            #TODO this masking could be done together with the initial masking
             points = points[tile_filter]
             point_coords = point_coords[tile_filter]
+            batch_dict['chosen_tile_coords'] = chosen_tile_coords
+        else:
+            # No filtering, process all nonempty tiles
+            batch_dict['num_tiles_to_process'] = nonempty_tile_coords.size(0)
+            batch_dict['chosen_tile_coords'] = nonempty_tile_coords
             #print('points and coords aft filtering', points.size(), point_coords.size())
         ################################################################################
 
@@ -112,10 +115,10 @@ class DynamicFilterMeanVFE(VFETemplate):
         points_mean = torch_scatter.scatter_mean(points_data, unq_inv, dim=0)
         
         unq_coords = unq_coords.long()
-        voxel_coords = torch.stack((unq_coords // self.scale_xyz,
-                                    (unq_coords % self.scale_xyz) // self.scale_yz,
-                                    (unq_coords % self.scale_yz) // self.scale_z,
-                                    unq_coords % self.scale_z), dim=1)
+        voxel_coords = torch.stack((torch.div(unq_coords, self.scale_xyz, rounding_mode='trunc'),
+                torch.div((unq_coords % self.scale_xyz), self.scale_yz, rounding_mode='trunc'),
+                torch.div((unq_coords % self.scale_yz), self.scale_z, rounding_mode='trunc'),
+                unq_coords % self.scale_z), dim=1)
         voxel_coords = voxel_coords[:, [0, 3, 2, 1]]
         
         batch_dict['voxel_features'] = points_mean.contiguous()

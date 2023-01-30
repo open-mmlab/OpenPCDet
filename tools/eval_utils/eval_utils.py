@@ -9,6 +9,8 @@ import gc
 from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
+#from torch.profiler import profile, record_function, ProfilerActivity
+
 speed_test=False
 visualize=False
 
@@ -78,9 +80,9 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     # Forward once for initialization and calibration
     if 'calibrate' in dir(model):
         with torch.no_grad():
-            #torch.cuda.cudart().cudaProfilerStop()
+            torch.cuda.cudart().cudaProfilerStop()
             model.calibrate()
-            #torch.cuda.cudart().cudaProfilerStart()
+            torch.cuda.cudart().cudaProfilerStart()
             print("Calibration complete.")
 
 
@@ -110,7 +112,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
 #            np.array(((0,1),(1,3),(3,2),(2,0)), dtype=np.int))
 #    grid2d.colors =  open3d.utility.Vector3dVector(np.ones((4, 3)))
     ###################################
-
+    #with profile(record_shapes=True) as prof:
     for i in range(num_samples):
         with torch.no_grad():
             batch_dict, pred_dicts, ret_dict = model.load_and_infer(i)
@@ -139,6 +141,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     gc.collect()
     gc.enable()
 
+    #print(prof.key_averages().table(sort_by="self_cuda_time_total", row_limit=-1))
+
     if cfg.LOCAL_RANK == 0:
         progress_bar.close()
 
@@ -157,6 +161,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     model.print_time_stats()
 
     if speed_test:
+        model.dump_eval_dict(ret_dict)
+        model.clear_stats()
         return {}
 
     ret_dict = {}

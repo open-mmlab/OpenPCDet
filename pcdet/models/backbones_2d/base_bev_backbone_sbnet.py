@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, gen_full_reducemask
+from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, ReduceMask
 
-class BaseBEVBackbone(nn.Module):
+class BaseBEVBackboneSbnet(nn.Module):
     def __init__(self, model_cfg, input_channels):
         super().__init__()
         self.model_cfg = model_cfg
@@ -29,19 +29,18 @@ class BaseBEVBackbone(nn.Module):
         self.blocks = nn.ModuleList()
         self.deblocks = nn.ModuleList()
         kernel_size=3
-        self.bcount=[16,16] # nuscenes
-        #self.bcount=[25,22] # kitti
+        self.tcount=self.model_cfg.TILE_COUNT
         for idx in range(num_levels):
             cur_layers = [
                 SparseBlock_Conv2d_BN_ReLU(c_in_list[idx], num_filters[idx], kernel_size,
                     stride=layer_strides[idx], bias=False, bn_eps=1e-3, bn_momentum=0.01,
-                    bcount=self.bcount)
+                    bcount=self.tcount, transpose=True)
             ]
             for k in range(layer_nums[idx]):
                 cur_layers.append(
                     SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_filters[idx], kernel_size,
                         bias=False, bn_eps=1e-3, bn_momentum=0.01,
-                        bcount=self.bcount)
+                        bcount=self.tcount, transpose=True)
                 )
             self.blocks.append(nn.Sequential(*cur_layers))
             if len(upsample_strides) > 0:
@@ -51,14 +50,14 @@ class BaseBEVBackbone(nn.Module):
                         SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_upsample_filters[idx],
                             upsample_strides[idx], stride=upsample_strides[idx], bias=False,
                             bn_eps=1e-3, bn_momentum=0.01,
-                            bcount=self.bcount, transpose_at_scatter=False, deconv=True)
+                            bcount=self.tcount, deconv=True, transpose=True)
                     )
                 else:
                     stride = np.round(1 / stride).astype(np.int)
                     self.deblocks.append(
                         SparseBlock_Conv2d_BN_ReLU(num_filters[idx], num_upsample_filters[idx],
                             stride, stride=stride, bias=False, bn_eps=1e-3, bn_momentum=0.01,
-                            bcount=self.bcount, transpose_at_scatter=False)
+                            bcount=self.tcount, transpose=True)
                     )
 
         c_in = sum(num_upsample_filters)
@@ -67,12 +66,10 @@ class BaseBEVBackbone(nn.Module):
                 SparseBlock_Conv2d_BN_ReLU(c_in, c_in,
                     upsample_strides[-1], stride=upsample_strides[-1], bias=False,
                     bn_eps=1e-3, bn_momentum=0.01,
-                    bcount=self.bcount, transpose_at_scatter=False, deconv=True)
+                    bcount=self.tcount, deconv=True, transpose=True)
             )
 
         self.num_bev_features = c_in
-        self.tmp_reduce_mask = gen_full_reducemask(self.bcount)
-        self.tmp_reduce_mask.bin_counts[0] //= 4
 
     def forward(self, data_dict):
         """
@@ -82,24 +79,32 @@ class BaseBEVBackbone(nn.Module):
         Returns:
         """
         spatial_features = data_dict['spatial_features']
-        if 'reduce_mask' not in data_dict:
-            #TODO quick fix for now
-            reduce_mask = self.tmp_reduce_mask
-        else:
-            reduce_mask = data_dict['reduce_mask']
+        tile_coords = data_dict['chosen_tile_coords']
+        total_num_tiles = data_dict['total_num_tiles']
+        batch_idx = torch.div(tile_coords, total_num_tiles, rounding_mode='trunc').short()
+        row_col_idx = tile_coords - batch_idx * total_num_tiles
+        row_idx = torch.div(row_col_idx, self.tcount[0], rounding_mode='trunc').short()
+        col_idx = (row_col_idx - row_idx*self.tcount[1]).short()
+        inds = torch.stack((batch_idx, row_idx, col_idx), dim=1)
+        counts = torch.full((1,), tile_coords.size(0), dtype=torch.int32)
+        reduce_mask = ReduceMask(inds, counts)
+
         ups = []
         ret_dict = {}
-        #x = spatial_features
-        x = spatial_features.permute(0, 2, 3, 1).contiguous() # Transform to nhwC
+        x = spatial_features.to(memory_format=torch.channels_last)
         for i in range(len(self.blocks)):
+            #torch.cuda.nvtx.range_push(f'Block_{i+1}')
             x, _ = self.blocks[i]((x, reduce_mask))
             stride = int(spatial_features.shape[2] / x.shape[2])
             ret_dict['spatial_features_%dx' % stride] = x
+            #torch.cuda.nvtx.range_pop()
+            #torch.cuda.nvtx.range_push(f'Deblock_{i+1}')
             if len(self.deblocks) > 0:
                 x2, _ = self.deblocks[i]((x, reduce_mask))
             else:
                 x2 = x
             ups.append(x2)
+            #torch.cuda.nvtx.range_pop()
 
         if len(ups) > 1:
             x = torch.cat(ups, dim=1)
