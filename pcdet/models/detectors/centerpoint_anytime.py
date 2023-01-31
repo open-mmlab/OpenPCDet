@@ -59,11 +59,6 @@ class CenterPointAnytime(Detector3DTemplate):
         self.measure_time_start('VFE')
         batch_dict = self.vfe(batch_dict)
         self.measure_time_end('VFE')
-        #print('points', batch_dict['points'].size())
-        #print('voxels', batch_dict['voxels'].size())
-        #print('voxel_coords', batch_dict['voxel_coords'].size())
-        #print(batch_dict['voxel_coords'])
-        #print(torch.sum(batch_dict['voxel_coords'][:,0]))
 
         if self.is_voxel_enc:
             self.measure_time_start('Backbone3D')

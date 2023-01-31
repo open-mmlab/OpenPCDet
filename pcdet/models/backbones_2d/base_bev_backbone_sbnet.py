@@ -86,7 +86,8 @@ class BaseBEVBackboneSbnet(nn.Module):
         row_idx = torch.div(row_col_idx, self.tcount[0], rounding_mode='trunc').short()
         col_idx = (row_col_idx - row_idx*self.tcount[1]).short()
         inds = torch.stack((batch_idx, row_idx, col_idx), dim=1)
-        counts = torch.full((1,), tile_coords.size(0), dtype=torch.int32)
+
+        counts = torch.full((1,), inds.size(0), dtype=torch.int32)
         reduce_mask = ReduceMask(inds, counts)
 
         ups = []
@@ -113,6 +114,11 @@ class BaseBEVBackboneSbnet(nn.Module):
 
         if len(self.deblocks) > len(self.blocks):
             x, _ = self.deblocks[-1]((x, reduce_mask))
+
+        # Enabling this gives CUDNN error during backward, why though?
+        # If the network can train, this can be enabled only for inference
+        # therefore, no big deal if there is not error in the code.
+        #x = x.to(memory_format=torch.contiguous_format)
 
         data_dict['spatial_features_2d'] = x
 
