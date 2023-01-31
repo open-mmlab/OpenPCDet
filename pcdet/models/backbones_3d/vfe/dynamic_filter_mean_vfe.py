@@ -84,7 +84,7 @@ class DynamicFilterMeanVFE(VFETemplate):
         # TODO There could be a way to avoid this unique, duplicate indexes appears working
         nonempty_tile_coords = torch.unique(tile_coords, sorted=False)
 
-        if nonempty_tile_coords.size(0) > num_tiles_to_process:
+        if not self.training and nonempty_tile_coords.size(0) > num_tiles_to_process:
             # Point filtering is needed
             # supress empty tiles by temporarily increasing the priority of nonempty tiles
             tile_prios[nonempty_tile_coords] += total_num_tiles
