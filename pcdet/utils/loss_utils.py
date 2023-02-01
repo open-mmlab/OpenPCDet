@@ -148,6 +148,7 @@ class WeightedL1Loss(nn.Module):
             self.code_weights = np.array(code_weights, dtype=np.float32)
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
 
+    @torch.amp.cuda.custom_fwd(cast_inputs=torch.float16)
     def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor = None):
         """
         Args:

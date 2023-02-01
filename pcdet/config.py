@@ -7,7 +7,7 @@ from easydict import EasyDict
 def log_config_to_file(cfg, pre='cfg', logger=None):
     for key, val in cfg.items():
         if isinstance(cfg[key], EasyDict):
-            logger.info('\n%s.%s = edict()' % (pre, key))
+            logger.info('----------- %s -----------' % (key))
             log_config_to_file(cfg[key], pre=pre + '.' + key, logger=logger)
             continue
         logger.info('%s.%s: %s' % (pre, key, val))
