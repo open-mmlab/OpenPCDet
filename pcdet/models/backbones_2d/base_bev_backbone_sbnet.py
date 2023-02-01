@@ -85,8 +85,7 @@ class BaseBEVBackboneSbnet(nn.Module):
         row_col_idx = tile_coords - batch_idx * total_num_tiles
         row_idx = torch.div(row_col_idx, self.tcount[0], rounding_mode='trunc').short()
         col_idx = (row_col_idx - row_idx*self.tcount[1]).short()
-        inds = torch.stack((batch_idx, row_idx, col_idx), dim=1)
-
+        inds = torch.stack((batch_idx, col_idx, row_idx), dim=1)
         counts = torch.full((1,), inds.size(0), dtype=torch.int32)
         reduce_mask = ReduceMask(inds, counts)
 
@@ -96,8 +95,8 @@ class BaseBEVBackboneSbnet(nn.Module):
         for i in range(len(self.blocks)):
             #torch.cuda.nvtx.range_push(f'Block_{i+1}')
             x, _ = self.blocks[i]((x, reduce_mask))
-            stride = int(spatial_features.shape[2] / x.shape[2])
-            ret_dict['spatial_features_%dx' % stride] = x
+            #stride = int(spatial_features.shape[2] / x.shape[2])
+            #ret_dict['spatial_features_%dx' % stride] = x
             #torch.cuda.nvtx.range_pop()
             #torch.cuda.nvtx.range_push(f'Deblock_{i+1}')
             if len(self.deblocks) > 0:
@@ -115,11 +114,6 @@ class BaseBEVBackboneSbnet(nn.Module):
         if len(self.deblocks) > len(self.blocks):
             x, _ = self.deblocks[-1]((x, reduce_mask))
 
-        # Enabling this gives CUDNN error during backward, why though?
-        # If the network can train, this can be enabled only for inference
-        # therefore, no big deal if there is not error in the code.
-        #x = x.to(memory_format=torch.contiguous_format)
-
-        data_dict['spatial_features_2d'] = x
+        data_dict['spatial_features_2d'] = x.to(memory_format=torch.contiguous_format)
 
         return data_dict
