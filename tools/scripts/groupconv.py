@@ -20,10 +20,14 @@ inp_sep   = (torch.rand((1, 64, 128, 128)).cuda(),
         torch.rand((1, 64, 128, 128)).cuda())
 
 def run_sep_convs(convs, inps):
-    return [c(i) for i, c in zip (inps, convs)]
+    ret = [c(i) for i, c in zip (inps, convs)]
+    torch.cuda.synchronize()
+    return ret
 
 def run_group_conv(gconv, inp):
-    return gconv(inp)
+    ret = gconv(inp)
+    torch.cuda.synchronize()
+    return ret
 
 out = run_sep_convs(sep_convs, inp_sep)
 print('Seperate conv outputs:')
