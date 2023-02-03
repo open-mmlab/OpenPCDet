@@ -2,8 +2,8 @@ import torch
 import timeit
 
 torch.backends.cudnn.benchmarking = True
-torch.backends.cuda.matmul.allow_tf32 = False
-torch.backends.cudnn.allow_tf32 = False
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 num_channels=64
 
@@ -15,19 +15,67 @@ def conv_bn_relu_conv(outp_ch):
         torch.nn.ReLU(),
         torch.nn.Conv2d(num_channels, outp_ch, (3, 3), padding=(1, 1)))
 
-sep_convs = torch.nn.ModuleList([
+# These are for single heada
+def det_head(num_cls):
+    return torch.nn.ModuleList([
+        conv_bn_relu_conv(num_cls),
         conv_bn_relu_conv(2),
-        conv_bn_relu_conv(2),
-        conv_bn_relu_conv(2),
-        conv_bn_relu_conv(3),
         conv_bn_relu_conv(1),
-        conv_bn_relu_conv(2)]).cuda()
+        conv_bn_relu_conv(3),
+        conv_bn_relu_conv(2),
+        conv_bn_relu_conv(2)])
 
+
+#single head
+#sep_convs = det_head(1).cuda()
+#group_conv = torch.nn.Sequential(
+#        torch.nn.Conv2d(num_channels, num_channels*6, (3, 3), padding=(1, 1)),
+#        torch.nn.GroupNorm(6, num_channels*6, eps=1e-05),
+#        torch.nn.ReLU(),
+#        torch.nn.Conv2d(num_channels*6, 3*6, (3, 3), padding=(1, 1), groups=6)).cuda()
+
+#multi-head
+cls_per_head = [1,2,2,1,2,2]
+num_heads = len(cls_per_head)
+sep_convs = torch.nn.ModuleList([det_head(c) for c in cls_per_head]).cuda()
 group_conv = torch.nn.Sequential(
-        torch.nn.Conv2d(num_channels, num_channels*6, (3, 3), padding=(1, 1)),
-        torch.nn.GroupNorm(6, num_channels*6, eps=1e-05),
+        torch.nn.Conv2d(num_channels, num_channels*num_heads*6, (3, 3), padding=(1, 1)),
+        torch.nn.GroupNorm(num_heads*6, num_channels*num_heads*6, eps=1e-05),
         torch.nn.ReLU(),
-        torch.nn.Conv2d(num_channels*6, 3*6, (3, 3), padding=(1, 1), groups=6)).cuda()
+        torch.nn.Conv2d(num_channels*num_heads*6, 3*num_heads*6, (3, 3),
+            padding=(1, 1), groups=6*num_heads)).cuda()
+
+def run_sep_convs(convs, inp):
+    #ret = [c(inp) for c in convs] # single head
+    ret = [c(inp) for h in convs for c in h]
+    torch.cuda.synchronize()
+    return ret
+
+def run_group_conv(gconv, inp):
+    ret = gconv(inp)
+    torch.cuda.synchronize()
+    return ret
+
+# Group convolution is faster until 32 64x5x5 slices, then its slower than sep convolution
+
+for inp_size in range(1, 257):
+    inp = torch.rand((inp_size, num_channels, 5, 5)).cuda()
+    out = run_sep_convs(sep_convs, inp)
+    out = run_group_conv(group_conv, inp)
+
+    t1 = timeit.Timer(
+        stmt='run_group_conv(group_conv, inp)',
+        setup='from __main__ import run_group_conv',
+        globals={'group_conv': group_conv, 'inp':inp})
+
+    t0 = timeit.Timer(
+        stmt='run_sep_convs(sep_convs, inp)',
+        setup='from __main__ import run_sep_convs',
+        globals={'sep_convs': sep_convs, 'inp': inp})
+
+    print('Timings for input size of', inp.size())
+    print(f'sep conv:  {t0.timeit(100) / 100 * 1e6:>5.1f} us')
+    print(f'grp conv:  {t1.timeit(100) / 100 * 1e6:>5.1f} us')
 
 
 def run_sep_convs(convs, inp):
@@ -41,8 +89,8 @@ def run_group_conv(gconv, inp):
     return ret
 
 
-for inp_size in (16, 32, 64, 128, 256):
-    inp = torch.rand((1, num_channels, inp_size, inp_size)).cuda()
+for inp_size in range(1, 257):
+    inp = torch.rand((inp_size, num_channels, 5, 5)).cuda()
     out = run_sep_convs(sep_convs, inp)
     out = run_group_conv(group_conv, inp)
 
