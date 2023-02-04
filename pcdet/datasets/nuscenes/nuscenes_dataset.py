@@ -143,7 +143,7 @@ class NuScenesDataset(DatasetTemplate):
     def getitem_post(self, data_dict):
         data_dict = self.prepare_data_post(data_dict=data_dict)
 
-        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False):
+        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False) and 'gt_boxes' in info:
             gt_boxes = data_dict['gt_boxes']
             gt_boxes[np.isnan(gt_boxes)] = 0
             data_dict['gt_boxes'] = gt_boxes

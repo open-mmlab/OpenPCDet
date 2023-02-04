@@ -71,7 +71,7 @@ class ProposalTargetLayer(nn.Module):
                 gt_boxes: (B, N, 7 + C + 1)
                 roi_labels: (B, num_rois)
         Returns:
-
+        
         """
         batch_size = batch_dict['batch_size']
         rois = batch_dict['rois']
@@ -199,9 +199,9 @@ class ProposalTargetLayer(nn.Module):
             roi_labels: (N)
             gt_boxes: (N, )
             gt_labels:
-
+            
         Returns:
-
+        
         """
         """
         :param rois: (N, 7)
@@ -220,7 +220,7 @@ class ProposalTargetLayer(nn.Module):
                 cur_gt = gt_boxes[gt_mask]
                 original_gt_assignment = gt_mask.nonzero().view(-1)
 
-                iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi, cur_gt)  # (M, N)
+                iou3d = iou3d_nms_utils.boxes_iou3d_gpu(cur_roi[:, :7], cur_gt[:, :7])  # (M, N)
                 cur_max_overlaps, cur_gt_assignment = torch.max(iou3d, dim=1)
                 max_overlaps[roi_mask] = cur_max_overlaps
                 gt_assignment[roi_mask] = original_gt_assignment[cur_gt_assignment]

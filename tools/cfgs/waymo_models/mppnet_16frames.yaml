@@ -1,0 +1,162 @@
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    PROCESSED_DATA_TAG: 'waymo_processed_data_v0_5_0'
+
+    SAMPLED_INTERVAL: {
+        'train': 1,
+        'test': 1
+    }
+    FILTER_EMPTY_BOXES_FOR_TRAIN: True
+    DISABLE_NLZ_FLAG_ON_POINTS: True
+
+    SEQUENCE_CONFIG:
+        ENABLED: True
+        SAMPLE_OFFSET: [-15,0]
+        
+    USE_PREDBOX: True
+    ROI_BOXES_PATH: {
+        'train': '../output/xxxxx/train/result.pkl',  # example: predicted boxes of RPN in training set
+        'test': '../output/xxxxx/val/result.pkl',  # example: predicted boxes of RPN in evalulation set
+    }
+
+    DATA_AUGMENTOR:
+        DISABLE_AUG_LIST: [ 'placeholder' ]
+        AUG_CONFIG_LIST:
+            -   NAME: random_world_flip
+                ALONG_AXIS_LIST: [ 'x', 'y' ]
+
+            -   NAME: random_world_rotation
+                WORLD_ROT_ANGLE: [ -0.78539816, 0.78539816 ]
+
+            -   NAME: random_world_scaling
+                WORLD_SCALE_RANGE: [ 0.95, 1.05 ]
+
+    DATA_PROCESSOR:
+        -   NAME: mask_points_and_boxes_outside_range
+            REMOVE_OUTSIDE_BOXES: True
+
+        -   NAME: shuffle_points
+            SHUFFLE_ENABLED: {
+                'train': True,
+                'test': True
+            }
+
+
+    POINT_FEATURE_ENCODING: {
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time'],       
+        }
+
+
+MODEL:
+    NAME: MPPNet
+
+    ROI_HEAD:
+        NAME: MPPNetHead
+        TRANS_INPUT: 64
+        CLASS_AGNOSTIC: True
+        USE_BOX_ENCODING:
+            ENABLED: True 
+        AVG_STAGE1_SCORE: True
+        USE_TRAJ_EMPTY_MASK: True
+        USE_AUX_LOSS: True
+        IOU_WEIGHT: [0.5,0.4]
+
+        ROI_GRID_POOL:
+            GRID_SIZE: 4
+            MLPS: [[64,64]]
+            POOL_RADIUS: [0.8]
+            NSAMPLE: [16]
+            POOL_METHOD: max_pool
+
+        Transformer:
+            num_lidar_points: 128
+            num_proxy_points: 64  # GRID_SIZE*GRID_SIZE*GRID_SIZE
+            pos_hidden_dim: 64
+            enc_layers: 3
+            dim_feedforward: 512
+            hidden_dim: 64 #equal to ROI_HEAD.TRANS_INPUT
+            dropout: 0.1
+            nheads: 4
+            pre_norm: False
+            num_frames: 16
+            num_groups: 4
+            sequence_stride: 4
+            use_grid_pos:
+                enabled: True
+                init_type: index
+            use_mlp_mixer:
+                enabled: True
+                hidden_dim: 16
+
+        TARGET_CONFIG:
+            BOX_CODER: ResidualCoder
+            ROI_PER_IMAGE: 96
+            FG_RATIO: 0.5
+            REG_AUG_METHOD: single
+            ROI_FG_AUG_TIMES: 10
+            RATIO: 0.2
+            USE_ROI_AUG: True
+            USE_TRAJ_AUG:
+                ENABLED: True
+                THRESHOD: 0.8
+            SAMPLE_ROI_BY_EACH_CLASS: True
+            CLS_SCORE_TYPE: roi_iou
+
+            CLS_FG_THRESH: 0.75
+            CLS_BG_THRESH: 0.25
+            CLS_BG_THRESH_LO: 0.1
+            HARD_BG_RATIO: 0.8
+
+            REG_FG_THRESH: 0.55
+
+        LOSS_CONFIG:
+            CLS_LOSS: BinaryCrossEntropy
+            REG_LOSS: smooth-l1
+            CORNER_LOSS_REGULARIZATION: True
+            LOSS_WEIGHTS: {
+                'rcnn_cls_weight': 1.0,
+                'rcnn_reg_weight': 1.0,
+                'rcnn_corner_weight': 2.0,
+                'traj_reg_weight': [2.0, 2.0, 2.0],
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+        SAVE_BBOX: False
+        EVAL_METRIC: waymo
+        NOT_APPLY_NMS_FOR_VEL: True
+
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: False
+            NMS_TYPE: nms_gpu
+            NMS_THRESH: 0.7
+            NMS_PRE_MAXSIZE: 4096
+            NMS_POST_MAXSIZE: 500
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 2
+    NUM_EPOCHS: 6
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.003
+    WEIGHT_DECAY: 0.01
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10
