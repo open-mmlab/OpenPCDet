@@ -114,6 +114,8 @@ class BaseBEVBackboneSbnet(nn.Module):
         if len(self.deblocks) > len(self.blocks):
             x, _ = self.deblocks[-1]((x, reduce_mask))
 
+        # NOTE if centerhead is going to use sbnet, do not do this here!
         data_dict['spatial_features_2d'] = x.to(memory_format=torch.contiguous_format)
+        data_dict['reduce_mask'] = reduce_mask
 
         return data_dict

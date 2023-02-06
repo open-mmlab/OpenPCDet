@@ -8,6 +8,8 @@ from .point_head_simple import PointHeadSimple
 from .point_intra_part_head import PointIntraPartOffsetHead
 from .center_head import CenterHead
 from .center_head_sliced import CenterHeadSliced
+from .center_head_group import CenterHeadGroup
+from .center_head_group_sbnet import CenterHeadGroupSbnet
 
 __all__ = {
     'AnchorHeadTemplate': AnchorHeadTemplate,
@@ -19,5 +21,7 @@ __all__ = {
     'AnchorHeadMulti': AnchorHeadMulti,
     'AnchorHeadMultiImprecise': AnchorHeadMultiImprecise,
     'CenterHead': CenterHead,
-    'CenterHeadSliced': CenterHeadSliced
+    'CenterHeadSliced': CenterHeadSliced,
+    'CenterHeadGroup': CenterHeadGroup,
+    'CenterHeadGroupSbnet': CenterHeadGroupSbnet
 }
