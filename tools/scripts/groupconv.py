@@ -59,42 +59,9 @@ def run_group_conv(gconv, inp):
     torch.cuda.synchronize()
     return ret
 
-# Group convolution is faster until 32 64x5x5 slices, then its slower than sep convolution
-
-for inp_size in range(1, 257):
-    inp = torch.rand((inp_size, num_channels, 5, 5)).cuda()
-    out = run_sep_convs(sep_convs, inp)
-    out = run_group_conv(group_conv, inp)
-
-    t1 = timeit.Timer(
-        stmt='run_group_conv(group_conv, inp)',
-        setup='from __main__ import run_group_conv',
-        globals={'group_conv': group_conv, 'inp':inp})
-
-    t0 = timeit.Timer(
-        stmt='run_sep_convs(sep_convs, inp)',
-        setup='from __main__ import run_sep_convs',
-        globals={'sep_convs': sep_convs, 'inp': inp})
-
-    print('Timings for input size of', inp.size())
-    print(f'sep conv:  {t0.timeit(100) / 100 * 1e6:>5.1f} us')
-    print(f'grp conv:  {t1.timeit(100) / 100 * 1e6:>5.1f} us')
-
-
-def run_sep_convs(convs, inp):
-    ret = [c(inp) for c in  convs]
-    torch.cuda.synchronize()
-    return ret
-
-def run_group_conv(gconv, inp):
-    ret = gconv(inp)
-    torch.cuda.synchronize()
-    return ret
-
-
 with open('timing.csv', 'w', newline='') as csvfile:
     time_writer = csv.writer(csvfile, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-    for inp_size in range(1, 257):
+    for inp_size in range(1, 129):
         inp = torch.rand((inp_size, num_channels, 5, 5)).cuda()
         out = run_sep_convs(sep_convs, inp)
         out = run_group_conv(group_conv, inp)
@@ -109,8 +76,8 @@ with open('timing.csv', 'w', newline='') as csvfile:
             setup='from __main__ import run_sep_convs',
             globals={'sep_convs': sep_convs, 'inp': inp})
 
-        sep_time_us = t0.timeit(100) / 100 * 1e6
-        grp_time_us = t1.timeit(100) / 100 * 1e6
+        sep_time_us = round(t0.timeit(100) / 100 * 1e6)
+        grp_time_us = round(t1.timeit(100) / 100 * 1e6)
         print('Timings for input size of', inp.size())
         print(f'sep conv:  {sep_time_us} us')
         print(f'grp conv:  {grp_time_us} us')
