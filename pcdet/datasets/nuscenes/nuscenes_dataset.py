@@ -124,7 +124,8 @@ class NuScenesDataset(DatasetTemplate):
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidar_path']).stem,
-            'metadata': {'token': info['token']}
+            'metadata': {'token': info['token']},
+            'info': info
         }
 
         if 'gt_boxes' in info:
@@ -142,11 +143,13 @@ class NuScenesDataset(DatasetTemplate):
 
     def getitem_post(self, data_dict):
         data_dict = self.prepare_data_post(data_dict=data_dict)
+        info = data_dict['info']
 
         if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False) and 'gt_boxes' in info:
             gt_boxes = data_dict['gt_boxes']
             gt_boxes[np.isnan(gt_boxes)] = 0
             data_dict['gt_boxes'] = gt_boxes
+        del data_dict['info']
 
         if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
