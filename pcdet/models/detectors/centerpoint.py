@@ -6,9 +6,7 @@ class CenterPoint(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
-        # Enabling benchmark gives a small boost (5ms)
-        torch.backends.cudnn.benchmark = True
-        # Enabling these doesnt speed up...
+        torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
         torch.cuda.manual_seed(0)
@@ -39,17 +37,9 @@ class CenterPoint(Detector3DTemplate):
         print(self)
 
     def forward(self, batch_dict):
-        #for cur_module in self.module_list:
-        #    batch_dict = cur_module(batch_dict)
-
         self.measure_time_start('VFE')
         batch_dict = self.vfe(batch_dict)
         self.measure_time_end('VFE')
-        #print('points', batch_dict['points'].size())
-        #print('voxels', batch_dict['voxels'].size())
-        #print('voxel_coords', batch_dict['voxel_coords'].size())
-        #print(batch_dict['voxel_coords'])
-        #print(torch.sum(batch_dict['voxel_coords'][:,0]))
 
         if self.is_voxel_enc:
             self.measure_time_start('Backbone3D')

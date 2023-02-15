@@ -84,22 +84,18 @@ class BaseBEVBackboneSbnet(nn.Module):
 
         ups = []
         ret_dict = {}
-        spatial_features = data_dict['spatial_features']
-        reduce_mask = data_dict['reduce_mask']
-        #x = spatial_features.to(memory_format=torch.channels_last)
-        x = spatial_features
+        data_dict['sbnet_x'] = data_dict['spatial_features']
         for i in range(len(self.blocks)):
             #torch.cuda.nvtx.range_push(f'Block_{i+1}')
-            x, _ = self.blocks[i]((x, reduce_mask))
+            data_dict = self.blocks[i](data_dict)
+            data_dict['sbnet_x'] = data_dict['sbnet_y']
             #stride = int(spatial_features.shape[2] / x.shape[2])
             #ret_dict['spatial_features_%dx' % stride] = x
             #torch.cuda.nvtx.range_pop()
             #torch.cuda.nvtx.range_push(f'Deblock_{i+1}')
             if len(self.deblocks) > 0:
-                x2, _ = self.deblocks[i]((x, reduce_mask))
-            else:
-                x2 = x
-            ups.append(x2)
+                data_dict = self.deblocks[i](data_dict)
+            ups.append(data_dict['sbnet_y'])
             #torch.cuda.nvtx.range_pop()
 
         if len(ups) > 1:
@@ -108,9 +104,9 @@ class BaseBEVBackboneSbnet(nn.Module):
             x = ups[0]
 
         if len(self.deblocks) > len(self.blocks):
-            x, _ = self.deblocks[-1]((x, reduce_mask))
+            data_dict = self.deblocks[-1](data_dict)
 
         # NOTE if centerhead is going to use sbnet, do not do this here!
-        data_dict['spatial_features_2d'] = x.permute(0,3,1,2).contiguous()
+        data_dict['spatial_features_2d'] = data_dict['sbnet_y'].permute(0,3,1,2).contiguous()
 
         return data_dict

@@ -3,11 +3,29 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
 
+    DATA_PROCESSOR:
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': False
+          }
+
+        - NAME: transform_points_to_voxels_placeholder
+          VOXEL_SIZE: [0.05, 0.05, 0.1]
+          MAX_POINTS_PER_VOXEL: 5
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 16000,
+            'test': 40000
+          }
+
 MODEL:
     NAME: CenterPoint
 
     VFE:
-        NAME: MeanVFE
+        NAME: DynMeanVFE
 
     BACKBONE_3D:
         NAME: VoxelResBackBone8x

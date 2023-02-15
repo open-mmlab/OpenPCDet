@@ -7,8 +7,7 @@ class CenterPointAnytime(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.model_cfg.BACKBONE_2D.TILE_COUNT = self.model_cfg.TILE_COUNT
         self.module_list = self.build_networks()
-        # Enabling benchmark gives a small boost (5ms)
-        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.benchmark = False
         torch.backends.cuda.matmul.allow_tf32 = False
         torch.backends.cudnn.allow_tf32 = False
         torch.cuda.manual_seed(0)
@@ -50,7 +49,8 @@ class CenterPointAnytime(Detector3DTemplate):
         self.num_tiles_to_process = self.total_num_tiles.cpu().item()
         self.reduce_mask_stream = torch.cuda.Stream()
         ################################################################################
-        #print(self)
+
+        print(self)
 
     def produce_reduce_mask(self, data_dict):
         tile_coords = data_dict['chosen_tile_coords']
@@ -84,9 +84,8 @@ class CenterPointAnytime(Detector3DTemplate):
 
         self.measure_time_start('MapToBEV')
         batch_dict = self.map_to_bev(batch_dict)
-        self.measure_time_end('MapToBEV')
-
         self.reduce_mask_stream.synchronize()
+        self.measure_time_end('MapToBEV')
 
         self.measure_time_start('Backbone2D')
         batch_dict = self.backbone_2d(batch_dict)
