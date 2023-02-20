@@ -8,7 +8,7 @@ from ..model_utils import centernet_utils
 from ...utils import loss_utils
 from ...ops.cuda_slicer import cuda_slicer
 
-from sbnet.layers import SparseBlock_Conv2d_BN_ReLU, SparseBlock_Conv2d, SparseBlock_ConvChain
+from sbnet.layers import SparseBlock_Conv2d_BN_ReLU
 import time
 
 class CenterHeadGroupSbnet(nn.Module):
@@ -54,13 +54,15 @@ class CenterHeadGroupSbnet(nn.Module):
         # all heads. However, the heatmaps has to be merged seperately, as their output can be used to
         # slice the input of other convolutions.
         #############
+
         hm_list = []
         inp_channels = self.model_cfg.SHARED_CONV_CHANNEL
         outp_channels, groups = inp_channels * num_heads, 1
         for k in range(self.model_cfg.NUM_HM_CONV - 1):
-            hm_list.append(SparseBlock_Conv2d_BN_ReLU(inp_channels, outp_channels,
-                kernel_size=ksize, stride=1, groups=groups, norm_groups=num_heads,
-                bias=use_bias, bcount=self.tcount, transpose=True))
+            hm_list.append(nn.Conv2d(inp_channels, outp_channels, kernel_size=ksize,
+                    stride=1, padding=1, groups=groups, bias=use_bias))
+            hm_list.append(nn.GroupNorm(num_heads, outp_channels))
+            hm_list.append(nn.ReLU())
             if k == 0:
                 inp_channels = outp_channels
                 groups = num_heads
@@ -71,16 +73,19 @@ class CenterHeadGroupSbnet(nn.Module):
         hm_outp_channels = [len(cur_class_names) for cur_class_names in self.class_names_each_head]
         hm_max_ch = max(hm_outp_channels)
         hm_total_outp_channels = hm_max_ch * num_heads
-        hm_list.append(SparseBlock_Conv2d(outp_channels, hm_total_outp_channels, kernel_size=ksize,
-            stride=1, groups=groups, bias=True, bcount=self.tcount, transpose=True))
-        hm_list[-1].fill_bias(-2.19)
+        hm_list.append(nn.Conv2d(outp_channels, hm_total_outp_channels, kernel_size=ksize,
+            stride=1, padding=1, groups=groups, bias=True))
+        hm_list[-1].bias.data.fill_(-2.19)
+
+        #TODO simple hack for now
+        # out_C x in_C x ksize x ksize
+        #hm_list[-1].weight.data[[1,7],...] = 0.
+        #hm_list[-1].bias.data[[1,7],...] = 0.
+
         if len(hm_list) > 1:
-            chain_mask = self.model_cfg.get('SBNET_HM_CHAIN_MASK', None)
-            self.heatmap_convs = SparseBlock_ConvChain(chain_mask)
-            for hm_conv in hm_list:
-                self.heatmap_convs.append_conv(hm_conv)
-        else:
             self.heatmap_convs = nn.Sequential(*hm_list)
+        else:
+            self.heatmap_convs = hm_list[0]
         self.heatmap_outp_inds = [(i*hm_max_ch, i*hm_max_ch+ch) \
                 for i, ch in enumerate(hm_outp_channels)]
         # The channels that fall outside of these indices are useless, don't train their filters
@@ -122,15 +127,20 @@ class CenterHeadGroupSbnet(nn.Module):
 
             attr_list.append(nn.Conv2d(outp_channels, attr_total_outp_channels,
                 kernel_size=ksize, stride=1, padding=0, groups=groups, bias=True))
+
             attr_convs = nn.Sequential(*attr_list)
             if head_idx == 0:
                 self.slice_size = (self.slice_size-1) + ksize
 
-            for m in attr_convs.modules():
+            for m in attr_convs:
                 if isinstance(m, nn.Conv2d):
                     kaiming_normal_(m.weight.data)
                     if hasattr(m, "bias") and m.bias is not None:
                         nn.init.constant_(m.bias, 0)
+
+            #TODO simple hack for now
+            #attr_convs[-1].weight.data[[2,4,5,11,14],...] = 0.
+            #attr_convs[-1].bias.data[[2,4,5,11,14],...] = 0.
 
             self.det_heads.append(attr_convs)
 
@@ -445,37 +455,35 @@ class CenterHeadGroupSbnet(nn.Module):
             return self.forward_train(data_dict)
 
     def forward_train(self, data_dict):
-        data_dict['sbnet_x'] = data_dict['spatial_features_2d']
+        spatial_features_2d = data_dict['spatial_features_2d']
+        data_dict['sbnet_x'] = spatial_features_2d
         data_dict = self.shared_conv(data_dict)
         shr_conv_outp = data_dict['sbnet_y']
 
-        data_dict['sbnet_x'] = shr_conv_outp
-        data_dict = self.heatmap_convs(data_dict)
-        heatmaps = data_dict['sbnet_y']
+        # Change is to NCHW
+        shr_conv_outp_nchw = shr_conv_outp.permute(0,3,1,2).contiguous()
+        heatmaps = self.heatmap_convs(shr_conv_outp_nchw)
 
-        pred_dicts = [{'hm' : heatmaps[..., inds[0]:inds[1]].permute(0,3,1,2).contiguous()} \
+        pred_dicts = [{'hm' : heatmaps[:, inds[0]:inds[1]]} \
                 for inds in self.heatmap_outp_inds]
 
         # default padding is 1
         pad_size = p = 1
-        # Change is to NCHW
-        padded_x = torch.nn.functional.pad(shr_conv_outp, \
-                (0,0,p,p,p,p)).permute(0,3,1,2).contiguous()
 
         # Forward through all heads one by one
         for det_head, pd in zip(self.det_heads, pred_dicts):
-            x = padded_x
-            for m in det_head.modules():
+            x = shr_conv_outp_nchw
+            for m in det_head:
                 if isinstance(m, nn.Conv2d):
-                    x = torch.nn.functional.pad(x, \
-                            (0,0,p,p,p,p)).permute(0,3,1,2).contiguous()
+                    x = torch.nn.functional.pad(x, (p,p,p,p))
                 x = m(x)
 
             for name, inds in self.attr_outp_inds.items():
-                pd[name] = outp[:, inds[0]:inds[1], :, :]
+                pd[name] = x[:, inds[0]:inds[1], :, :].contiguous()
 
+        feature_map_size=spatial_features_2d.size()[1:3]
         target_dict = self.assign_targets(
-            data_dict['gt_boxes'], feature_map_size=spatial_features_2d.size()[2:],
+            data_dict['gt_boxes'], feature_map_size=feature_map_size,
             feature_map_stride=data_dict.get('spatial_features_2d_strides', None)
         )
         self.forward_ret_dict['target_dicts'] = target_dict
@@ -500,11 +508,10 @@ class CenterHeadGroupSbnet(nn.Module):
         shr_conv_outp = data_dict['sbnet_y']
 
         # Run heatmap convolutions and gather the actual channels
-        data_dict['sbnet_x'] = shr_conv_outp
-        data_dict = self.heatmap_convs(data_dict)
-        heatmaps = self.sigmoid(data_dict['sbnet_y'])
+        shr_conv_outp_nchw = shr_conv_outp.permute(0,3,1,2).contiguous()
+        heatmaps = self.sigmoid(self.heatmap_convs(shr_conv_outp_nchw))
         # Convert to NCHW
-        pred_dicts = [{'hm' : heatmaps[..., inds[0]:inds[1]].permute(0,3,1,2).contiguous()} \
+        pred_dicts = [{'hm' : heatmaps[:, inds[0]:inds[1]]} \
                 for inds in self.heatmap_outp_inds]
 
         ##########
@@ -513,7 +520,8 @@ class CenterHeadGroupSbnet(nn.Module):
         # TODO Definetely try cuda streams here
         post_process_cfg = self.model_cfg.POST_PROCESSING
         score_thres = post_process_cfg.SCORE_THRESH
-        pad_size = self.slice_size//2
+        p = pad_size = self.slice_size//2
+        padded_x = torch.nn.functional.pad(shr_conv_outp, (0,0,p,p,p,p))
         for det_head, pd in zip(self.det_heads, pred_dicts):
             heatmap = pd['hm']
             topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
@@ -540,8 +548,6 @@ class CenterHeadGroupSbnet(nn.Module):
             ys_cat = torch.cat([to[3] for to in topk_outp]) + pad_size
             xs_cat = torch.cat([to[4] for to in topk_outp]) + pad_size
             indices = torch.stack((b_id_cat, ys_cat.short(), xs_cat.short()), dim=1)
-            p = pad_size
-            padded_x = torch.nn.functional.pad(shr_conv_outp, (0,0,p,p,p,p))
             slices = cuda_slicer.slice_and_batch_nhwc(padded_x, indices, self.slice_size)
             outp = det_head(slices)
 
