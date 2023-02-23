@@ -54,11 +54,10 @@ class AdaptiveGroupConv(nn.Module):
         C = self.inp_ch_per_conv
         # TODO try out cuda streams here
         for conv, indexes in zip(self.convs, self.inp_outp_indexes):
-            x = conv(inp[:, (indexes[0]*C):(indexes[1]*C)])
-            chunks = torch.chunk(x, indexes[1] - indexes[0], dim=1)
-            for c, o in enumerate(range(indexes[0], indexes[1])):
-                outp[o] = chunks[c]
-        
+            x = inp[:, (indexes[0]*C):(indexes[1]*C)]
+            y = conv(x)
+            outp[indexes[0]:indexes[1]] = torch.chunk(y, indexes[1] - indexes[0], dim=1)
+
         return outp
 
 
@@ -106,7 +105,10 @@ class CenterHeadGroupSbnet(nn.Module):
         for k in range(self.model_cfg.NUM_HM_CONV - 1):
             hm_list.append(nn.Conv2d(inp_channels, outp_channels, kernel_size=ksize,
                     stride=1, padding=1, groups=groups, bias=use_bias))
-            hm_list.append(nn.GroupNorm(num_heads, outp_channels))
+            if num_heads > 1:
+                hm_list.append(nn.GroupNorm(num_heads, outp_channels))
+            else:
+                hm_list.append(nn.BatchNorm2d(outp_channels))
             hm_list.append(nn.ReLU())
             if k == 0:
                 inp_channels = outp_channels
@@ -149,7 +151,10 @@ class CenterHeadGroupSbnet(nn.Module):
             for k in range(num_convs - 1):
                 attr_list.append(nn.Conv2d(inp_channels, outp_channels, kernel_size=ksize,
                         stride=1, padding=0, groups=groups, bias=use_bias))
-                attr_list.append(nn.GroupNorm(len(head_dict), outp_channels))
+                if len(head_dict) > 1:
+                    attr_list.append(nn.GroupNorm(len(head_dict), outp_channels))
+                else:
+                    attr_list.append(nn.BatchNorm2d(outp_channels))
                 attr_list.append(nn.ReLU())
                 if k == 0:
                     inp_channels = outp_channels
@@ -473,10 +478,10 @@ class CenterHeadGroupSbnet(nn.Module):
         return rois, roi_scores, roi_labels
 
     def forward(self, data_dict):
-        if not self.training:
-            return self.forward_eval(data_dict)
-        else:
+        if self.training:
             return self.forward_train(data_dict)
+        else:
+            return self.forward_eval(data_dict)
 
     def forward_train(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
@@ -489,7 +494,6 @@ class CenterHeadGroupSbnet(nn.Module):
         heatmaps = self.heatmap_convs(shr_conv_outp_nchw)
 
         pred_dicts = [{'hm' : hm} for hm in heatmaps]
-
         # default padding is 1
         pad_size = p = 1
 
@@ -522,6 +526,12 @@ class CenterHeadGroupSbnet(nn.Module):
             data_dict['roi_labels'] = roi_labels
             data_dict['has_class_labels'] = True
 
+        if not self.training:
+            pred_dicts = self.generate_predicted_boxes(
+                data_dict['batch_size'], pred_dicts
+            )
+            data_dict['final_box_dicts'] = pred_dicts
+
         return data_dict
 
     def forward_eval(self, data_dict):
@@ -545,7 +555,8 @@ class CenterHeadGroupSbnet(nn.Module):
         for det_head, pd in zip(self.det_heads, pred_dicts):
             heatmap = pd['hm']
             topk_score, topk_inds, topk_classes, topk_ys, topk_xs = \
-                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample, using_slicing=True)
+                    centernet_utils._topk(heatmap, K=self.max_obj_per_sample, \
+                    using_slicing=True)
 
             final_outputs, topk_outp, batch_id_tensors = [], [], []
 
