@@ -211,13 +211,9 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             'box_preds': box_preds if self.separate_multihead else torch.cat(box_preds, dim=1),
         }
 
-        data_dict['cls_preds'] = ret['cls_preds']
-        data_dict['box_preds'] = ret['box_preds']
-
         if self.model_cfg.get('USE_DIRECTION_CLASSIFIER', False):
             dir_cls_preds = [ret_dict['dir_cls_preds'] for ret_dict in ret_dicts]
             ret['dir_cls_preds'] = dir_cls_preds if self.separate_multihead else torch.cat(dir_cls_preds, dim=1)
-            data_dict['dir_cls_preds'] = ret['dir_cls_preds']
 
         self.forward_ret_dict.update(ret)
 
@@ -228,31 +224,23 @@ class AnchorHeadMulti(AnchorHeadTemplate):
             self.forward_ret_dict.update(targets_dict)
 
         if not self.training or self.predict_boxes_when_training:
-            data_dict = self.gen_pred_boxes(data_dict)
+            batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
+                batch_size=data_dict['batch_size'],
+                cls_preds=ret['cls_preds'], box_preds=ret['box_preds'], dir_cls_preds=ret.get('dir_cls_preds', None)
+            )
+
+            if isinstance(batch_cls_preds, list):
+                multihead_label_mapping = []
+                for idx in range(len(batch_cls_preds)):
+                    multihead_label_mapping.append(self.rpn_heads[idx].head_label_indices)
+
+                data_dict['multihead_label_mapping'] = multihead_label_mapping
+
+            data_dict['batch_cls_preds'] = batch_cls_preds
+            data_dict['batch_box_preds'] = batch_box_preds
+            data_dict['cls_preds_normalized'] = False
 
         return data_dict
-
-    def gen_pred_boxes(self, data_dict):
-        batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
-            batch_size=data_dict['batch_size'],
-            cls_preds=data_dict['cls_preds'],
-            box_preds=data_dict['box_preds'],
-            dir_cls_preds=data_dict.get('dir_cls_preds', None)
-        )
-
-        if isinstance(batch_cls_preds, list):
-            multihead_label_mapping = []
-            for idx in range(len(batch_cls_preds)):
-                multihead_label_mapping.append(self.rpn_heads[idx].head_label_indices)
-
-            data_dict['multihead_label_mapping'] = multihead_label_mapping
-
-        data_dict['batch_cls_preds'] = batch_cls_preds
-        data_dict['batch_box_preds'] = batch_box_preds
-        data_dict['cls_preds_normalized'] = False
-        return data_dict
-
-
 
     def get_cls_layer_loss(self):
         loss_weights = self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS

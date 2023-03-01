@@ -481,6 +481,7 @@ class CenterHeadGroupSbnet(nn.Module):
         if self.training:
             return self.forward_train(data_dict)
         else:
+            # Decreases accuracy, why?
             return self.forward_eval(data_dict)
 
     def forward_train(self, data_dict):

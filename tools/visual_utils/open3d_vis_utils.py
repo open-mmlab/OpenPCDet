@@ -7,28 +7,14 @@ import open3d
 import torch
 import matplotlib
 import numpy as np
-#
-#box_colormap = [
-#    [1, 1, 1],
-#    [0, 1, 0],
-#    [0, 1, 1],
-#    [1, 1, 0],
-#]
 
 box_colormap = [
-    (128/255,0,0),
-    (205/255,92/255,92/255),
-    (255/255,140/255,0),
-    (189/255,183/255,107/255),
-    (154/255,205/2555,50/255),
-    (0,1,0),
-    (46/255,139/255,87/255),
-    (0,139/255,139/255),
-    (70/255,130/255,180/255),
-    (139/255,0,139/255),
-    (139/255,69/255,19/255),
-    (192/255,192/255,192/255)
+    [1, 1, 1],
+    [0, 1, 0],
+    [0, 1, 1],
+    [1, 1, 0],
 ]
+
 
 def get_coor_colors(obj_labels):
     """
@@ -48,20 +34,19 @@ def get_coor_colors(obj_labels):
 
     return label_rgba
 
-def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True, voxels=None, grid2d=None):
+
+def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
     if isinstance(gt_boxes, torch.Tensor):
         gt_boxes = gt_boxes.cpu().numpy()
     if isinstance(ref_boxes, torch.Tensor):
         ref_boxes = ref_boxes.cpu().numpy()
-    if isinstance(voxels, torch.Tensor):
-        voxels = voxels.cpu().numpy()
 
     vis = open3d.visualization.Visualizer()
     vis.create_window()
 
-    vis.get_render_option().point_size = 2.0
+    vis.get_render_option().point_size = 1.0
     vis.get_render_option().background_color = np.zeros(3)
 
     # draw origin
@@ -70,14 +55,13 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
         vis.add_geometry(axis_pcd)
 
     pts = open3d.geometry.PointCloud()
-    pts.points = open3d.utility.Vector3dVector(points[:, :3] if voxels is None else voxels)
-    pts.colors = open3d.utility.Vector3dVector(np.ones((len(pts.points), 3)) \
-            if point_colors is None else point_colors)
-    vis.add_geometry(pts)
-    print(f'Visualized points: {pts}')
+    pts.points = open3d.utility.Vector3dVector(points[:, :3])
 
-    if grid2d is not None:
-        vis.add_geometry(grid2d)
+    vis.add_geometry(pts)
+    if point_colors is None:
+        pts.colors = open3d.utility.Vector3dVector(np.ones((points.shape[0], 3)))
+    else:
+        pts.colors = open3d.utility.Vector3dVector(point_colors)
 
     if gt_boxes is not None:
         vis = draw_box(vis, gt_boxes, (0, 0, 1))

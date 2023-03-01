@@ -44,9 +44,6 @@ class SeparateHead(nn.Module):
 
         return ret_dict
 
-    def calibrate(self, shr_conv_outp):
-        pass
-
 
 class CenterHead(nn.Module):
     def __init__(self, model_cfg, input_channels, num_class, class_names, grid_size, point_cloud_range, voxel_size,
@@ -356,8 +353,3 @@ class CenterHead(nn.Module):
                 data_dict['final_box_dicts'] = pred_dicts
 
         return data_dict
-
-    def calibrate(self, data_dict):
-        x = self.shared_conv(data_dict['spatial_features_2d'])
-        for head in self.heads_list:
-            head.calibrate(x)

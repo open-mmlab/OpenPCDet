@@ -1,4 +1,4 @@
-from .detector3d_template import Detector3DTemplate
+from .detector3d_template import Detector3DTemplate, pre_forward_hook
 import torch
 from sbnet.layers import ReduceMask
 
@@ -34,7 +34,6 @@ class CenterPointAnytime(Detector3DTemplate):
                     'MapToBEV': [],
                     'Backbone2D': [],
                     'CenterHead': [],})
-        self.post_processing_func = self.post_processing
 
         ################################################################################
         self.tcount= torch.tensor(self.model_cfg.TILE_COUNT).long().cuda()
@@ -103,9 +102,6 @@ class CenterPointAnytime(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            # I don't wanna do this before final syncronization
-            #pred_dicts, recall_dicts = self.post_processing(batch_dict)
-            #return pred_dicts, recall_dicts
             return batch_dict
 
     def get_training_loss(self):
@@ -120,7 +116,11 @@ class CenterPointAnytime(Detector3DTemplate):
         loss = loss_rpn
         return loss, tb_dict, disp_dict
 
-    def post_processing(self, batch_dict):
+    def post_processing_pre(self, batch_dict):
+        return (batch_dict,)
+
+    def post_processing_post(self, pp_args):
+        batch_dict = pp_args[0]
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         final_pred_dict = batch_dict['final_box_dicts']
@@ -136,9 +136,8 @@ class CenterPointAnytime(Detector3DTemplate):
 
         return final_pred_dict, recall_dict
 
-    def calibrate(self):
-        batch_dict = self.load_data_with_ds_index(0)
-
+    def calibrate(self, batch_size=1):
+        batch_dict = pre_forward_hook(self, ([i for i in range(batch_size)],))
         for v in ('tcount','tile_prios','num_tiles_to_process', 'total_num_tiles'):
             batch_dict[v] = getattr(self, v)
 
@@ -152,6 +151,3 @@ class CenterPointAnytime(Detector3DTemplate):
         batch_dict = self.backbone_2d(batch_dict)
         self.dense_head.calibrate(batch_dict)
         self.clear_stats()
-
-        # I should't do this first because I need the tensors of center head to be preallocated
-        super().calibrate()

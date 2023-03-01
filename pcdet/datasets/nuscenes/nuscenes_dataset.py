@@ -11,10 +11,10 @@ from ..dataset import DatasetTemplate
 
 
 class NuScenesDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, total_epochs=0):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         root_path = (root_path if root_path is not None else Path(dataset_cfg.DATA_PATH)) / dataset_cfg.VERSION
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger, total_epochs=total_epochs
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
         self.infos = []
         self.include_nuscenes_data(self.mode)
@@ -124,8 +124,7 @@ class NuScenesDataset(DatasetTemplate):
         input_dict = {
             'points': points,
             'frame_id': Path(info['lidar_path']).stem,
-            'metadata': {'token': info['token']},
-            'info': info
+            'metadata': {'token': info['token']}
         }
 
         if 'gt_boxes' in info:
@@ -141,15 +140,13 @@ class NuScenesDataset(DatasetTemplate):
 
         return self.prepare_data_pre(data_dict=input_dict)
 
-    def getitem_post(self, data_dict):
-        data_dict = self.prepare_data_post(data_dict=data_dict)
-        info = data_dict['info']
 
-        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False) and 'gt_boxes' in info:
+    def getitem_post(self, data_dict):
+        self.prepare_data_post(data_dict=data_dict)
+        if self.dataset_cfg.get('SET_NAN_VELOCITY_TO_ZEROS', False):
             gt_boxes = data_dict['gt_boxes']
             gt_boxes[np.isnan(gt_boxes)] = 0
             data_dict['gt_boxes'] = gt_boxes
-        del data_dict['info']
 
         if not self.dataset_cfg.PRED_VELOCITY and 'gt_boxes' in data_dict:
             data_dict['gt_boxes'] = data_dict['gt_boxes'][:, [0, 1, 2, 3, 4, 5, 6, -1]]
@@ -157,64 +154,13 @@ class NuScenesDataset(DatasetTemplate):
         return data_dict
 
     def __getitem__(self, index):
-        data_dict = self.getitem_pre(index)
-        data_dict = self.getitem_post(data_dict)
-        return data_dict
-
-
-    @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
-        """
-        Args:
-            batch_dict:
-                frame_id:
-            pred_dicts: list of pred_dicts
-                pred_boxes: (N, 7), Tensor
-                pred_scores: (N), Tensor
-                pred_labels: (N), Tensor
-            class_names:
-            output_path:
-        Returns:
-        """
-        def get_template_prediction(num_samples):
-            ret_dict = {
-                'name': np.zeros(num_samples), 'score': np.zeros(num_samples),
-                'boxes_lidar': np.zeros([num_samples, 7]), 'pred_labels': np.zeros(num_samples)
-            }
-            return ret_dict
-
-        def generate_single_sample_dict(box_dict):
-            pred_scores = box_dict['pred_scores'].cpu().numpy()
-            pred_boxes = box_dict['pred_boxes'].cpu().numpy()
-            pred_labels = box_dict['pred_labels'].cpu().numpy()
-            pred_dict = get_template_prediction(pred_scores.shape[0])
-            if pred_scores.shape[0] == 0:
-                return pred_dict
-
-            pred_dict['name'] = np.array(class_names)[pred_labels - 1]
-            pred_dict['score'] = pred_scores
-            pred_dict['boxes_lidar'] = pred_boxes
-            pred_dict['pred_labels'] = pred_labels
-
-            return pred_dict
-
-        annos = []
-        for index, box_dict in enumerate(pred_dicts):
-            single_pred_dict = generate_single_sample_dict(box_dict)
-            single_pred_dict['frame_id'] = batch_dict['frame_id'][index]
-            single_pred_dict['metadata'] = batch_dict['metadata'][index]
-            annos.append(single_pred_dict)
-
-        return annos
+        return self.getitem_post(self.getitem_pre(index))
 
     def evaluation(self, det_annos, class_names, **kwargs):
         import json
         from nuscenes.nuscenes import NuScenes
         from . import nuscenes_utils
-        if 'nusc' in kwargs:
-            nusc = kwargs['nusc']
-        else:
-            nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
+        nusc = NuScenes(version=self.dataset_cfg.VERSION, dataroot=str(self.root_path), verbose=True)
         nusc_annos = nuscenes_utils.transform_det_annos_to_nusc_annos(det_annos, nusc)
         nusc_annos['meta'] = {
             'use_camera': False,
@@ -337,66 +283,7 @@ def create_nuscenes_info(version, data_path, save_path, max_sweeps=10):
     train_scenes = list(filter(lambda x: x in available_scene_names, train_scenes))
     val_scenes = list(filter(lambda x: x in available_scene_names, val_scenes))
     train_scenes = set([available_scenes[available_scene_names.index(s)]['token'] for s in train_scenes])
-
-#    # PLAY
-#    val_scenes_play = [available_scenes[available_scene_names.index(s)] for s in val_scenes]
-#    print('\nScene info:')
-#    scene_to_cato = {}
-#    for vs in val_scenes_play:
-#        print(vs['name'], vs['description'])
-#        catos = []
-#        sample_token = vs['first_sample_token']
-#        while sample_token != vs['last_sample_token']:
-#            sample = nusc.get('sample', sample_token)
-#            anno_tokens = sample['anns']
-#            for at in anno_tokens:
-#                label = nusc.get('sample_annotation', at)['category_name']
-#                catos.append(label)
-#            sample_token = sample['next']
-#
-#        catos_dict = {c : 0 for c in set(catos)}
-#        for c in catos:
-#            catos_dict[c] += 1
-#        scene_to_cato[vs['name']] = catos_dict
-#        for k,v in catos_dict.items():
-#            print(k, v)
-#        print()
-#
-#    all_catos = set()
-#    for d in scene_to_cato.values():
-#        all_catos.update(d.keys())
-#    print('All categories:', all_catos)
-#
-#    all_scenes = set([s for s in scene_to_cato.keys()])
-#
-#    while all_scenes:
-#        catos_so_far = set()
-#        selected_scenes = []
-#        for s, d in scene_to_cato.items():
-#            if s in all_scenes:
-#                cts = set(d.keys())
-#                if not catos_so_far.issuperset(cts):
-#                    selected_scenes.append(s)
-#                    catos_so_far = catos_so_far.union(cts)
-#                if catos_so_far == all_catos:
-#                    break
-#        
-#        print('\n\nSelected', len(selected_scenes),'scenes:', selected_scenes)
-#        # merge
-#        merged_dict = {c:0 for c in catos_so_far}
-#        for s in selected_scenes:
-#            for cato, count in scene_to_cato[s].items():
-#                merged_dict[cato] += count
-#
-#        merged_dict = dict(sorted(merged_dict.items()))
-#        for k,v in merged_dict.items():
-#            print(k, v)
-#
-#        all_scenes.difference_update(selected_scenes)
-#    # PLAY
-
     val_scenes = set([available_scenes[available_scene_names.index(s)]['token'] for s in val_scenes])
-
 
     print('%s: train scene(%d), val scene(%d)' % (version, len(train_scenes), len(val_scenes)))
 

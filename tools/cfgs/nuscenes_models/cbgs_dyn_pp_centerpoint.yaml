@@ -2,7 +2,7 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
               'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_mini_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
 
     POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
     DATA_PROCESSOR:
@@ -12,7 +12,7 @@ DATA_CONFIG:
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
-                'test': False
+                'test': True
             }
 
         -   NAME: transform_points_to_voxels_placeholder
@@ -46,9 +46,9 @@ MODEL:
 
         CLASS_NAMES_EACH_HEAD: [
             ['car'], 
+            ['barrier'],
             ['truck', 'construction_vehicle'],
             ['bus', 'trailer'],
-            ['barrier'],
             ['motorcycle', 'bicycle'],
             ['pedestrian', 'traffic_cone'],
         ]
@@ -57,13 +57,13 @@ MODEL:
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
         SEPARATE_HEAD_CFG:
-            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot', 'vel']
+            HEAD_ORDER: ['center_z', 'center', 'rot', 'vel', 'dim']
             HEAD_DICT: {
-                'center': {'out_channels': 2, 'num_conv': 2},
                 'center_z': {'out_channels': 1, 'num_conv': 2},
-                'dim': {'out_channels': 3, 'num_conv': 2},
+                'center': {'out_channels': 2, 'num_conv': 2},
                 'rot': {'out_channels': 2, 'num_conv': 2},
                 'vel': {'out_channels': 2, 'num_conv': 2},
+                'dim': {'out_channels': 3, 'num_conv': 2},
             }
 
         TARGET_ASSIGNER_CONFIG:
@@ -85,7 +85,7 @@ MODEL:
             MAX_OBJ_PER_SAMPLE: 500
             NMS_CONFIG:
                 NMS_TYPE: nms_gpu
-                NMS_THRESH: 0.2
+                NMS_THRESH: 0.01 #2
                 NMS_PRE_MAXSIZE: 1000
                 NMS_POST_MAXSIZE: 83
 

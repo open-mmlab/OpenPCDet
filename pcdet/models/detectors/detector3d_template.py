@@ -1,13 +1,12 @@
 import os
+import copy
+import time
+import json
+import datetime
+import numpy as np
 
 import torch
 import torch.nn as nn
-import copy
-import time
-import numpy as np
-import datetime
-import json
-import glob
 
 from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils.spconv_utils import find_all_spconv_keys
@@ -15,6 +14,66 @@ from .. import backbones_2d, backbones_3d, dense_heads, roi_heads, load_data_to_
 from ..backbones_2d import map_to_bev
 from ..backbones_3d import pfe, vfe
 from ..model_utils import model_nms_utils
+
+# NOTES
+# Post processing is split into two functions, pre and post.
+# Pre is called before the time measurement finishes.
+# Post is called after the time measurement.
+# The child class SHOULD NOT call any postprocessing function
+# inside the forward function. It should only override
+# the pre and post functions, or just let base class handle post processing.
+
+def pre_forward_hook(module, inp_args):
+    dataset_indexes = inp_args[0]
+    data_dicts = [module.dataset.getitem_pre(i) for i in dataset_indexes]
+    #data_dict = module.dataset.getitem_pre(dataset_index)
+    start_time = time.time()
+    torch.cuda.nvtx.range_push('End-to-end')
+    module.measure_time_start('End-to-end')
+    module.measure_time_start('PreProcess')
+    #module.measure_time_start('GetitemPost')
+    data_dicts = [module.dataset.getitem_post(dd) for dd in data_dicts]
+    #data_dict = module.dataset.getitem_post(data_dict)
+    #module.measure_time_end('GetitemPost')
+    #module.measure_time_start('CollateBatch')
+    batch_dict = module.dataset.collate_batch(data_dicts)
+    #module.measure_time_end('CollateBatch')
+    #module.measure_time_start('LoadToGPU')
+    load_data_to_gpu(batch_dict)
+    #module.measure_time_end('LoadToGPU')
+    batch_dict['deadline_sec'] = module._eval_dict['deadline_sec']
+    #batch_dict.update(extra_batch)  # deadline, method, etc.
+    batch_dict['abs_deadline_sec'] = start_time + batch_dict['deadline_sec']
+    module.measure_time_end('PreProcess')
+    return batch_dict
+
+def post_forward_hook(module, inp_args, outp_args):
+    #print(outp_args)
+    assert not isinstance(outp_args, tuple)
+    batch_dict = outp_args
+    pp_args = module.post_processing_pre(batch_dict) # NMS
+    torch.cuda.synchronize()
+    finish_time = time.time()
+    module.measure_time_end('End-to-end')
+    torch.cuda.nvtx.range_pop()
+
+    pred_dicts, recall_dict = module.post_processing_post(pp_args)
+
+    tdiff = round(finish_time - batch_dict['abs_deadline_sec'], 3)
+    module._eval_dict['deadline_diffs'].append(tdiff)
+
+    dl_missed = (True if tdiff > 0 else False)
+
+    if dl_missed:
+        module._eval_dict['deadlines_missed'] += 1
+        if module._use_empty_det_dict_for_eval:
+            pred_dicts = [ module.get_empty_det_dict() for p in pred_dicts ]
+
+    torch.cuda.synchronize()
+    module.calc_elapsed_times()
+    module.latest_batch_dict = batch_dict
+
+    return pred_dicts, recall_dict
 
 class Detector3DTemplate(nn.Module):
     def __init__(self, model_cfg, num_class, dataset):
@@ -29,16 +88,14 @@ class Detector3DTemplate(nn.Module):
             'vfe', 'backbone_3d', 'map_to_bev_module', 'pfe',
             'backbone_2d', 'dense_head',  'point_head', 'roi_head'
         ]
-
+        
         self._time_dict = {
-                'End-to-end': [],
-                'PreProcess' : [],}
-#                'GetitemPost' : [],
-#                'LoadToGPU' : [],
-#                'CollateBatch' : []}
+            'End-to-end': [],
+            'PreProcess': [],
+        }
         self.update_time_dict(dict())
-
-        self._eval_dict = {'gt_counts':[]}
+       
+        self._eval_dict = {}
         if self.model_cfg.get('DEADLINE_SEC', None) is not None:
             self._default_deadline_sec = float(model_cfg.DEADLINE_SEC)
             self._eval_dict['deadline_sec'] = self._default_deadline_sec
@@ -50,7 +107,26 @@ class Detector3DTemplate(nn.Module):
         print('Default deadline is:', self._eval_dict['deadline_sec'])
 
         self._use_empty_det_dict_for_eval = False
-        self.post_processing_func = None
+        self.pre_hook_handle = self.register_forward_pre_hook(pre_forward_hook)
+        self.post_hook_handle = self.register_forward_hook(post_forward_hook)
+        self.hooks_binded = True
+    
+        self.latest_batch_dict = None
+
+    def train(self, mode=True):
+        super().train(mode)
+        if self.hooks_binded:
+            self.pre_hook_handle.remove()
+            self.post_hook_handle.remove()
+            self.hooks_binded = False
+
+    def eval(self):
+        super().eval()
+        if not self.hooks_binded:
+            self.pre_hook_handle = self.register_forward_pre_hook(pre_forward_hook)
+            self.post_hook_handle = self.register_forward_hook(post_forward_hook)
+            self.hooks_binded = True
+
 
     @property
     def mode(self):
@@ -127,7 +203,7 @@ class Detector3DTemplate(nn.Module):
 
         backbone_2d_module = backbones_2d.__all__[self.model_cfg.BACKBONE_2D.NAME](
             model_cfg=self.model_cfg.BACKBONE_2D,
-            input_channels=model_info_dict.get('num_bev_features', None)
+            input_channels=model_info_dict['num_bev_features']
         )
         model_info_dict['module_list'].append(backbone_2d_module)
         model_info_dict['num_bev_features'] = backbone_2d_module.num_bev_features
@@ -190,7 +266,7 @@ class Detector3DTemplate(nn.Module):
         point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](
             model_cfg=self.model_cfg.ROI_HEAD,
             input_channels=model_info_dict['num_point_features'],
-            backbone_channels= model_info_dict.get('backbone_channels', None),
+            backbone_channels=model_info_dict['backbone_channels'],
             point_cloud_range=model_info_dict['point_cloud_range'],
             voxel_size=model_info_dict['voxel_size'],
             num_class=self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
@@ -202,80 +278,7 @@ class Detector3DTemplate(nn.Module):
     def forward(self, **kwargs):
         raise NotImplementedError
 
-    def load_data_with_ds_index(self, dataset_index):
-        data_dict = self.dataset.collate_batch([self.dataset[dataset_index]])
-        load_data_to_gpu(data_dict)
-        return data_dict
-
-    # Also checks the deadline miss
-    def load_and_infer(self, dataset_index, extra_data = dict()):
-       	data_dict = self.dataset.getitem_pre(dataset_index)
-        start_time = time.time()
-        torch.cuda.nvtx.range_push('End-to-end')
-        self.measure_time_start('End-to-end')
-        self.measure_time_start('PreProcess')
-        #self.measure_time_start('GetitemPost')
-        data_dict = self.dataset.getitem_post(data_dict)
-        #self.measure_time_end('GetitemPost')
-        #self.measure_time_start('CollateBatch')
-        data_dict = self.dataset.collate_batch([data_dict])
-        #self.measure_time_end('CollateBatch')
-        #self.measure_time_start('LoadToGPU')
-        load_data_to_gpu(data_dict)
-        #self.measure_time_end('LoadToGPU')
-        data_dict['deadline_sec'] = self._eval_dict['deadline_sec']
-        data_dict.update(extra_data)  # deadline, method, etc.
-        data_dict['abs_deadline_sec'] = start_time + data_dict['deadline_sec']
-        self.measure_time_end('PreProcess')
-        if self.post_processing_func is not None:
-            data_dict = self(data_dict)
-        else:
-            pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        torch.cuda.synchronize() # If I don't synchronize, how can I measure the finish time?
-        finish_time = time.time()
-        self.measure_time_end('End-to-end')
-        torch.cuda.nvtx.range_pop()
-
-        if self.post_processing_func is not None:
-            pred_dicts, recall_dict = self.post_processing_func(data_dict) # this calls forward!
-
-        tdiff = round(finish_time - data_dict['abs_deadline_sec'], 3)
-        self._eval_dict['deadline_diffs'].append(tdiff)
-
-        #if 'gt_counts' in data_dict:
-        #    self._eval_dict['gt_counts'].append(data_dict['gt_counts'].cpu()[0].tolist())
-
-        dl_missed = (True if tdiff > 0 else False)
-
-        if dl_missed:
-            self._eval_dict['deadlines_missed'] += 1
-            if self._use_empty_det_dict_for_eval:
-                pred_dicts = [ self.get_empty_det_dict() for p in pred_dicts ]
-
-        # This part is about evaluation and should be done after execution
-        # when deadlines are being used
-        if not bool(recall_dict): # empty
-            for index in range(data_dict['batch_size']):
-                if data_dict.get('batch_index', None) is not None:
-                    assert data_dict['batch_box_preds'].shape.__len__() == 2
-                    batch_mask = (data_dict['batch_index'] == index)
-                else:
-                    assert data_dict['batch_box_preds'].shape.__len__() == 3
-                    batch_mask = index
-
-                src_box_preds = data_dict['batch_box_preds'][batch_mask]
-
-                recall_dict = self.generate_recall_record(box_preds=pred_dicts[index]['pred_boxes'].cuda() \
-                    if 'rois' not in data_dict else src_box_preds,
-                    recall_dict=recall_dict, batch_index=index, data_dict=data_dict,
-                    thresh_list=self.model_cfg.POST_PROCESSING.RECALL_THRESH_LIST
-                )
-            torch.cuda.synchronize()
-        self.calc_elapsed_times()
-
-        return data_dict, pred_dicts, recall_dict
-
-    def post_processing(self, batch_dict, gen_recall_record=True, score_sum=False):
+    def post_processing_pre(self, batch_dict):
         """
         Args:
             batch_dict:
@@ -294,12 +297,10 @@ class Detector3DTemplate(nn.Module):
         """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
-        recall_dict = {}
-        pred_dicts = []
-        if 'score_thresh' in batch_dict:
-            score_threshold_backup = post_process_cfg.SCORE_THRESH
-            post_process_cfg.SCORE_THRESH = batch_dict['score_thresh']
-
+        #recall_dict = {}
+        #pred_dicts = []
+        final_boxes_arr, final_scores_arr, final_labels_arr, \
+                src_box_preds_arr = [], [], [], []
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
@@ -310,7 +311,8 @@ class Detector3DTemplate(nn.Module):
 
             box_preds = batch_dict['batch_box_preds'][batch_mask]
             src_box_preds = box_preds
-            
+            src_box_preds_arr.append(src_box_preds)
+
             if not isinstance(batch_dict['batch_cls_preds'], list):
                 cls_preds = batch_dict['batch_cls_preds'][batch_mask]
 
@@ -332,9 +334,6 @@ class Detector3DTemplate(nn.Module):
                 else:
                     multihead_label_mapping = batch_dict['multihead_label_mapping']
 
-                #if score_sum:
-                #    pred_score_sizes = [0] * len(cls_preds)
-                #    css_index = 0
                 cur_start_idx = 0
                 pred_scores, pred_labels, pred_boxes = [], [], []
                 for cur_cls_preds, cur_label_mapping in zip(cls_preds, multihead_label_mapping):
@@ -346,15 +345,11 @@ class Detector3DTemplate(nn.Module):
                         score_thresh=post_process_cfg.SCORE_THRESH
                     )
                     cur_pred_labels = cur_label_mapping[cur_pred_labels]
-                    #if score_sum:
-                    #    pred_score_sizes[css_index] = len(cur_pred_scores)
-                    #    css_index+=1
-
                     pred_scores.append(cur_pred_scores)
                     pred_labels.append(cur_pred_labels)
                     pred_boxes.append(cur_pred_boxes)
                     cur_start_idx += cur_cls_preds.shape[0]
-                
+
                 final_scores = torch.cat(pred_scores, dim=0)
                 final_labels = torch.cat(pred_labels, dim=0)
                 final_boxes = torch.cat(pred_boxes, dim=0)
@@ -364,7 +359,7 @@ class Detector3DTemplate(nn.Module):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
                 else:
-                    label_preds = label_preds + 1 
+                    label_preds = label_preds + 1
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
@@ -378,25 +373,34 @@ class Detector3DTemplate(nn.Module):
                 final_scores = selected_scores
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
+            final_boxes_arr.append(final_boxes)
+            final_scores_arr.append(final_scores)
+            final_labels_arr.append(final_labels)
+            src_box_preds_arr.append(src_box_preds)
+        return (final_boxes_arr, final_scores_arr, final_labels_arr, \
+                src_box_preds_arr, batch_dict)
 
-                if gen_recall_record:
-                    recall_dict = self.generate_recall_record(
-                        box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
-                        recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
-                        thresh_list=post_process_cfg.RECALL_THRESH_LIST
-                    )
+    def post_processing_post(self, args):
+        final_boxes_arr, final_scores_arr, final_labels_arr, \
+                src_box_preds_arr, batch_dict = args
+        post_process_cfg = self.model_cfg.POST_PROCESSING
+        batch_size = batch_dict['batch_size']
+        recall_dict = {}
+        pred_dicts = []
+        for index in range(batch_size):
+            recall_dict = self.generate_recall_record(
+                box_preds=final_boxes[index] if 'rois' not in batch_dict \
+                        else src_box_preds_arr[index],
+                recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
+                thresh_list=post_process_cfg.RECALL_THRESH_LIST
+            )
 
             record_dict = {
-                'pred_boxes': final_boxes,
-                'pred_scores': final_scores,
-                'pred_labels': final_labels,
+                'pred_boxes': final_boxes[index],
+                'pred_scores': final_scores[index],
+                'pred_labels': final_labels[index]
             }
-            if score_sum:
-                record_dict['pred_score_sizes'] = [len(ps) for ps in pred_scores]
             pred_dicts.append(record_dict)
-
-        if 'score_thresh' in batch_dict:
-            post_process_cfg.SCORE_THRESH = score_threshold_backup
 
         return pred_dicts, recall_dict
 
@@ -475,7 +479,7 @@ class Detector3DTemplate(nn.Module):
             self.load_state_dict(state_dict)
         return state_dict, update_model_state
 
-    def load_params_from_file(self, filename, logger, to_cpu=False, pre_trained_path=None):
+    def load_params_from_file(self, filename, logger, to_cpu=False):
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
@@ -483,11 +487,7 @@ class Detector3DTemplate(nn.Module):
         loc_type = torch.device('cpu') if to_cpu else None
         checkpoint = torch.load(filename, map_location=loc_type)
         model_state_disk = checkpoint['model_state']
-        if not pre_trained_path is None:
-            pretrain_checkpoint = torch.load(pre_trained_path, map_location=loc_type)
-            pretrain_model_state_disk = pretrain_checkpoint['model_state']
-            model_state_disk.update(pretrain_model_state_disk)
-            
+
         version = checkpoint.get("version", None)
         if version is not None:
             logger.info('==> Checkpoint trained from version: %s' % version)
@@ -530,6 +530,7 @@ class Detector3DTemplate(nn.Module):
         logger.info('==> Done')
 
         return it, epoch
+
 
     def calc_elapsed_times(self):
         for name, events_list in self._cuda_event_dict.items():
@@ -663,24 +664,24 @@ class Detector3DTemplate(nn.Module):
             else:
                 print(v)
 
-    def calibrate(self):
-        data_dict = self.load_data_with_ds_index(0)
-        print('\ndata_dict:')
-        self.print_dict(data_dict)
+    #def load_data_with_ds_index(self, dataset_index):
+    #    data_dict = self.dataset.collate_batch([self.dataset[dataset_index]])
+    #    load_data_to_gpu(data_dict)
+    #    return data_dict
+
+    def calibrate(self, batch_size=1):
+        #data_dict = self.load_data_with_ds_index(0)
+        #print('\ndata_dict:')
+        #self.print_dict(data_dict)
 
         # just do a regular forward first
-        data_dict["abs_deadline_sec"] = time.time () + 10.0
-
-        if self.post_processing_func is not None:
-            data_dict = self(data_dict)
-            pred_dicts, recall_dict = self.post_processing_func(data_dict)
-        else:
-            pred_dicts, recall_dict = self(data_dict) # this calls forward!
-        torch.cuda.synchronize()
+        #data_dict["abs_deadline_sec"] = time.time () + 10.0
+        self.eval()
+        pred_dicts, recall_dict = self([i for i in range(batch_size)]) # this calls forward!
 
         #Print full tensor sizes
         print('\ndata_dict after forward:')
-        self.print_dict(data_dict)
+        self.print_dict(self.latest_batch_dict)
 
         print('\nDetections:')
         for pd in pred_dicts:
@@ -697,11 +698,3 @@ class Detector3DTemplate(nn.Module):
 
         print('Num params:', sum(p.numel() for p in self.parameters()))
         print('Num params trainable:', sum(p.numel() for p in self.parameters() if p.requires_grad))
-
-        # Profile
-        #with torch.cuda.profiler.profile():
-        #    self(data_dict)
-        #    torch.cuda.synchronize()
-        #    with torch.autograd.profiler.emit_nvtx():
-        #        self(data_dict)
-        #        torch.cuda.synchronize()

@@ -4,7 +4,6 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import numba
-import sys
 
 def gaussian_radius(height, width, min_overlap=0.5):
     """
@@ -138,7 +137,7 @@ def _topk(scores, K=40, using_slicing=False):
 
     topk_scores, topk_inds = torch.topk(scores.flatten(2, 3), K)
 
-    topk_inds = topk_inds % (height * width) # this seems like meaningless
+    topk_inds = topk_inds % (height * width)
     topk_ys = (topk_inds // width).float()
     topk_xs = (topk_inds % width).int().float()
 

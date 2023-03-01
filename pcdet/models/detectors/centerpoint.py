@@ -5,56 +5,11 @@ class CenterPoint(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
-
-        torch.backends.cudnn.benchmark = False
-        torch.backends.cuda.matmul.allow_tf32 = False
-        torch.backends.cudnn.allow_tf32 = False
-        torch.cuda.manual_seed(0)
-        self.is_voxel_enc=True
-
-        if self.model_cfg.get('BACKBONE_3D', None) is None:
-            #pillar
-            self.is_voxel_enc=False
-            self.vfe, self.map_to_bev, self.backbone_2d, \
-                    self.dense_head = self.module_list
-            self.update_time_dict( {
-                    'VFE': [],
-                    'MapToBEV': [],
-                    'Backbone2D': [],
-                    'CenterHead': [],})
-        else:
-            #voxel
-            self.vfe, self.backbone_3d, self.map_to_bev, self.backbone_2d, \
-                    self.dense_head = self.module_list
-            self.update_time_dict( {
-                    'VFE': [],
-                    'Backbone3D':[],
-                    'MapToBEV': [],
-                    'Backbone2D': [],
-                    'CenterHead': [],})
-        self.post_processing_func = self.post_processing
-
-        print(self)
+        torch.backends.cudnn.benchmark = True
 
     def forward(self, batch_dict):
-        self.measure_time_start('VFE')
-        batch_dict = self.vfe(batch_dict)
-        self.measure_time_end('VFE')
-
-        if self.is_voxel_enc:
-            self.measure_time_start('Backbone3D')
-            batch_dict = self.backbone_3d(batch_dict)
-            self.measure_time_end('Backbone3D')
-
-        self.measure_time_start('MapToBEV')
-        batch_dict = self.map_to_bev(batch_dict)
-        self.measure_time_end('MapToBEV')
-        self.measure_time_start('Backbone2D')
-        batch_dict = self.backbone_2d(batch_dict)
-        self.measure_time_end('Backbone2D')
-        self.measure_time_start('CenterHead')
-        batch_dict = self.dense_head(batch_dict)
-        self.measure_time_end('CenterHead')
+        for cur_module in self.module_list:
+            batch_dict = cur_module(batch_dict)
 
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
@@ -64,7 +19,7 @@ class CenterPoint(Detector3DTemplate):
             }
             return ret_dict, tb_dict, disp_dict
         else:
-            # I don't wanna do this before final syncronization
+            # let the hooks of parent class handle this
             #pred_dicts, recall_dicts = self.post_processing(batch_dict)
             #return pred_dicts, recall_dicts
             return batch_dict
@@ -81,7 +36,11 @@ class CenterPoint(Detector3DTemplate):
         loss = loss_rpn
         return loss, tb_dict, disp_dict
 
-    def post_processing(self, batch_dict):
+    def post_processing_pre(self, batch_dict):
+        return (batch_dict,)
+
+    def post_processing_post(self, pp_args):
+        batch_dict = pp_args[0]
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
         final_pred_dict = batch_dict['final_box_dicts']
@@ -96,16 +55,3 @@ class CenterPoint(Detector3DTemplate):
             )
 
         return final_pred_dict, recall_dict
-
-    def calibrate(self):
-        batch_dict = self.load_data_with_ds_index(0)
-        batch_dict = self.vfe(batch_dict)
-        if self.is_voxel_enc:
-            batch_dict = self.backbone_3d(batch_dict)
-        batch_dict = self.map_to_bev(batch_dict)
-        batch_dict = self.backbone_2d(batch_dict)
-        self.dense_head.calibrate(batch_dict)
-        self.clear_stats()
-
-        # I should't do this first because I need the tensors of center head to be preallocated
-        super().calibrate()

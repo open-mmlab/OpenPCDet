@@ -11,7 +11,6 @@ from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .waymo.waymo_dataset import WaymoDataset
 from .pandaset.pandaset_dataset import PandasetDataset
 from .lyft.lyft_dataset import LyftDataset
-from .once.once_dataset import ONCEDataset
 from .custom.custom_dataset import CustomDataset
 
 __all__ = {
@@ -21,7 +20,6 @@ __all__ = {
     'WaymoDataset': WaymoDataset,
     'PandasetDataset': PandasetDataset,
     'LyftDataset': LyftDataset,
-    'ONCEDataset': ONCEDataset,
     'CustomDataset': CustomDataset
 }
 
@@ -58,7 +56,6 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
         root_path=root_path,
         training=training,
         logger=logger,
-        total_epochs=total_epochs,
     )
 
     if merge_all_iters_to_one_epoch:

@@ -11,7 +11,7 @@ from ..dataset import DatasetTemplate
 
 
 class KittiDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None, total_epochs=0):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
         Args:
             root_path:
@@ -21,7 +21,7 @@ class KittiDataset(DatasetTemplate):
             logger:
         """
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger, total_epochs=total_epochs
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
@@ -368,7 +368,6 @@ class KittiDataset(DatasetTemplate):
 
         return len(self.kitti_infos)
 
-
     def getitem_pre(self, index):
         # index = 4
         if self._merge_all_iters_to_one_epoch:
@@ -422,17 +421,19 @@ class KittiDataset(DatasetTemplate):
         if "calib_matricies" in get_item_list:
             input_dict["trans_lidar_to_cam"], input_dict["trans_cam_to_img"] = kitti_utils.calib_to_matricies(calib)
 
-        input_dict['image_shape'] = img_shape
+        input_dict['calib'] = calib
+        input_dict['image_shape_backup'] = img_shape
         return self.prepare_data_pre(data_dict=input_dict)
 
 
     def getitem_post(self, data_dict):
-        return self.prepare_data_post(data_dict=data_dict)
+        data_dict = self.prepare_data_post(data_dict=data_dict)
+        data_dict['image_shape'] = data_dict['image_shape_backup']
+        del data_dict['image_shape_backup']
+        return data_dict
 
     def __getitem__(self, index):
-        data_dict = self.getitem_pre(index)
-        data_dict = self.getitem_post(data_dict)
-        return data_dict
+        return self.getitem_post(self.getitem_pre(index))
 
 def create_kitti_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
     dataset = KittiDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)

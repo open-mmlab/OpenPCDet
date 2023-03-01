@@ -15,11 +15,11 @@ class PointPillarScatter(nn.Module):
         pillar_features, coords = batch_dict['pillar_features'], batch_dict['voxel_coords']
         batch_spatial_features = []
         batch_size = coords[:, 0].max().int().item() + 1
+        channels_first = 'tcount' not in batch_dict
+        dim1 = self.num_bev_features if channels_first else self.nz * self.nx * self.ny
+        dim2 = self.nz * self.nx * self.ny if channels_first else self.num_bev_features
         for batch_idx in range(batch_size):
-            spatial_feature = torch.zeros(
-                self.num_bev_features,
-                self.nz * self.nx * self.ny,
-                dtype=pillar_features.dtype,
+            spatial_feature = torch.zeros(dim1, dim2, dtype=pillar_features.dtype,
                 device=pillar_features.device)
 
             batch_mask = coords[:, 0] == batch_idx
@@ -27,11 +27,20 @@ class PointPillarScatter(nn.Module):
             indices = this_coords[:, 1] + this_coords[:, 2] * self.nx + this_coords[:, 3]
             indices = indices.type(torch.long)
             pillars = pillar_features[batch_mask, :]
-            pillars = pillars.t()
-            spatial_feature[:, indices] = pillars
+            if channels_first:
+                pillars = pillars.t()
+                spatial_feature[:, indices] = pillars
+            else:
+                spatial_feature[indices, :] = pillars
+
             batch_spatial_features.append(spatial_feature)
 
         batch_spatial_features = torch.stack(batch_spatial_features, 0)
-        batch_spatial_features = batch_spatial_features.view(batch_size, self.num_bev_features * self.nz, self.ny, self.nx)
+        if channels_first:
+            batch_spatial_features = batch_spatial_features.view(\
+                    batch_size, self.num_bev_features * self.nz, self.ny, self.nx)
+        else:
+            batch_spatial_features = batch_spatial_features.view(\
+                    batch_size, self.ny, self.nx, self.num_bev_features * self.nz)
         batch_dict['spatial_features'] = batch_spatial_features
         return batch_dict

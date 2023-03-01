@@ -2,8 +2,9 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
               'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_mini_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
 
+    POINT_CLOUD_RANGE: [-51.2, -51.2, -5.0, 51.2, 51.2, 3.0]
     DATA_PROCESSOR:
         -   NAME: mask_points_and_boxes_outside_range
             REMOVE_OUTSIDE_BOXES: True
@@ -11,50 +12,44 @@ DATA_CONFIG:
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
-                'test': False
+                'test': True
             }
 
         -   NAME: transform_points_to_voxels_placeholder
-            VOXEL_SIZE: [0.1, 0.1, 0.2]
-            MAX_POINTS_PER_VOXEL: 10
-            MAX_NUMBER_OF_VOXELS: {
-                'train': 60000,
-                'test': 60000
-            }
-
+            VOXEL_SIZE: [0.2, 0.2, 8.0]
 
 MODEL:
     NAME: CenterPointAnytime
 
     VFE:
-        NAME: DynFilterMeanVFE
-
-    BACKBONE_3D:
-        NAME: VoxelResBackBone8x
+        NAME: DynFilterPillarVFE
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_NORM: True
+        NUM_FILTERS: [ 64, 64 ]
 
     MAP_TO_BEV:
-        NAME: HeightCompression
-        NUM_BEV_FEATURES: 256
+        NAME: PointPillarScatter
+        NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
         NAME: BaseBEVBackboneSbnet
-
-        LAYER_NUMS: [5, 5]
-        LAYER_STRIDES: [1, 2]
-        NUM_FILTERS: [128, 256]
-        UPSAMPLE_STRIDES: [1, 2]
-        NUM_UPSAMPLE_FILTERS: [256, 256]
-        TILE_COUNT: [16, 16]
+        LAYER_NUMS: [3, 5, 5]
+        LAYER_STRIDES: [2, 2, 2]
+        NUM_FILTERS: [64, 128, 256]
+        UPSAMPLE_STRIDES: [0.5, 1, 2]
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+        SBNET_BLOCK_CHAIN_MASKS: [7, 31, 31]
 
     DENSE_HEAD:
-        NAME: CenterHead
+        NAME: CenterHeadGroupSbnet
         CLASS_AGNOSTIC: False
 
         CLASS_NAMES_EACH_HEAD: [
             ['car'], 
+            ['barrier'],
             ['truck', 'construction_vehicle'],
             ['bus', 'trailer'],
-            ['barrier'],
             ['motorcycle', 'bicycle'],
             ['pedestrian', 'traffic_cone'],
         ]
@@ -63,17 +58,17 @@ MODEL:
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
         SEPARATE_HEAD_CFG:
-            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot', 'vel']
+            HEAD_ORDER: ['center_z', 'center', 'rot', 'vel', 'dim']
             HEAD_DICT: {
-                'center': {'out_channels': 2, 'num_conv': 2},
                 'center_z': {'out_channels': 1, 'num_conv': 2},
-                'dim': {'out_channels': 3, 'num_conv': 2},
+                'center': {'out_channels': 2, 'num_conv': 2},
                 'rot': {'out_channels': 2, 'num_conv': 2},
                 'vel': {'out_channels': 2, 'num_conv': 2},
+                'dim': {'out_channels': 3, 'num_conv': 2},
             }
 
         TARGET_ASSIGNER_CONFIG:
-            FEATURE_MAP_STRIDE: 8
+            FEATURE_MAP_STRIDE: 4
             NUM_MAX_OBJS: 500
             GAUSSIAN_OVERLAP: 0.1
             MIN_RADIUS: 2
@@ -82,7 +77,7 @@ MODEL:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
                 'loc_weight': 0.25,
-                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2, 1.0, 1.0]
+                'code_weights': [1.0, 1.0, 1.0, 0.2, 0.2, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
 
         POST_PROCESSING:
@@ -91,24 +86,23 @@ MODEL:
             MAX_OBJ_PER_SAMPLE: 500
             NMS_CONFIG:
                 NMS_TYPE: nms_gpu
-                NMS_THRESH: 0.2
+                NMS_THRESH: 0.01 #2
                 NMS_PRE_MAXSIZE: 1000
                 NMS_POST_MAXSIZE: 83
-
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
 
         EVAL_METRIC: kitti
 
-
+    TILE_COUNT: [16, 16]
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 30
+    NUM_EPOCHS: 20
 
     OPTIMIZER: adam_onecycle
-    LR: 0.003
+    LR: 0.001
     WEIGHT_DECAY: 0.01
     MOMENTUM: 0.9
 

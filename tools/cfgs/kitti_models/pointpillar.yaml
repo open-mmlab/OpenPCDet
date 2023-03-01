@@ -140,8 +140,6 @@ MODEL:
             NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
-    DEADLINE_SEC: 10.0
-    METHOD: 3
 
 
 OPTIMIZATION:

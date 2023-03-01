@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pcdet.ops.cuda_point_tile_mask import cuda_point_tile_mask
+
 try:
     import torch_scatter
 except Exception as e:
@@ -46,7 +48,7 @@ class PFNLayerV2(nn.Module):
             return x_concatenated
 
 
-class DynamicPillarVFE(VFETemplate):
+class DynamicFilterPillarVFE(VFETemplate):
     def __init__(self, model_cfg, num_point_features, voxel_size, grid_size, point_cloud_range, **kwargs):
         super().__init__(model_cfg=model_cfg)
 
@@ -94,6 +96,40 @@ class DynamicPillarVFE(VFETemplate):
         mask = ((points_coords >= 0) & (points_coords < self.grid_size[[0,1]])).all(dim=1)
         points = points[mask]
         points_coords = points_coords[mask]
+
+        ################################################################################
+        tcount, tile_prios, num_tiles_to_process, total_num_tiles = \
+                batch_dict['tcount'], batch_dict['tile_prios'], \
+                batch_dict['num_tiles_to_process'], batch_dict['total_num_tiles']
+
+        tile_size_voxels = (self.grid_size[:2] / tcount).long()
+
+        tile_coords = torch.div(points_coords[..., :2], tile_size_voxels, rounding_mode='trunc')
+        tile_coords = points[:, 0].long() * total_num_tiles + \
+                tile_coords[...,0] * tcount[1] + tile_coords[...,1]
+
+        nonempty_tile_coords = torch.unique(tile_coords, sorted=False)
+
+        if not self.training and nonempty_tile_coords.size(0) > num_tiles_to_process * batch_dict['batch_size']:
+            # Point filtering is needed
+            # supress empty tiles by temporarily increasing the priority of nonempty tiles
+            tile_prios[nonempty_tile_coords] += total_num_tiles
+            highest_prios, chosen_tile_coords = \
+                    torch.topk(tile_prios, num_tiles_to_process, sorted=False)
+            tile_prios[nonempty_tile_coords] -= total_num_tiles
+
+            tile_filter = cuda_point_tile_mask.point_tile_mask(tile_coords, chosen_tile_coords)
+            #TODO this masking could be done together with the initial masking
+            points = points[tile_filter]
+            points_coords = points_coords[tile_filter]
+            batch_dict['chosen_tile_coords'] = chosen_tile_coords
+        else:
+            # No filtering, process all nonempty tiles
+            batch_dict['num_tiles_to_process'] = nonempty_tile_coords.size(0)
+            batch_dict['chosen_tile_coords'] = nonempty_tile_coords
+            #print('points and coords aft filtering', points.size(), points_coords.size())
+        ################################################################################
+
         points_xyz = points[:, [1, 2, 3]].contiguous()
 
         merge_coords = points[:, 0].int() * self.scale_xy + \

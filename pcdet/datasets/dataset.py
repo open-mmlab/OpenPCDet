@@ -1,7 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
 
-import time
 import numpy as np
 import torch.utils.data as torch_data
 
@@ -12,7 +11,7 @@ from .processor.point_feature_encoder import PointFeatureEncoder
 
 
 class DatasetTemplate(torch_data.Dataset):
-    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None, total_epochs=0):
+    def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
         super().__init__()
         self.dataset_cfg = dataset_cfg
         self.training = training
@@ -38,8 +37,7 @@ class DatasetTemplate(torch_data.Dataset):
 
         self.grid_size = self.data_processor.grid_size
         self.voxel_size = self.data_processor.voxel_size
-        self.total_epochs = total_epochs
-        self.cur_epochs = 0
+        self.total_epochs = 0
         self._merge_all_iters_to_one_epoch = False
 
         if hasattr(self.data_processor, "depth_downsample_factor"):
@@ -74,7 +72,7 @@ class DatasetTemplate(torch_data.Dataset):
         Returns:
 
         """
-        
+
         def get_template_prediction(num_samples):
             box_dim = 9 if self.dataset_cfg.get('TRAIN_WITH_SPEED', False) else 7
             ret_dict = {
@@ -132,11 +130,13 @@ class DatasetTemplate(torch_data.Dataset):
         """
         raise NotImplementedError
 
+
     # Don't measure timing of this part
     def prepare_data_pre(self, data_dict):
         if self.training:
             assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
-            gt_boxes_mask = np.array([n in self.class_names for n in data_dict['gt_names']], dtype=np.bool_)
+            gt_boxes_mask = np.array([n in self.class_names \
+            for n in data_dict['gt_names']], dtype=np.bool_)
             
             if 'calib' in data_dict:
                 calib = data_dict['calib']
@@ -152,8 +152,10 @@ class DatasetTemplate(torch_data.Dataset):
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], self.class_names)
             data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
             data_dict['gt_names'] = data_dict['gt_names'][selected]
-            gt_classes = np.array([self.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
-            gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
+            gt_classes = np.array([self.class_names.index(n) + 1 \
+            for n in data_dict['gt_names']], dtype=np.int32)
+            gt_boxes = np.concatenate((data_dict['gt_boxes'], \
+            gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
             data_dict['gt_boxes'] = gt_boxes
 
             if data_dict.get('gt_boxes2d', None) is not None:
@@ -176,23 +178,9 @@ class DatasetTemplate(torch_data.Dataset):
 
         data_dict.pop('gt_names', None)
 
-        # BEWARE! This code is specific to multihead point pillars
-        #gt_names = data_dict.pop('gt_names', None)
-        #classes = [['car'], ['truck', 'construction_vehicle'], ['bus', 'trailer'], \
-        #        ['barrier'], ['motorcycle', 'bicycle'], ['pedestrian', 'traffic_cone']]
-        #classes = ['car', 'truck', 'construction_vehicle', 'bus', 'trailer', \
-        #        'barrier', 'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone']
-        #gt_counts = np.zeros(len(classes), dtype=np.int32)
-        #for name in gt_names:
-        #    for i, cls in enumerate(classes):
-        #        if name in cls:
-        #            gt_counts[i] += 1
-        #            break
-        #data_dict['gt_counts'] = gt_counts
-
         return data_dict
 
-
+    # Dividid this function into two functions
     def prepare_data(self, data_dict):
         """
         Args:
@@ -214,9 +202,7 @@ class DatasetTemplate(torch_data.Dataset):
                 voxel_num_points: optional (num_voxels)
                 ...
         """
-        data_dict = self.prepare_data_pre(data_dict)
-        data_dict = self.prepare_data_post(data_dict)
-        return data_dict
+        return self.prepare_data_post(self.prepare_data_pre(data_dict))
 
     @staticmethod
     def collate_batch(batch_list, _unused=False):
@@ -243,21 +229,6 @@ class DatasetTemplate(torch_data.Dataset):
                     for k in range(batch_size):
                         batch_gt_boxes3d[k, :val[k].__len__(), :] = val[k]
                     ret[key] = batch_gt_boxes3d
-
-                elif key in ['roi_boxes']:
-                    max_gt = max([x.shape[1] for x in val])
-                    batch_gt_boxes3d = np.zeros((batch_size, val[0].shape[0], max_gt, val[0].shape[-1]), dtype=np.float32)
-                    for k in range(batch_size):
-                        batch_gt_boxes3d[k,:, :val[k].shape[1], :] = val[k]
-                    ret[key] = batch_gt_boxes3d
-
-                elif key in ['roi_scores', 'roi_labels']:
-                    max_gt = max([x.shape[1] for x in val])
-                    batch_gt_boxes3d = np.zeros((batch_size, val[0].shape[0], max_gt), dtype=np.float32)
-                    for k in range(batch_size):
-                        batch_gt_boxes3d[k,:, :val[k].shape[1]] = val[k]
-                    ret[key] = batch_gt_boxes3d
-
                 elif key in ['gt_boxes2d']:
                     max_boxes = 0
                     max_boxes = max([len(x) for x in val])
@@ -310,7 +281,6 @@ class DatasetTemplate(torch_data.Dataset):
                     ret[key] = np.stack(points, axis=0)
                 else:
                     ret[key] = np.stack(val, axis=0)
-
             except:
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError
