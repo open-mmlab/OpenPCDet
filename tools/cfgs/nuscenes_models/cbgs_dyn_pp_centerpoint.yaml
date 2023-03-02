@@ -46,9 +46,9 @@ MODEL:
 
         CLASS_NAMES_EACH_HEAD: [
             ['car'], 
-            ['barrier'],
             ['truck', 'construction_vehicle'],
             ['bus', 'trailer'],
+            ['barrier'],
             ['motorcycle', 'bicycle'],
             ['pedestrian', 'traffic_cone'],
         ]
@@ -57,14 +57,15 @@ MODEL:
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
         SEPARATE_HEAD_CFG:
-            HEAD_ORDER: ['center_z', 'center', 'rot', 'vel', 'dim']
+            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot', 'vel']
             HEAD_DICT: {
-                'center_z': {'out_channels': 1, 'num_conv': 2},
                 'center': {'out_channels': 2, 'num_conv': 2},
+                'center_z': {'out_channels': 1, 'num_conv': 2},
+                'dim': {'out_channels': 3, 'num_conv': 2},
                 'rot': {'out_channels': 2, 'num_conv': 2},
                 'vel': {'out_channels': 2, 'num_conv': 2},
-                'dim': {'out_channels': 3, 'num_conv': 2},
             }
+
 
         TARGET_ASSIGNER_CONFIG:
             FEATURE_MAP_STRIDE: 4
