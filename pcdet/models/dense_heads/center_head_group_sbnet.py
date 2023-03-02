@@ -10,53 +10,38 @@ from ...ops.cuda_slicer import cuda_slicer
 
 from sbnet.layers import SparseBlock_Conv2d_BN_ReLU
 import time
-from collections import Counter
 
 # Divides input channels equally to convolutions
+# Produces some useless output channels for the sake of efficiency
 class AdaptiveGroupConv(nn.Module):
     def __init__(self, input_channels, output_channels_list, ksize, stride, padding, bias):
         super().__init__()
 
-        # Output channels should be sorted in the config file
-        assert output_channels_list == sorted(output_channels_list)
-
-        outp_ch_l = np.array(output_channels_list)
-        self.num_outp = len(outp_ch_l)
+        self.outp_ch_l = output_channels_list
+        max_ch = max(self.outp_ch_l)
+        self.num_outp = len(self.outp_ch_l)
         self.inp_ch_per_conv = input_channels // self.num_outp
-        all_counts = Counter(outp_ch_l)
-        convs, inp_outp_indexes, total_outp_channels = [], [], []
-        for ch, count in all_counts.items():
-            convs.append(nn.Conv2d(self.inp_ch_per_conv * count,
-                    ch * count, kernel_size=ksize,stride=stride,
-                    padding=padding, groups=count, bias=bias))
-            idx = output_channels_list.index(ch)
-            inp_outp_indexes.append((idx, idx + count))
-            total_outp_channels.append(ch * count)
-
-        # Run the convolutions which has higher computational demand first
-        conv_run_order = np.argsort(-np.array(total_outp_channels))
-        self.inp_outp_indexes = [inp_outp_indexes[i] for i in conv_run_order]
-        self.convs = nn.ModuleList([convs[i] for i in conv_run_order])
+        self.conv = nn.Conv2d(input_channels, max_ch * self.num_outp,
+                kernel_size=ksize,stride=stride,
+                padding=padding, groups=self.num_outp, bias=bias)
 
     def fill_bias(self, bias):
-        for m in self.convs:
-            if hasattr(m, "bias") and m.bias is not None:
-                m.bias.data.fill_(bias)
+        m = self.conv
+        if hasattr(self.conv, "bias") and m.bias is not None:
+            m.bias.data.fill_(bias)
 
     def init_kaiming(self):
-        for m in self.convs:
-            kaiming_normal_(m.weight.data)
-            if hasattr(m, "bias") and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
+        m = self.conv
+        kaiming_normal_(m.weight.data)
+        if hasattr(m, "bias") and m.bias is not None:
+            nn.init.constant_(m.bias, 0)
 
     def forward(self, inp):
         outp = [None] * self.num_outp
-        C = self.inp_ch_per_conv
-        # TODO try out cuda streams here
-        for conv, indexes in zip(self.convs, self.inp_outp_indexes):
-            x = inp[:, (indexes[0]*C):(indexes[1]*C)]
-            y = conv(x)
-            outp[indexes[0]:indexes[1]] = torch.chunk(y, indexes[1] - indexes[0], dim=1)
+        max_ch = max(self.outp_ch_l)
+        y = self.conv(inp)
+        for i, ch in enumerate(self.outp_ch_l):
+            outp[i] = y[:,(i*max_ch):(i*max_ch+ch)]
 
         return outp
 
