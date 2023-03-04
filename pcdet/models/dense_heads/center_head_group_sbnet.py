@@ -136,10 +136,10 @@ class CenterHeadGroupSbnet(nn.Module):
             for k in range(num_convs - 1):
                 attr_list.append(nn.Conv2d(inp_channels, outp_channels, kernel_size=ksize,
                         stride=1, padding=0, groups=groups, bias=use_bias))
-                if len(head_dict) > 1:
-                    attr_list.append(nn.GroupNorm(len(head_dict), outp_channels))
-                else:
-                    attr_list.append(nn.BatchNorm2d(outp_channels))
+                # NOTE I am not using batch normalization here as it is causing harm
+                # to the slicing as the batch sizes are different in training and
+                # evaluation. In training, it is full size tensor, in eval, it is
+                # batch of slices.
                 attr_list.append(nn.ReLU())
                 if k == 0:
                     inp_channels = outp_channels
@@ -466,7 +466,6 @@ class CenterHeadGroupSbnet(nn.Module):
         if self.training:
             return self.forward_train(data_dict)
         else:
-            # Decreases accuracy, why?
             return self.forward_eval(data_dict)
 
     def forward_train(self, data_dict):
