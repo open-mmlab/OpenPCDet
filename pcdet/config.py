@@ -80,6 +80,18 @@ def cfg_from_yaml_file(cfg_file, config):
     return config
 
 
+def dict_representer(dumper, ed: EasyDict):
+    return dumper.represent_mapping('tag:yaml.org,2002:map', ed)
+
+
+yaml.add_representer(EasyDict, dict_representer)
+
+
+def cfg_to_yaml_file(config, cfg_file):
+    with open(cfg_file, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+
 cfg = EasyDict()
 cfg.ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
 cfg.LOCAL_RANK = 0
