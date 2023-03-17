@@ -115,7 +115,9 @@ def main():
         logger.info('{:16} {}'.format(key, val))
     log_config_to_file(cfg, logger=logger)
     if cfg.LOCAL_RANK == 0:
-        os.system('cp %s %s' % (args.cfg_file, output_dir))
+        os.system('cp %s %s' % (args.cfg_file, output_dir / ("BASE_" + Path(args.cfg_file).name)))
+        set_cfg = create_cfg_from_sets(args.cfg_file, args.modify_cfgs, args.set_cfgs)
+        cfg_to_yaml_file(set_cfg, output_dir / Path(args.cfg_file).name)
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
 
