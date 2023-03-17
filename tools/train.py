@@ -63,10 +63,15 @@ def parse_config():
 
     cfg = create_cfg_from_sets(args.cfg_file, args.modify_cfgs, args.set_cfgs, cfg)
 
-    cfg.TAG = Path(args.cfg_file).stem
     cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
     
     args.use_amp = args.use_amp or cfg.OPTIMIZATION.get('USE_AMP', False)
+
+    cfg.TAG = Path(args.cfg_file).stem
+    if len(args.modify_cfgs):
+        cfg.TAG += '__' + '__'.join([Path(m).stem for m in args.modify_cfgs])
+    if len(args.set_cfgs):
+        cfg.TAG += '__s__' + '__'.join([s.replace('/', '_') for s in args.set_cfgs])
 
     return args, cfg
 
