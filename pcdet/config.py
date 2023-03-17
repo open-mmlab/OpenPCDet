@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 import yaml
 from easydict import EasyDict
@@ -121,6 +122,31 @@ def rc_to_ed(rc_cfg: Config) -> EasyDict:
             ed_cfg[k] = rc_cfg[k]
     check_recursive_dict_type(ed_cfg, EasyDict)
     return ed_cfg
+
+
+def modify_rc_cfg(cfg: Config, modify_cfgs: List[Path]) -> Config:
+    from copy import deepcopy
+    cfg = deepcopy(cfg)
+    for m in modify_cfgs:
+        cfg.rupdate(Config.from_file(m))
+        cfg = cfg.resolve_transforms()
+    return cfg
+
+
+def create_cfg_from_sets(
+        cfg_file: Path,
+        modify_cfgs: List[Path],
+        set_cfgs: List[str],
+        cfg: EasyDict = None,
+) -> EasyDict:
+    if cfg is None:
+        cfg = EasyDict()
+    cfg_from_yaml_file(cfg_file, cfg)
+    cfg = ed_to_rc(cfg)
+    cfg = modify_rc_cfg(cfg, modify_cfgs)
+    cfg = rc_to_ed(cfg)
+    cfg_from_list(set_cfgs, cfg)
+    return cfg
 
 
 cfg = EasyDict()
