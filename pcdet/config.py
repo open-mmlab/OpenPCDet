@@ -2,6 +2,7 @@ from pathlib import Path
 
 import yaml
 from easydict import EasyDict
+from runcon import Config
 
 
 def log_config_to_file(cfg, pre='cfg', logger=None):
@@ -90,6 +91,36 @@ yaml.add_representer(EasyDict, dict_representer)
 def cfg_to_yaml_file(config, cfg_file):
     with open(cfg_file, 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
+
+
+def check_recursive_dict_type(cfg, type):
+    if isinstance(cfg, dict):
+        if not isinstance(cfg, type):
+            raise ValueError(
+                "The config is of type %s but was expected to be of type %s!\n%s"
+                % (type(cfg), type, cfg)
+            )
+        for k in cfg:
+            check_recursive_dict_type(cfg[k], type)
+
+
+def ed_to_rc(ed_cfg: EasyDict) -> Config:
+    check_recursive_dict_type(ed_cfg, EasyDict)
+    rc_cfg = Config(ed_cfg)
+    check_recursive_dict_type(rc_cfg, Config)
+    return rc_cfg
+
+
+def rc_to_ed(rc_cfg: Config) -> EasyDict:
+    check_recursive_dict_type(rc_cfg, Config)
+    ed_cfg = EasyDict()
+    for k in rc_cfg:
+        if isinstance(rc_cfg[k], Config):
+            ed_cfg[k] = rc_to_ed(rc_cfg[k])
+        else:
+            ed_cfg[k] = rc_cfg[k]
+    check_recursive_dict_type(ed_cfg, EasyDict)
+    return ed_cfg
 
 
 cfg = EasyDict()
