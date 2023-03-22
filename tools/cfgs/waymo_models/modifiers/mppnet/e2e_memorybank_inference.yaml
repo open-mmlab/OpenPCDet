@@ -1,0 +1,93 @@
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/modifiers/waymo/multiframe.yaml
+    _TRANSFORM:
+    - name: remove_element
+      target: ROI_BOXES_PATH
+    - name: remove_element
+      target: USE_PREDBOX
+
+    SAMPLED_INTERVAL: {
+        'train': 5,
+        'test': 1
+    }
+
+    POINT_FEATURE_ENCODING:
+        encoding_type: absolute_coordinates_encoding
+        used_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time']
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'elongation', 'time']
+
+MODEL:
+    NAME: MPPNetE2E
+
+    VFE:
+        NAME: DynMeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelResBackBone8x
+
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
+
+    BACKBONE_2D:
+        NAME: BaseBEVBackbone 
+        NUM_FRAME: 2
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
+
+    DENSE_HEAD:
+        NAME: CenterHead
+        CLASS_AGNOSTIC: False
+
+        CLASS_NAMES_EACH_HEAD: [
+            ['Vehicle', 'Pedestrian', 'Cyclist']
+        ]
+
+        SHARED_CONV_CHANNEL: 64
+        USE_BIAS_BEFORE_NORM: True
+        NUM_HM_CONV: 2
+        SEPARATE_HEAD_CFG:
+            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot','vel']
+            HEAD_DICT: {
+                'center': {'out_channels': 2, 'num_conv': 2},
+                'center_z': {'out_channels': 1, 'num_conv': 2},
+                'dim': {'out_channels': 3, 'num_conv': 2},
+                'rot': {'out_channels': 2, 'num_conv': 2},
+                'vel': {'out_channels': 2, 'num_conv': 2},
+
+            }
+
+        TARGET_ASSIGNER_CONFIG:
+            FEATURE_MAP_STRIDE: 8
+            NUM_MAX_OBJS: 500
+            GAUSSIAN_OVERLAP: 0.1
+            MIN_RADIUS: 2
+
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 2.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
+            }
+
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+            MAX_OBJ_PER_SAMPLE: 500
+            NMS_CONFIG:
+                NMS_TYPE: nms_gpu
+                NMS_THRESH: 0.7
+                NMS_PRE_MAXSIZE: 4096
+                NMS_POST_MAXSIZE: 500
+
+    ROI_HEAD:
+        NAME: MPPNetHeadE2E
+        USE_BOX_ENCODING:
+            NORM_T0: True
+            ALL_YAW_T0: True
+           
+        Transformer:
+            sequence_stride: 1 #16frame using 4
