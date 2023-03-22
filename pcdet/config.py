@@ -128,8 +128,9 @@ def modify_rc_cfg(cfg: Config, modify_cfgs: List[Path]) -> Config:
     from copy import deepcopy
     cfg = deepcopy(cfg)
     for m in modify_cfgs:
-        cfg.rupdate(Config.from_file(m))
-        cfg = cfg.resolve_transforms()
+        m = cfg_from_yaml_file(m, EasyDict())
+        cfg.rupdate(ed_to_rc(m))
+    cfg = cfg.resolve_transforms()
     return cfg
 
 
