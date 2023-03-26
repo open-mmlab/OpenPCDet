@@ -48,39 +48,34 @@ class CenterPointAnytime(Detector3DTemplate):
         #        dtype=torch.long, device='cuda')
 
         # This number will be determined by the scheduling algorithm initially for each input
-        self.num_tiles_to_process = int(self.total_num_tiles.cpu().item() / 100 * 30)
+        self.num_tiles_to_process = int(self.total_num_tiles.cpu().item() / 100 * 10)
         #self.num_tiles_to_process = self.total_num_tiles.cpu().item()
         self.reduce_mask_stream = torch.cuda.Stream()
-        ################################################################################
 
         ####Projection###
-        self.enable_projection = False
+        self.enable_projection = True
         self.token_to_scene = {}
         self.token_to_ts = {}
         if self.enable_projection:
             with open('token_to_pos.json', 'r') as handle:
                 self.token_to_pose = json.load(handle)
-            #timestamps = [v['timestamp'] for v in self.token_to_pose.values()]
-            #timestamps = torch.tensor(timestamps, dtype=torch.long)
-            #timestamps -= torch.min(timestamps)
-            #timestamps //= 1000 # make is ms
 
             for k, v in self.token_to_pose.items():
                 cst, csr, ept, epr = v['cs_translation'],  v['cs_rotation'], \
                         v['ep_translation'], v['ep_rotation']
                 # convert time stamps to seconds
-                # 1 3 4 3 4
+                # 3 4 3 4
                 self.token_to_pose[k] = torch.tensor((*cst, *csr, *ept, *epr), dtype=torch.float)
                 self.token_to_ts[k] = torch.tensor((v['timestamp'],), dtype=torch.long)
                 self.token_to_scene[k] = v['scene']
 
         self.past_detections = {'num_dets': []}
-        # Poses include [ts(1) cst(3) csr(4) ept(3) epr(4)]
+        # Poses include [cst(3) csr(4) ept(3) epr(4)]
         self.past_poses = torch.zeros([0, 14], dtype=torch.float)
         self.past_ts = torch.zeros([0], dtype=torch.long)
-        self.det_timeout_limit = int(0.11 * 1000000) # in microseconds
+        self.det_timeout_limit = int(0.5 * 1000000) # in microseconds
         self.prev_scene_token = ''
-        #################
+        ################################################################################
 
         print(self)
 
@@ -157,20 +152,11 @@ class CenterPointAnytime(Detector3DTemplate):
                     dets_to_rm_sum = sum(dets_to_rm)
                     for k in ('pred_boxes', 'pred_scores', 'pred_labels', 'pose_idx', 'tile_inds'):
                         self.past_detections[k] = self.past_detections[k][dets_to_rm_sum:]
+                    self.past_detections['pose_idx'] -= len(dets_to_rm)
 
-                # Project now
                 projected_boxes=None
                 if self.past_poses.size(0) > 0:
-#                    print(self.past_detections['pred_boxes'].size())
-#                    print(self.past_detections['pred_boxes'])
-#                    print(self.past_detections['pose_idx'].size())
-#                    print(self.past_detections['pose_idx'])
-#                    print(self.past_poses.size())
-#                    print(self.past_poses)
-#                    print(self.cur_pose.size())
-#                    print(self.cur_pose)
 
-                    # all these cuda calls might not be good
                     mask, projected_boxes = cuda_projection.project_past_detections(
                             batch_dict['chosen_tile_coords'],
                             self.past_detections['tile_inds'],
@@ -181,12 +167,7 @@ class CenterPointAnytime(Detector3DTemplate):
                             self.past_ts.cuda(),
                             self.cur_ts.item())
 
-                    nanmask = torch.isfinite(projected_boxes)
-                    nanmask = torch.all(nanmask, dim=1)
-                    mask = torch.logical_and(mask, nanmask)
-
                     projected_boxes = projected_boxes[mask]
-                    print('projected boxes:', projected_boxes.size())
                     projected_scores = self.past_detections['pred_scores'][mask]
                     projected_labels = self.past_detections['pred_labels'][mask]
 
@@ -197,7 +178,7 @@ class CenterPointAnytime(Detector3DTemplate):
                 self.past_poses = torch.cat((self.past_poses, self.cur_pose.unsqueeze(0)))
                 self.past_ts = torch.cat((self.past_ts, self.cur_ts))
                 # Append the pose idx for the detection that will be added
-                past_poi = self.past_detections['pose_idx'] - len(dets_to_rm)
+                past_poi = self.past_detections['pose_idx']
                 poi = torch.full((num_dets,), self.past_poses.size(0)-1,
                     dtype=past_poi.dtype, device=past_poi.device)
                 self.past_detections['pose_idx'] = torch.cat((past_poi, poi))
@@ -269,3 +250,52 @@ class CenterPointAnytime(Detector3DTemplate):
         self.projection_reset()
         self.enable_projection = ep
         return pred_dicts
+
+
+#import math
+#import numpy as np
+#from pyquaternion import Quaternion
+#from nuscenes.utils.data_classes import Box
+
+#def print_box(box, pre_str):
+#    print(pre_str)
+#    print(f"Center:      {box.center}")
+#    print(f"Size:        {box.wlh}")
+#    print(f"Velocity:    {box.velocity}")
+#    print(f"Orientation: {box.orientation}")
+
+# NOTE This is the CPU version of the projection that we keep for verification,
+# it is not being used in the code
+# Poses include [cst(3) csr(4) ept(3) epr(4)]
+#def project_bbox(bbox, past_pose, past_ts, cur_pose, cur_ts):
+#    bbox_np = bbox.cpu().numpy()
+#    # The velocities output by the network are wrt ego vehicle coordinate frame,
+#    # but they appear to be global velocities.
+#    box = Box(bbox_np[:3], bbox_np[3:6],
+#            Quaternion(axis=[0, 0, 1], radians=bbox_np[6]),
+#            velocity=np.append(bbox_np[7:], .0))
+#    # Move from sensor coordinate to global
+#    pp_np = past_pose.numpy()
+#    box.rotate(Quaternion(pp_np[3:7]))
+#    box.translate(pp_np[0:3])
+#    box.rotate(Quaternion(pp_np[10:]))
+#    box.translate(pp_np[7:10])
+#
+#    elapsed_sec = (cur_ts - past_ts) / 1000000.
+#    pose_diff = box.velocity * elapsed_sec.numpy()
+#    if not np.any(np.isnan(pose_diff)):
+#        box.translate(pose_diff)
+#
+#    # Move from global to predicted sensor coordinate
+#    cp_np = cur_pose.numpy()
+#    box.translate(-cp_np[7:10])
+#    box.rotate(Quaternion(cp_np[10:]).inverse)
+#    box.translate(-cp_np[0:3])
+#    box.rotate(Quaternion(cp_np[3:7]).inverse)
+#
+#    bbox_np[:3] = box.center
+#    r, i, j, k = box.orientation.elements
+#    bbox_np[6] = 2. * math.atan2(math.sqrt(i*i+j*j+k*k),r)
+#    bbox_np[7:] = box.velocity[:2]
+#
+#    return bbox_np

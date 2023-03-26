@@ -1,9 +1,12 @@
 #include <cmath>
 #include <torch/extension.h>
+#include <iostream>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+// Using double instead of float doesn't increase
+// accuracy as far as I have tested
 //#define USE_DOUBLE
 
 #ifdef USE_DOUBLE
@@ -24,18 +27,23 @@ using fp_type = float;
 
 class Quaternion{
     public:
-        __device__ Quaternion(fp_type axis_x, fp_type axis_y, fp_type axis_z, 
-                fp_type angle_rad, bool check_unit=false){
-            if(check_unit){
-                fp_type mag_sq = axis_x*axis_x + axis_y+axis_y + axis_z*axis_z;
-                if(FABS(1.0f - mag_sq) > 1e-12){
-                    //assert (mag_sq != 0)
-                    // Ensure it is unit
-                    fp_type s = SQRT(mag_sq);
-                    axis_x /= s;
-                    axis_y /= s;
-                    axis_z /= s;
-                }
+        __device__ Quaternion(fp_type r, fp_type i, fp_type j, fp_type k){
+	    r_ = r;
+	    i_ = i;
+	    j_ = j;
+	    k_ = k;
+	}
+
+        __device__ Quaternion(fp_type *axis, fp_type angle_rad){
+	    fp_type axis_x = axis[0];
+	    fp_type axis_y = axis[1];
+	    fp_type axis_z = axis[2];
+            fp_type mag_sq = axis_x*axis_x + axis_y+axis_y + axis_z*axis_z;
+            if(FABS(1.0f - mag_sq) > 1e-12){
+                fp_type s = SQRT(mag_sq);
+                axis_x /= s;
+                axis_y /= s;
+                axis_z /= s;
             }
             fp_type theta = angle_rad / 2.0;
             r_ = COS(theta);
@@ -43,30 +51,64 @@ class Quaternion{
             i_ = axis_x * st;
             j_ = axis_y * st;
             k_ = axis_z * st;
-
-            calc_rot_matrix();
         }
 
-        __device__ fp_type* rot_matrix() {return &rot_matrix_[0];}
+	__device__ void rmul_inplace(Quaternion &q){
+	    // multiply the q matrix of q with self
+            fp_type r_tmp = q.r_*r_ - q.i_*i_ - q.j_*j_ - q.k_*k_;
+            fp_type i_tmp = q.i_*r_ + q.r_*i_ - q.k_*j_ + q.j_*k_;
+            fp_type j_tmp = q.j_*r_ + q.k_*i_ + q.r_*j_ - q.i_*k_;
+            k_ = q.k_*r_ - q.j_*i_ + q.i_*j_ + q.r_*k_;
+	    j_ = j_tmp;
+	    i_ = i_tmp;
+	    r_ = r_tmp;
+        }
+
+        __device__ void invert_inplace(){
+            fp_type ss = sum_of_squares();
+	    r_ = r_ / ss;
+            i_ = -i_ / ss;
+            j_ = -j_ / ss;
+            k_ = -k_ / ss;
+        }
+
+	__device__ bool is_unit(fp_type tolarance = 1e-14) const{
+	    return (FABS(1.0) - sum_of_squares()) < tolarance;
+	}
+
+	__device__ fp_type sum_of_squares() const {
+	    return r_*r_ + i_*i_ + j_*j_ + k_*k_;
+	}
+
+	__device__ void normalise() {
+	    if(!is_unit()){
+                fp_type n = SQRT(sum_of_squares());
+	        r_ /= n;
+	        i_ /= n;
+	        j_ /= n;
+	        k_ /= n;
+	    }
+	}
+
+        __device__ fp_type* rot_matrix() {
+	    normalise();
+            calc_rot_matrix();
+	    return &rot_matrix_[0];
+	}
+
         __device__ fp_type r() const {return r_;}
         __device__ fp_type i() const {return i_;}
         __device__ fp_type j() const {return j_;}
         __device__ fp_type k() const {return k_;}
 
-        __device__ void mult_inplace(Quaternion &q){
-            r_ *= q.r_;
-            i_ *= q.i_;
-            j_ *= q.j_;
-            k_ *= q.k_;
-            calc_rot_matrix();
-        }
-
-        __device__ void invert_inplace(){
-          fp_type ss = r_*r_ + i_*i_ + j_*j_ + k_*k_;
-          i_ = -i_*ss;
-          j_ = -j_*ss;
-          k_ = -k_*ss;
-        }
+        __device__ void print(char* pre_str){
+	  printf("%s\nr i j k: %f %f %f %f\n", pre_str, r_, i_, j_, k_);
+	  calc_rot_matrix();
+	  printf("Rot matrix:\n%f %f %f\n%f %f %f\n%f %f %f\n",
+	    rot_matrix_[0], rot_matrix_[1], rot_matrix_[2],
+	    rot_matrix_[3], rot_matrix_[4], rot_matrix_[5],
+	    rot_matrix_[6], rot_matrix_[7], rot_matrix_[8]);
+	}
     
     // NOTE, the default copy constructor of this class might cause problems
 
@@ -130,19 +172,29 @@ class Box{
 
         __device__ void rotate(Quaternion& q){
             fp_type* rm = q.rot_matrix();
-            // rotate center
-            cx = rm[0]*cx + rm[1]*cy + rm[2]*cz;
-            cy = rm[3]*cx + rm[4]*cy + rm[5]*cz;
+            fp_type cx_tmp = rm[0]*cx + rm[1]*cy + rm[2]*cz;
+            fp_type cy_tmp = rm[3]*cx + rm[4]*cy + rm[5]*cz;
             cz = rm[6]*cx + rm[7]*cy + rm[8]*cz;
+	    cy = cy_tmp;
+	    cx = cx_tmp;
 
-            //rotate quaternion
-            orientation.mult_inplace(q);
+            orientation.rmul_inplace(q);
 
-            //rotate velocity
-            vx = rm[0]*vx + rm[1]*vy + rm[2]*vz;
-            vy = rm[3]*vx + rm[4]*vy + rm[5]*vz;
+            fp_type vx_tmp = rm[0]*vx + rm[1]*vy + rm[2]*vz;
+            fp_type vy_tmp = rm[3]*vx + rm[4]*vy + rm[5]*vz;
             vz = rm[6]*vx + rm[7]*vy + rm[8]*vz;
+	    vy = vy_tmp;
+	    vx = vx_tmp;
         } 
+
+        __device__ void print(char *pre_str){
+	    printf("%s\n"
+		   "Center:      %f %f %f\n"
+	           "Size:        %f %f %f\n"
+	           "Velocity:    %f %f %f\n"
+		   "Orientation: %f %f %f %f\n",
+	           pre_str, cx, cy, cz, sx, sy, sz, vx, vy, vz, r(), i(), j(), k());
+	}
     private:
         fp_type cx, cy, cz, sx, sy, sz, vx, vy, vz;
         Quaternion orientation;
@@ -158,14 +210,14 @@ template <typename scalar_t>
 __global__ void projection_cuda_kernel(
         const one_dim_pa32<scalar_t>  chosen_tile_coords,
         const one_dim_pa32<scalar_t>  pred_tile_coords,
-        const two_dim_pa32<fp_type>     pred_boxes,
+        const two_dim_pa32<fp_type>   pred_boxes,
         const one_dim_pa32<scalar_t>  past_pose_indexes,
-        const two_dim_pa32<fp_type>     past_poses,
-        const one_dim_pa32<fp_type>     cur_pose,
+        const two_dim_pa32<fp_type>   past_poses,
+        const one_dim_pa32<fp_type>   cur_pose,
         const one_dim_pa32<long>      past_ts,
         const long                    cur_ts,
         one_dim_pa32<bool>            mask,
-        two_dim_pa32<fp_type>           projected_boxes) {
+        two_dim_pa32<fp_type>         projected_boxes) {
   auto chosen_tile_coords_sz = chosen_tile_coords.size(0);
   
   // With shared memory, the time reduced to 0.25 ms from 0.37 ms
@@ -190,11 +242,8 @@ __global__ void projection_cuda_kernel(
     mask[idx] = !includes;
 
     if(!includes){
-//      printf("pred_boxes[%d]:%f %f %f %f %f %f %f %f %f\n",idx,
-//        pred_boxes[idx][0], pred_boxes[idx][1], pred_boxes[idx][2],
-//        pred_boxes[idx][3], pred_boxes[idx][4], pred_boxes[idx][5],
-//        pred_boxes[idx][6], pred_boxes[idx][7], pred_boxes[idx][8]);
-      Quaternion q(0, 0, 1, pred_boxes[idx][6]);
+      fp_type axis[3] = {0., 0., 1.};
+      Quaternion q(axis, pred_boxes[idx][6]);
       Box pred_box(pred_boxes[idx][0], pred_boxes[idx][1], pred_boxes[idx][2],
         pred_boxes[idx][3], pred_boxes[idx][4], pred_boxes[idx][5],
         q, pred_boxes[idx][7], pred_boxes[idx][8], 0);
@@ -217,7 +266,6 @@ __global__ void projection_cuda_kernel(
       fp_type elapsed_sec = (fp_type)(cur_ts - past_ts[pose_idx]) / 1000000.0; 
       fp_type x_diff = pred_box.vel_x()*elapsed_sec;
       fp_type y_diff = pred_box.vel_y()*elapsed_sec;
-      //TODO This is check can cause warp divergence
       if (isfinite(x_diff) && isfinite(y_diff))
         pred_box.translate(x_diff, y_diff, 0);
 
@@ -249,10 +297,6 @@ __global__ void projection_cuda_kernel(
       projected_boxes[idx][6] = 2 * ATAN2(SQRT(i*i+j*j+k*k), r);
       projected_boxes[idx][7] = pred_box.vel_x();
       projected_boxes[idx][8] = pred_box.vel_y();
-//      printf("projected_boxes[%d]:%f %f %f %f %f %f %f %f %f\n",idx,
-//        projected_boxes[idx][0], projected_boxes[idx][1], projected_boxes[idx][2],
-//        projected_boxes[idx][3], projected_boxes[idx][4], projected_boxes[idx][5],
-//        projected_boxes[idx][6], projected_boxes[idx][7], projected_boxes[idx][8]);
     }
   }
 }
@@ -262,13 +306,12 @@ std::vector<torch::Tensor> project_past_detections(
         torch::Tensor pred_tile_coords, // [num_objects] x*w+y notation, long
         torch::Tensor pred_boxes, // [num_objects, 9], fp_type
         torch::Tensor past_pose_indexes, // [num_objects], long
-        torch::Tensor past_poses, // [num_past_poses, 15], fp_type
-        torch::Tensor cur_pose, // [15], fp_type
-        torch::Tensor past_timestamps, // [num_past_poses, 14]
+        torch::Tensor past_poses, // [num_past_poses, 14], fp_type
+        torch::Tensor cur_pose, // [14], fp_type
+        torch::Tensor past_timestamps, // [num_past_poses]
         long cur_timestamp
 )
 {
-
   const auto threads_per_block = 256;
   const auto num_blocks = std::ceil((fp_type)pred_tile_coords.size(0) / threads_per_block);
  

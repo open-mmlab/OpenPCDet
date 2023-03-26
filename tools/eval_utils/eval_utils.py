@@ -10,6 +10,10 @@ from pcdet.models import load_data_to_gpu
 from pcdet.utils import common_utils
 
 speed_test = False
+visualize = False
+if visualize:
+    import open3d
+    from visual_utils import open3d_vis_utils as V
 
 def statistics_info(cfg, ret_dict, metric, disp_dict):
     for cur_thresh in cfg.MODEL.POST_PROCESSING.RECALL_THRESH_LIST:
@@ -84,6 +88,15 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
             infer_time_meter.update(inference_time * 1000)
             # use ms to measure inference time
             disp_dict['infer_time'] = f'{infer_time_meter.val:.2f}({infer_time_meter.avg:.2f})'
+
+        if visualize:
+            V.draw_scenes(
+                points=batch_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels'],
+                tile_coords=(batch_dict['reduce_mask'].active_block_indices \
+                        if 'reduce_mask' in batch_dict else None)
+            )
+
 
         statistics_info(cfg, ret_dict, metric, disp_dict)
         annos = dataset.generate_prediction_dicts(

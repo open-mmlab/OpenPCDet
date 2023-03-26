@@ -13,6 +13,14 @@ box_colormap = [
     [0, 1, 0],
     [0, 1, 1],
     [1, 1, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+    [0, 1, 1],
+    [1, 1, 0],
+    [1, 1, 1],
+    [0, 1, 0],
+    [0, 1, 1],
+    [1, 1, 0]
 ]
 
 
@@ -35,7 +43,7 @@ def get_coor_colors(obj_labels):
     return label_rgba
 
 
-def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True):
+def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scores=None, point_colors=None, draw_origin=True, tile_coords=None):
     if isinstance(points, torch.Tensor):
         points = points.cpu().numpy()
     if isinstance(gt_boxes, torch.Tensor):
@@ -68,6 +76,31 @@ def draw_scenes(points, gt_boxes=None, ref_boxes=None, ref_labels=None, ref_scor
 
     if ref_boxes is not None:
         vis = draw_box(vis, ref_boxes, (0, 1, 0), ref_labels, ref_scores)
+
+    if tile_coords is not None:
+        # assume batch size 1
+        tc = tile_coords[:, 1:].cpu()
+        tmp = tc[..., 1].clone()
+        tc[..., 1] = tc[..., 0]
+        tc[..., 0] = tmp
+        num_rects = tc.size(0)
+        vertices = torch.cat((tc,
+            tc + torch.tensor((0,1)),
+            tc + torch.tensor((1,1)),
+            tc + torch.tensor((1,0))), dim=0)
+        vertices = vertices.float() / 16.0 * 102.4 - 51.2
+        vertices = torch.cat((vertices, torch.zeros((vertices.size(0),1))), dim=1)
+        lines = []
+        for i in range(num_rects):
+            lines.append((i,i+num_rects))
+            lines.append((i+num_rects,i+2*num_rects))
+            lines.append((i+2*num_rects,i+3*num_rects))
+            lines.append((i+3*num_rects,i))
+        o3d_vertices = open3d.utility.Vector3dVector(vertices.numpy())
+        o3d_vertex_pairs = open3d.utility.Vector2iVector(np.array(lines))
+        rectangles = open3d.geometry.LineSet(o3d_vertices, o3d_vertex_pairs)
+        rectangles.paint_uniform_color((0.99, 0., 0.))
+        vis.add_geometry(rectangles)
 
     vis.run()
     vis.destroy_window()
