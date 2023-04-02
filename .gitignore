@@ -2,16 +2,15 @@
 **build**
 **egg-info**
 **dist**
-data/
 *.pyc
 venv/
 *.idea/
 *.so
-*.yaml
 *.sh
 *.pth
 *.pkl
 *.zip
 *.bin
+.DS_Store
 output
 version.py

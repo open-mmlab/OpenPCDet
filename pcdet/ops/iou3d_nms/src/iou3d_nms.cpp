@@ -39,12 +39,35 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 const int THREADS_PER_BLOCK_NMS = sizeof(unsigned long long) * 8;
 
-
+void boxesalignedoverlapLauncher(const int num_box, const float *boxes_a, const float *boxes_b, float *ans_overlap);
 void boxesoverlapLauncher(const int num_a, const float *boxes_a, const int num_b, const float *boxes_b, float *ans_overlap);
 void boxesioubevLauncher(const int num_a, const float *boxes_a, const int num_b, const float *boxes_b, float *ans_iou);
 void nmsLauncher(const float *boxes, unsigned long long * mask, int boxes_num, float nms_overlap_thresh);
 void nmsNormalLauncher(const float *boxes, unsigned long long * mask, int boxes_num, float nms_overlap_thresh);
 
+
+int boxes_aligned_overlap_bev_gpu(at::Tensor boxes_a, at::Tensor boxes_b, at::Tensor ans_overlap){
+    // params boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]
+    // params boxes_b: (N, 7) [x, y, z, dx, dy, dz, heading]
+    // params ans_overlap: (N, 1)
+
+    CHECK_INPUT(boxes_a);
+    CHECK_INPUT(boxes_b);
+    CHECK_INPUT(ans_overlap);
+
+    int num_box = boxes_a.size(0);
+    int num_b = boxes_b.size(0);
+
+    assert(num_box == num_b);
+
+    const float * boxes_a_data = boxes_a.data<float>();
+    const float * boxes_b_data = boxes_b.data<float>();
+    float * ans_overlap_data = ans_overlap.data<float>();
+
+    boxesalignedoverlapLauncher(num_box, boxes_a_data, boxes_b_data, ans_overlap_data);
+
+    return 1;
+}
 
 int boxes_overlap_bev_gpu(at::Tensor boxes_a, at::Tensor boxes_b, at::Tensor ans_overlap){
     // params boxes_a: (N, 7) [x, y, z, dx, dy, dz, heading]

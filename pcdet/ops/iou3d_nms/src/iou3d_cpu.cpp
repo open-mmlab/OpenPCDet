@@ -250,3 +250,24 @@ int boxes_iou_bev_cpu(at::Tensor boxes_a_tensor, at::Tensor boxes_b_tensor, at::
     }
     return 1;
 }
+
+int boxes_aligned_iou_bev_cpu(at::Tensor boxes_a_tensor, at::Tensor boxes_b_tensor, at::Tensor ans_iou_tensor){
+    // params boxes_a_tensor: (N, 7) [x, y, z, dx, dy, dz, heading]
+    // params boxes_b_tensor: (N, 7) [x, y, z, dx, dy, dz, heading]
+    // params ans_iou_tensor: (N, 1)
+
+    CHECK_CONTIGUOUS(boxes_a_tensor);
+    CHECK_CONTIGUOUS(boxes_b_tensor);
+
+    int num_boxes = boxes_a_tensor.size(0);
+    int num_boxes_b = boxes_b_tensor.size(0);
+    assert(num_boxes == num_boxes_b);
+    const float *boxes_a = boxes_a_tensor.data<float>();
+    const float *boxes_b = boxes_b_tensor.data<float>();
+    float *ans_iou = ans_iou_tensor.data<float>();
+
+    for (int i = 0; i < num_boxes; i++){
+        ans_iou[i] = iou_bev(boxes_a + i * 7, boxes_b + i * 7);
+    }
+    return 1;
+}
