@@ -199,13 +199,19 @@ class DatasetTemplate(torch_data.Dataset):
                 data_dict[key].append(val)
         batch_size = len(batch_list)
         ret = {}
+        batch_size_ratio = 1
 
         for key, val in data_dict.items():
             try:
                 if key in ['voxels', 'voxel_num_points']:
+                    if isinstance(val[0], list):
+                        batch_size_ratio = len(val[0])
+                        val = [i for item in val for i in item]
                     ret[key] = np.concatenate(val, axis=0)
                 elif key in ['points', 'voxel_coords']:
                     coors = []
+                    if isinstance(val[0], list):
+                        val =  [i for item in val for i in item]
                     for i, coor in enumerate(val):
                         coor_pad = np.pad(coor, ((0, 0), (1, 0)), mode='constant', constant_values=i)
                         coors.append(coor_pad)
@@ -287,5 +293,5 @@ class DatasetTemplate(torch_data.Dataset):
                 print('Error in collate_batch: key=%s' % key)
                 raise TypeError
 
-        ret['batch_size'] = batch_size
+        ret['batch_size'] = batch_size * batch_size_ratio
         return ret
