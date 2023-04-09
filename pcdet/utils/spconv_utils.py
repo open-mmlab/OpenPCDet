@@ -1,5 +1,9 @@
 from typing import Set
 
+import spconv
+if float(spconv.__version__[2:]) >= 2.2:
+    spconv.constants.SPCONV_USE_DIRECT_TABLE = False
+    
 try:
     import spconv.pytorch as spconv
 except:
