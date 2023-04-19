@@ -1,13 +1,179 @@
 import copy
 import pickle
+import argparse
+import os
+from os import path as osp
 import torch
+from av2.utils.io import read_feather
 import numpy as np
+import multiprocessing as mp
+import pickle as pkl
+from pathlib import Path
+import pandas as pd
 
 from ..dataset import DatasetTemplate
 from .argo2_utils.so3 import yaw_to_quat
 from .argo2_utils.constants import LABEL_ATTR
-from os import path as osp
-from pathlib import Path
+
+
+def process_single_segment(segment_path, split, info_list, ts2idx, output_dir, save_bin):
+    test_mode = 'test' in split
+    if not test_mode:
+        segment_anno = read_feather(osp.join(segment_path, 'annotations.feather'))
+    segname = segment_path.split('/')[-1]
+
+    frame_path_list = os.listdir(osp.join(segment_path, 'sensors/lidar/'))
+
+    for frame_name in frame_path_list:
+        ts = int(osp.basename(frame_name).split('.')[0])
+
+        if not test_mode:
+            frame_anno = segment_anno[segment_anno['timestamp_ns'] == ts]
+        else:
+            frame_anno = None
+
+        frame_path = osp.join(segment_path, 'sensors/lidar/', frame_name)
+        frame_info = process_and_save_frame(frame_path, frame_anno, ts2idx, segname, output_dir, save_bin)
+        info_list.append(frame_info)
+
+
+def process_and_save_frame(frame_path, frame_anno, ts2idx, segname, output_dir, save_bin):
+    frame_info = {}
+    frame_info['uuid'] = segname + '/' + frame_path.split('/')[-1].split('.')[0]
+    frame_info['sample_idx'] = ts2idx[frame_info['uuid']]
+    frame_info['image'] = dict()
+    frame_info['point_cloud'] = dict(
+        num_features=4,
+        velodyne_path=None,
+    )
+    frame_info['calib'] = dict()  # not need for lidar-only
+    frame_info['pose'] = dict()  # not need for single frame
+    frame_info['annos'] = dict(
+        name=None,
+        truncated=None,
+        occluded=None,
+        alpha=None,
+        bbox=None,  # not need for lidar-only
+        dimensions=None,
+        location=None,
+        rotation_y=None,
+        index=None,
+        group_ids=None,
+        camera_id=None,
+        difficulty=None,
+        num_points_in_gt=None,
+    )
+    frame_info['sweeps'] = []  # not need for single frame
+    if frame_anno is not None:
+        frame_anno = frame_anno[frame_anno['num_interior_pts'] > 0]
+        cuboid_params = frame_anno.loc[:, list(LABEL_ATTR)].to_numpy()
+        cuboid_params = torch.from_numpy(cuboid_params)
+        yaw = quat_to_yaw(cuboid_params[:, -4:])
+        xyz = cuboid_params[:, :3]
+        wlh = cuboid_params[:, [4, 3, 5]]
+
+        yaw = -yaw - 0.5 * np.pi
+
+        while (yaw < -np.pi).any():
+            yaw[yaw < -np.pi] += 2 * np.pi
+
+        while (yaw > np.pi).any():
+            yaw[yaw > np.pi] -= 2 * np.pi
+
+        # bbox = torch.cat([xyz, wlh, yaw.unsqueeze(1)], dim=1).numpy()
+
+        cat = frame_anno['category'].to_numpy().tolist()
+        cat = [c.lower().capitalize() for c in cat]
+        cat = np.array(cat)
+
+        num_obj = len(cat)
+
+        annos = frame_info['annos']
+        annos['name'] = cat
+        annos['truncated'] = np.zeros(num_obj, dtype=np.float64)
+        annos['occluded'] = np.zeros(num_obj, dtype=np.int64)
+        annos['alpha'] = -10 * np.ones(num_obj, dtype=np.float64)
+        annos['dimensions'] = wlh.numpy().astype(np.float64)
+        annos['location'] = xyz.numpy().astype(np.float64)
+        annos['rotation_y'] = yaw.numpy().astype(np.float64)
+        annos['index'] = np.arange(num_obj, dtype=np.int32)
+        annos['num_points_in_gt'] = frame_anno['num_interior_pts'].to_numpy().astype(np.int32)
+    # frame_info['group_ids'] = np.arange(num_obj, dtype=np.int32)
+    prefix2split = {'0': 'training', '1': 'training', '2': 'testing'}
+    sample_idx = frame_info['sample_idx']
+    split = prefix2split[sample_idx[0]]
+    abs_save_path = osp.join(output_dir, split, 'velodyne', f'{sample_idx}.bin')
+    rel_save_path = osp.join(split, 'velodyne', f'{sample_idx}.bin')
+    frame_info['point_cloud']['velodyne_path'] = rel_save_path
+    if save_bin:
+        save_point_cloud(frame_path, abs_save_path)
+    return frame_info
+
+
+def save_point_cloud(frame_path, save_path):
+    lidar = read_feather(frame_path)
+    lidar = lidar.loc[:, ['x', 'y', 'z', 'intensity']].to_numpy().astype(np.float32)
+    lidar.tofile(save_path)
+
+
+def prepare(root):
+    ts2idx = {}
+    ts_list = []
+    bin_idx_list = []
+    seg_path_list = []
+    seg_split_list = []
+    assert root.split('/')[-1] == 'sensor'
+    # include test if you need it
+    splits = ['train', 'val']  # , 'test']
+    num_train_samples = 0
+    num_val_samples = 0
+    num_test_samples = 0
+
+    # 0 for training, 1 for validation and 2 for testing.
+    prefixes = [0, 1, ]  # 2]
+
+    for i in range(len(splits)):
+        split = splits[i]
+        prefix = prefixes[i]
+        split_root = osp.join(root, split)
+        seg_file_list = os.listdir(split_root)
+        print(f'num of {split} segments:', len(seg_file_list))
+        for seg_idx, seg_name in enumerate(seg_file_list):
+            seg_path = osp.join(split_root, seg_name)
+            seg_path_list.append(seg_path)
+            seg_split_list.append(split)
+            assert seg_idx < 1000
+            frame_path_list = os.listdir(osp.join(seg_path, 'sensors/lidar/'))
+            for frame_idx, frame_path in enumerate(frame_path_list):
+                assert frame_idx < 1000
+                bin_idx = str(prefix) + str(seg_idx).zfill(3) + str(frame_idx).zfill(3)
+                ts = frame_path.split('/')[-1].split('.')[0]
+                ts = seg_name + '/' + ts  # ts is not unique, so add seg_name
+                ts2idx[ts] = bin_idx
+                ts_list.append(ts)
+                bin_idx_list.append(bin_idx)
+        if split == 'train':
+            num_train_samples = len(ts_list)
+        elif split == 'val':
+            num_val_samples = len(ts_list) - num_train_samples
+        else:
+            num_test_samples = len(ts_list) - num_train_samples - num_val_samples
+    # print three num samples
+    print('num of train samples:', num_train_samples)
+    print('num of val samples:', num_val_samples)
+    print('num of test samples:', num_test_samples)
+
+    assert len(ts_list) == len(set(ts_list))
+    assert len(bin_idx_list) == len(set(bin_idx_list))
+    return ts2idx, seg_path_list, seg_split_list
+
+def create_argo2_infos(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, token, num_process):
+    for seg_i, seg_path in enumerate(seg_path_list):
+        if seg_i % num_process != token:
+            continue
+        print(f'processing segment: {seg_i}/{len(seg_path_list)}')
+        split = seg_split_list[seg_i]
+        process_single_segment(seg_path, split, info_list, ts2idx, output_dir, save_bin)
 
 
 class Argo2Dataset(DatasetTemplate):
@@ -29,13 +195,14 @@ class Argo2Dataset(DatasetTemplate):
         split_dir = self.root_path / 'ImageSets' / (self.split + '.txt')
         self.sample_id_list = [x.strip() for x in open(split_dir).readlines()] if split_dir.exists() else None
 
-        self.kitti_infos = []
-        self.include_kitti_data(self.mode)
+        self.argo2_infos = []
+        self.include_argo2_data(self.mode)
+        self.evaluate_range = dataset_cfg.get("EVALUATE_RANGE", 200.0)
 
-    def include_kitti_data(self, mode):
+    def include_argo2_data(self, mode):
         if self.logger is not None:
             self.logger.info('Loading Argoverse2 dataset')
-        kitti_infos = []
+        argo2_infos = []
 
         for info_path in self.dataset_cfg.INFO_PATH[mode]:
             info_path = self.root_path / info_path
@@ -43,12 +210,12 @@ class Argo2Dataset(DatasetTemplate):
                 continue
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
-                kitti_infos.extend(infos)
+                argo2_infos.extend(infos)
 
-        self.kitti_infos.extend(kitti_infos)
+        self.argo2_infos.extend(argo2_infos)
 
         if self.logger is not None:
-            self.logger.info('Total samples for Argo2 dataset: %d' % (len(kitti_infos)))
+            self.logger.info('Total samples for Argo2 dataset: %d' % (len(argo2_infos)))
 
     def set_split(self, split):
         super().__init__(
@@ -140,16 +307,16 @@ class Argo2Dataset(DatasetTemplate):
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
-            return len(self.kitti_infos) * self.total_epochs
+            return len(self.argo2_infos) * self.total_epochs
 
-        return len(self.kitti_infos)
+        return len(self.argo2_infos)
 
     def __getitem__(self, index):
         # index = 4
         if self._merge_all_iters_to_one_epoch:
-            index = index % len(self.kitti_infos)
+            index = index % len(self.argo2_infos)
 
-        info = copy.deepcopy(self.kitti_infos[index])
+        info = copy.deepcopy(self.argo2_infos[index])
 
         sample_idx = info['point_cloud']['velodyne_path'].split('/')[-1].rstrip('.bin')
         calib = None
@@ -205,7 +372,7 @@ class Argo2Dataset(DatasetTemplate):
         """
         import pandas as pd
 
-        assert len(self.kitti_infos) == len(outputs)
+        assert len(self.argo2_infos) == len(outputs)
         num_samples = len(outputs)
         print('\nGot {} samples'.format(num_samples))
         
@@ -214,7 +381,7 @@ class Argo2Dataset(DatasetTemplate):
         print('\nConvert predictions to Argoverse 2 format')
         for i in range(num_samples):
             out_i = outputs[i]
-            log_id, ts = self.kitti_infos[i]['uuid'].split('/')
+            log_id, ts = self.argo2_infos[i]['uuid'].split('/')
             track_uuid = None
             #cat_id = out_i['labels_3d'].numpy().tolist()
             #category = [class_names[i].upper() for i in cat_id]
@@ -249,9 +416,7 @@ class Argo2Dataset(DatasetTemplate):
     def lidar_box_to_argo2(self, boxes):
         boxes = torch.Tensor(boxes)
         cnt_xyz = boxes[:, :3]
-        #cnt_xyz[:, 2] += boxes[:, 5] * 0.5
         lwh = boxes[:, [4, 3, 5]]
-        #yaw = -boxes[:, 6] - np.pi/2
         yaw = boxes[:, 6] #- np.pi/2
 
         yaw = -yaw - 0.5 * np.pi
@@ -274,12 +439,12 @@ class Argo2Dataset(DatasetTemplate):
                  show=False,
                  output_path=None,
                  pipeline=None):
-        """Evaluation in KITTI protocol.
+        """Evaluation in Argo2 protocol.
 
         Args:
             results (list[dict]): Testing results of the dataset.
             metric (str | list[str]): Metrics to be evaluated.
-                Default: 'waymo'. Another supported metric is 'kitti'.
+                Default: 'waymo'. Another supported metric is 'Argo2'.
             logger (logging.Logger | str | None): Logger used for printing
                 related information during evaluation. Default: None.
             pklfile_prefix (str | None): The prefix of pkl files. It includes
@@ -303,7 +468,7 @@ class Argo2Dataset(DatasetTemplate):
         from av2.utils.io import read_feather
 
         dts = self.format_results(results, class_names, pklfile_prefix, submission_prefix)
-        argo2_root = "../data/argo2/"
+        argo2_root = self.root_path
         val_anno_path = osp.join(argo2_root, 'val_anno.feather')
         gts = read_feather(val_anno_path)
         gts = gts.set_index(["log_id", "timestamp_ns"]).sort_values("category")
@@ -316,13 +481,11 @@ class Argo2Dataset(DatasetTemplate):
         categories = set(x.value for x in CompetitionCategories)
         categories &= set(gts["category"].unique().tolist())
 
-        split = 'val'
-        dataset_dir = Path(argo2_root) / 'sensor' / split
+        dataset_dir = Path(argo2_root) / 'sensor' / 'val'
         cfg = DetectionCfg(
             dataset_dir=dataset_dir,
             categories=tuple(sorted(categories)),
-            #split=split,
-            max_range_m=200.0,
+            max_range_m=self.evaluate_range,
             eval_only_roi_instances=True,
         )
 
@@ -336,3 +499,64 @@ class Argo2Dataset(DatasetTemplate):
         for index, row in metrics.iterrows():
             ap_dict[index] = row.to_json()
         return metrics.loc[valid_categories], ap_dict
+
+def parse_config():
+    parser = argparse.ArgumentParser(description='arg parser')
+    parser.add_argument('--root_path', type=str, default="/data/argo2/sensor")
+    parser.add_argument('--output_dir', type=str, default="/data/argo2/processed")
+    parser.add_argument('--num_process', type=int, default=16)
+    args = parser.parse_args()
+    return args
+
+
+if __name__ == '__main__':
+    args = parse_config()
+    root = args.root_path
+    output_dir = args.output_dir
+    num_process = args.num_process
+    save_bin = True
+    ts2idx, seg_path_list, seg_split_list = prepare(root)
+
+    if num_process > 1:
+        with mp.Manager() as manager:
+            info_list = manager.list()
+            pool = mp.Pool(num_process)
+            for token in range(num_process):
+                result = pool.apply_async(main, args=(
+                seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, token, num_process))
+            pool.close()
+            pool.join()
+            info_list = list(info_list)
+    else:
+        info_list = []
+        main(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, 0, 1)
+
+    assert len(info_list) > 0
+
+    train_info = [e for e in info_list if e['sample_idx'][0] == '0']
+    val_info = [e for e in info_list if e['sample_idx'][0] == '1']
+    test_info = [e for e in info_list if e['sample_idx'][0] == '2']
+    trainval_info = train_info + val_info
+    assert len(train_info) + len(val_info) + len(test_info) == len(info_list)
+
+    # save info_list in under the output_dir as pickle file
+    with open(osp.join(output_dir, 'argo2_infos_train.pkl'), 'wb') as f:
+        pkl.dump(train_info, f)
+
+    with open(osp.join(output_dir, 'argo2_infos_val.pkl'), 'wb') as f:
+        pkl.dump(val_info, f)
+
+    # save validation anno feather
+    save_feather_path = os.path.join(output_dir, 'val_anno.feather')
+    val_seg_path_list = [seg_path for seg_path in seg_path_list if 'val' in seg_path]
+    assert len(val_seg_path_list) == len([i for i in seg_split_list if i == 'val'])
+
+    seg_anno_list = []
+    for seg_path in val_seg_path_list:
+        seg_anno = read_feather(osp.join(seg_path, 'annotations.feather'))
+        log_id = seg_path.split('/')[-1]
+        seg_anno["log_id"] = log_id
+        seg_anno_list.append(seg_anno)
+
+    gts = pd.concat(seg_anno_list).reset_index()
+    gts.to_feather(val_seg_path_list)
