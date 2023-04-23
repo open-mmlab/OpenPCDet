@@ -12,14 +12,14 @@ from pathlib import Path
 import pandas as pd
 
 from ..dataset import DatasetTemplate
-from .argo2_utils.so3 import yaw_to_quat
+from .argo2_utils.so3 import yaw_to_quat, quat_to_yaw
 from .argo2_utils.constants import LABEL_ATTR
 
 
 def process_single_segment(segment_path, split, info_list, ts2idx, output_dir, save_bin):
     test_mode = 'test' in split
     if not test_mode:
-        segment_anno = read_feather(osp.join(segment_path, 'annotations.feather'))
+        segment_anno = read_feather(Path(osp.join(segment_path, 'annotations.feather')))
     segname = segment_path.split('/')[-1]
 
     frame_path_list = os.listdir(osp.join(segment_path, 'sensors/lidar/'))
@@ -70,17 +70,7 @@ def process_and_save_frame(frame_path, frame_anno, ts2idx, segname, output_dir, 
         cuboid_params = torch.from_numpy(cuboid_params)
         yaw = quat_to_yaw(cuboid_params[:, -4:])
         xyz = cuboid_params[:, :3]
-        wlh = cuboid_params[:, [4, 3, 5]]
-
-        yaw = -yaw - 0.5 * np.pi
-
-        while (yaw < -np.pi).any():
-            yaw[yaw < -np.pi] += 2 * np.pi
-
-        while (yaw > np.pi).any():
-            yaw[yaw > np.pi] -= 2 * np.pi
-
-        # bbox = torch.cat([xyz, wlh, yaw.unsqueeze(1)], dim=1).numpy()
+        lwh = cuboid_params[:, [3, 4, 5]]
 
         cat = frame_anno['category'].to_numpy().tolist()
         cat = [c.lower().capitalize() for c in cat]
@@ -93,7 +83,7 @@ def process_and_save_frame(frame_path, frame_anno, ts2idx, segname, output_dir, 
         annos['truncated'] = np.zeros(num_obj, dtype=np.float64)
         annos['occluded'] = np.zeros(num_obj, dtype=np.int64)
         annos['alpha'] = -10 * np.ones(num_obj, dtype=np.float64)
-        annos['dimensions'] = wlh.numpy().astype(np.float64)
+        annos['dimensions'] = lwh.numpy().astype(np.float64)
         annos['location'] = xyz.numpy().astype(np.float64)
         annos['rotation_y'] = yaw.numpy().astype(np.float64)
         annos['index'] = np.arange(num_obj, dtype=np.int32)
@@ -111,7 +101,7 @@ def process_and_save_frame(frame_path, frame_anno, ts2idx, segname, output_dir, 
 
 
 def save_point_cloud(frame_path, save_path):
-    lidar = read_feather(frame_path)
+    lidar = read_feather(Path(frame_path))
     lidar = lidar.loc[:, ['x', 'y', 'z', 'intensity']].to_numpy().astype(np.float32)
     lidar.tofile(save_path)
 
@@ -375,9 +365,9 @@ class Argo2Dataset(DatasetTemplate):
         assert len(self.argo2_infos) == len(outputs)
         num_samples = len(outputs)
         print('\nGot {} samples'.format(num_samples))
-        
+
         serialized_dts_list = []
-        
+
         print('\nConvert predictions to Argoverse 2 format')
         for i in range(num_samples):
             out_i = outputs[i]
@@ -394,7 +384,7 @@ class Argo2Dataset(DatasetTemplate):
             serialized_dts["timestamp_ns"] = int(ts)
             serialized_dts["category"] = category
             serialized_dts_list.append(serialized_dts)
-        
+
         dts = (
             pd.concat(serialized_dts_list)
             .set_index(["log_id", "timestamp_ns"])
@@ -411,19 +401,13 @@ class Argo2Dataset(DatasetTemplate):
 
         dts = dts.set_index(["log_id", "timestamp_ns"]).sort_index()
 
-        return dts 
-    
+        return dts
+
     def lidar_box_to_argo2(self, boxes):
         boxes = torch.Tensor(boxes)
         cnt_xyz = boxes[:, :3]
-        lwh = boxes[:, [4, 3, 5]]
-        yaw = boxes[:, 6] #- np.pi/2
-
-        yaw = -yaw - 0.5 * np.pi
-        while (yaw < -np.pi).any():
-            yaw[yaw < -np.pi] += 2 * np.pi
-        while (yaw > np.pi).any():
-            yaw[yaw > np.pi] -= 2 * np.pi
+        lwh = boxes[:, [3, 4, 5]]
+        yaw = boxes[:, 6]
 
         quat = yaw_to_quat(yaw)
         argo_cuboid = torch.cat([cnt_xyz, lwh, quat], dim=1)
@@ -470,7 +454,7 @@ class Argo2Dataset(DatasetTemplate):
         dts = self.format_results(results, class_names, pklfile_prefix, submission_prefix)
         argo2_root = self.root_path
         val_anno_path = osp.join(argo2_root, 'val_anno.feather')
-        gts = read_feather(val_anno_path)
+        gts = read_feather(Path(val_anno_path))
         gts = gts.set_index(["log_id", "timestamp_ns"]).sort_values("category")
 
         valid_uuids_gts = gts.index.tolist()
@@ -508,6 +492,13 @@ def parse_config():
     args = parser.parse_args()
     return args
 
+def main(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, token, num_process):
+    for seg_i, seg_path in enumerate(seg_path_list):
+        if seg_i % num_process != token:
+            continue
+        print(f'processing segment: {seg_i}/{len(seg_path_list)}')
+        split = seg_split_list[seg_i]
+        process_single_segment(seg_path, split, info_list, ts2idx, output_dir, save_bin)
 
 if __name__ == '__main__':
     args = parse_config()
@@ -559,4 +550,5 @@ if __name__ == '__main__':
         seg_anno_list.append(seg_anno)
 
     gts = pd.concat(seg_anno_list).reset_index()
-    gts.to_feather(val_seg_path_list)
+    gts.to_feather(save_feather_path)
+
