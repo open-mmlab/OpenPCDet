@@ -488,39 +488,23 @@ def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--root_path', type=str, default="/data/argo2/sensor")
     parser.add_argument('--output_dir', type=str, default="/data/argo2/processed")
-    parser.add_argument('--num_process', type=int, default=16)
     args = parser.parse_args()
     return args
 
-def main(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, token, num_process):
-    for seg_i, seg_path in enumerate(seg_path_list):
-        if seg_i % num_process != token:
-            continue
-        print(f'processing segment: {seg_i}/{len(seg_path_list)}')
-        split = seg_split_list[seg_i]
-        process_single_segment(seg_path, split, info_list, ts2idx, output_dir, save_bin)
 
 if __name__ == '__main__':
     args = parse_config()
     root = args.root_path
     output_dir = args.output_dir
-    num_process = args.num_process
     save_bin = True
     ts2idx, seg_path_list, seg_split_list = prepare(root)
 
-    if num_process > 1:
-        with mp.Manager() as manager:
-            info_list = manager.list()
-            pool = mp.Pool(num_process)
-            for token in range(num_process):
-                result = pool.apply_async(main, args=(
-                seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, token, num_process))
-            pool.close()
-            pool.join()
-            info_list = list(info_list)
-    else:
-        info_list = []
-        main(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, 0, 1)
+    velodyne_dir = Path(output_dir) / 'training' / 'velodyne'
+    if not velodyne_dir.exists():
+        velodyne_dir.mkdir(parents=True, exist_ok=True)
+
+    info_list = []
+    create_argo2_infos(seg_path_list, seg_split_list, info_list, ts2idx, output_dir, save_bin, 0, 1)
 
     assert len(info_list) > 0
 
@@ -551,4 +535,3 @@ if __name__ == '__main__':
 
     gts = pd.concat(seg_anno_list).reset_index()
     gts.to_feather(save_feather_path)
-
