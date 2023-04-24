@@ -11,18 +11,21 @@ MODEL:
 
     BACKBONE_3D:
         NAME: VoxelResBackBone8xVoxelNeXt
+        SPCONV_KERNEL_SIZES: [5, 5, 3, 3]
+        OUT_CHANNEL: 256
+        CHANNELS: [32, 64, 128, 256, 256]
 
     DENSE_HEAD:
         NAME: VoxelNeXtHead
         IOU_BRANCH: True
         CLASS_AGNOSTIC: False
-        INPUT_FEATURES: 128
+        INPUT_FEATURES: 256
 
         CLASS_NAMES_EACH_HEAD: [
             ['Vehicle', 'Pedestrian', 'Cyclist']
         ]
 
-        SHARED_CONV_CHANNEL: 128
+        SHARED_CONV_CHANNEL: 256
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
         SEPARATE_HEAD_CFG:
