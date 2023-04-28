@@ -64,7 +64,7 @@ inline float cross(const Point &p1, const Point &p2, const Point &p0){
     return (p1.x - p0.x) * (p2.y - p0.y) - (p2.x - p0.x) * (p1.y - p0.y);
 }
 
-inline int check_rect_cross(const Point &p1, const Point &p2, const Point &q1, const Point &q2){
+inline int check_rect_cross_cpu(const Point &p1, const Point &p2, const Point &q1, const Point &q2){
     int ret = min(p1.x,p2.x) <= max(q1.x,q2.x)  &&
               min(q1.x,q2.x) <= max(p1.x,p2.x) &&
               min(p1.y,p2.y) <= max(q1.y,q2.y) &&
@@ -86,7 +86,7 @@ inline int check_in_box2d(const float *box, const Point &p){
 
 inline int intersection(const Point &p1, const Point &p0, const Point &q1, const Point &q0, Point &ans){
     // fast exclusion
-    if (check_rect_cross(p0, p1, q0, q1) == 0) return 0;
+    if (check_rect_cross_cpu(p0, p1, q0, q1) == 0) return 0;
 
     // check cross standing
     float s1 = cross(q0, p1, p0);
