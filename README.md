@@ -1,4 +1,4 @@
-# [Windows 11 Compatible]  OpenPCDet
+# [Windows 11 Compatible]  OpenPCDet 0.6.0
 
 This is a compatible version of OpenPCDet for WIndows 11. 
 
@@ -6,7 +6,30 @@ This is a compatible version of OpenPCDet for WIndows 11.
 
 Official README.md see here: [README_aux.md](README_aux.md)
 
+## Problems remained
+
+- Sharedarray removed, Waymo dataset may not work.
+
+## Installation schme
+
+- Global CUDA dev 11.4 installed
+- IoU3d_nms modified
+- Dependency Sharedarray removed
+
+## Environment
+
+- Windows 11
+- CUDA-dev 11.4
+- cudatoolkit 11.3
+- Anaconda2
+- Python 3.8.16
+- Pytorch 1.10.1
+- spconv-cu113 2.3.6
+- NVIDIA GeForce RTX 3060 Laptop GPU
+
 ## Changelog
+
+[2023-04-28] IoU3d_nms modified.
 
 [2023-04-28] Readme and dev branch initialized.
 
@@ -15,3 +38,24 @@ Official README.md see here: [README_aux.md](README_aux.md)
 - IoU3d_nms
 
 ## How to use it
+
+a. Install and configure CUDA 11.4 properly from https://anaconda.org/conda-forge/cudatoolkit-dev/files
+
+b. Clone this repository.
+
+```shell
+git clone https://github.com/Uzukidd/OpenPCDet-Win11-Compatible.git
+```
+
+c. Create the environment as follows:
+
+```shell
+conda env create -f environment.yml
+```
+
+c. Install this `pcdet` library and its dependent libraries by running the following command:
+
+```
+python setup.py develop
+```
+
