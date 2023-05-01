@@ -62,21 +62,23 @@ c. Install this `pcdet` library and its dependent libraries by running the follo
 python setup.py develop
 ```
 
-## ez checkwith PointPillar
+## ez check with PointPillar
 
-a. Activate the environment
+a. Download `easy_check` from https://drive.google.com/file/d/13czqs5oSTb86QC0ZOMe6wEjgL91_k-VR/view?usp=sharing and extract it into `./tools/`
+
+b. Activate the environment
 
 ```shell
-conda activate env_openpcdet_test
+conda activate env_openpcdet_base
 ```
 
-b. Enter tools
+c. Enter tools
 
 ```shell
 cd ./tools
 ```
 
-c. Run the demo
+d. Run the demo
 
 ```shell
 python demo.py --cfg_file ./cfgs/kitti_models/pointpillar.yaml --ckpt ./easy_check/pointpillar_7728.pth --data_path  ./easy_check/000000.bin
