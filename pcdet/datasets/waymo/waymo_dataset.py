@@ -9,7 +9,7 @@ import copy
 import numpy as np
 import torch
 import multiprocessing
-import SharedArray
+# import SharedArray
 import torch.distributed as dist
 from tqdm import tqdm
 from pathlib import Path
@@ -35,6 +35,7 @@ class WaymoDataset(DatasetTemplate):
 
         self.use_shared_memory = self.dataset_cfg.get('USE_SHARED_MEMORY', False) and self.training
         if self.use_shared_memory:
+            raise NotImplementedError
             self.shared_memory_file_limit = self.dataset_cfg.get('SHARED_MEMORY_FILE_LIMIT', 0x7FFFFFFF)
             self.load_data_to_shared_memory()
 
@@ -134,6 +135,7 @@ class WaymoDataset(DatasetTemplate):
         self.logger.info('Training data has been saved to shared memory')
 
     def clean_shared_memory(self):
+        raise NotImplementedError
         self.logger.info(f'Clean training data from shared memory (file limit={self.shared_memory_file_limit})')
 
         cur_rank, num_gpus = common_utils.get_dist_info()
@@ -349,6 +351,7 @@ class WaymoDataset(DatasetTemplate):
             'sample_idx': sample_idx
         }
         if self.use_shared_memory and index < self.shared_memory_file_limit:
+            raise NotImplementedError
             sa_key = f'{sequence_name}___{sample_idx}'
             points = SharedArray.attach(f"shm://{sa_key}").copy()
         else:

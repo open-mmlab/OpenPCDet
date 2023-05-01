@@ -6,13 +6,13 @@ This is a compatible version of OpenPCDet for WIndows 11.
 
 Official README.md see here: [README_aux.md](README_aux.md)
 
-## Problems remained
+## Problems known
 
-- Sharedarray removed, Waymo dataset may not work.
+- Sharedarray removed, Waymo dataset with shared memory may not work.
 
 ## Installation schme
 
-- Global CUDA dev 11.4 installed
+- Based on Global CUDA dev 11.4 installed
 - IoU3d_nms modified
 - Dependency Sharedarray removed
 
@@ -29,6 +29,8 @@ Official README.md see here: [README_aux.md](README_aux.md)
 
 ## Changelog
 
+[2023-05-1] Dataset shared memory modified.
+
 [2023-04-28] IoU3d_nms modified.
 
 [2023-04-28] Readme and dev branch initialized.
@@ -36,6 +38,7 @@ Official README.md see here: [README_aux.md](README_aux.md)
 ## Modification from official code
 
 - IoU3d_nms
+- Part of Dataset Shared Memory
 
 ## How to use it
 

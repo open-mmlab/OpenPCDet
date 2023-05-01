@@ -160,4 +160,4 @@ dependencies:
       - virtualenv==20.22.0
       - vtk==9.2.6
       - zipp==3.15.0
-prefix: D:\anaconda3\envs\env_openpcdet_base
+

@@ -8,5 +8,5 @@ pyyaml
 scikit-image
 tqdm
 torchvision
-SharedArray
+# SharedArray
 opencv-python
