@@ -561,3 +561,48 @@ class IouRegLossSparse(nn.Module):
 
         loss =  loss / (mask.sum() + 1e-4)
         return loss
+
+class L1Loss(nn.Module):
+    def __init__(self):
+        super(L1Loss, self).__init__()
+       
+    def forward(self, pred, target):
+        if target.numel() == 0:
+            return pred.sum() * 0
+        assert pred.size() == target.size()
+        loss = torch.abs(pred - target)
+        return loss
+
+
+class GaussianFocalLoss(nn.Module):
+    """GaussianFocalLoss is a variant of focal loss.
+
+    More details can be found in the `paper
+    <https://arxiv.org/abs/1808.01244>`_
+    Code is modified from `kp_utils.py
+    <https://github.com/princeton-vl/CornerNet/blob/master/models/py_utils/kp_utils.py#L152>`_  # noqa: E501
+    Please notice that the target in GaussianFocalLoss is a gaussian heatmap,
+    not 0/1 binary target.
+
+    Args:
+        alpha (float): Power of prediction.
+        gamma (float): Power of target for negative samples.
+        reduction (str): Options are "none", "mean" and "sum".
+        loss_weight (float): Loss weight of current loss.
+    """
+
+    def __init__(self,
+                 alpha=2.0,
+                 gamma=4.0):
+        super(GaussianFocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, pred, target):
+        eps = 1e-12
+        pos_weights = target.eq(1)
+        neg_weights = (1 - target).pow(self.gamma)
+        pos_loss = -(pred + eps).log() * (1 - pred).pow(self.alpha) * pos_weights
+        neg_loss = -(1 - pred + eps).log() * pred.pow(self.alpha) * neg_weights
+
+        return pos_loss + neg_loss

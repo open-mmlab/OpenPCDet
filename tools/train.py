@@ -195,7 +195,8 @@ def main():
         ckpt_save_time_interval=args.ckpt_save_time_interval,
         use_logger_to_record=not args.use_tqdm_to_record, 
         show_gpu_stat=not args.wo_gpu_stat,
-        use_amp=args.use_amp
+        use_amp=args.use_amp,
+        cfg=cfg
     )
 
     if hasattr(train_set, 'use_shared_memory') and train_set.use_shared_memory:
