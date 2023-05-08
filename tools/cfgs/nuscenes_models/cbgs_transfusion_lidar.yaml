@@ -5,12 +5,6 @@ DATA_CONFIG:
   _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
   POINT_CLOUD_RANGE: [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
 
-  # sc TODO: just for debug
-  INFO_PATH: {
-    'train': [nuscenes_infos_10sweeps_train_with_cam_2d.pkl],
-    'test': [nuscenes_infos_10sweeps_val_with_cam_2d.pkl],
-  }
-
   DATA_AUGMENTOR:
     DISABLE_AUG_LIST: ['placeholder']
     AUG_CONFIG_LIST:
