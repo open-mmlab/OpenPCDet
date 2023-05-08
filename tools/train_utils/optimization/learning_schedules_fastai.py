@@ -41,7 +41,7 @@ class LRSchedulerStep(object):
                 self.mom_phases.append((int(start * total_step), total_step, lambda_func))
         assert self.mom_phases[0][0] == 0
 
-    def step(self, step):
+    def step(self, step, epoch=None):
         for start, end, func in self.lr_phases:
             if step >= start:
                 self.optimizer.lr = func((step - start) / (end - start))
@@ -83,10 +83,58 @@ class CosineWarmupLR(lr_sched._LRScheduler):
         self.eta_min = eta_min
         super(CosineWarmupLR, self).__init__(optimizer, last_epoch)
 
-    def get_lr(self):
+    def get_lr(self, epoch=None):
         return [self.eta_min + (base_lr - self.eta_min) *
                 (1 - math.cos(math.pi * self.last_epoch / self.T_max)) / 2
                 for base_lr in self.base_lrs]
+
+
+def linear_warmup(end, lr_max, pct):
+    k = (1 - pct / end) * (1 - 0.33333333)
+    warmup_lr = lr_max * (1 - k)
+    return warmup_lr
+
+
+class CosineAnnealing(LRSchedulerStep):
+    def __init__(self, fai_optimizer, total_step, total_epoch, lr_max, moms, pct_start, warmup_iter):
+        self.lr_max = lr_max
+        self.moms = moms
+        self.pct_start = pct_start
+
+        mom_phases = ((0, partial(annealing_cos, *self.moms)),
+                      (self.pct_start, partial(annealing_cos,
+                                               *self.moms[::-1])))
+        fai_optimizer.lr, fai_optimizer.mom = lr_max, self.moms[0]
+
+        self.optimizer = fai_optimizer
+        self.total_step = total_step 
+        self.warmup_iter = warmup_iter
+        self.total_epoch = total_epoch
+
+        self.mom_phases = []
+        for i, (start, lambda_func) in enumerate(mom_phases):
+            if len(self.mom_phases) != 0:
+                assert self.mom_phases[-1][0] < start
+            if isinstance(lambda_func, str):
+                lambda_func = eval(lambda_func)
+            if i < len(mom_phases) - 1:
+                self.mom_phases.append((int(start * total_step), int(mom_phases[i + 1][0] * total_step), lambda_func))
+            else:
+                self.mom_phases.append((int(start * total_step), total_step, lambda_func))
+        assert self.mom_phases[0][0] == 0
+    
+    def step(self, step, epoch):
+        # update lr
+        if step < self.warmup_iter:
+            self.optimizer.lr = linear_warmup(self.warmup_iter, self.lr_max, step)
+        else:
+            target_lr = self.lr_max * 0.001
+            cos_lr = annealing_cos(self.lr_max, target_lr, epoch / self.total_epoch)
+            self.optimizer.lr = cos_lr
+        # update mom
+        for start, end, func in self.mom_phases:
+            if step >= start:
+                self.optimizer.mom = func((step - start) / (end - start))
 
 
 class FakeOptim:
