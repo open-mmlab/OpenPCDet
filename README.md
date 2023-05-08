@@ -22,6 +22,10 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
+[2023-05-xx] Added support for the multi-modal 3D object detection model [`BEVFusion`](https://arxiv.org/abs/2205.13542) on Nuscenes dataset, which fuses multi-modal information on BEV space and reaches 70.98% NDS on Nuscenes validation dataset. (see the [guideline](docs/guidelines_of_approaches/bevfusion.md) on how to train/test with BEVFusion).
+* Support multi-modal Nuscenes detection (See the [GETTING_STARTED.md](docs/GETTING_STARTED.md) to process data).
+* Support TransFusion-Lidar head, which ahcieves 69.43% NDS on Nuscenes validation dataset.
+
 [2023-04-02] Added support for [`VoxelNeXt`](https://github.com/dvlab-research/VoxelNeXt) on Nuscenes, Waymo, and Argoverse2 datasets. It is a fully sparse 3D object detection network, which is a clean sparse CNNs network and predicts 3D objects directly upon voxels.
 
 [2022-09-02] **NEW:** Update `OpenPCDet` to v0.6.0:
@@ -199,7 +203,7 @@ We could not provide the above pretrained models due to [Waymo Dataset License A
 but you could easily achieve similar performance by training with the default configs.
 
 ### NuScenes 3D Object Detection Baselines
-All models are trained with 8 GTX 1080Ti GPUs and are available for download.
+All models are trained with 8 GPUs and are available for download. For training BEVFusion, please refer to the [guideline](docs/guidelines_of_approaches/bevfusion.md).
 
 |                                                                                                    |   mATE |  mASE  |  mAOE  | mAVE  | mAAE  |  mAP  |  NDS   |                                              download                                              | 
 |----------------------------------------------------------------------------------------------------|-------:|:------:|:------:|:-----:|:-----:|:-----:|:------:|:--------------------------------------------------------------------------------------------------:|
@@ -209,6 +213,8 @@ All models are trained with 8 GTX 1080Ti GPUs and are available for download.
 | [CenterPoint (voxel_size=0.1)](tools/cfgs/nuscenes_models/cbgs_voxel01_res3d_centerpoint.yaml)     |  30.11 | 	25.55 | 	38.28 | 21.94 | 18.87 | 56.03 | 64.54  |  [model-34M](https://drive.google.com/file/d/1Cz-J1c3dw7JAWc25KRG1XQj8yCaOlexQ/view?usp=sharing)   |
 | [CenterPoint (voxel_size=0.075)](tools/cfgs/nuscenes_models/cbgs_voxel0075_res3d_centerpoint.yaml) |  28.80 | 	25.43 | 	37.27 | 21.55 | 18.24 | 59.22 | 66.48  |  [model-34M](https://drive.google.com/file/d/1XOHAWm1MPkCKr1gqmc3TWi5AYZgPsgxU/view?usp=sharing)   |
 | [VoxelNeXt (voxel_size=0.075)](tools/cfgs/nuscenes_models/cbgs_voxel0075_voxelnext.yaml)   |  30.11 | 	25.23 | 	40.57 | 21.69 | 18.56 | 60.53 | 66.65  | [model-31M](https://drive.google.com/file/d/1IV7e7G9X-61KXSjMGtQo579pzDNbhwvf/view?usp=share_link) |
+| [TransFusion-L](tools/cfgs/nuscenes_models/cbgs_transfusion_lidar.yaml)   |  27.96 | 	25.37 | 	29.35 | 27.31 | 18.55 | 64.58 | 69.43  | [model-32M] |
+| [BEVFusion](tools/cfgs/nuscenes_models/cbgs_bevfusion.yaml)   |  28.03 | 	25.43 | 	30.19 | 26.76 | 18.48 | 67.75 | 70.98  | [model-157M] |
 
 
 ### ONCE 3D Object Detection Baselines
