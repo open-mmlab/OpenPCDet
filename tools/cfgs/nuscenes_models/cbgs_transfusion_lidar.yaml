@@ -127,7 +127,7 @@ MODEL:
               'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
           }
       LOSS_CLS:
-        use_sigmoid: true
+        use_sigmoid: True
         gamma: 2.0
         alpha: 0.25
       

@@ -381,7 +381,7 @@ def create_nuscenes_info(version, data_path, save_path, max_sweeps=10, with_cam=
 
     train_nusc_infos, val_nusc_infos = nuscenes_utils.fill_trainval_infos(
         data_path=data_path, nusc=nusc, train_scenes=train_scenes, val_scenes=val_scenes,
-        test='test' in version, max_sweeps=max_sweeps
+        test='test' in version, max_sweeps=max_sweeps, with_cam=with_cam
     )
 
     if version == 'v1.0-test':

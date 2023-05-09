@@ -28,7 +28,7 @@ DATA_CONFIG:
       
       - NAME: imgaug
         ROT_LIM: [-5.4, 5.4]
-        RAND_FLIP: true
+        RAND_FLIP: True
 
   DATA_PROCESSOR:
     - NAME: mask_points_and_boxes_outside_range
@@ -85,7 +85,8 @@ MODEL:
     CONVERT_WEIGHTS: True
     INIT_CFG:
       type: Pretrained
-      checkpoint: swint-nuimages-pretrained.pth
+      # checkpoint: swint-nuimages-pretrained.pth
+      checkpoint: /slurm_data/shichen/package/tomopc_cu111/OpenPCDet/tmp/pretrained/swint-nuimages-pretrained.pth
   
   NECK:
     NAME: GeneralizedLSSFPN
@@ -108,7 +109,7 @@ MODEL:
     DOWNSAMPLE: 2
   
   FUSER:
-    NAME: 'ConvFuser'
+    NAME: ConvFuser
     IN_CHANNEL: 336
     OUT_CHANNEL: 256
   
@@ -119,7 +120,7 @@ MODEL:
     NUM_FILTERS: [128, 256]
     UPSAMPLE_STRIDES: [1, 2]
     NUM_UPSAMPLE_FILTERS: [256, 256]
-    USE_CONV_FOR_NO_STRIDE: true
+    USE_CONV_FOR_NO_STRIDE: True
 
 
   DENSE_HEAD:
@@ -167,7 +168,7 @@ MODEL:
               'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
           }
       LOSS_CLS:
-        use_sigmoid: true
+        use_sigmoid: True
         gamma: 2.0
         alpha: 0.25
       
