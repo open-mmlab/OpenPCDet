@@ -13,12 +13,12 @@ Please refer to [GETTING_STARTED.md](../GETTING_STARTED.md) to process the multi
 ```shell
 bash scripts/dist_train.sh ${NUM_GPUS} --cfg_file cfgs/nuscenes_models/cbgs_transfusion_lidar.yaml \
 ```
-The ckpt will be saved in ../output/nuscenes_models/cbgs_transfusion_lidar/default/ckpt.
+The ckpt will be saved in ../output/nuscenes_models/cbgs_transfusion_lidar/default/ckpt, or you can download pretrained checkpoint directly form [here](https://drive.google.com/file/d/1cuZ2qdDnxSwTCsiXWwbqCGF-uoazTXbz/view?usp=share_link).
 
 1.  To train BEVFusion, you need to download pretrained parameters for image backbone [here](www.google.com), and specify the path in [config](../../tools/cfgs/nuscenes_models/cbgs_bevfusion.yaml#L88). Then run the following command:
 ```shell
 bash scripts/dist_train.sh ${NUM_GPUS} --cfg_file cfgs/nuscenes_models/cbgs_bevfusion.yaml \
---pretrained_model ../output/nuscenes_models/cbgs_transfusion_lidar/default/ckpt/checkpoint_epoch_20.pth \
+--pretrained_model path_to_pretrained_lidar_branch_ckpt \
 ```
 ## Evaluation
 * Test with a pretrained model:
@@ -31,5 +31,5 @@ bash scripts/dist_test.sh ${NUM_GPUS} --cfg_file  cfgs/nuscenes_models/cbgs_bevf
 All models are trained with spconv 1.0, but you can directly load them for testing regardless of the spconv version.
 |                                                                                                    |   mATE |  mASE  |  mAOE  | mAVE  | mAAE  |  mAP  |  NDS   |                                              download                                              | 
 |----------------------------------------------------------------------------------------------------|-------:|:------:|:------:|:-----:|:-----:|:-----:|:------:|:--------------------------------------------------------------------------------------------------:|
-| [TransFusion-L](../../tools/cfgs/nuscenes_models/cbgs_transfusion_lidar.yaml)   |  27.96 | 	25.37 | 	29.35 | 27.31 | 18.55 | 64.58 | 69.43  | [model-32M] |
-| [BEVFusion](../../tools/cfgs/nuscenes_models/cbgs_bevfusion.yaml)   |  28.03 | 	25.43 | 	30.19 | 26.76 | 18.48 | 67.75 | 70.98  | [model-157M] |
+| [TransFusion-L](../../tools/cfgs/nuscenes_models/cbgs_transfusion_lidar.yaml)   |  27.96 | 	25.37 | 	29.35 | 27.31 | 18.55 | 64.58 | 69.43  | [model-32M](https://drive.google.com/file/d/1cuZ2qdDnxSwTCsiXWwbqCGF-uoazTXbz/view?usp=share_link) |
+| [BEVFusion](../../tools/cfgs/nuscenes_models/cbgs_bevfusion.yaml)   |  28.03 | 	25.43 | 	30.19 | 26.76 | 18.48 | 67.75 | 70.98  | [model-157M](https://drive.google.com/file/d/1X50b-8immqlqD8VPAUkSKI0Ls-4k37g9/view?usp=share_link) |
