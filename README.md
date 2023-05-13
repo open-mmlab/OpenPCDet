@@ -10,6 +10,7 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 * `OpenPCDet` has been updated to `v0.6.0` (Sep. 2022).
 * The codes of PV-RCNN++ has been supported.
 * The codes of MPPNet has been supported. 
+* The multi-modal 3D detection approaches on Nuscenes have been supported. 
 
 ## Overview
 - [Changelog](#changelog)
@@ -22,14 +23,15 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
-[2023-05-xx] Added support for the multi-modal 3D object detection model [`BEVFusion`](https://arxiv.org/abs/2205.13542) on Nuscenes dataset, which fuses multi-modal information on BEV space and reaches 70.98% NDS on Nuscenes validation dataset. (see the [guideline](docs/guidelines_of_approaches/bevfusion.md) on how to train/test with BEVFusion).
+[2023-05-13] **NEW:** Added support for the multi-modal 3D object detection models on Nuscenes dataset.  
 * Support multi-modal Nuscenes detection (See the [GETTING_STARTED.md](docs/GETTING_STARTED.md) to process data).
 * Support [TransFusion-Lidar](https://arxiv.org/abs/2203.11496) head, which ahcieves 69.43% NDS on Nuscenes validation dataset.
+* Support [`BEVFusion`](https://arxiv.org/abs/2205.13542), which fuses multi-modal information on BEV space and reaches 70.98% NDS on Nuscenes validation dataset. (see the [guideline](docs/guidelines_of_approaches/bevfusion.md) on how to train/test with BEVFusion).
 
-[2023-04-02] Added support for [`VoxelNeXt`](https://github.com/dvlab-research/VoxelNeXt) on Nuscenes, Waymo, and Argoverse2 datasets. It is a fully sparse 3D object detection network, which is a clean sparse CNNs network and predicts 3D objects directly upon voxels.
+[2023-04-02] Added support for [`VoxelNeXt`](https://arxiv.org/abs/2303.11301) on Nuscenes, Waymo, and Argoverse2 datasets. It is a fully sparse 3D object detection network, which is a clean sparse CNNs network and predicts 3D objects directly upon voxels.
 
 [2022-09-02] **NEW:** Update `OpenPCDet` to v0.6.0:
-* Official code release of [MPPNet](https://arxiv.org/abs/2205.05979) for temporal 3D object detection, which supports long-term multi-frame 3D object detection and ranks 1st place on [3D detection learderboard](https://waymo.com/open/challenges/2020/3d-detection) of Waymo Open Dataset on Sept. 2th, 2022. For validation dataset, MPPNet achieves 74.96%, 75.06% and 74.52% for vehicle, pedestrian and cyclist classes in terms of mAPH@Level_2. (see the [guideline](docs/guidelines_of_approaches/mppnet.md) on how to train/test with MPPNet).
+* Official code release of [`MPPNet`](https://arxiv.org/abs/2205.05979) for temporal 3D object detection, which supports long-term multi-frame 3D object detection and ranks 1st place on [3D detection learderboard](https://waymo.com/open/challenges/2020/3d-detection) of Waymo Open Dataset on Sept. 2th, 2022. For validation dataset, MPPNet achieves 74.96%, 75.06% and 74.52% for vehicle, pedestrian and cyclist classes in terms of mAPH@Level_2. (see the [guideline](docs/guidelines_of_approaches/mppnet.md) on how to train/test with MPPNet).
 * Support multi-frame training/testing on Waymo Open Dataset (see the [change log](docs/changelog.md) for more details on how to process data).
 * Support to save changing training details (e.g., loss, iter, epoch) to file (previous tqdm progress bar is still supported by using `--use_tqdm_to_record`). Please use `pip install gpustat` if you also want to log the GPU related information.
 * Support to save latest model every 5 mintues, so you can restore the model training from latest status instead of previous epoch.   
@@ -42,10 +44,10 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 [2022-02-07] Added support for Centerpoint models on Nuscenes Dataset.
 
-[2022-01-14] Added support for dynamic pillar voxelization, following the implementation proposed in [H^23D R-CNN](https://arxiv.org/abs/2107.14391) with unique operation and [`torch_scatter`](https://github.com/rusty1s/pytorch_scatter) package.
+[2022-01-14] Added support for dynamic pillar voxelization, following the implementation proposed in [`H^23D R-CNN`](https://arxiv.org/abs/2107.14391) with unique operation and [`torch_scatter`](https://github.com/rusty1s/pytorch_scatter) package.
 
 [2022-01-05] **NEW:** Update `OpenPCDet` to v0.5.2:
-* The code of [PV-RCNN++](https://arxiv.org/abs/2102.00463) has been released to this repo, with higher performance, faster training/inference speed and less memory consumption than PV-RCNN.
+* The code of [`PV-RCNN++`](https://arxiv.org/abs/2102.00463) has been released to this repo, with higher performance, faster training/inference speed and less memory consumption than PV-RCNN.
 * Add performance of several models trained with full training set of [Waymo Open Dataset](#waymo-open-dataset-baselines).
 * Support Lyft dataset, see the pull request [here](https://github.com/open-mmlab/OpenPCDet/pull/720).
 
