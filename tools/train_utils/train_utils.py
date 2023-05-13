@@ -267,6 +267,6 @@ def disable_augmentation_hook(hook_config, dataloader, total_epochs, cur_epoch, 
                 dataset_cfg=cfg.DATA_CONFIG
                 logger.info(f'Disable augmentations: {DISABLE_AUG_LIST}')
                 dataset_cfg.DATA_AUGMENTOR.DISABLE_AUG_LIST = DISABLE_AUG_LIST
-                dataloader._dataset.data_augmentor.disableAugmentation(dataset_cfg.DATA_AUGMENTOR)
+                dataloader._dataset.data_augmentor.disable_augmentation(dataset_cfg.DATA_AUGMENTOR)
                 flag = True
     return flag

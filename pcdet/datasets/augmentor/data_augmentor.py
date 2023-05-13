@@ -24,7 +24,7 @@ class DataAugmentor(object):
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_augmentor_queue.append(cur_augmentor)
 
-    def disableAugmentation(self, augmentor_configs):
+    def disable_augmentation(self, augmentor_configs):
         self.data_augmentor_queue = []
         aug_config_list = augmentor_configs if isinstance(augmentor_configs, list) \
             else augmentor_configs.AUG_CONFIG_LIST
