@@ -10,3 +10,4 @@ tqdm
 torchvision
 SharedArray
 opencv-python
+pyquaternion

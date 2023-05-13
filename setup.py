@@ -117,5 +117,13 @@ if __name__ == '__main__':
 
                 ],
             ),
+            make_cuda_ext(
+                name="bev_pool_ext",
+                module="pcdet.ops.bev_pool",
+                sources=[
+                    "src/bev_pool.cpp",
+                    "src/bev_pool_cuda.cu",
+                ],
+            ),
         ],
     )

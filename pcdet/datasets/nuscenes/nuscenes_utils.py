@@ -247,9 +247,69 @@ def quaternion_yaw(q: Quaternion) -> float:
     yaw = np.arctan2(v[1], v[0])
 
     return yaw
+    
+
+def obtain_sensor2top(
+    nusc, sensor_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, sensor_type="lidar"
+):
+    """Obtain the info with RT matric from general sensor to Top LiDAR.
+
+    Args:
+        nusc (class): Dataset class in the nuScenes dataset.
+        sensor_token (str): Sample data token corresponding to the
+            specific sensor type.
+        l2e_t (np.ndarray): Translation from lidar to ego in shape (1, 3).
+        l2e_r_mat (np.ndarray): Rotation matrix from lidar to ego
+            in shape (3, 3).
+        e2g_t (np.ndarray): Translation from ego to global in shape (1, 3).
+        e2g_r_mat (np.ndarray): Rotation matrix from ego to global
+            in shape (3, 3).
+        sensor_type (str): Sensor to calibrate. Default: 'lidar'.
+
+    Returns:
+        sweep (dict): Sweep information after transformation.
+    """
+    sd_rec = nusc.get("sample_data", sensor_token)
+    cs_record = nusc.get("calibrated_sensor", sd_rec["calibrated_sensor_token"])
+    pose_record = nusc.get("ego_pose", sd_rec["ego_pose_token"])
+    data_path = str(nusc.get_sample_data_path(sd_rec["token"]))
+    # if os.getcwd() in data_path:  # path from lyftdataset is absolute path
+    #     data_path = data_path.split(f"{os.getcwd()}/")[-1]  # relative path
+    sweep = {
+        "data_path": data_path,
+        "type": sensor_type,
+        "sample_data_token": sd_rec["token"],
+        "sensor2ego_translation": cs_record["translation"],
+        "sensor2ego_rotation": cs_record["rotation"],
+        "ego2global_translation": pose_record["translation"],
+        "ego2global_rotation": pose_record["rotation"],
+        "timestamp": sd_rec["timestamp"],
+    }
+    l2e_r_s = sweep["sensor2ego_rotation"]
+    l2e_t_s = sweep["sensor2ego_translation"]
+    e2g_r_s = sweep["ego2global_rotation"]
+    e2g_t_s = sweep["ego2global_translation"]
+
+    # obtain the RT from sensor to Top LiDAR
+    # sweep->ego->global->ego'->lidar
+    l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix
+    e2g_r_s_mat = Quaternion(e2g_r_s).rotation_matrix
+    R = (l2e_r_s_mat.T @ e2g_r_s_mat.T) @ (
+        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T
+    )
+    T = (l2e_t_s @ e2g_r_s_mat.T + e2g_t_s) @ (
+        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T
+    )
+    T -= (
+        e2g_t @ (np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T)
+        + l2e_t @ np.linalg.inv(l2e_r_mat).T
+    ).squeeze(0)
+    sweep["sensor2lidar_rotation"] = R.T  # points @ R.T + T
+    sweep["sensor2lidar_translation"] = T
+    return sweep
 
 
-def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, max_sweeps=10):
+def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, max_sweeps=10, with_cam=False):
     train_nusc_infos = []
     val_nusc_infos = []
     progress_bar = tqdm.tqdm(total=len(nusc.sample), desc='create_info', dynamic_ncols=True)
@@ -291,6 +351,34 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             'car_from_global': car_from_global,
             'timestamp': ref_time,
         }
+        if with_cam:
+            info['cams'] = dict()
+            l2e_r = ref_cs_rec["rotation"]
+            l2e_t = ref_cs_rec["translation"],
+            e2g_r = ref_pose_rec["rotation"]
+            e2g_t = ref_pose_rec["translation"]
+            l2e_r_mat = Quaternion(l2e_r).rotation_matrix
+            e2g_r_mat = Quaternion(e2g_r).rotation_matrix
+
+            # obtain 6 image's information per frame
+            camera_types = [
+                "CAM_FRONT",
+                "CAM_FRONT_RIGHT",
+                "CAM_FRONT_LEFT",
+                "CAM_BACK",
+                "CAM_BACK_LEFT",
+                "CAM_BACK_RIGHT",
+            ]
+            for cam in camera_types:
+                cam_token = sample["data"][cam]
+                cam_path, _, camera_intrinsics = nusc.get_sample_data(cam_token)
+                cam_info = obtain_sensor2top(
+                    nusc, cam_token, l2e_t, l2e_r_mat, e2g_t, e2g_r_mat, cam
+                )
+                cam_info['data_path'] = Path(cam_info['data_path']).relative_to(data_path).__str__()
+                cam_info.update(camera_intrinsics=camera_intrinsics)
+                info["cams"].update({cam: cam_info})
+        
 
         sample_data_token = sample['data'][chan]
         curr_sd_rec = nusc.get('sample_data', sample_data_token)

@@ -1,6 +1,7 @@
 from functools import partial
 
 import numpy as np
+from PIL import Image
 
 from ...utils import common_utils
 from . import augmentor_utils, database_sampler
@@ -23,6 +24,18 @@ class DataAugmentor(object):
             cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
             self.data_augmentor_queue.append(cur_augmentor)
 
+    def disable_augmentation(self, augmentor_configs):
+        self.data_augmentor_queue = []
+        aug_config_list = augmentor_configs if isinstance(augmentor_configs, list) \
+            else augmentor_configs.AUG_CONFIG_LIST
+
+        for cur_cfg in aug_config_list:
+            if not isinstance(augmentor_configs, list):
+                if cur_cfg.NAME in augmentor_configs.DISABLE_AUG_LIST:
+                    continue
+            cur_augmentor = getattr(self, cur_cfg.NAME)(config=cur_cfg)
+            self.data_augmentor_queue.append(cur_augmentor)
+             
     def gt_sampling(self, config=None):
         db_sampler = database_sampler.DataBaseSampler(
             root_path=self.root_path,
@@ -139,6 +152,7 @@ class DataAugmentor(object):
         
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
+        data_dict['noise_translate'] = noise_translate
         return data_dict
 
     def random_local_translation(self, data_dict=None, config=None):
@@ -249,6 +263,28 @@ class DataAugmentor(object):
                                                                  pyramids)
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
+        return data_dict
+
+    def imgaug(self, data_dict=None, config=None):
+        if data_dict is None:
+            return partial(self.imgaug, config=config)
+        imgs = data_dict["camera_imgs"]
+        img_process_infos = data_dict['img_process_infos']
+        new_imgs = []
+        for img, img_process_info in zip(imgs, img_process_infos):
+            flip = False
+            if config.RAND_FLIP and np.random.choice([0, 1]):
+                flip = True
+            rotate = np.random.uniform(*config.ROT_LIM)
+            # aug images
+            if flip:
+                img = img.transpose(method=Image.FLIP_LEFT_RIGHT)
+            img = img.rotate(rotate)
+            img_process_info[2] = flip
+            img_process_info[3] = rotate
+            new_imgs.append(img)
+
+        data_dict["camera_imgs"] = new_imgs
         return data_dict
 
     def forward(self, data_dict):
