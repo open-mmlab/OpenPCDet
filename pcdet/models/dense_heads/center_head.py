@@ -6,10 +6,11 @@ from torch.nn.init import kaiming_normal_
 from ..model_utils import model_nms_utils
 from ..model_utils import centernet_utils
 from ...utils import loss_utils
+from functools import partial
 
 
 class SeparateHead(nn.Module):
-    def __init__(self, input_channels, sep_head_dict, init_bias=-2.19, use_bias=False):
+    def __init__(self, input_channels, sep_head_dict, init_bias=-2.19, use_bias=False, norm_func=None):
         super().__init__()
         self.sep_head_dict = sep_head_dict
 
@@ -21,7 +22,7 @@ class SeparateHead(nn.Module):
             for k in range(num_conv - 1):
                 fc_list.append(nn.Sequential(
                     nn.Conv2d(input_channels, input_channels, kernel_size=3, stride=1, padding=1, bias=use_bias),
-                    nn.BatchNorm2d(input_channels),
+                    nn.BatchNorm2d(input_channels) if norm_func is None else norm_func(input_channels),
                     nn.ReLU()
                 ))
             fc_list.append(nn.Conv2d(input_channels, output_channels, kernel_size=3, stride=1, padding=1, bias=True))
@@ -70,12 +71,13 @@ class CenterHead(nn.Module):
         total_classes = sum([len(x) for x in self.class_names_each_head])
         assert total_classes == len(self.class_names), f'class_names_each_head={self.class_names_each_head}'
 
+        norm_func = partial(nn.BatchNorm2d, eps=self.model_cfg.get('BN_EPS', 1e-5), momentum=self.model_cfg.get('BN_MOM', 0.1))
         self.shared_conv = nn.Sequential(
             nn.Conv2d(
                 input_channels, self.model_cfg.SHARED_CONV_CHANNEL, 3, stride=1, padding=1,
                 bias=self.model_cfg.get('USE_BIAS_BEFORE_NORM', False)
             ),
-            nn.BatchNorm2d(self.model_cfg.SHARED_CONV_CHANNEL),
+            norm_func(self.model_cfg.SHARED_CONV_CHANNEL),
             nn.ReLU(),
         )
 
@@ -89,7 +91,8 @@ class CenterHead(nn.Module):
                     input_channels=self.model_cfg.SHARED_CONV_CHANNEL,
                     sep_head_dict=cur_head_dict,
                     init_bias=-2.19,
-                    use_bias=self.model_cfg.get('USE_BIAS_BEFORE_NORM', False)
+                    use_bias=self.model_cfg.get('USE_BIAS_BEFORE_NORM', False),
+                    norm_func=norm_func
                 )
             )
         self.predict_boxes_when_training = predict_boxes_when_training
@@ -116,6 +119,8 @@ class CenterHead(nn.Module):
         ret_boxes = gt_boxes.new_zeros((num_max_objs, gt_boxes.shape[-1] - 1 + 1))
         inds = gt_boxes.new_zeros(num_max_objs).long()
         mask = gt_boxes.new_zeros(num_max_objs).long()
+        ret_boxes_src = gt_boxes.new_zeros(num_max_objs, gt_boxes.shape[-1])
+        ret_boxes_src[:gt_boxes.shape[0]] = gt_boxes
 
         x, y, z = gt_boxes[:, 0], gt_boxes[:, 1], gt_boxes[:, 2]
         coord_x = (x - self.point_cloud_range[0]) / self.voxel_size[0] / feature_map_stride
@@ -154,7 +159,7 @@ class CenterHead(nn.Module):
             if gt_boxes.shape[1] > 8:
                 ret_boxes[k, 8:] = gt_boxes[k, 7:-1]
 
-        return heatmap, ret_boxes, inds, mask
+        return heatmap, ret_boxes, inds, mask, ret_boxes_src
 
     def assign_targets(self, gt_boxes, feature_map_size=None, **kwargs):
         """
@@ -176,12 +181,13 @@ class CenterHead(nn.Module):
             'target_boxes': [],
             'inds': [],
             'masks': [],
-            'heatmap_masks': []
+            'heatmap_masks': [],
+            'target_boxes_src': [],
         }
 
         all_names = np.array(['bg', *self.class_names])
         for idx, cur_class_names in enumerate(self.class_names_each_head):
-            heatmap_list, target_boxes_list, inds_list, masks_list = [], [], [], []
+            heatmap_list, target_boxes_list, inds_list, masks_list, target_boxes_src_list = [], [], [], [], []
             for bs_idx in range(batch_size):
                 cur_gt_boxes = gt_boxes[bs_idx]
                 gt_class_names = all_names[cur_gt_boxes[:, -1].cpu().long().numpy()]
@@ -200,7 +206,7 @@ class CenterHead(nn.Module):
                 else:
                     gt_boxes_single_head = torch.cat(gt_boxes_single_head, dim=0)
 
-                heatmap, ret_boxes, inds, mask = self.assign_target_of_single_head(
+                heatmap, ret_boxes, inds, mask, ret_boxes_src = self.assign_target_of_single_head(
                     num_classes=len(cur_class_names), gt_boxes=gt_boxes_single_head.cpu(),
                     feature_map_size=feature_map_size, feature_map_stride=target_assigner_cfg.FEATURE_MAP_STRIDE,
                     num_max_objs=target_assigner_cfg.NUM_MAX_OBJS,
@@ -211,11 +217,13 @@ class CenterHead(nn.Module):
                 target_boxes_list.append(ret_boxes.to(gt_boxes_single_head.device))
                 inds_list.append(inds.to(gt_boxes_single_head.device))
                 masks_list.append(mask.to(gt_boxes_single_head.device))
+                target_boxes_src_list.append(ret_boxes_src.to(gt_boxes_single_head.device))
 
             ret_dict['heatmaps'].append(torch.stack(heatmap_list, dim=0))
             ret_dict['target_boxes'].append(torch.stack(target_boxes_list, dim=0))
             ret_dict['inds'].append(torch.stack(inds_list, dim=0))
             ret_dict['masks'].append(torch.stack(masks_list, dim=0))
+            ret_dict['target_boxes_src'].append(torch.stack(target_boxes_src_list, dim=0))
         return ret_dict
 
     def sigmoid(self, x):
@@ -247,6 +255,42 @@ class CenterHead(nn.Module):
             tb_dict['hm_loss_head_%d' % idx] = hm_loss.item()
             tb_dict['loc_loss_head_%d' % idx] = loc_loss.item()
 
+            if 'iou' in pred_dict or self.model_cfg.get('IOU_REG_LOSS', False):
+
+                batch_box_preds = centernet_utils.decode_bbox_from_pred_dicts(
+                    pred_dict=pred_dict,
+                    point_cloud_range=self.point_cloud_range, voxel_size=self.voxel_size,
+                    feature_map_stride=self.feature_map_stride
+                )  # (B, H, W, 7 or 9)
+
+                if 'iou' in pred_dict:
+                    batch_box_preds_for_iou = batch_box_preds.permute(0, 3, 1, 2)  # (B, 7 or 9, H, W)
+
+                    iou_loss = loss_utils.calculate_iou_loss_centerhead(
+                        iou_preds=pred_dict['iou'],
+                        batch_box_preds=batch_box_preds_for_iou.clone().detach(),
+                        mask=target_dicts['masks'][idx],
+                        ind=target_dicts['inds'][idx], gt_boxes=target_dicts['target_boxes_src'][idx]
+                    )
+                    loss += iou_loss
+                    tb_dict['iou_loss_head_%d' % idx] = iou_loss.item()
+
+                if self.model_cfg.get('IOU_REG_LOSS', False):
+                    iou_reg_loss = loss_utils.calculate_iou_reg_loss_centerhead(
+                        batch_box_preds=batch_box_preds_for_iou,
+                        mask=target_dicts['masks'][idx],
+                        ind=target_dicts['inds'][idx], gt_boxes=target_dicts['target_boxes_src'][idx]
+                    )
+                    if target_dicts['masks'][idx].sum().item() != 0:
+                        iou_reg_loss = iou_reg_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
+                        loss += iou_reg_loss
+                        tb_dict['iou_reg_loss_head_%d' % idx] = iou_reg_loss.item()
+                    else:
+                        loss += (batch_box_preds_for_iou * 0.).sum()
+                        tb_dict['iou_reg_loss_head_%d' % idx] = (batch_box_preds_for_iou * 0.).sum()
+
+
+
         tb_dict['rpn_loss'] = loss.item()
         return loss, tb_dict
 
@@ -268,9 +312,11 @@ class CenterHead(nn.Module):
             batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1)
             batch_vel = pred_dict['vel'] if 'vel' in self.separate_head_cfg.HEAD_ORDER else None
 
+            batch_iou = (pred_dict['iou'] + 1) * 0.5 if 'iou' in pred_dict else None
+
             final_pred_dicts = centernet_utils.decode_bbox_from_heatmap(
                 heatmap=batch_hm, rot_cos=batch_rot_cos, rot_sin=batch_rot_sin,
-                center=batch_center, center_z=batch_center_z, dim=batch_dim, vel=batch_vel,
+                center=batch_center, center_z=batch_center_z, dim=batch_dim, vel=batch_vel, iou=batch_iou,
                 point_cloud_range=self.point_cloud_range, voxel_size=self.voxel_size,
                 feature_map_stride=self.feature_map_stride,
                 K=post_process_cfg.MAX_OBJ_PER_SAMPLE,
@@ -281,16 +327,31 @@ class CenterHead(nn.Module):
 
             for k, final_dict in enumerate(final_pred_dicts):
                 final_dict['pred_labels'] = self.class_id_mapping_each_head[idx][final_dict['pred_labels'].long()]
-                if post_process_cfg.NMS_CONFIG.NMS_TYPE != 'circle_nms':
+
+                if post_process_cfg.get('USE_IOU_TO_RECTIFY_SCORE', False) and 'pred_iou' in final_dict:
+                    pred_iou = torch.clamp(final_dict['pred_iou'], min=0, max=1.0)
+                    IOU_RECTIFIER = final_dict['pred_scores'].new_tensor(post_process_cfg.IOU_RECTIFIER)
+                    final_dict['pred_scores'] = torch.pow(final_dict['pred_scores'], 1 - IOU_RECTIFIER[final_dict['pred_labels']]) * torch.pow(pred_iou, IOU_RECTIFIER[final_dict['pred_labels']])
+
+                if post_process_cfg.NMS_CONFIG.NMS_TYPE not in  ['circle_nms', 'class_specific_nms']:
                     selected, selected_scores = model_nms_utils.class_agnostic_nms(
                         box_scores=final_dict['pred_scores'], box_preds=final_dict['pred_boxes'],
                         nms_config=post_process_cfg.NMS_CONFIG,
                         score_thresh=None
                     )
 
-                    final_dict['pred_boxes'] = final_dict['pred_boxes'][selected]
-                    final_dict['pred_scores'] = selected_scores
-                    final_dict['pred_labels'] = final_dict['pred_labels'][selected]
+                elif post_process_cfg.NMS_CONFIG.NMS_TYPE == 'class_specific_nms':
+                    selected, selected_scores = model_nms_utils.class_specific_nms(
+                        box_scores=final_dict['pred_scores'], box_preds=final_dict['pred_boxes'],
+                        box_labels=final_dict['pred_labels'], nms_config=post_process_cfg.NMS_CONFIG,
+                        score_thresh=post_process_cfg.NMS_CONFIG.get('SCORE_THRESH', None)
+                    )
+                elif post_process_cfg.NMS_CONFIG.NMS_TYPE == 'circle_nms':
+                    raise NotImplementedError
+
+                final_dict['pred_boxes'] = final_dict['pred_boxes'][selected]
+                final_dict['pred_scores'] = selected_scores
+                final_dict['pred_labels'] = final_dict['pred_labels'][selected]
 
                 ret_dict[k]['pred_boxes'].append(final_dict['pred_boxes'])
                 ret_dict[k]['pred_scores'].append(final_dict['pred_scores'])

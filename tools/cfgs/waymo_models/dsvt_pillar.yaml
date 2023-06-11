@@ -1,0 +1,190 @@
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
+    SAMPLED_INTERVAL: {'train': 1, 'test': 1}
+    POINT_CLOUD_RANGE: [-74.88, -74.88, -2, 74.88, 74.88, 4.0]
+    POINTS_TANH_DIM: [3, 4]
+    DATA_AUGMENTOR:
+        DISABLE_AUG_LIST: ['placeholder']
+        AUG_CONFIG_LIST:
+            - NAME: gt_sampling
+              USE_ROAD_PLANE: False
+              DB_INFO_PATH:
+                  - waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1.pkl
+
+              USE_SHARED_MEMORY: True  # set it to True to speed up (it costs about 15GB shared memory)
+              DB_DATA_PATH:
+                  - waymo_processed_data_v0_5_0_gt_database_train_sampled_1_global.npy
+
+              BACKUP_DB_INFO:
+                  # if the above DB_INFO cannot be found, will use this backup one
+                  DB_INFO_PATH: waymo_processed_data_v0_5_0_waymo_dbinfos_train_sampled_1_multiframe_-4_to_0.pkl
+                  DB_DATA_PATH: waymo_processed_data_v0_5_0_gt_database_train_sampled_1_multiframe_-4_to_0_global.npy
+                  NUM_POINT_FEATURES: 6
+
+              PREPARE: {
+                  filter_by_min_points: ['Vehicle:5', 'Pedestrian:10', 'Cyclist:10'],
+                  filter_by_difficulty: [-1],
+              }
+
+              SAMPLE_GROUPS: ['Vehicle:15', 'Pedestrian:10', 'Cyclist:10']
+              NUM_POINT_FEATURES: 5
+              REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
+              LIMIT_WHOLE_SCENE: True
+
+            - NAME: random_world_flip
+              ALONG_AXIS_LIST: ['x', 'y']
+
+            - NAME: random_world_rotation
+              WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+
+            - NAME: random_world_scaling
+              WORLD_SCALE_RANGE: [0.95, 1.05]
+
+            - NAME: random_world_translation
+              NOISE_TRANSLATE_STD: [0.5, 0.5, 0.5]
+
+    DATA_PROCESSOR:
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': True
+          }
+
+        - NAME: transform_points_to_voxels_placeholder
+          VOXEL_SIZE: [ 0.32, 0.32, 6]
+
+MODEL:
+    NAME: CenterPoint
+
+    VFE:
+        NAME: DynamicVoxelVFE
+        WITH_DISTANCE: False
+        USE_ABSLOTE_XYZ: True
+        USE_NORM: True
+        NUM_FILTERS: [ 192, 192 ]
+
+    BACKBONE_3D:
+        NAME: DSVT
+        INPUT_LAYER:
+            sparse_shape: [468, 468, 1]
+            downsample_stride: []
+            d_model: [192]
+            set_info: [[36, 4]]
+            window_shape: [[12, 12, 1]]
+            hybrid_factor: [2, 2, 1] # x, y, z
+            shifts_list: [[[0, 0, 0], [6, 6, 0]]]
+            normalize_pos: False
+
+        block_name: ['DSVTBlock']
+        set_info: [[36, 4]]
+        d_model: [192]
+        nhead: [8]
+        dim_feedforward: [384]
+        dropout: 0.0
+        activation: gelu
+        output_shape: [468, 468]
+        conv_out_channel: 192
+        # You can enable torch.utils.checkpoint to save GPU memory
+        USE_CHECKPOINT: True
+
+    MAP_TO_BEV:
+        NAME: PointPillarScatter3d
+        INPUT_SHAPE: [468, 468, 1]
+        NUM_BEV_FEATURES: 192
+
+    BACKBONE_2D:
+        NAME: BaseBEVResBackbone
+        LAYER_NUMS: [ 1, 2, 2 ]
+        LAYER_STRIDES: [ 1, 2, 2 ]
+        NUM_FILTERS: [ 128, 128, 256 ]
+        UPSAMPLE_STRIDES: [ 1, 2, 4 ]
+        NUM_UPSAMPLE_FILTERS: [ 128, 128, 128 ]
+
+    DENSE_HEAD:
+        NAME: CenterHead
+        CLASS_AGNOSTIC: False
+
+        CLASS_NAMES_EACH_HEAD: [
+            ['Vehicle', 'Pedestrian', 'Cyclist']
+        ]
+
+        SHARED_CONV_CHANNEL: 64
+        USE_BIAS_BEFORE_NORM: False
+        NUM_HM_CONV: 2
+
+        BN_EPS: 0.001
+        BN_MOM: 0.01
+        SEPARATE_HEAD_CFG:
+            HEAD_ORDER: ['center', 'center_z', 'dim', 'rot']
+            HEAD_DICT: {
+              'center': {'out_channels': 2, 'num_conv': 2},
+              'center_z': {'out_channels': 1, 'num_conv': 2},
+              'dim': {'out_channels': 3, 'num_conv': 2},
+              'rot': {'out_channels': 2, 'num_conv': 2},
+              'iou': {'out_channels': 1, 'num_conv': 2},
+        }
+
+        TARGET_ASSIGNER_CONFIG:
+            FEATURE_MAP_STRIDE: 1
+            NUM_MAX_OBJS: 500
+            GAUSSIAN_OVERLAP: 0.1
+            MIN_RADIUS: 2
+
+        IOU_REG_LOSS: True
+
+        LOSS_CONFIG:
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 2.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [-80, -80, -10.0, 80, 80, 10.0]
+            MAX_OBJ_PER_SAMPLE: 500
+            USE_IOU_TO_RECTIFY_SCORE: True
+            IOU_RECTIFIER: [0.68, 0.71, 0.65]
+
+            NMS_CONFIG:
+                NMS_TYPE: class_specific_nms  
+                NMS_THRESH: [0.75, 0.6, 0.55]
+                NMS_PRE_MAXSIZE: [4096, 4096, 4096]
+                NMS_POST_MAXSIZE: [500, 500, 500]
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        EVAL_METRIC: waymo
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 3
+    NUM_EPOCHS: 24
+
+    OPTIMIZER: adam_onecycle
+    LR: 0.003 #
+    WEIGHT_DECAY: 0.05
+    MOMENTUM: 0.9
+
+    MOMS: [0.95, 0.85]
+    PCT_START: 0.1
+    DIV_FACTOR: 100
+    DECAY_STEP_LIST: [35, 45]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: False
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10
+    LOSS_SCALE_FP16: 32.0
+
+HOOK:
+    DisableAugmentationHook:
+        DISABLE_AUG_LIST: ['gt_sampling','random_world_flip','random_world_rotation','random_world_scaling', 'random_world_translation']
+        NUM_LAST_EPOCHS: 1

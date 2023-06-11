@@ -64,3 +64,44 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
     pred_boxes = torch.cat(pred_boxes, dim=0)
 
     return pred_scores, pred_labels, pred_boxes
+
+
+def class_specific_nms(box_scores, box_preds, box_labels, nms_config, score_thresh=None):
+    """
+    Args:
+        cls_scores: (N,)
+        box_preds: (N, 7 + C)
+        box_labels: (N,)
+        nms_config:
+
+    Returns:
+
+    """
+    selected = []
+    for k in range(len(nms_config.NMS_THRESH)):
+        curr_mask = box_labels == k
+        if score_thresh is not None and isinstance(score_thresh, float):
+            curr_mask *= (box_scores > score_thresh)
+        elif score_thresh is not None and isinstance(score_thresh, list):
+            curr_mask *= (box_scores > score_thresh[k])
+        curr_idx = torch.nonzero(curr_mask)[:, 0]
+        curr_box_scores = box_scores[curr_mask]
+        cur_box_preds = box_preds[curr_mask]
+
+        if curr_box_scores.shape[0] > 0:
+            curr_box_scores_nms = curr_box_scores
+            curr_boxes_for_nms = cur_box_preds
+
+            keep_idx, _ = getattr(iou3d_nms_utils, 'nms_gpu')(
+                curr_boxes_for_nms, curr_box_scores_nms,
+                thresh=nms_config.NMS_THRESH[k],
+                pre_maxsize=nms_config.NMS_PRE_MAXSIZE[k],
+                post_max_size=nms_config.NMS_POST_MAXSIZE[k]
+            )
+            curr_selected = curr_idx[keep_idx]
+            selected.append(curr_selected)
+    if len(selected) != 0:
+        selected = torch.cat(selected)
+        
+
+    return selected, box_scores[selected]
