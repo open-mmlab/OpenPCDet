@@ -59,14 +59,18 @@ class DataAugmentor(object):
         gt_boxes, points = data_dict['gt_boxes'], data_dict['points']
         for cur_axis in config['ALONG_AXIS_LIST']:
             assert cur_axis in ['x', 'y']
-            gt_boxes, points, enable = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
-                gt_boxes, points, return_flip=True
+            cur_dim = ['x', 'y'].index(cur_axis)
+            gt_boxes, points, enable = augmentor_utils.random_flip_along(
+                cur_dim, gt_boxes, points, return_flip=True
             )
             data_dict['flip_%s'%cur_axis] = enable
             if 'roi_boxes' in data_dict.keys():
                 num_frame, num_rois,dim = data_dict['roi_boxes'].shape
-                roi_boxes, _, _ = getattr(augmentor_utils, 'random_flip_along_%s' % cur_axis)(
-                data_dict['roi_boxes'].reshape(-1,dim), np.zeros([1,3]), return_flip=True, enable=enable
+                roi_boxes, _ = augmentor_utils.random_flip_along(
+                    cur_dim,
+                    data_dict['roi_boxes'].reshape(-1,dim),
+                    np.zeros([0,3]),
+                    enable=enable,
                 )
                 data_dict['roi_boxes'] = roi_boxes.reshape(num_frame, num_rois,dim)
 

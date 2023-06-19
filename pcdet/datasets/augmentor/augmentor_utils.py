@@ -5,14 +5,6 @@ from ...utils import common_utils
 from ...utils import box_utils
 
 
-def random_flip_along_x(gt_boxes, points, return_flip=False, enable=None):
-    return random_flip_along(0, gt_boxes, points, return_flip=return_flip, enable=enable)
-
-
-def random_flip_along_y(gt_boxes, points, return_flip=False, enable=None):
-    return random_flip_along(1, gt_boxes, points, return_flip=return_flip, enable=enable)
-
-
 def random_flip_along(dim, gt_boxes, points, return_flip=False, enable=None):
     """
     Args:
@@ -20,7 +12,7 @@ def random_flip_along(dim, gt_boxes, points, return_flip=False, enable=None):
         points: (M, 3 + C)
     Returns:
     """
-    assert dim in [0, 1]
+    assert dim in [0, 1]  # corresponds to x-, y-axis respectively
     other_dim = 1 - dim
     if enable is None:
         enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
