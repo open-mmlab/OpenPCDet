@@ -6,42 +6,31 @@ from ...utils import box_utils
 
 
 def random_flip_along_x(gt_boxes, points, return_flip=False, enable=None):
-    """
-    Args:
-        gt_boxes: (N, 7 + C), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
-        points: (M, 3 + C)
-    Returns:
-    """
-    if enable is None:
-        enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
-    if enable:
-        gt_boxes[:, 1] = -gt_boxes[:, 1]
-        gt_boxes[:, 6] = -gt_boxes[:, 6]
-        points[:, 1] = -points[:, 1]
-        
-        if gt_boxes.shape[1] > 7:
-            gt_boxes[:, 8] = -gt_boxes[:, 8]
-    if return_flip:
-        return gt_boxes, points, enable
-    return gt_boxes, points
+    return random_flip_along(0, gt_boxes, points, return_flip=return_flip, enable=enable)
 
 
 def random_flip_along_y(gt_boxes, points, return_flip=False, enable=None):
+    return random_flip_along(1, gt_boxes, points, return_flip=return_flip, enable=enable)
+
+
+def random_flip_along(dim, gt_boxes, points, return_flip=False, enable=None):
     """
     Args:
         gt_boxes: (N, 7 + C), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
         points: (M, 3 + C)
     Returns:
     """
+    assert dim in [0, 1]
+    other_dim = 1 - dim
     if enable is None:
         enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
     if enable:
-        gt_boxes[:, 0] = -gt_boxes[:, 0]
-        gt_boxes[:, 6] = -(gt_boxes[:, 6] + np.pi)
-        points[:, 0] = -points[:, 0]
+        gt_boxes[:, other_dim] = -gt_boxes[:, other_dim]
+        gt_boxes[:, 6] = -(gt_boxes[:, 6] + np.pi * dim)
+        points[:, other_dim] = -points[:, other_dim]
 
         if gt_boxes.shape[1] > 7:
-            gt_boxes[:, 7] = -gt_boxes[:, 7]
+            gt_boxes[:, 7 + other_dim] = -gt_boxes[:, 7 + other_dim]
     if return_flip:
         return gt_boxes, points, enable
     return gt_boxes, points
