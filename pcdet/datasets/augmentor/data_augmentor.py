@@ -86,10 +86,12 @@ class DataAugmentor(object):
             data_dict['gt_boxes'], data_dict['points'], rot_range=rot_range, return_rot=True
         )
         if 'roi_boxes' in data_dict.keys():
-            num_frame, num_rois,dim = data_dict['roi_boxes'].shape
-            roi_boxes, _, _ = augmentor_utils.global_rotation(
-            data_dict['roi_boxes'].reshape(-1, dim), np.zeros([1, 3]), rot_range=rot_range, return_rot=True, noise_rotation=noise_rot)
-            data_dict['roi_boxes'] = roi_boxes.reshape(num_frame, num_rois,dim)
+            data_dict['roi_boxes'], _ = augmentor_utils.global_rotation(
+                data_dict['roi_boxes'],
+                np.zeros([0, 3]),
+                rot_range=rot_range,
+                noise_rotation=noise_rot,
+            )
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points
