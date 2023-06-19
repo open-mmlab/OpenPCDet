@@ -65,14 +65,12 @@ class DataAugmentor(object):
             )
             data_dict['flip_%s'%cur_axis] = enable
             if 'roi_boxes' in data_dict.keys():
-                num_frame, num_rois,dim = data_dict['roi_boxes'].shape
-                roi_boxes, _ = augmentor_utils.random_flip_along(
+                data_dict['roi_boxes'], _ = augmentor_utils.random_flip_along(
                     cur_dim,
-                    data_dict['roi_boxes'].reshape(-1,dim),
+                    data_dict['roi_boxes'],
                     np.zeros([0,3]),
                     enable=enable,
                 )
-                data_dict['roi_boxes'] = roi_boxes.reshape(num_frame, num_rois,dim)
 
         data_dict['gt_boxes'] = gt_boxes
         data_dict['points'] = points

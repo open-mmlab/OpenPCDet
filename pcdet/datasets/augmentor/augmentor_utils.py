@@ -8,8 +8,8 @@ from ...utils import box_utils
 def random_flip_along(dim, gt_boxes, points, return_flip=False, enable=None):
     """
     Args:
-        gt_boxes: (N, 7 + C), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
-        points: (M, 3 + C)
+        gt_boxes: (*, 7 + C), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
+        points: (*, 3 + C)
     Returns:
     """
     assert dim in [0, 1]  # corresponds to x-, y-axis respectively
@@ -17,12 +17,12 @@ def random_flip_along(dim, gt_boxes, points, return_flip=False, enable=None):
     if enable is None:
         enable = np.random.choice([False, True], replace=False, p=[0.5, 0.5])
     if enable:
-        gt_boxes[:, other_dim] = -gt_boxes[:, other_dim]
-        gt_boxes[:, 6] = -(gt_boxes[:, 6] + np.pi * dim)
-        points[:, other_dim] = -points[:, other_dim]
+        gt_boxes[..., other_dim] = -gt_boxes[..., other_dim]
+        gt_boxes[..., 6] = -(gt_boxes[..., 6] + np.pi * dim)
+        points[..., other_dim] = -points[..., other_dim]
 
-        if gt_boxes.shape[1] > 7:
-            gt_boxes[:, 7 + other_dim] = -gt_boxes[:, 7 + other_dim]
+        if gt_boxes.shape[-1] > 7:
+            gt_boxes[..., 7 + other_dim] = -gt_boxes[..., 7 + other_dim]
     if return_flip:
         return gt_boxes, points, enable
     return gt_boxes, points
