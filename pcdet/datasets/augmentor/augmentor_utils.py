@@ -55,7 +55,7 @@ def global_rotation(gt_boxes, points, rot_range, return_rot=False, noise_rotatio
 def global_scaling(gt_boxes, points, scale_range, return_scale=False):
     """
     Args:
-        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading]
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
         points: (M, 3 + C),
         scale_range: [min, max]
     Returns:
@@ -66,7 +66,7 @@ def global_scaling(gt_boxes, points, scale_range, return_scale=False):
     points[:, :3] *= noise_scale
     gt_boxes[:, :6] *= noise_scale
     if gt_boxes.shape[1] > 7:
-        gt_boxes[:, 7:] *= noise_scale
+        gt_boxes[:, 7:9] *= noise_scale
         
     if return_scale:
         return gt_boxes, points, noise_scale
@@ -75,7 +75,7 @@ def global_scaling(gt_boxes, points, scale_range, return_scale=False):
 def global_scaling_with_roi_boxes(gt_boxes, roi_boxes, points, scale_range, return_scale=False):
     """
     Args:
-        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading]
+        gt_boxes: (N, 7), [x, y, z, dx, dy, dz, heading, [vx], [vy]]
         points: (M, 3 + C),
         scale_range: [min, max]
     Returns:
@@ -85,7 +85,11 @@ def global_scaling_with_roi_boxes(gt_boxes, roi_boxes, points, scale_range, retu
     noise_scale = np.random.uniform(scale_range[0], scale_range[1])
     points[:, :3] *= noise_scale
     gt_boxes[:, :6] *= noise_scale
+    if gt_boxes.shape[1] > 7:
+        gt_boxes[:, 7:9] *= noise_scale
+
     roi_boxes[:,:, [0,1,2,3,4,5,7,8]] *= noise_scale
+
     if return_scale:
         return gt_boxes,roi_boxes, points, noise_scale
     return gt_boxes, roi_boxes, points
