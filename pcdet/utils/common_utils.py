@@ -35,7 +35,7 @@ def drop_info_with_name(info, name):
 def apply_data_transform(data_dict, transforms):
     assert set(transforms.keys()).issubset({'point', 'box'})
     data_keys = {
-        'point': ['points'],
+        'point': ['points', 'origins'],
         'box': ['gt_boxes', 'roi_boxes']
     }
     for tf_type, tf in transforms.items():
