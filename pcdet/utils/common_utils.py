@@ -32,6 +32,18 @@ def drop_info_with_name(info, name):
     return ret_info
 
 
+def apply_data_transform(data_dict, transforms):
+    assert set(transforms.keys()).issubset({'point', 'box'})
+    data_keys = {
+        'point': ['points'],
+        'box': ['gt_boxes', 'roi_boxes']
+    }
+    for tf_type, tf in transforms.items():
+        for data_key in data_keys[tf_type]:
+            if data_key in data_dict:
+                data_dict[data_key] = tf(data_dict[data_key])
+
+
 def rotate_points_along_z(points, angle):
     """
     Args:
