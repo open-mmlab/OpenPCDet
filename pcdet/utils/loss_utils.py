@@ -606,3 +606,44 @@ class GaussianFocalLoss(nn.Module):
         neg_loss = -(1 - pred + eps).log() * pred.pow(self.alpha) * neg_weights
 
         return pos_loss + neg_loss
+
+
+def calculate_iou_loss_centerhead(iou_preds, batch_box_preds, mask, ind, gt_boxes):
+    """
+    Args:
+        iou_preds: (batch x 1 x h x w)
+        batch_box_preds: (batch x (7 or 9) x h x w)
+        mask: (batch x max_objects)
+        ind: (batch x max_objects)
+        gt_boxes: (batch x N, 7 or 9)
+    Returns:
+    """
+    if mask.sum() == 0:
+        return iou_preds.new_zeros((1))
+
+    mask = mask.bool()
+    selected_iou_preds = _transpose_and_gather_feat(iou_preds, ind)[mask]
+
+    selected_box_preds = _transpose_and_gather_feat(batch_box_preds, ind)[mask]
+    iou_target = iou3d_nms_utils.paired_boxes_iou3d_gpu(selected_box_preds[:, 0:7], gt_boxes[mask][:, 0:7])
+    # iou_target = iou3d_nms_utils.boxes_iou3d_gpu(selected_box_preds[:, 0:7].clone(), gt_boxes[mask][:, 0:7].clone()).diag()
+    iou_target = iou_target * 2 - 1  # [0, 1] ==> [-1, 1]
+
+    # print(selected_iou_preds.view(-1), iou_target)
+    loss = F.l1_loss(selected_iou_preds.view(-1), iou_target, reduction='sum')
+    loss = loss / torch.clamp(mask.sum(), min=1e-4)
+    return loss
+
+
+def calculate_iou_reg_loss_centerhead(batch_box_preds, mask, ind, gt_boxes):
+    if mask.sum() == 0:
+        return batch_box_preds.new_zeros((1))
+
+    mask = mask.bool()
+
+    selected_box_preds = _transpose_and_gather_feat(batch_box_preds, ind)
+
+    iou = box_utils.bbox3d_overlaps_diou(selected_box_preds[mask][:, 0:7], gt_boxes[mask][:, 0:7])
+
+    loss = (1.0 - iou).sum() / torch.clamp(mask.sum(), min=1e-4)
+    return loss

@@ -171,7 +171,7 @@ def _topk(scores, K=40):
 
 
 def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
-                             point_cloud_range=None, voxel_size=None, feature_map_stride=None, vel=None, K=100,
+                             point_cloud_range=None, voxel_size=None, feature_map_stride=None, vel=None, iou=None, K=100,
                              circle_nms=False, score_thresh=None, post_center_limit_range=None):
     batch_size, num_class, _, _ = heatmap.size()
 
@@ -198,6 +198,9 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
     if vel is not None:
         vel = _transpose_and_gather_feat(vel, inds).view(batch_size, K, 2)
         box_part_list.append(vel)
+
+    if iou is not None:
+        iou = _transpose_and_gather_feat(iou, inds).view(batch_size, K)
 
     final_box_preds = torch.cat((box_part_list), dim=-1)
     final_scores = scores.view(batch_size, K)
@@ -232,6 +235,9 @@ def decode_bbox_from_heatmap(heatmap, rot_cos, rot_sin, center, center_z, dim,
             'pred_scores': cur_scores,
             'pred_labels': cur_labels
         })
+
+        if iou is not None:
+            ret_pred_dicts[-1]['pred_iou'] = iou[k, cur_mask]
     return ret_pred_dicts
 
 def _topk_1d(scores, batch_size, batch_idx, obj, K=40, nuscenes=False):
@@ -346,3 +352,34 @@ def decode_bbox_from_voxels_nuscenes(batch_size, indices, obj, rot_cos, rot_sin,
             'add_features': cur_add_features,
         })
     return ret_pred_dicts
+
+
+def decode_bbox_from_pred_dicts(pred_dict, point_cloud_range=None, voxel_size=None, feature_map_stride=None):
+    batch_size, _, H, W = pred_dict['center'].shape
+
+    batch_center = pred_dict['center'].permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 2)  # (B, H, W, 2)
+    batch_center_z = pred_dict['center_z'].permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 1)  # (B, H, W, 1)
+    batch_dim = pred_dict['dim'].exp().permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 3)  # (B, H, W, 3)
+    batch_rot_cos = pred_dict['rot'][:, 0].unsqueeze(dim=1).permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 1)  # (B, H, W, 1)
+    batch_rot_sin = pred_dict['rot'][:, 1].unsqueeze(dim=1).permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 1)  # (B, H, W, 1)
+    batch_vel = pred_dict['vel'].permute(0, 2, 3, 1).contiguous().view(batch_size, H*W, 2) if 'vel' in pred_dict.keys() else None
+
+    angle = torch.atan2(batch_rot_sin, batch_rot_cos)  # (B, H*W, 1)
+
+    ys, xs = torch.meshgrid([torch.arange(0, H, device=batch_center.device, dtype=batch_center.dtype),
+                             torch.arange(0, W, device=batch_center.device, dtype=batch_center.dtype)])
+    ys = ys.view(1, H, W).repeat(batch_size, 1, 1)
+    xs = xs.view(1, H, W).repeat(batch_size, 1, 1)
+    xs = xs.view(batch_size, -1, 1) + batch_center[:, :, 0:1]
+    ys = ys.view(batch_size, -1, 1) + batch_center[:, :, 1:2]
+
+    xs = xs * feature_map_stride * voxel_size[0] + point_cloud_range[0]
+    ys = ys * feature_map_stride * voxel_size[1] + point_cloud_range[1]
+
+    box_part_list = [xs, ys, batch_center_z, batch_dim, angle]
+    if batch_vel is not None:
+        box_part_list.append(batch_vel)
+
+    box_preds = torch.cat((box_part_list), dim=-1).view(batch_size, H, W, -1)
+
+    return box_preds
