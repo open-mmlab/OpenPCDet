@@ -1,6 +1,7 @@
 from .partA2_head import PartA2FCHead
 from .pointrcnn_head import PointRCNNHead
 from .pvrcnn_head import PVRCNNHead
+from .pvrcnn_head_relation import PVRCNNHeadRelation
 from .second_head import SECONDHead
 from .voxelrcnn_head import VoxelRCNNHead
 from .roi_head_template import RoIHeadTemplate
@@ -16,4 +17,5 @@ __all__ = {
     'VoxelRCNNHead': VoxelRCNNHead,
     'MPPNetHead': MPPNetHead,
     'MPPNetHeadE2E': MPPNetHeadE2E,
+    'PVRCNNHeadRelation': PVRCNNHeadRelation,
 }

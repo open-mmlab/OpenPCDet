@@ -15,6 +15,7 @@ from .pillarnet import PillarNet
 from .voxelnext import VoxelNeXt
 from .transfusion import TransFusion
 from .bevfusion import BevFusion
+from .pv_rcnn_relation import PVRCNNRelation
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -35,6 +36,7 @@ __all__ = {
     'VoxelNeXt': VoxelNeXt,
     'TransFusion': TransFusion,
     'BevFusion': BevFusion,
+    'PVRCNNRelation': PVRCNNRelation,
 }
 
 
