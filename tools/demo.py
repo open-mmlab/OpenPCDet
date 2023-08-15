@@ -1,6 +1,8 @@
 import argparse
 import glob
 from pathlib import Path
+import time
+import os
 
 try:
     import open3d
@@ -36,7 +38,7 @@ class DemoDataset(DatasetTemplate):
         self.root_path = root_path
         self.ext = ext
         data_file_list = glob.glob(str(root_path / f'*{self.ext}')) if self.root_path.is_dir() else [self.root_path]
-
+        print(data_file_list)
         data_file_list.sort()
         self.sample_file_list = data_file_list
 
@@ -78,6 +80,7 @@ def parse_config():
 
 def main():
     args, cfg = parse_config()
+    #fig = mlab.figure(size=(2560,1500))
     logger = common_utils.create_logger()
     logger.info('-----------------Quick Demo of OpenPCDet-------------------------')
     demo_dataset = DemoDataset(
@@ -90,21 +93,62 @@ def main():
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
     model.cuda()
     model.eval()
-    with torch.no_grad():
-        for idx, data_dict in enumerate(demo_dataset):
-            logger.info(f'Visualized sample index: \t{idx + 1}')
-            data_dict = demo_dataset.collate_batch([data_dict])
-            load_data_to_gpu(data_dict)
-            pred_dicts, _ = model.forward(data_dict)
+    output_dir = Path("./output")
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
-            )
+    with open("output.txt", "w") as file:
+        with torch.no_grad():
+            for idx, data_dict in enumerate(demo_dataset):
+                logger.info(f'Visualized sample index: \t{idx + 1}')
+                data_dict = demo_dataset.collate_batch([data_dict])
+                load_data_to_gpu(data_dict)
+                pred_dicts, _ = model.forward(data_dict)
 
-            if not OPEN3D_FLAG:
-                mlab.show(stop=True)
+                V.draw_scenes(
+                    points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
+                    ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+                )
 
+                for i,pred_dict in enumerate(pred_dicts):
+                    boxes = pred_dict['pred_boxes'].detach().cpu().numpy()
+                    scores = pred_dict['pred_scores'].detach().cpu().numpy()
+                    labels = pred_dict['pred_labels'].detach().cpu().numpy()
+                file.write(f"Frame: {idx+1}\n")
+                with open(output_dir / f"frame_{idx+1}.txt", 'w') as output_file:
+                    for box, score, label in zip(boxes, scores, labels):
+                            adjusted_label = label - 1
+                            if adjusted_label < len(cfg.CLASS_NAMES):  
+                                output_file.write(
+                                    f'Label Index: {adjusted_label}, '
+                                    f'Class Name: {cfg.CLASS_NAMES[adjusted_label]}\n'
+                                    f"Bounding box: {box}, "
+                                    f"Class: {cfg.CLASS_NAMES[adjusted_label]}, "
+                                    f"Score: {score}\n"
+                                )
+                            else:
+                                output_file.write(
+                                    f"Label index {adjusted_label} out of range. "
+                                    f"Maximum index is {len(cfg.CLASS_NAMES) - 1}\n"
+                                )
+
+
+                        
+                max_label = np.max(labels)
+                if max_label >= len(cfg.CLASS_NAMES):
+                    file.write(f"Max label ({max_label}) is greater than the number of classes ({len(cfg.CLASS_NAMES)})\n")
+                else:
+                    file.write("All predicted labels are within the valid range.\n")
+
+                min_label = np.min(labels)
+                if min_label == 0:
+                    file.write("Labels start from 0.\n")
+                else:
+                    file.write("Labels start from 1.\n")
+
+                if not OPEN3D_FLAG:
+                    filename = f'/home/neha/OpenPCDet/data/results/image_{idx}.png'
+                    mlab.savefig(filename)
+                    mlab.close()
     logger.info('Demo done.')
 
 
