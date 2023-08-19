@@ -196,6 +196,7 @@ class Detector3DTemplate(nn.Module):
         batch_size = batch_dict['batch_size']
         recall_dict = {}
         pred_dicts = []
+        edges_list = []
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
@@ -268,6 +269,13 @@ class Detector3DTemplate(nn.Module):
                 final_scores = selected_scores
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
+
+                if "OBJECT_RELATION" in self.model_cfg:
+                    edges = batch_dict['gnn_edges']
+                    from_node, to_node = edges
+                    edges_mask = torch.isin(from_node, selected) & torch.isin(to_node, selected)
+                    final_edges = edges[:, edges_mask]
+                    edge_to_pred = {selected[i].item(): i for i in list(range(len(selected)))}
                     
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
@@ -278,7 +286,9 @@ class Detector3DTemplate(nn.Module):
             record_dict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
-                'pred_labels': final_labels
+                'pred_labels': final_labels,
+                'gnn_edges_final': final_edges if "OBJECT_RELATION" in self.model_cfg else None,
+                'edge_to_pred': edge_to_pred if "OBJECT_RELATION" in self.model_cfg else None,
             }
             pred_dicts.append(record_dict)
 

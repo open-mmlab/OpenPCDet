@@ -37,24 +37,40 @@ class EdgeConv(tg.nn.MessagePassing):
 
 
 class GNN(nn.Module):
-    def __init__(self, dim, radius, layers):
+    def __init__(self, object_relation_cfg):
         super(GNN, self).__init__()
-        self.radius = radius
-        conv_list = []
-        for i in range(len(layers)):
+        self.graph_cfg = object_relation_cfg.GRAPH
+        self.gnn_layers = object_relation_cfg.LAYERS
+        self.mlp_layers = object_relation_cfg.MLP_GLOBAL_LAYERS
+
+        mlp_layer_list = []
+        for i in range(len(self.mlp_layers)):
             if i == 0:
-                conv_list.append(EdgeConv(2*(256+7), layers[i]))
+                mlp_layer_list.append(nn.Linear(7, self.mlp_layers[i]))
             else:
-                conv_list.append(EdgeConv(2*layers[i-1], layers[i]))
-        self.conv_list = nn.ModuleList(conv_list)
-        self.radius_transform = tg.transforms.RadiusGraph(r=self.radius)
+                mlp_layer_list.append(nn.Linear(self.mlp_layers[i-1], self.mlp_layers[i]))
+            mlp_layer_list.append(nn.ReLU())
+        self.mlp = nn.Sequential(*mlp_layer_list)
+        
+        self.gnn_input_dim = self.mlp_layers[-1] + 256
+        conv_layer_list = []
+        for i in range(len(self.gnn_layers)):
+            if i == 0:
+                conv_layer_list.append(EdgeConv(2*self.gnn_input_dim, self.gnn_layers[i]))
+            else:
+                conv_layer_list.append(EdgeConv(2*self.gnn_layers[i-1], self.gnn_layers[i]))
+        self.gnn = nn.ModuleList(conv_layer_list)
         self.init_weights()
+
 
     def init_weights(self, weight_init='xavier'):
         if weight_init == 'xavier':
             init_func = nn.init.xavier_uniform_
-        for m in self.conv_list:
+        for m in self.gnn:
             init_func(m.fc.weight)
+        for m in self.mlp:
+            if isinstance(m, nn.Linear):
+                init_func(m.weight)
     
     def forward(self, batch_dict):
         # BxNx7
@@ -63,17 +79,24 @@ class GNN(nn.Module):
         pooled_features = batch_dict['pooled_features']
         B,N,C = pooled_features.shape
 
-        global_pooled_features = torch.cat((pooled_features, proposal_boxes), dim=-1)
-        global_pooled_features = global_pooled_features.view(-1, C+7)
+        embedded_global_features = self.mlp(proposal_boxes)
+
+        
+        global_pooled_features = torch.cat((pooled_features, embedded_global_features), dim=-1)
+        global_pooled_features = global_pooled_features.view(-1, self.gnn_input_dim)
 
         batch_vector = torch.arange(B, device=pooled_features.device).repeat_interleave(N)
-        edge_index = tg.nn.radius_graph(proposal_boxes[:,:,:3].view(-1, 3), r=self.radius, batch=batch_vector, loop=False)
+        if self.graph_cfg.NAME == 'radius_graph':
+            edge_index = tg.nn.radius_graph(proposal_boxes[:,:,:3].view(-1, 3), r=self.graph_cfg.RADIUS, batch=batch_vector, loop=False)
+        elif self.graph_cfg.NAME == 'knn':
+            edge_index = tg.nn.knn_graph(proposal_boxes[:,:,:3].view(-1, 3), k=self.graph_cfg.K, batch=batch_vector, loop=False)
+            
         batch_dict['gnn_edges'] = edge_index
 
         gnn_features = [global_pooled_features]
         x = global_pooled_features
-        for i in range(len(self.conv_list)):
-            x = self.conv_list[i](x, edge_index)
+        for i in range(len(self.gnn)):
+            x = self.gnn[i](x, edge_index)
             gnn_features.append(x)
 
         batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)

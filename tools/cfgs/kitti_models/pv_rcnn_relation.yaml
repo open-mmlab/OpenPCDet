@@ -222,15 +222,22 @@ MODEL:
     
     OBJECT_RELATION:
         NAME: GNN
-        RADIUS: 4
+        # GRAPH: {
+        #     NAME: radius_graph,
+        #     RADIUS: 6
+        # }
+        GRAPH: {
+            NAME: knn,
+            K: 16,
+        }
         LAYERS: [256, 256, 256, 256]
+        MLP_GLOBAL_LAYERS: [256, 256]
 
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
         # Car, Pedestrian, Cyclist
-        SCORE_THRESH: [0.7, 0.4, 0.3]
-        # SCORE_THRESH: 0.1
+        SCORE_THRESH: 0.1
         # SCORE_THRESH: 0.0
         OUTPUT_RAW_SCORE: False
 
@@ -247,7 +254,7 @@ MODEL:
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 2
-    NUM_EPOCHS: 10
+    NUM_EPOCHS: 100
 
     OPTIMIZER: adam_onecycle
     LR: 0.01

@@ -32,7 +32,7 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
         self.shared_fc_layer = nn.Sequential(*shared_fc_list)
 
         # TODO update this
-        self.head_input_channels = self.model_cfg.SHARED_FC[-1] * 5 + 7
+        self.head_input_channels = self.model_cfg.SHARED_FC[-1] * 5 + 256
         
         self.cls_layers = self.make_fc_layers(
             input_channels=self.head_input_channels, output_channels=self.num_class, fc_list=self.model_cfg.CLS_FC

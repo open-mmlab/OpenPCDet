@@ -7,7 +7,7 @@ class PVRCNNRelation(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
-        self.gnn = GNN(model_cfg.ROI_HEAD.SHARED_FC[-1], model_cfg.OBJECT_RELATION.RADIUS, model_cfg.OBJECT_RELATION.LAYERS)
+        self.gnn = GNN(model_cfg.OBJECT_RELATION)
 
     def forward(self, batch_dict):
         # MeanVFE: Voxelisation
