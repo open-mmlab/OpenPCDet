@@ -5,6 +5,7 @@ import glob
 import os
 from pathlib import Path
 from test import repeat_eval_ckpt
+import json
 
 import torch
 import torch.nn as nn
@@ -16,7 +17,7 @@ from pcdet.models import build_network, model_fn_decorator
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
-
+from tools.process_tools.logger import CustomEncoder
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -112,6 +113,7 @@ def main():
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    tb_log.add_text('Configurations', json.dumps(cfg, cls=CustomEncoder, indent=2)) 
 
     logger.info("----------- Create dataloader & network & optimizer -----------")
     train_set, train_loader, train_sampler = build_dataloader(
