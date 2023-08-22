@@ -41,18 +41,20 @@ class GNN(nn.Module):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
         self.gnn_layers = object_relation_cfg.LAYERS
-        self.mlp_layers = object_relation_cfg.MLP_GLOBAL_LAYERS
+        self.global_information = object_relation_cfg.GOBAL_INFORMATOIN if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
 
-        mlp_layer_list = []
-        for i in range(len(self.mlp_layers)):
-            if i == 0:
-                mlp_layer_list.append(nn.Linear(7, self.mlp_layers[i]))
-            else:
-                mlp_layer_list.append(nn.Linear(self.mlp_layers[i-1], self.mlp_layers[i]))
-            mlp_layer_list.append(nn.ReLU())
-        self.mlp = nn.Sequential(*mlp_layer_list)
+        if self.global_information:
+            self.global_mlp = self.global_information.MLP_LAYERS
+            mlp_layer_list = []
+            for i in range(len(self.global_mlp)):
+                if i == 0:
+                    mlp_layer_list.append(nn.Linear(7, self.global_mlp[i]))
+                else:
+                    mlp_layer_list.append(nn.Linear(self.global_mlp[i-1], self.global_mlp[i]))
+                mlp_layer_list.append(nn.ReLU())
+            self.global_info_mlp = nn.Sequential(*mlp_layer_list)
         
-        self.gnn_input_dim = self.mlp_layers[-1] + 256
+        self.gnn_input_dim = (self.global_mlp[-1] if self.global_information else 0) + 256
         conv_layer_list = []
         for i in range(len(self.gnn_layers)):
             if i == 0:
@@ -68,9 +70,10 @@ class GNN(nn.Module):
             init_func = nn.init.xavier_uniform_
         for m in self.gnn:
             init_func(m.fc.weight)
-        for m in self.mlp:
-            if isinstance(m, nn.Linear):
-                init_func(m.weight)
+        if self.global_information:
+            for m in self.global_info_mlp:
+                if isinstance(m, nn.Linear):
+                    init_func(m.weight)
     
     def forward(self, batch_dict):
         # BxNx7
@@ -79,11 +82,11 @@ class GNN(nn.Module):
         pooled_features = batch_dict['pooled_features']
         B,N,C = pooled_features.shape
 
-        embedded_global_features = self.mlp(proposal_boxes)
+        if self.global_information:
+            embedded_global_features = self.global_info_mlp(proposal_boxes)
+            pooled_features = torch.cat((pooled_features, embedded_global_features), dim=-1)
 
-        
-        global_pooled_features = torch.cat((pooled_features, embedded_global_features), dim=-1)
-        global_pooled_features = global_pooled_features.view(-1, self.gnn_input_dim)
+        pooled_features = pooled_features.view(-1, self.gnn_input_dim)
 
         batch_vector = torch.arange(B, device=pooled_features.device).repeat_interleave(N)
         if self.graph_cfg.NAME == 'radius_graph':
@@ -93,8 +96,8 @@ class GNN(nn.Module):
             
         batch_dict['gnn_edges'] = edge_index
 
-        gnn_features = [global_pooled_features]
-        x = global_pooled_features
+        gnn_features = [pooled_features]
+        x = pooled_features
         for i in range(len(self.gnn)):
             x = self.gnn[i](x, edge_index)
             gnn_features.append(x)
