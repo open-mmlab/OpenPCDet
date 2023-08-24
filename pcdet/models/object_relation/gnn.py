@@ -41,7 +41,7 @@ class GNN(nn.Module):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
         self.gnn_layers = object_relation_cfg.LAYERS
-        self.global_information = object_relation_cfg.GOBAL_INFORMATOIN if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
+        self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
 
         if self.global_information:
             self.global_mlp = self.global_information.MLP_LAYERS
