@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch_geometric as tg
 import torch.nn.functional as F
-import torch_scatter
+# import torch_scatter
 
 # custom implementation for EdgeConv
 # class EdgeWeightingNetwork(nn.Module):
