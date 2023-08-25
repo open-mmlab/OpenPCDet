@@ -37,11 +37,12 @@ class EdgeConv(tg.nn.MessagePassing):
 
 
 class GNN(nn.Module):
-    def __init__(self, object_relation_cfg):
+    def __init__(self, object_relation_cfg, number_classes=3):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
         self.gnn_layers = object_relation_cfg.LAYERS
         self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
+        self.number_classes = number_classes
 
         if self.global_information:
             self.global_mlp = self.global_information.MLP_LAYERS
@@ -89,6 +90,10 @@ class GNN(nn.Module):
         pooled_features = pooled_features.view(-1, self.gnn_input_dim)
 
         batch_vector = torch.arange(B, device=pooled_features.device).repeat_interleave(N)
+
+        if self.graph_cfg.CONNECT_ONLY_SAME_CLASS:
+            batch_vector = (batch_dict['roi_labels'] + torch.arange(0, B*self.number_classes, self.number_classes, device=batch_dict['roi_labels'].device).view(B, 1)).view(-1)
+
         if self.graph_cfg.NAME == 'radius_graph':
             edge_index = tg.nn.radius_graph(proposal_boxes[:,:,:3].view(-1, 3), r=self.graph_cfg.RADIUS, batch=batch_vector, loop=False)
         elif self.graph_cfg.NAME == 'knn':

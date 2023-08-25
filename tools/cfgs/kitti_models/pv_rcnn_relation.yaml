@@ -224,16 +224,17 @@ MODEL:
         NAME: GNN
         GRAPH: {
             NAME: radius_graph,
-            RADIUS: 6
+            RADIUS: 6,
+            CONNECT_ONLY_SAME_CLASS: False
         }
         # GRAPH: {
         #     NAME: knn,
         #     K: 16,
         # }
         LAYERS: [256, 256, 256, 256]
-        # GLOBAL_INFORMATION: {
-        #     MLP_LAYERS: [256, 256]        
-        # }
+        GLOBAL_INFORMATION: {
+            MLP_LAYERS: [256, 256]        
+        }
         # MLP_GLOBAL_LAYERS: [256, 256
 
 
