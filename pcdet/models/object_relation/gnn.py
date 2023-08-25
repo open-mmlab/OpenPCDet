@@ -79,8 +79,11 @@ class GNN(nn.Module):
     def forward(self, batch_dict):
         # BxNx7
         proposal_boxes = batch_dict['rois']
+        # BxN
+        proposal_labels = batch_dict['roi_labels']
         # BxNxC
         pooled_features = batch_dict['pooled_features']
+
         B,N,C = pooled_features.shape
 
         if self.global_information:
@@ -92,7 +95,7 @@ class GNN(nn.Module):
         batch_vector = torch.arange(B, device=pooled_features.device).repeat_interleave(N)
 
         if self.graph_cfg.CONNECT_ONLY_SAME_CLASS:
-            batch_vector = (batch_dict['roi_labels'] + torch.arange(0, B*self.number_classes, self.number_classes, device=batch_dict['roi_labels'].device).view(B, 1)).view(-1)
+            batch_vector = (proposal_labels + torch.arange(0, B*self.number_classes, self.number_classes, device=proposal_labels.device).view(B, 1)).view(-1)
 
         if self.graph_cfg.NAME == 'radius_graph':
             edge_index = tg.nn.radius_graph(proposal_boxes[:,:,:3].view(-1, 3), r=self.graph_cfg.RADIUS, batch=batch_vector, loop=False)
