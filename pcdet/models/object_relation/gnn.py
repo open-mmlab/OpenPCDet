@@ -83,8 +83,7 @@ class GNN(nn.Module):
         proposal_labels = batch_dict['roi_labels']
         # BxNxC
         pooled_features = batch_dict['pooled_features']
-
-        B,N,C = pooled_features.shape
+        (B, N, C) = pooled_features.shape
 
         if self.global_information:
             embedded_global_features = self.global_info_mlp(proposal_boxes)
@@ -92,16 +91,7 @@ class GNN(nn.Module):
 
         pooled_features = pooled_features.view(-1, self.gnn_input_dim)
 
-        batch_vector = torch.arange(B, device=pooled_features.device).repeat_interleave(N)
-
-        if self.graph_cfg.CONNECT_ONLY_SAME_CLASS:
-            batch_vector = (proposal_labels + torch.arange(0, B*self.number_classes, self.number_classes, device=proposal_labels.device).view(B, 1)).view(-1)
-
-        if self.graph_cfg.NAME == 'radius_graph':
-            edge_index = tg.nn.radius_graph(proposal_boxes[:,:,:3].view(-1, 3), r=self.graph_cfg.RADIUS, batch=batch_vector, loop=False)
-        elif self.graph_cfg.NAME == 'knn':
-            edge_index = tg.nn.knn_graph(proposal_boxes[:,:,:3].view(-1, 3), k=self.graph_cfg.K, batch=batch_vector, loop=False)
-            
+        edge_index = self.get_edges(proposal_boxes[:,:,:3].view(-1,3), proposal_labels.view(-1), (B, N, C))
         batch_dict['gnn_edges'] = edge_index
 
         gnn_features = [pooled_features]
@@ -114,18 +104,62 @@ class GNN(nn.Module):
 
         return batch_dict
 
+    def get_edges(self, proposal_boxes, proposal_labels, shape):
+        B, N, _ = shape
+        f = getattr(tg.nn, self.graph_cfg.NAME)
+        a = (self.graph_cfg.RADIUS if self.graph_cfg.NAME == 'radius_graph' else self.graph_cfg.K)
+        batch_vector = torch.arange(B, device=proposal_boxes.device).repeat_interleave(N)
+        
+        if self.graph_cfg.CONNECT_ONLY_SAME_CLASS:
+            final_edge_indices = []
+            for predicted_class in range(1, self.number_classes + 1):
+                label_indices = torch.where(proposal_labels == predicted_class)[0]
+                label_proposal_boxes = proposal_boxes[label_indices]
+                label_batch_vector = batch_vector[label_indices]
+                
+                label_edge_index = f(label_proposal_boxes, a, batch=label_batch_vector, loop=False)
+                label_edge_index[0] = label_indices[label_edge_index[0]]
+                label_edge_index[1] = label_indices[label_edge_index[1]]
+                final_edge_indices.append(label_edge_index)
+            edge_index = torch.cat(final_edge_indices, dim=-1)
+        else:
+            edge_index = f(proposal_boxes, a, batch=batch_vector, loop=False)
+        return edge_index
+
+
+
 if __name__ == '__main__':
+    from easydict import EasyDict as edict
     rois = torch.tensor([
-        [[0, 0, 0], [2, 2, 2], [4, 4, 4]]
+        [[0, 0, 0, 0, 0, 0, 0], [2, 2, 2, 2, 2, 2, 2], [3, 3, 3, 3, 3, 3, 3]]
     ], dtype=torch.float32)
-    pooled_features = torch.tensor([
-        [[1, 2], [2, 3], [3, 4]]
-    ], dtype=torch.float32)
+    # 1x3x512
+    pooled_features = torch.rand((1, 3, 256), dtype=torch.float32)
+    proposal_labels = torch.tensor([
+        [0, 0, 1]
+    ], dtype=torch.int64)
+
     batch_dict = {
         'rois': rois,  # Random positions for 10 batches of 100 proposals each
-        'pooled_features': pooled_features  # Random 16-dimensional features for 10 batches of 100 proposals each
+        'pooled_features': pooled_features,  # Random 16-dimensional features for 10 batches of 100 proposals each
+        'roi_labels': proposal_labels  # Random labels for 10 batches of 100 proposals each
     }
 
+    cfg = edict({
+        'GRAPH': {
+            'NAME': 'radius_graph',
+            'RADIUS': 3,
+            'CONNECT_ONLY_SAME_CLASS': True
+        },
+        'LAYERS': [256, 256, 256],
+        'GLOBAL_INFORMATION': {
+            'MLP_LAYERS': [256, 256, 256]
+        }
+    })
 
-    model = GNN(2, 4)
-    print(model(batch_dict))
+    model = GNN(cfg)
+
+    batch_dict = model(batch_dict)
+    edges = batch_dict['gnn_edges']
+    assert edges.shape[0] == 2
+    assert edges.shape[1] == 6
