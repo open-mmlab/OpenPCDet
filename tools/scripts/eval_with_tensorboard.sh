@@ -1,8 +1,6 @@
 #!/bin/bash
-date='2023-08-25_13-03-43'
+date='2023-08-25_13-47-22'
 architecture='pv_rcnn_relation'
-
-tmux kill-server
 
 # Create the first tmux session and run a command
 tmux new-session -d -s Session1
