@@ -222,23 +222,26 @@ MODEL:
     
     OBJECT_RELATION:
         NAME: GNN
+        # GRAPH: {
+        #     NAME: radius_graph,
+        #     RADIUS: 6,
+        #     CONNECT_ONLY_SAME_CLASS: False
+        # }
         GRAPH: {
-            NAME: radius_graph,
-            RADIUS: 6,
+            NAME: knn_graph,
+            K: 16,
             CONNECT_ONLY_SAME_CLASS: False
         }
-        # GRAPH: {
-        #     NAME: knn,
-        #     K: 16,
-        # }
         LAYERS: [256, 256, 256, 256]
         GLOBAL_INFORMATION: {
             MLP_LAYERS: [256, 256]        
         }
+        DP_RATIO: 0.3
         # MLP_GLOBAL_LAYERS: [256, 256
 
 
     POST_PROCESSING:
+        # IoU Threshold
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
         # Car, Pedestrian, Cyclist
         SCORE_THRESH: 0.1
