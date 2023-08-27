@@ -6,7 +6,7 @@ architecture='pv_rcnn_relation'
 
 # Create the first tmux session and run a command
 tmux new-session -d -s Session1
-tmux send-keys -t Session1 "(cd tools/; python test.py --cfg ./cfgs/kitti_models/$architecture.yaml --eval_all --extra_tag $date)" C-m
+tmux send-keys -t Session1 "(cd tools/; python test.py --cfg ./cfgs/kitti_models/$architecture/$date/$architecture.yaml --eval_all --extra_tag $date)" C-m
 
 sleep 300
 
