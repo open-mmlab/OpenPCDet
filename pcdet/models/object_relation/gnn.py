@@ -26,11 +26,14 @@ class EdgeConv(tg.nn.MessagePassing):
         super(EdgeConv, self).__init__(aggr='max')
         self.fc = nn.Linear(in_dim, out_dim)
 
-    def forward(self, x, edge_index):
-        return self.propagate(edge_index, x=x)
+    def forward(self, x, edge_index, edge_attr=None):
+        return self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
-    def message(self, x_i, x_j):
-        x = torch.cat((x_j - x_i, x_i), dim=-1)
+    def message(self, x_i, x_j, edge_attr=None):
+        if edge_attr is not None:
+            x = torch.cat((x_j - x_i, x_i, edge_attr), dim=-1)
+        else:
+            x = torch.cat((x_j - x_i, x_i), dim=-1)
         x = self.fc(x)
         x = F.relu(x)
         return x
@@ -65,7 +68,8 @@ class GNN(nn.Module):
         conv_layer_list = []
         for i in range(len(self.gnn_layers)):
             if i == 0:
-                conv_layer_list.append(EdgeConv(2*self.gnn_input_dim, self.gnn_layers[i]))
+                input_dim = 2*self.gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
+                conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i]))
             else:
                 conv_layer_list.append(EdgeConv(2*self.gnn_layers[i-1], self.gnn_layers[i]))
         self.gnn = nn.ModuleList(conv_layer_list)
@@ -100,6 +104,9 @@ class GNN(nn.Module):
         edge_index = self.get_edges(proposal_boxes[:,:3], proposal_labels, (B, N, C))
         batch_dict['gnn_edges'] = edge_index
 
+        if self.graph_cfg.EDGE_EMBEDDING:
+            edge_embedding = None
+        
         gnn_features = [pooled_features]
         x = pooled_features
         for i in range(len(self.gnn)):

@@ -230,7 +230,8 @@ MODEL:
         GRAPH: {
             NAME: knn_graph,
             K: 16,
-            CONNECT_ONLY_SAME_CLASS: False
+            CONNECT_ONLY_SAME_CLASS: False,
+            EDGE_EMBEDDING: True
         }
         LAYERS: [256, 256, 256, 256]
         GLOBAL_INFORMATION: {
