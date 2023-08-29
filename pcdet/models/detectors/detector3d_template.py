@@ -167,6 +167,7 @@ class Detector3DTemplate(nn.Module):
             point_cloud_range=model_info_dict['point_cloud_range'],
             voxel_size=model_info_dict['voxel_size'],
             num_class=self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
+            object_relation_config=self.model_cfg.OBJECT_RELATION,
         )
 
         model_info_dict['module_list'].append(point_head_module)

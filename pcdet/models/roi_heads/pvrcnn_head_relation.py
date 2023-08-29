@@ -6,7 +6,7 @@ from .roi_head_template import RoIHeadTemplate
 
 
 class PVRCNNHeadRelation(RoIHeadTemplate):
-    def __init__(self, input_channels, model_cfg, num_class=1, **kwargs):
+    def __init__(self, input_channels, model_cfg, num_class=1, object_relation_config=None, **kwargs):
         super().__init__(num_class=num_class, model_cfg=model_cfg)
         self.model_cfg = model_cfg
 
@@ -31,8 +31,11 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
 
         self.shared_fc_layer = nn.Sequential(*shared_fc_list)
 
+        # Input dim to heads depend on object relation
+        global_information_output_dim = 0 if not object_relation_config.GLOBAL_INFORMATION else object_relation_config.GLOBAL_INFORMATION.MLP_LAYERS[-1]
+        self.head_input_channels = global_information_output_dim + self.model_cfg.SHARED_FC[-1] + sum(object_relation_config.LAYERS)
         # TODO update this
-        self.head_input_channels = self.model_cfg.SHARED_FC[-1] * 5
+        self.head_input_channels = self.model_cfg.SHARED_FC[-1]*5
         
         self.cls_layers = self.make_fc_layers(
             input_channels=self.head_input_channels, output_channels=self.num_class, fc_list=self.model_cfg.CLS_FC
