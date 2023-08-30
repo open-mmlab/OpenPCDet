@@ -40,20 +40,22 @@ class EdgeConv(tg.nn.MessagePassing):
 
 
 class GNN(nn.Module):
-    def __init__(self, object_relation_cfg, number_classes=3):
+    def __init__(self, object_relation_cfg, number_classes=3, pooled_feature_dim=256):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
         self.gnn_layers = object_relation_cfg.LAYERS
         self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
         self.number_classes = number_classes
         self.drop_out = object_relation_cfg.DP_RATIO
+        self.pooled_feature_dim = pooled_feature_dim
 
         if self.global_information:
             self.global_mlp = self.global_information.MLP_LAYERS
             mlp_layer_list = []
+            global_mlp_input_dim = pooled_feature_dim + 7 if self.global_information.CONCATENATED else 7
             for i in range(len(self.global_mlp)):
                 if i == 0:
-                    mlp_layer_list.append(nn.Linear(256 + 7, self.global_mlp[i]))
+                    mlp_layer_list.append(nn.Linear(global_mlp_input_dim, self.global_mlp[i]))
                 else:
                     mlp_layer_list.append(nn.Linear(self.global_mlp[i-1], self.global_mlp[i]))
                 
@@ -64,12 +66,11 @@ class GNN(nn.Module):
 
             self.global_info_mlp = nn.Sequential(*mlp_layer_list)
         
-        self.gnn_input_dim = 256
+        gnn_input_dim = self.global_mlp[-1] if self.global_information.CONCATENATED else (self.global_mlp[-1] + self.pooled_feature_dim)
         conv_layer_list = []
         for i in range(len(self.gnn_layers)):
             if i == 0:
-                input_dim = 2*self.gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
-                conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i]))
+                conv_layer_list.append(EdgeConv(2*gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0), self.gnn_layers[i]))
             else:
                 conv_layer_list.append(EdgeConv(2*self.gnn_layers[i-1], self.gnn_layers[i]))
         self.gnn = nn.ModuleList(conv_layer_list)
@@ -98,19 +99,25 @@ class GNN(nn.Module):
         
 
         if self.global_information:
-            pooled_features_with_global_info = torch.cat([pooled_features, proposal_boxes], dim=1)
-            pooled_features = self.global_info_mlp(pooled_features_with_global_info)
+            if self.global_information.CONCATENATED:
+                pooled_features_with_global_info = torch.cat([pooled_features, proposal_boxes], dim=1)
+                pooled_features = self.global_info_mlp(pooled_features_with_global_info)
+            else:
+                embedded_global_information = self.global_info_mlp(proposal_boxes)
+                pooled_features = torch.cat([pooled_features, embedded_global_information], dim=1)
 
         edge_index = self.get_edges(proposal_boxes[:,:3], proposal_labels, (B, N, C))
         batch_dict['gnn_edges'] = edge_index
 
+        edge_attr = None
         if self.graph_cfg.EDGE_EMBEDDING:
-            edge_embedding = None
+            from_node, to_node = edge_index
+            edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
         
         gnn_features = [pooled_features]
         x = pooled_features
         for i in range(len(self.gnn)):
-            x = self.gnn[i](x, edge_index)
+            x = self.gnn[i](x, edge_index, edge_attr=edge_attr)
             gnn_features.append(x)
 
         batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)

@@ -231,11 +231,12 @@ MODEL:
             NAME: knn_graph,
             K: 16,
             CONNECT_ONLY_SAME_CLASS: False,
-            EDGE_EMBEDDING: True
+            EDGE_EMBEDDING: False
         }
         LAYERS: [256, 256, 256, 256]
         GLOBAL_INFORMATION: {
-            MLP_LAYERS: [256, 256]        
+            MLP_LAYERS: [256, 256],
+            CONCATENATED: False,
         }
         DP_RATIO: 0.3
         # MLP_GLOBAL_LAYERS: [256, 256
