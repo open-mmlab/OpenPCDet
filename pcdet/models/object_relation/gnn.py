@@ -22,9 +22,19 @@ import torch.nn.functional as F
 
 # similar to EdgeConv https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.EdgeConv.html
 class EdgeConv(tg.nn.MessagePassing):
-    def __init__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim, drop_out=None):
         super(EdgeConv, self).__init__(aggr='max')
-        self.fc = nn.Linear(in_dim, out_dim)
+        # self.fc = nn.Linear(in_dim, out_dim)
+        fc_list = []
+        fc_list.append(nn.Linear(in_dim, out_dim))
+        # also try graph norm
+        # fc_list.append(tg.nn.GraphNorm(out_dim))
+        fc_list.append(tg.nn.BatchNorm(out_dim))
+        fc_list.append(nn.ReLU())
+        if drop_out:
+            fc_list.append(nn.Dropout(drop_out))
+        
+        self.fc = nn.Sequential(*fc_list)
 
     def forward(self, x, edge_index, edge_attr=None):
         return self.propagate(edge_index, x=x, edge_attr=edge_attr)
@@ -35,7 +45,6 @@ class EdgeConv(tg.nn.MessagePassing):
         else:
             x = torch.cat((x_j - x_i, x_i), dim=-1)
         x = self.fc(x)
-        x = F.relu(x)
         return x
 
 
@@ -70,9 +79,10 @@ class GNN(nn.Module):
         conv_layer_list = []
         for i in range(len(self.gnn_layers)):
             if i == 0:
-                conv_layer_list.append(EdgeConv(2*gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0), self.gnn_layers[i]))
+                input_dim = 2*gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
             else:
-                conv_layer_list.append(EdgeConv(2*self.gnn_layers[i-1], self.gnn_layers[i]))
+                input_dim = 2*self.gnn_layers[i-1]
+            conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i], drop_out=self.drop_out))
         self.gnn = nn.ModuleList(conv_layer_list)
         self.init_weights()
 
@@ -80,8 +90,10 @@ class GNN(nn.Module):
     def init_weights(self, weight_init='xavier'):
         if weight_init == 'xavier':
             init_func = nn.init.xavier_uniform_
-        for m in self.gnn:
-            init_func(m.fc.weight)
+        for edge_convs in self.gnn:
+            for m in edge_convs.fc:
+                if isinstance(m, nn.Linear):
+                    init_func(m.weight)
         if self.global_information:
             for m in self.global_info_mlp:
                 if isinstance(m, nn.Linear):

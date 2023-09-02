@@ -239,7 +239,6 @@ MODEL:
             CONCATENATED: False,
         }
         DP_RATIO: 0.3
-        # MLP_GLOBAL_LAYERS: [256, 256
 
 
     POST_PROCESSING:
