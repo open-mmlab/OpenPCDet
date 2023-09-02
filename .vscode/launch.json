@@ -1,0 +1,109 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Run File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Train KITTI PV_RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+        {
+            "name": "Python: Train KITTI PV_RCNN_RELATION",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_relation.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+                
+            },
+        },
+        {
+            "name": "Python: Train KITTI PV_RCNN++",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus.yaml", "--extra_tag", "debug"],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+                
+            },
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Visualize KITTI PV_RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+            // "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn.yaml", "--ckpt", "../output/kitti/pv_rcnn_8369.pth", "--data_path", "../data/kitti/testing/velodyne/000008.bin"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Evaluate KITTI PV_RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn.yaml", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn/2023-08-01_20-06-45/ckpt/checkpoint_epoch_90.pth", "--batch_size", "6"],
+            "cwd": "/root/OpenPCDet/tools/",
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+                
+            },
+        },
+        {
+            "name": "Python: Evaluate KITTI PV_RCNN++ ALL",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus.yaml", "--batch_size", "8", "--extra_tag", "2023-07-31_15-59-33", "--eval_all"],
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Train PV-RCNN++ with ckpt",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus.yaml", "--extra_tag", "2023-07-29_20-33-11_continued", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn_plusplus/2023-07-29_20-33-11/ckpt/checkpoint_epoch_80.pth"],
+            "console": "integratedTerminal",
+            "cwd": "/root/OpenPCDet/tools/"
+        }
+    ]
+}
