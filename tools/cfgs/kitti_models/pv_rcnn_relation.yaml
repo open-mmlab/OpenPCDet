@@ -222,23 +222,22 @@ MODEL:
     
     OBJECT_RELATION:
         NAME: GNN
-        GRAPH: {
-            NAME: radius_graph,
-            RADIUS: 4,
-            CONNECT_ONLY_SAME_CLASS: False,
-            EDGE_EMBEDDING: False,
-        }
-        # GRAPH: {
-        #     NAME: radius,
-        #     K: 16,
-        #     CONNECT_ONLY_SAME_CLASS: False,
-        #     EDGE_EMBEDDING: False
+        #     NAME: radius_graph,
+        #     RADIUS: 6,
+        #     CONNECT_ONLY_SAME_CLASS: False
         # }
-        LAYERS: [256, 256, 256, 256]
-        GLOBAL_INFORMATION: {
-            MLP_LAYERS: [256, 256],
-            CONCATENATED: False,
+        GRAPH: {
+            NAME: knn_graph,
+            K: 16,
+            CONNECT_ONLY_SAME_CLASS: False,
+            EDGE_EMBEDDING: True,
         }
+        LAYERS: [256, 256, 256, 256]
+        IN_BETWEEN_MLP: [256, 256, 256, 256]
+        # GLOBAL_INFORMATION: {
+        #     MLP_LAYERS: [256, 256],
+        #     CONCATENATED: False,
+        # }
         DP_RATIO: 0.3
 
 

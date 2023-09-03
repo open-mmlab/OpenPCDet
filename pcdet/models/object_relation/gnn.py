@@ -22,19 +22,9 @@ import torch.nn.functional as F
 
 # similar to EdgeConv https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.EdgeConv.html
 class EdgeConv(tg.nn.MessagePassing):
-    def __init__(self, in_dim, out_dim, drop_out=None):
+    def __init__(self, dim_in, dim_out, drop_out=None):
         super(EdgeConv, self).__init__(aggr='max')
-        # self.fc = nn.Linear(in_dim, out_dim)
-        fc_list = []
-        fc_list.append(nn.Linear(in_dim, out_dim))
-        # also try graph norm
-        # fc_list.append(tg.nn.GraphNorm(out_dim))
-        fc_list.append(tg.nn.BatchNorm(out_dim))
-        fc_list.append(nn.ReLU())
-        if drop_out:
-            fc_list.append(nn.Dropout(drop_out))
-        
-        self.fc = nn.Sequential(*fc_list)
+        self.mlp = build_mlp(dim_in, [dim_out], activation="ReLU", bn=True, drop_out=drop_out)
 
     def forward(self, x, edge_index, edge_attr=None):
         return self.propagate(edge_index, x=x, edge_attr=edge_attr)
@@ -44,7 +34,7 @@ class EdgeConv(tg.nn.MessagePassing):
             x = torch.cat((x_j - x_i, x_i, edge_attr), dim=-1)
         else:
             x = torch.cat((x_j - x_i, x_i), dim=-1)
-        x = self.fc(x)
+        x = self.mlp(x)
         return x
 
 
@@ -53,36 +43,34 @@ class GNN(nn.Module):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
         self.gnn_layers = object_relation_cfg.LAYERS
+        self.in_between_layers = object_relation_cfg.IN_BETWEEN_MLP if 'IN_BETWEEN_MLP' in  object_relation_cfg else None
         self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
         self.number_classes = number_classes
         self.drop_out = object_relation_cfg.DP_RATIO
         self.pooled_feature_dim = pooled_feature_dim
 
         if self.global_information:
-            self.global_mlp = self.global_information.MLP_LAYERS
-            mlp_layer_list = []
             global_mlp_input_dim = pooled_feature_dim + 7 if self.global_information.CONCATENATED else 7
-            for i in range(len(self.global_mlp)):
-                if i == 0:
-                    mlp_layer_list.append(nn.Linear(global_mlp_input_dim, self.global_mlp[i]))
-                else:
-                    mlp_layer_list.append(nn.Linear(self.global_mlp[i-1], self.global_mlp[i]))
-                
-                mlp_layer_list.append(nn.BatchNorm1d(self.global_mlp[i]))
-                mlp_layer_list.append(nn.ReLU())
-                if self.drop_out:
-                    mlp_layer_list.append(nn.Dropout(self.drop_out))
-
-            self.global_info_mlp = nn.Sequential(*mlp_layer_list)
+            self.global_info_mlp = build_mlp(global_mlp_input_dim, self.global_information.MLP_LAYERS, activation='ReLU', bn=True, drop_out=self.drop_out)
         
-        gnn_input_dim = self.global_mlp[-1] if self.global_information.CONCATENATED else (self.global_mlp[-1] + self.pooled_feature_dim)
+        if not self.global_information:
+            gnn_input_dim = pooled_feature_dim
+        else:
+            gnn_input_dim = self.global_mlp[-1] if self.global_information.CONCATENATED else (self.global_mlp[-1] + self.pooled_feature_dim)
+        
         conv_layer_list = []
         for i in range(len(self.gnn_layers)):
+            curr_conv_layer_list = []
             if i == 0:
-                input_dim = 2*gnn_input_dim + (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
+                input_dim = 2*gnn_input_dim
             else:
                 input_dim = 2*self.gnn_layers[i-1]
-            conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i], drop_out=self.drop_out))
+            input_dim += (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
+            curr_conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i], drop_out=self.drop_out))
+            if self.in_between_layers:
+                curr_mlp = build_mlp(self.gnn_layers[i], [self.in_between_layers[i]], activation="ReLU", bn=True, drop_out=True)
+                curr_conv_layer_list.append(curr_mlp)
+            conv_layer_list.append(nn.ModuleList(curr_conv_layer_list))
         self.gnn = nn.ModuleList(conv_layer_list)
         self.init_weights()
 
@@ -90,10 +78,16 @@ class GNN(nn.Module):
     def init_weights(self, weight_init='xavier'):
         if weight_init == 'xavier':
             init_func = nn.init.xavier_uniform_
-        for edge_convs in self.gnn:
-            for m in edge_convs.fc:
-                if isinstance(m, nn.Linear):
-                    init_func(m.weight)
+        for seq in self.gnn:
+            for n in seq:
+                if isinstance(n, EdgeConv):
+                    for m in n.mlp:
+                        if isinstance(m, nn.Linear):
+                            init_func(m.weight)
+                else:
+                    for m in n:
+                        if isinstance(m, nn.Linear):
+                            init_func(m.weight)
         if self.global_information:
             for m in self.global_info_mlp:
                 if isinstance(m, nn.Linear):
@@ -122,14 +116,18 @@ class GNN(nn.Module):
         batch_dict['gnn_edges'] = edge_index
 
         edge_attr = None
-        if self.graph_cfg.EDGE_EMBEDDING:
+        if 'EDGE_EMBEDDING' in self.graph_cfg and self.graph_cfg.EDGE_EMBEDDING:
             from_node, to_node = edge_index
             edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
         
         gnn_features = [pooled_features]
         x = pooled_features
-        for i in range(len(self.gnn)):
-            x = self.gnn[i](x, edge_index, edge_attr=edge_attr)
+        for module_list in self.gnn:
+            for module in module_list:
+                if isinstance(module, EdgeConv):
+                    x = module(x, edge_index, edge_attr=edge_attr)
+                else:
+                    x = module(x)
             gnn_features.append(x)
 
         batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)
@@ -158,6 +156,19 @@ class GNN(nn.Module):
             edge_index = f(proposal_boxes, a, batch=batch_vector, loop=False)
         return edge_index
 
+def build_mlp(input_dim, hidden_dims, activation='ReLU', bn=False, drop_out=None):
+    mlp_list = []
+    for i in range(len(hidden_dims)):
+        if i == 0:
+            mlp_list.append(nn.Linear(input_dim, hidden_dims[i]))
+        else:
+            mlp_list.append(nn.Linear(hidden_dims[i-1], hidden_dims[i]))
+        if bn:
+            mlp_list.append(nn.BatchNorm1d(hidden_dims[i]))
+        mlp_list.append(getattr(nn, activation)())
+        if drop_out:
+            mlp_list.append(nn.Dropout(drop_out))
+    return nn.Sequential(*mlp_list)
 
 
 if __name__ == '__main__':

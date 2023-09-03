@@ -31,7 +31,7 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
 
         self.shared_fc_layer = nn.Sequential(*shared_fc_list)
         
-        if object_relation_config.GLOBAL_INFORMATION:
+        if 'GLOBAL_INFORMATION' in object_relation_config:
             initial_input_dim = object_relation_config.GLOBAL_INFORMATION.MLP_LAYERS[-1]
             if not object_relation_config.GLOBAL_INFORMATION.CONCATENATED:
                 initial_input_dim += self.model_cfg.SHARED_FC[-1]
