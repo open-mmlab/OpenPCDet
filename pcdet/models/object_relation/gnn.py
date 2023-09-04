@@ -42,6 +42,7 @@ class GNN(nn.Module):
     def __init__(self, object_relation_cfg, number_classes=3, pooled_feature_dim=256):
         super(GNN, self).__init__()
         self.graph_cfg = object_relation_cfg.GRAPH
+        self.graph_conv = object_relation_cfg.GRAPH.CONV
         self.gnn_layers = object_relation_cfg.LAYERS
         self.in_between_layers = object_relation_cfg.IN_BETWEEN_MLP if 'IN_BETWEEN_MLP' in  object_relation_cfg else None
         self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
@@ -62,11 +63,18 @@ class GNN(nn.Module):
         for i in range(len(self.gnn_layers)):
             curr_conv_layer_list = []
             if i == 0:
-                input_dim = 2*gnn_input_dim
+                input_dim = gnn_input_dim
             else:
-                input_dim = 2*self.gnn_layers[i-1]
-            input_dim += (7 if self.graph_cfg.EDGE_EMBEDDING else 0)
-            curr_conv_layer_list.append(EdgeConv(input_dim, self.gnn_layers[i], drop_out=self.drop_out))
+                input_dim = self.gnn_layers[i-1]
+
+            edge_dim = (7 if self.graph_conv.EDGE_EMBEDDING else 0)
+            if self.graph_conv.NAME == "EdgeConv":
+                curr_conv_layer_list.append(EdgeConv(2*input_dim+edge_dim, self.gnn_layers[i], drop_out=self.drop_out))
+            elif self.graph_conv.NAME == "GATConv":
+                # layer according to tg example: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/gat.py
+                curr_conv_layer_list.append(nn.Dropout(p=self.drop_out))
+                curr_conv_layer_list.append(tg.nn.GATConv(input_dim, self.gnn_layers[i], self.graph_conv.HEADS, dropout=self.drop_out, edge_dim=edge_dim, concat=False))
+                curr_conv_layer_list.append(nn.ELU())
             if self.in_between_layers:
                 curr_mlp = build_mlp(self.gnn_layers[i], [self.in_between_layers[i]], activation="ReLU", bn=True, drop_out=True)
                 curr_conv_layer_list.append(curr_mlp)
@@ -84,10 +92,15 @@ class GNN(nn.Module):
                     for m in n.mlp:
                         if isinstance(m, nn.Linear):
                             init_func(m.weight)
-                else:
+                elif isinstance(n, nn.Sequential):
                     for m in n:
                         if isinstance(m, nn.Linear):
                             init_func(m.weight)
+                elif isinstance(n, tg.nn.GATConv):
+                    # automatically initialized
+                    continue
+                else:
+                    continue
         if self.global_information:
             for m in self.global_info_mlp:
                 if isinstance(m, nn.Linear):
@@ -116,7 +129,7 @@ class GNN(nn.Module):
         batch_dict['gnn_edges'] = edge_index
 
         edge_attr = None
-        if 'EDGE_EMBEDDING' in self.graph_cfg and self.graph_cfg.EDGE_EMBEDDING:
+        if 'EDGE_EMBEDDING' in self.graph_conv and self.graph_conv.EDGE_EMBEDDING:
             from_node, to_node = edge_index
             edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
         
@@ -124,7 +137,7 @@ class GNN(nn.Module):
         x = pooled_features
         for module_list in self.gnn:
             for module in module_list:
-                if isinstance(module, EdgeConv):
+                if isinstance(module, (EdgeConv, tg.nn.GATConv)):
                     x = module(x, edge_index, edge_attr=edge_attr)
                 else:
                     x = module(x)

@@ -227,10 +227,15 @@ MODEL:
         #     CONNECT_ONLY_SAME_CLASS: False
         # }
         GRAPH: {
+            CONV: {
+                NAME: EdgeConv,
+                EDGE_EMBEDDING: True,
+                # HEADS: 4,
+            },
             NAME: knn_graph,
             K: 16,
             CONNECT_ONLY_SAME_CLASS: False,
-            EDGE_EMBEDDING: True,
+            # EDGE_EMBEDDING: True,
         }
         LAYERS: [256, 256, 256, 256]
         IN_BETWEEN_MLP: [256, 256, 256, 256]
