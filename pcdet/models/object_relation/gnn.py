@@ -33,6 +33,8 @@ class EdgeConv(tg.nn.MessagePassing):
         if edge_attr is not None:
             x = torch.cat((x_j - x_i, x_i, edge_attr), dim=-1)
         else:
+            # one could also try this:
+            # x = torch.cat((x_j, x_i), dim=-1)
             x = torch.cat((x_j - x_i, x_i), dim=-1)
         x = self.mlp(x)
         return x
@@ -124,8 +126,15 @@ class GNN(nn.Module):
             else:
                 embedded_global_information = self.global_info_mlp(proposal_boxes)
                 pooled_features = torch.cat([pooled_features, embedded_global_information], dim=1)
-
-        edge_index = self.get_edges(proposal_boxes[:,:3], proposal_labels, (B, N, C))
+        
+        if self.graph_cfg.SPACE == 'R3':
+            assert self.graph_cfg.DYNAMIC == False, 'Distance should be measured in feature space if the graph is created dynamically'
+            edge_index = self.get_edges(proposal_boxes[:,:3], proposal_labels, (B, N, C))
+        elif self.graph_cfg.SPACE == 'Feature':
+            edge_index = self.get_edges(pooled_features, proposal_labels, (B, N, C))
+        else:
+            raise NotImplemented('Distance space was {} but should be R3 or FEATURE'.format(self.graph_cfg.SPACE))
+        
         batch_dict['gnn_edges'] = edge_index
 
         edge_attr = None
@@ -142,31 +151,33 @@ class GNN(nn.Module):
                 else:
                     x = module(x)
             gnn_features.append(x)
+            if self.graph_cfg.DYNAMIC:
+                edge_index = self.get_edges(x, proposal_labels, (B, N, None))
 
         batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)
 
         return batch_dict
 
-    def get_edges(self, proposal_boxes, proposal_labels, shape):
+    def get_edges(self, edge_generating_tensor, proposal_labels, shape):
         B, N, _ = shape
         f = getattr(tg.nn, self.graph_cfg.NAME)
         a = (self.graph_cfg.RADIUS if self.graph_cfg.NAME == 'radius_graph' else self.graph_cfg.K)
-        batch_vector = torch.arange(B, device=proposal_boxes.device).repeat_interleave(N)
+        batch_vector = torch.arange(B, device=edge_generating_tensor.device).repeat_interleave(N)
         
         if self.graph_cfg.CONNECT_ONLY_SAME_CLASS:
             final_edge_indices = []
             for predicted_class in range(1, self.number_classes + 1):
                 label_indices = torch.where(proposal_labels == predicted_class)[0]
-                label_proposal_boxes = proposal_boxes[label_indices]
+                label_edge_generating_tensor = edge_generating_tensor[label_indices]
                 label_batch_vector = batch_vector[label_indices]
                 
-                label_edge_index = f(label_proposal_boxes, a, batch=label_batch_vector, loop=False)
+                label_edge_index = f(label_edge_generating_tensor, a, batch=label_batch_vector, loop=False)
                 label_edge_index[0] = label_indices[label_edge_index[0]]
                 label_edge_index[1] = label_indices[label_edge_index[1]]
                 final_edge_indices.append(label_edge_index)
             edge_index = torch.cat(final_edge_indices, dim=-1)
         else:
-            edge_index = f(proposal_boxes, a, batch=batch_vector, loop=False)
+            edge_index = f(edge_generating_tensor, a, batch=batch_vector, loop=False)
         return edge_index
 
 def build_mlp(input_dim, hidden_dims, activation='ReLU', bn=False, drop_out=None):
