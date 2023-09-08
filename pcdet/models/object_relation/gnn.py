@@ -153,6 +153,9 @@ class GNN(nn.Module):
             gnn_features.append(x)
             if self.graph_cfg.DYNAMIC:
                 edge_index = self.get_edges(x, proposal_labels, (B, N, None))
+                if edge_attr:
+                    from_node, to_node = edge_index
+                    edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
 
         batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)
 
