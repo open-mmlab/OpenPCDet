@@ -153,7 +153,7 @@ class GNN(nn.Module):
             gnn_features.append(x)
             if self.graph_cfg.DYNAMIC:
                 edge_index = self.get_edges(x, proposal_labels, (B, N, None))
-                if edge_attr:
+                if edge_attr is not None:
                     from_node, to_node = edge_index
                     edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
 
