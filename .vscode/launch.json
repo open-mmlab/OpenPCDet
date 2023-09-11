@@ -39,10 +39,6 @@
             "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_relation.yaml", "--extra_tag", "debug"],
             // "preLaunchTask": "Change working directory",
             "cwd": "/root/OpenPCDet/tools/",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "1"
-                
-            },
         },
         {
             "name": "Python: Train KITTI PV_RCNN++",
@@ -58,6 +54,16 @@
             },
             // "preLaunchTask": "Change working directory",
             "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Train KITTI CenterPoint",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/centerpoint_twostage.yaml", "--extra_tag", "debug"],
+            "cwd": "/root/OpenPCDet/tools/",
         },
         {
             "name": "Python: Visualize KITTI PV_RCNN",
