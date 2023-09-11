@@ -17,6 +17,7 @@ To model object relation, this project introduces a GNN. The nodes in the graph 
 
 ## Results
 
+<img src="./resources/results.png" width="100%">
 
 
 
