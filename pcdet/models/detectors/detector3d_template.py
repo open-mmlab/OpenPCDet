@@ -169,7 +169,7 @@ class Detector3DTemplate(nn.Module):
             'voxel_size': model_info_dict['voxel_size'],
             'num_class': self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
         }
-        if self.model_cfg.NAME == 'PVRCNNRelation':
+        if 'Relation' in self.model_cfg.NAME:
             common_args['object_relation_config'] = self.model_cfg.OBJECT_RELATION
         
         point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](**common_args)
