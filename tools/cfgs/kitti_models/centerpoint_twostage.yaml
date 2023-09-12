@@ -6,7 +6,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: CenterPointTwoStage
 
     VFE:
         NAME: MeanVFE
@@ -30,7 +30,6 @@ MODEL:
     DENSE_HEAD:
         NAME: CenterHead
         CLASS_AGNOSTIC: False
-
         USE_DIRECTION_CLASSIFIER: False
         ##############################
         SHARED_CONV_CHANNEL: 64
@@ -66,19 +65,24 @@ MODEL:
                 'loc_weight': 2.0,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
-        # POST_PROCESSING:
-        #     SCORE_THRESH: 0.1
-        #     POST_CENTER_LIMIT_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
-        #     MAX_OBJ_PER_SAMPLE: 500
-        #     NMS_CONFIG:
-        #         NMS_TYPE: nms_gpu
-        #         NMS_THRESH: 0.01
-        #         NMS_PRE_MAXSIZE: 4096
-        #         NMS_POST_MAXSIZE: 500
+        POST_PROCESSING:
+            SCORE_THRESH: 0.1
+            POST_CENTER_LIMIT_RANGE: [-75.2, -75.2, -2, 75.2, 75.2, 4]
+            MAX_OBJ_PER_SAMPLE: 500
+            NMS_CONFIG:
+                NMS_TYPE: nms_gpu
+                NMS_THRESH: 0.01
+                NMS_PRE_MAXSIZE: 4096
+                NMS_POST_MAXSIZE: 500
 
     ROI_HEAD:
         NAME: ROIHead
-        NUM_POINT_FEATURES: 1920 # -> 128*3*5
+        #### Not sure about this #### 
+        BEV_FEATURE_DIM: 352 
+        FEATURE_MAP_STRIDE: 4
+        NUM_POINTS: 5 # anchor points for pooling either 1 or 5
+        ADD_BOX_PARAM: True
+        ############################# 
         CLASS_AGNOSTIC: True
         SHARED_FC: [256, 256]
         CLS_FC: [256, 256]
@@ -86,7 +90,7 @@ MODEL:
         DP_RATIO: 0.3
 
         TARGET_CONFIG:
-            # BOX_CODER: ResidualCoder
+            BOX_CODER: ResidualCoder
             ROI_PER_IMAGE: 128
             FG_RATIO: 0.5
 
@@ -110,7 +114,7 @@ MODEL:
                 'rcnn_corner_weight': 1.0,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
             }
-        
+
 
     
     POST_PROCESSING:
@@ -129,7 +133,7 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 8
+    BATCH_SIZE_PER_GPU: 2
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle

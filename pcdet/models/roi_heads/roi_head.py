@@ -5,32 +5,84 @@ from ...utils.box_torch_ops import center_to_corner_box2d
 from .roi_head_template import RoIHeadTemplate
 
 class RoIHead(RoIHeadTemplate):
-    def __init__(self, model_cfg):
-        super().__init__(model_cfg=model_cfg)
-        self.bev_feature_extractor = BEVFeatureExtractor(pc_start, voxel_size, out_stride)
+    def __init__(self, model_cfg, voxel_size, point_cloud_range, num_class=1, **kwargs):
+        # backbone_channels, point_cloud_range
+        super().__init__(num_class=num_class, model_cfg=model_cfg)
+
+        out_stride = model_cfg.FEATURE_MAP_STRIDE
+        pc_range_start = point_cloud_range[:2]
+        self.add_box_param = model_cfg.ADD_BOX_PARAM
+        self.num_point = model_cfg.NUM_POINTS
+        self.bev_feature_extractor = BEVFeatureExtractor(pc_range_start, voxel_size, out_stride, self.num_point)
+
+        fc_input_dim = (model_cfg.BEV_FEATURE_DIM * self.num_point) + (self.box_coder.code_size + 1 if self.add_box_param else 0)
+        shared_fc_list = []
+        for k in range(0, self.model_cfg.SHARED_FC.__len__()):
+            shared_fc_list.extend([
+                nn.Conv1d(fc_input_dim if k==0 else self.model_cfg.SHARED_FC[k-1], self.model_cfg.SHARED_FC[k], kernel_size=1, bias=False),
+                nn.BatchNorm1d(self.model_cfg.SHARED_FC[k]),
+                nn.ReLU()
+            ])
+            pre_channel = self.model_cfg.SHARED_FC[k]
+
+            if k != self.model_cfg.SHARED_FC.__len__() - 1 and self.model_cfg.DP_RATIO > 0:
+                shared_fc_list.append(nn.Dropout(self.model_cfg.DP_RATIO))
+
+        self.shared_fc_layer = nn.Sequential(*shared_fc_list)
+
+        self.cls_layers = self.make_fc_layers(
+            input_channels=pre_channel, output_channels=self.num_class, fc_list=self.model_cfg.CLS_FC
+        )
+        self.reg_layers = self.make_fc_layers(
+            input_channels=pre_channel,
+            output_channels=self.box_coder.code_size,
+            fc_list=self.model_cfg.REG_FC
+        )
+        self.init_weights(weight_init='xavier')
+
+    def init_weights(self, weight_init='xavier'):
+        if weight_init == 'kaiming':
+            init_func = nn.init.kaiming_normal_
+        elif weight_init == 'xavier':
+            init_func = nn.init.xavier_normal_
+        elif weight_init == 'normal':
+            init_func = nn.init.normal_
+        else:
+            raise NotImplementedError
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Conv1d):
+                if weight_init == 'normal':
+                    init_func(m.weight, mean=0, std=0.001)
+                else:
+                    init_func(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
     
     def forward(self, batch_dict):
+        if self.training:
+            targets_dict = batch_dict.get('roi_targets_dict', None)
+            if targets_dict is None:
+                targets_dict = self.assign_targets(batch_dict)
+                batch_dict['rois'] = targets_dict['rois']
+                batch_dict['roi_labels'] = targets_dict['roi_labels']
+                batch_dict['roi_scores'] = targets_dict['roi_scores']
 
-        features = self.bev_feature_extractor(batch_dict, batch_centers, num_point)
+        B,N,_ = batch_dict['rois'].shape
+        batch_centers = self.get_box_center(batch_dict['rois'])
+        bev_features = self.bev_feature_extractor(batch_dict['spatial_features_2d'], batch_centers)
+        first_stage_pred = batch_dict['rois']
 
-        self.reorder_first_stage_pred_and_feature(first_pred=one_stage_pred, example=example, features=features)
-
-
-        batch_dict['batch_size'] = len(batch_dict['rois'])
-        if training:
-            targets_dict = self.assign_targets(batch_dict)
-            batch_dict['rois'] = targets_dict['rois']
-            batch_dict['roi_labels'] = targets_dict['roi_labels']
-            batch_dict['roi_features'] = targets_dict['roi_features']
-            batch_dict['roi_scores'] = targets_dict['roi_scores']
+        # target_dict = self.reorder_first_stage_pred_and_feature(batch_dict, first_stage_pred, bev_features)
 
         # RoI aware pooling
+        # if self.add_box_param:
         if self.add_box_param:
-            batch_dict['roi_features'] = torch.cat([batch_dict['roi_features'], batch_dict['rois'], batch_dict['roi_scores'].unsqueeze(-1)], dim=-1)
+            pooled_features = torch.cat([bev_features, batch_dict['rois'], batch_dict['roi_scores'].unsqueeze(-1)], dim=-1)
+        else:
+            pooled_features = bev_features
 
-        pooled_features = batch_dict['roi_features'].reshape(-1, 1,
-            batch_dict['roi_features'].shape[-1]).contiguous()  # (BxN, 1, C)
-
+        pooled_features = pooled_features.reshape(B*N,1,-1).contiguous()
         batch_size_rcnn = pooled_features.shape[0]
         pooled_features = pooled_features.permute(0, 2, 1).contiguous() # (BxN, C, 1)
 
@@ -38,7 +90,7 @@ class RoIHead(RoIHeadTemplate):
         rcnn_cls = self.cls_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
         rcnn_reg = self.reg_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
 
-        if not training:
+        if not self.training:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(
                 batch_size=batch_dict['batch_size'], rois=batch_dict['rois'], cls_preds=rcnn_cls, box_preds=rcnn_reg
             )
@@ -52,63 +104,20 @@ class RoIHead(RoIHeadTemplate):
             self.forward_ret_dict = targets_dict
         
         return batch_dict    
-    
 
-    def reorder_first_stage_pred_and_feature(self, first_pred, example, features):
-        batch_size = len(first_pred)
-        box_length = first_pred[0]['box3d_lidar'].shape[1] 
-        feature_vector_length = sum([feat[0].shape[-1] for feat in features])
-
-        rois = first_pred[0]['box3d_lidar'].new_zeros((batch_size, 
-            self.NMS_POST_MAXSIZE, box_length 
-        ))
-        roi_scores = first_pred[0]['scores'].new_zeros((batch_size,
-            self.NMS_POST_MAXSIZE
-        ))
-        roi_labels = first_pred[0]['label_preds'].new_zeros((batch_size,
-            self.NMS_POST_MAXSIZE), dtype=torch.long
-        )
-        roi_features = features[0][0].new_zeros((batch_size, 
-            self.NMS_POST_MAXSIZE, feature_vector_length 
-        ))
-
-        for i in range(batch_size):
-            num_obj = features[0][i].shape[0]
-            # basically move rotation to position 6, so now the box is 7 + C . C is 2 for nuscenes to
-            # include velocity target
-
-            box_preds = first_pred[i]['box3d_lidar']
-
-            if self.roi_head.code_size == 9:
-                # x, y, z, w, l, h, rotation_y, velocity_x, velocity_y
-                box_preds = box_preds[:, [0, 1, 2, 3, 4, 5, 8, 6, 7]]
-
-            rois[i, :num_obj] = box_preds
-            roi_labels[i, :num_obj] = first_pred[i]['label_preds'] + 1
-            roi_scores[i, :num_obj] = first_pred[i]['scores']
-            roi_features[i, :num_obj] = torch.cat([feat[i] for feat in features], dim=-1)
-
-        example['rois'] = rois # used in pooled features
-        example['roi_labels'] = roi_labels 
-        example['roi_scores'] = roi_scores # used in pooled features 
-        example['roi_features'] = roi_features # used in pooled features
-
-        example['has_class_labels']= True 
-
-        return example
     
     def get_box_center(self, boxes):
         # box [List]
-        centers = [] 
+        centers = []
         for box in boxes:            
-            if self.num_point == 1 or len(box['box3d_lidar']) == 0:
-                centers.append(box['box3d_lidar'][:, :3])
+            if self.num_point == 1:
+                centers.append(box[:, :3])
                 
             elif self.num_point == 5:
-                center2d = box['box3d_lidar'][:, :2]
-                height = box['box3d_lidar'][:, 2:3]
-                dim2d = box['box3d_lidar'][:, 3:5]
-                rotation_y = box['box3d_lidar'][:, -1]
+                center2d = box[:, :2]
+                height = box[:, 2:3]
+                dim2d = box[:, 3:5]
+                rotation_y = box[:, -1]
 
                 corners = center_to_corner_box2d(center2d, dim2d, rotation_y)
 
@@ -117,8 +126,7 @@ class RoIHead(RoIHeadTemplate):
                 left_middle = torch.cat([(corners[:, 0] + corners[:, 3])/2, height], dim=-1)
                 right_middle = torch.cat([(corners[:, 1] + corners[:, 2])/2, height], dim=-1) 
 
-                points = torch.cat([box['box3d_lidar'][:, :3], front_middle, back_middle, left_middle, \
-                    right_middle], dim=0)
+                points = torch.cat([box[:,:3], front_middle, back_middle, left_middle, right_middle], dim=0)
 
                 centers.append(points)
             else:
@@ -130,12 +138,12 @@ class RoIHead(RoIHeadTemplate):
 
 
 class BEVFeatureExtractor(nn.Module): 
-    def __init__(self, pc_start, 
-            voxel_size, out_stride):
+    def __init__(self, pc_start, voxel_size, out_stride, num_point):
         super().__init__()
         self.pc_start = pc_start 
         self.voxel_size = voxel_size
         self.out_stride = out_stride
+        self.num_point = num_point
 
     def absl_to_relative(self, absolute):
         a1 = (absolute[..., 0] - self.pc_start[0]) / self.voxel_size[0] / self.out_stride 
@@ -143,21 +151,22 @@ class BEVFeatureExtractor(nn.Module):
 
         return a1, a2
 
-    def forward(self, example, batch_centers, num_point):
-        batch_size = len(example['bev_feature'])
-        ret_maps = [] 
+    def forward(self, bev_features, batch_centers):
+
+        batch_size = len(bev_features)
+        ret_maps = []
 
         for batch_idx in range(batch_size):
             xs, ys = self.absl_to_relative(batch_centers[batch_idx])
             
             # N x C 
-            feature_map = bilinear_interpolate_torch(example['bev_feature'][batch_idx],
+            feature_map = bilinear_interpolate_torch(bev_features[batch_idx],
              xs, ys)
 
-            if num_point > 1:
-                section_size = len(feature_map) // num_point
-                feature_map = torch.cat([feature_map[i*section_size: (i+1)*section_size] for i in range(num_point)], dim=1)
+            if self.num_point > 1:
+                section_size = len(feature_map) // self.num_point
+                feature_map = torch.cat([feature_map[i*section_size: (i+1)*section_size] for i in range(self.num_point)], dim=1)
 
             ret_maps.append(feature_map)
 
-        return ret_maps 
+        return torch.stack(ret_maps) 

@@ -17,6 +17,7 @@ from .transfusion import TransFusion
 from .bevfusion import BevFusion
 from .pv_rcnn_relation import PVRCNNRelation
 from .pv_rcnn_plusplus_relation import PVRCNNPlusPlusRelation
+from .centerpoint_twostage import CenterPointTwoStage
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -39,6 +40,7 @@ __all__ = {
     'BevFusion': BevFusion,
     'PVRCNNRelation': PVRCNNRelation,
     'PVRCNNPlusPlusRelation': PVRCNNPlusPlusRelation,
+    'CenterPointTwoStage': CenterPointTwoStage,
 }
 
 
