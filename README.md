@@ -11,7 +11,7 @@
 
 ## Architecture
 
-To model object relation, this project introduces a GNN. The nodes in the graph are the detected objects; their features are obtained by the second stage of the model (refined features). The edges of the graph are obtained via a radius graph or knn (distance can be measured in R3 or in feature space). Global information, how the objects relate to each other, are infused into the edges. After the GNN, is applied the model obtains a feature vector for each object that contains information about all the other objects. 
+To model object relation, this project introduces a GNN. The nodes in the graph are the detected objects; their features are obtained by the second stage of the model (refined features). The edges of the graph are obtained via a radius graph or knn (distance can be measured in R3 or in feature space). Global information, how the objects relate to each other, are infused into the edges. After the GNN is applied the model obtains a feature vector for each object that contains information about all the other objects. 
 
 <img src="./resources/architecture.jpeg" width="100%">
 
