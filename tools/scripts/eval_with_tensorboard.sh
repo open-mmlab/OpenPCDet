@@ -1,6 +1,9 @@
 #!/bin/bash
-date='2023-08-27_11-56-11'
-architecture='pv_rcnn_relation'
+date='2023-09-11_09-37-34'
+# architecture='pv_rcnn_relation'
+# architecture='centerpoint'
+# architecture='pv_rcnn_plusplus_reproduced_by_community'
+architecture='pv_rcnn_plusplus_relation'
 
 # tmux kill-server
 
