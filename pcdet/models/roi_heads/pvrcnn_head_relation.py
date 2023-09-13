@@ -145,9 +145,6 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
         :param input_data: input dict
         :return:
         """
-        # TODO fix that num_proposals might night be nms_post_max_size
-        # this might fail if we have less than nms_post_max_size proposals
-        num_proposals = self.model_cfg.TARGET_CONFIG.ROI_PER_IMAGE if self.training else self.model_cfg.NMS_CONFIG.TEST.NMS_POST_MAXSIZE
 
         targets_dict = self.proposal_layer(
             batch_dict, nms_config=self.model_cfg.NMS_CONFIG['TRAIN' if self.training else 'TEST']
@@ -159,17 +156,17 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
                 batch_dict['rois'] = targets_dict['rois']
                 batch_dict['roi_labels'] = targets_dict['roi_labels']
 
+        _, N, _ = batch_dict['rois'].shape
         # RoI aware pooling
         pooled_features = self.roi_grid_pool(batch_dict)  # (BxN, 6x6x6, C)
-        _, num_grid_points, C = pooled_features.shape
 
         grid_size = self.model_cfg.ROI_GRID_POOL.GRID_SIZE
         batch_size_rcnn = pooled_features.shape[0]
         pooled_features = pooled_features.permute(0, 2, 1).\
             contiguous().view(batch_size_rcnn, -1, grid_size, grid_size, grid_size)  # (BxN, C, 6, 6, 6)
         
-        shared_features = self.shared_fc_layer(pooled_features.view(batch_size_rcnn, -1, 1))
-        batch_dict['pooled_features'] = shared_features.view(-1, num_proposals, self.model_cfg.SHARED_FC[-1])
+        pooled_features = self.shared_fc_layer(pooled_features.view(batch_size_rcnn, -1, 1))
+        batch_dict['pooled_features'] = pooled_features.view(-1, N, self.model_cfg.SHARED_FC[-1])
 
         self.forward_ret_dict = targets_dict
 
