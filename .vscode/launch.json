@@ -128,6 +128,33 @@
             "cwd": "/root/OpenPCDet/tools/"
         },
         {
+            "name": "Python: Evaluate KITTI PV_RCNN++-Relatoin ALL",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus_relation.yaml", "--extra_tag", "2023-09-11_09-37-34", "--eval_all"],
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Evaluate KITTI CenterPointTwoStage ALL",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/centerpoint_twostage.yaml", "--extra_tag", "2023-09-12_13-29-56", "--eval_all"],
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Evaluate KITTI Object Relation FC ALL",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_relation_fc.yaml", "--extra_tag", "2023-09-14_13-12-43", "--eval_all"],
+            "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
             "name": "Python: Train PV-RCNN++ with ckpt",
             "type": "python",
             "request": "launch",
