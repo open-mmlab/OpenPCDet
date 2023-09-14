@@ -1,13 +1,14 @@
 from .detector3d_template import Detector3DTemplate
 
 from pcdet.models.object_relation.gnn import GNN
+from ..object_relation import build_object_relation_module
 
 
 class PVRCNNRelation(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
-        self.gnn = GNN(model_cfg.OBJECT_RELATION)
+        self.object_relation = build_object_relation_module(model_cfg.OBJECT_RELATION)
 
     def forward(self, batch_dict):
         # MeanVFE: Voxelisation
@@ -27,7 +28,7 @@ class PVRCNNRelation(Detector3DTemplate):
         # PVRCNNHead: Proposal refinement
         batch_dict = self.roi_head(batch_dict)
         # GNN: Object relation
-        batch_dict = self.gnn(batch_dict)
+        batch_dict = self.object_relation(batch_dict)
 
         batch_dict = self.roi_head.final_predictions(batch_dict)
 

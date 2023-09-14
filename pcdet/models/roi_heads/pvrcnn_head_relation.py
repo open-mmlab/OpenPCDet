@@ -31,14 +31,20 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
 
         self.shared_fc_layer = nn.Sequential(*shared_fc_list)
         
-        if 'GLOBAL_INFORMATION' in object_relation_config:
-            initial_input_dim = object_relation_config.GLOBAL_INFORMATION.MLP_LAYERS[-1]
-            if not object_relation_config.GLOBAL_INFORMATION.CONCATENATED:
-                initial_input_dim += self.model_cfg.SHARED_FC[-1]
+        if object_relation_config.NAME == 'GNN':
+            if 'GLOBAL_INFORMATION' in object_relation_config:
+                initial_input_dim = object_relation_config.GLOBAL_INFORMATION.MLP_LAYERS[-1]
+                if not object_relation_config.GLOBAL_INFORMATION.CONCATENATED:
+                    initial_input_dim += self.model_cfg.SHARED_FC[-1]
+            else:
+                initial_input_dim = self.model_cfg.SHARED_FC[-1]
+            
+            self.head_input_channels = initial_input_dim + sum(object_relation_config.LAYERS)
+        elif object_relation_config.NAME == 'CGNLNet':
+            # TODO: udpate this
+            self.head_input_channels = self.model_cfg.SHARED_FC[-1] + 256 + 256
         else:
-            initial_input_dim = self.model_cfg.SHARED_FC[-1]
-        
-        self.head_input_channels = initial_input_dim + sum(object_relation_config.LAYERS)
+            raise NotImplementedError
         
         self.cls_layers = self.make_fc_layers(
             input_channels=self.head_input_channels, output_channels=self.num_class, fc_list=self.model_cfg.CLS_FC
