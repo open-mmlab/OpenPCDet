@@ -275,7 +275,8 @@ class Detector3DTemplate(nn.Module):
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
 
-                if "OBJECT_RELATION" in self.model_cfg and self.model_cfg.OBJECT_RELATION.NAME == "GNN":
+                include_edges = "OBJECT_RELATION" in self.model_cfg and self.model_cfg.OBJECT_RELATION.NAME == "GNN"
+                if include_edges:
                     edges = batch_dict['gnn_edges']
                     from_node, to_node = edges
                     edges_mask = torch.isin(from_node, selected) & torch.isin(to_node, selected)
@@ -292,8 +293,8 @@ class Detector3DTemplate(nn.Module):
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
                 'pred_labels': final_labels,
-                'gnn_edges_final': final_edges if "OBJECT_RELATION" in self.model_cfg else None,
-                'edge_to_pred': edge_to_pred if "OBJECT_RELATION" in self.model_cfg else None,
+                'gnn_edges_final': final_edges if include_edges else None,
+                'edge_to_pred': edge_to_pred if include_edges else None,
             }
             pred_dicts.append(record_dict)
 
