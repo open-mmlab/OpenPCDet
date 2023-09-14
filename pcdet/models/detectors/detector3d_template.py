@@ -275,7 +275,7 @@ class Detector3DTemplate(nn.Module):
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
 
-                if "OBJECT_RELATION" in self.model_cfg:
+                if "OBJECT_RELATION" in self.model_cfg and self.model_cfg.OBJECT_RELATION.NAME == "GNN":
                     edges = batch_dict['gnn_edges']
                     from_node, to_node = edges
                     edges_mask = torch.isin(from_node, selected) & torch.isin(to_node, selected)
