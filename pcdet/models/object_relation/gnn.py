@@ -51,6 +51,7 @@ class GNN(nn.Module):
         self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
         self.number_classes = number_classes
         self.drop_out = object_relation_cfg.DP_RATIO
+        self.skip_connection = object_relation_cfg.SKIP_CONNECTION
         self.pooled_feature_dim = pooled_feature_dim
 
         if self.global_information:
@@ -158,7 +159,10 @@ class GNN(nn.Module):
                     from_node, to_node = edge_index
                     edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
 
-        batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)
+        if self.skip_connection:
+            batch_dict['related_features'] = torch.cat(gnn_features, dim=-1)
+        else:
+            batch_dict['related_features'] = x
 
         return batch_dict
 

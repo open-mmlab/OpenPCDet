@@ -229,17 +229,18 @@ MODEL:
         GRAPH: {
             CONV: {
                 NAME: EdgeConv,
-                EDGE_EMBEDDING: False,
+                EDGE_EMBEDDING: True,
                 # HEADS: 4,
             },
             DYNAMIC: False,
             NAME: knn_graph,
             K: 16,
             CONNECT_ONLY_SAME_CLASS: False,
-            SPACE: Feature,
+            SPACE: R3,
             # EDGE_EMBEDDING: True,
         }
         LAYERS: [256, 256, 256, 256]
+        SKIP_CONNECTION: False
         # IN_BETWEEN_MLP: [256, 256, 256, 256]
         # GLOBAL_INFORMATION: {
         #     MLP_LAYERS: [256, 256],

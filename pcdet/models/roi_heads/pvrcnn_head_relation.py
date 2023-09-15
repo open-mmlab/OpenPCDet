@@ -39,7 +39,10 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
             else:
                 initial_input_dim = self.model_cfg.SHARED_FC[-1]
             
-            self.head_input_channels = initial_input_dim + sum(object_relation_config.LAYERS)
+            if object_relation_config.SKIP_CONNECTION:
+                self.head_input_channels = initial_input_dim + sum(object_relation_config.LAYERS)
+            else:
+                self.head_input_channels = object_relation_config.LAYERS[-1]
         elif object_relation_config.NAME == 'CGNLNet':
             # TODO: udpate this
             self.head_input_channels = self.model_cfg.SHARED_FC[-1] + 256 + 256
