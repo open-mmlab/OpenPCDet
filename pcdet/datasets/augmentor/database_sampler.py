@@ -498,5 +498,5 @@ class DataBaseSampler(object):
                 data_dict, sampled_gt_boxes, total_valid_sampled_dict, sampled_mv_height, sampled_gt_boxes2d
             )
 
-        data_dict.pop('gt_boxes_mask')
+            data_dict.pop('gt_boxes_mask')
         return data_dict
