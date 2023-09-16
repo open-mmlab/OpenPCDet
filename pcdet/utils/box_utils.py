@@ -20,7 +20,7 @@ def in_hull(p, hull):
         flag = hull.find_simplex(p) >= 0
     except scipy.spatial.qhull.QhullError:
         print('Warning: not a hull %s' % str(hull))
-        flag = np.zeros(p.shape[0], dtype=np.bool)
+        flag = np.zeros(p.shape[0], dtype=np.bool_)
 
     return flag
 
