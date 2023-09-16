@@ -92,6 +92,7 @@ def convert_range_image_to_point_cloud(frame, range_images, camera_projections, 
     points_NLZ = []
     points_intensity = []
     points_elongation = []
+    extrinsics = []
 
     frame_pose = tf.convert_to_tensor(np.reshape(np.array(frame.pose.transform), [4, 4]))
     # [H, W, 6]
@@ -162,8 +163,9 @@ def convert_range_image_to_point_cloud(frame, range_images, camera_projections, 
         points_NLZ.append(np.concatenate(points_NLZ_single, axis=0))
         points_intensity.append(np.concatenate(points_intensity_single, axis=0))
         points_elongation.append(np.concatenate(points_elongation_single, axis=0))
+        extrinsics.append(extrinsic)
 
-    return points, cp_points, points_NLZ, points_intensity, points_elongation
+    return points, cp_points, points_NLZ, points_intensity, points_elongation, extrinsics
 
 
 def save_lidar_points(frame, cur_save_path, use_two_returns=True):
@@ -174,7 +176,7 @@ def save_lidar_points(frame, cur_save_path, use_two_returns=True):
         assert len(ret_outputs) == 3
         range_images, camera_projections, range_image_top_pose = ret_outputs
 
-    points, cp_points, points_in_NLZ_flag, points_intensity, points_elongation = convert_range_image_to_point_cloud(
+    points, cp_points, points_in_NLZ_flag, points_intensity, points_elongation, extrinsics = convert_range_image_to_point_cloud(
         frame, range_images, camera_projections, range_image_top_pose, ri_index=(0, 1) if use_two_returns else (0,)
     )
 
@@ -191,7 +193,7 @@ def save_lidar_points(frame, cur_save_path, use_two_returns=True):
 
     np.save(cur_save_path, save_points)
     # print('saving to ', cur_save_path)
-    return num_points_of_each_lidar
+    return num_points_of_each_lidar, extrinsics
 
 
 def process_single_sequence(sequence_file, save_path, sampled_interval, has_label=True, use_two_returns=True, update_info_only=False):
@@ -251,11 +253,13 @@ def process_single_sequence(sequence_file, save_path, sampled_interval, has_labe
         if update_info_only and sequence_infos_old is not None:
             assert info['frame_id'] == sequence_infos_old[cnt]['frame_id']
             num_points_of_each_lidar = sequence_infos_old[cnt]['num_points_of_each_lidar']
+            extrinsics = sequence_infos_old[cnt]['extrinsics']
         else:
-            num_points_of_each_lidar = save_lidar_points(
+            num_points_of_each_lidar, extrinsics = save_lidar_points(
                 frame, cur_save_dir / ('%04d.npy' % cnt), use_two_returns=use_two_returns
             )
         info['num_points_of_each_lidar'] = num_points_of_each_lidar
+        info['extrinsics'] = extrinsics
 
         sequence_infos.append(info)
 
