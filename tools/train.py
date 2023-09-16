@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 
-from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
+from pcdet.config import cfg, log_config_to_file, create_cfg_from_sets
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network, model_fn_decorator
 from pcdet.utils import common_utils
@@ -19,6 +19,8 @@ from train_utils.train_utils import train_model
 
 
 def parse_config():
+    global cfg
+
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
 
@@ -38,6 +40,8 @@ def parse_config():
     parser.add_argument('--merge_all_iters_to_one_epoch', action='store_true', default=False, help='')
     parser.add_argument('--set', dest='set_cfgs', default=None, nargs=argparse.REMAINDER,
                         help='set extra config keys if needed')
+    parser.add_argument('--modify', type=str, dest='modify_cfgs', default=None, nargs='*',
+                        help='specify extra modifier configs')
 
     parser.add_argument('--max_waiting_mins', type=int, default=0, help='max waiting minutes')
     parser.add_argument('--start_epoch', type=int, default=0, help='')
@@ -52,15 +56,22 @@ def parse_config():
     
 
     args = parser.parse_args()
+    if args.set_cfgs is None:
+        args.set_cfgs = []
+    if args.modify_cfgs is None:
+        args.modify_cfgs = []
 
-    cfg_from_yaml_file(args.cfg_file, cfg)
-    cfg.TAG = Path(args.cfg_file).stem
+    cfg = create_cfg_from_sets(args.cfg_file, args.modify_cfgs, args.set_cfgs, cfg)
+
     cfg.EXP_GROUP_PATH = '/'.join(args.cfg_file.split('/')[1:-1])  # remove 'cfgs' and 'xxxx.yaml'
     
     args.use_amp = args.use_amp or cfg.OPTIMIZATION.get('USE_AMP', False)
 
-    if args.set_cfgs is not None:
-        cfg_from_list(args.set_cfgs, cfg)
+    cfg.TAG = Path(args.cfg_file).stem
+    if len(args.modify_cfgs):
+        cfg.TAG += '__' + '__'.join([Path(m).stem for m in args.modify_cfgs])
+    if len(args.set_cfgs):
+        cfg.TAG += '__s__' + '__'.join([s.replace('/', '_') for s in args.set_cfgs])
 
     return args, cfg
 
@@ -109,7 +120,9 @@ def main():
         logger.info('{:16} {}'.format(key, val))
     log_config_to_file(cfg, logger=logger)
     if cfg.LOCAL_RANK == 0:
-        os.system('cp %s %s' % (args.cfg_file, output_dir))
+        os.system('cp %s %s' % (args.cfg_file, output_dir / ("BASE_" + Path(args.cfg_file).name)))
+        set_cfg = create_cfg_from_sets(args.cfg_file, args.modify_cfgs, args.set_cfgs)
+        cfg_to_yaml_file(set_cfg, output_dir / Path(args.cfg_file).name)
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
 

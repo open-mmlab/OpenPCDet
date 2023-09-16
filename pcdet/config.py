@@ -1,7 +1,9 @@
 from pathlib import Path
+from typing import List
 
 import yaml
 from easydict import EasyDict
+from runcon import Config
 
 
 def log_config_to_file(cfg, pre='cfg', logger=None):
@@ -78,6 +80,74 @@ def cfg_from_yaml_file(cfg_file, config):
         merge_new_config(config=config, new_config=new_config)
 
     return config
+
+
+def dict_representer(dumper, ed: EasyDict):
+    return dumper.represent_mapping('tag:yaml.org,2002:map', ed)
+
+
+yaml.add_representer(EasyDict, dict_representer)
+
+
+def cfg_to_yaml_file(config, cfg_file):
+    with open(cfg_file, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+
+def check_recursive_dict_type(cfg, type):
+    if isinstance(cfg, dict):
+        if not isinstance(cfg, type):
+            raise ValueError(
+                "The config is of type %s but was expected to be of type %s!\n%s"
+                % (type(cfg), type, cfg)
+            )
+        for k in cfg:
+            check_recursive_dict_type(cfg[k], type)
+
+
+def ed_to_rc(ed_cfg: EasyDict) -> Config:
+    check_recursive_dict_type(ed_cfg, EasyDict)
+    rc_cfg = Config(ed_cfg)
+    check_recursive_dict_type(rc_cfg, Config)
+    return rc_cfg
+
+
+def rc_to_ed(rc_cfg: Config) -> EasyDict:
+    check_recursive_dict_type(rc_cfg, Config)
+    ed_cfg = EasyDict()
+    for k in rc_cfg:
+        if isinstance(rc_cfg[k], Config):
+            ed_cfg[k] = rc_to_ed(rc_cfg[k])
+        else:
+            ed_cfg[k] = rc_cfg[k]
+    check_recursive_dict_type(ed_cfg, EasyDict)
+    return ed_cfg
+
+
+def modify_rc_cfg(cfg: Config, modify_cfgs: List[Path]) -> Config:
+    from copy import deepcopy
+    cfg = deepcopy(cfg)
+    for m in modify_cfgs:
+        m = cfg_from_yaml_file(m, EasyDict())
+        cfg.rupdate(ed_to_rc(m))
+    cfg = cfg.resolve_transforms()
+    return cfg
+
+
+def create_cfg_from_sets(
+        cfg_file: Path,
+        modify_cfgs: List[Path],
+        set_cfgs: List[str],
+        cfg: EasyDict = None,
+) -> EasyDict:
+    if cfg is None:
+        cfg = EasyDict()
+    cfg_from_yaml_file(cfg_file, cfg)
+    cfg = ed_to_rc(cfg)
+    cfg = modify_rc_cfg(cfg, modify_cfgs)
+    cfg = rc_to_ed(cfg)
+    cfg_from_list(set_cfgs, cfg)
+    return cfg
 
 
 cfg = EasyDict()
