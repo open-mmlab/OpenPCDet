@@ -1,8 +1,17 @@
 # Object Relation for 3D Object Detection
 
-<img src="./resources/seen_in_context.jpeg" width="100%">
+**Can you spot the vehicle in this point-cloud and can you precisely draw a bounding box around it?**
+<div align="center">
+  <img src="./resources/receptive_field.jpeg" width="70%">
+</div>
 
-3D object detectors usually predict objects independently from each other. Given the limited receptive field for each object, they are missing the required context. Especially when it comes to heavily occluded or sparse objects, context is necessary to correctly predict 3D bounding boxes. Simply increasing the receptive field would not give enough context while still being computationally feasible. Therefore, this project, comparable to previous work, proposes to model context efficiently with object relation.
+In this example it seems difficult to detect the object. However, that's exactly what we expecet of current SoTA object detectors, given their limited receptive field. This project hypothesises that the receptive field of different architectures does not capture enough context to deal with occlusions and sparsity of 3D data.
+
+<figure>
+  <img src="./resources/receptive_field_with_context.jpeg" width="100%">
+</figure>
+
+If we look at the full scene, it becomes clear that context can help us detect the vehicle correctly. However, simply increasing the receptive field would not give enough context while still being computationally feasible. Therefore, this project, comparable to previous work, proposes to model context efficiently with object relation.
 
 <figure>
   <img src="./resources/object_relation.png" width="100%">
