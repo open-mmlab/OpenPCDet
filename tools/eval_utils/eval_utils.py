@@ -59,7 +59,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         load_data_to_gpu(batch_dict)
 
         if getattr(args, 'infer_time', False):
-            start_time = time.time()
+            inference_start_time = time.time()
 
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
@@ -67,7 +67,7 @@ def eval_one_epoch(cfg, args, model, dataloader, epoch_id, logger, dist_test=Fal
         disp_dict = {}
 
         if getattr(args, 'infer_time', False):
-            inference_time = time.time() - start_time
+            inference_time = time.time() - inference_start_time
             infer_time_meter.update(inference_time * 1000)
             # use ms to measure inference time
             disp_dict['infer_time'] = f'{infer_time_meter.val:.2f}({infer_time_meter.avg:.2f})'
