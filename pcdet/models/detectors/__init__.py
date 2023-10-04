@@ -18,6 +18,7 @@ from .bevfusion import BevFusion
 from .pv_rcnn_relation import PVRCNNRelation
 from .pv_rcnn_plusplus_relation import PVRCNNPlusPlusRelation
 from .centerpoint_twostage import CenterPointTwoStage
+from .PartA2_relation_net import PartA2NetRelation
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -41,6 +42,7 @@ __all__ = {
     'PVRCNNRelation': PVRCNNRelation,
     'PVRCNNPlusPlusRelation': PVRCNNPlusPlusRelation,
     'CenterPointTwoStage': CenterPointTwoStage,
+    'PartA2NetRelation': PartA2NetRelation,
 }
 
 
