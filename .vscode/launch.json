@@ -30,6 +30,37 @@
             // },
         },
         {
+            "name": "Python: Train KITTI PV_RCNN_Relation Car Class only",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_relation_car_class_only.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+
+        {
+            "name": "Python: Train KITTI PV_RCNN_PlusPlus_Relation Car Class only",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus_reproduced_by_community_car_class_only.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+        {
             "name": "Python: Train KITTI PV_RCNN_PLUSPLUS_RELATION",
             "type": "python",
             "request": "launch",
@@ -91,6 +122,26 @@
             "cwd": "/root/OpenPCDet/tools/",
         },
         {
+            "name": "Python: Train KITTI PartA2 Car Class Only",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/PartA2_car_class_only.yaml", "--extra_tag", "debug"],
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Train KITTI PartA2 Relation Car Class Only",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/PartA2_relation_car_class_only.yaml", "--extra_tag", "debug"],
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
             "name": "Python: Visualize KITTI PV_RCNN",
             "type": "python",
             "request": "launch",
@@ -106,17 +157,18 @@
             "cwd": "/root/OpenPCDet/tools/"
         },
         {
-            "name": "Python: Evaluate KITTI PV_RCNN",
+            "name": "Python: Evaluate KITTI PV_RCNN_Relation_CAR_ONLY",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn.yaml", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn/2023-08-01_20-06-45/ckpt/checkpoint_epoch_90.pth", "--batch_size", "6"],
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_relation_car_class_only.yaml", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn_relation_car_class_only/2023-09-29_07-21-48/ckpt/checkpoint_epoch_80.pth", "--extra_tag", "2023-09-29_07-21-48"],
             "cwd": "/root/OpenPCDet/tools/",
             "env": {
                 "CUDA_VISIBLE_DEVICES": "1"
                 
             },
+            "justMyCode": false
         },
         {
             "name": "Python: Evaluate KITTI PV_RCNN++ ALL",
