@@ -23,19 +23,23 @@ from .utils import build_mlp
 
 # similar to EdgeConv https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.EdgeConv.html
 class EdgeConv(tg.nn.MessagePassing):
-    def __init__(self, dim_in, dim_out, drop_out=None):
+    def __init__(self, dim_in, dim_out, drop_out=None, skip_connection=False):
         super(EdgeConv, self).__init__(aggr='max')
+        self.skip_connection = skip_connection
         self.mlp = build_mlp(dim_in, [dim_out], activation="ReLU", bn=True, drop_out=drop_out)
+        self.batch_norm = nn.BatchNorm1d(dim_out)
 
     def forward(self, x, edge_index, edge_attr=None):
-        return self.propagate(edge_index, x=x, edge_attr=edge_attr)
+        out = self.propagate(edge_index, x=x, edge_attr=edge_attr)
+        out = self.batch_norm(out)
+        if self.skip_connection:
+            return out + x
+        return out  
 
     def message(self, x_i, x_j, edge_attr=None):
         if edge_attr is not None:
             x = torch.cat((x_j - x_i, x_i, edge_attr), dim=-1)
         else:
-            # one could also try this:
-            # x = torch.cat((x_j, x_i), dim=-1)
             x = torch.cat((x_j - x_i, x_i), dim=-1)
         x = self.mlp(x)
         return x
@@ -73,7 +77,8 @@ class GNN(nn.Module):
 
             edge_dim = (7 if self.graph_conv.EDGE_EMBEDDING else 0)
             if self.graph_conv.NAME == "EdgeConv":
-                curr_conv_layer_list.append(EdgeConv(2*input_dim+edge_dim, self.gnn_layers[i], drop_out=self.drop_out))
+                edge_conv_skip_connection = False if "SKIP_CONNECTION" not in self.graph_conv else self.graph_conv.SKIP_CONNECTION
+                curr_conv_layer_list.append(EdgeConv(2*input_dim+edge_dim, self.gnn_layers[i], drop_out=self.drop_out,  skip_connection=edge_conv_skip_connection))
             elif self.graph_conv.NAME == "GATConv":
                 # layer according to tg example: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/gat.py
                 curr_conv_layer_list.append(nn.Dropout(p=self.drop_out))
