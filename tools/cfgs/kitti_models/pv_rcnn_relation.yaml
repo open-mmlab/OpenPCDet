@@ -231,6 +231,7 @@ MODEL:
                 NAME: EdgeConv,
                 EDGE_EMBEDDING: True,
                 # HEADS: 4,
+                SKIP_CONNECTION: True
             },
             DYNAMIC: False,
             NAME: knn_graph,
@@ -240,12 +241,14 @@ MODEL:
             # EDGE_EMBEDDING: True,
         }
         LAYERS: [256, 256, 256, 256]
-        SKIP_CONNECTION: False
+        SKIP_CONNECTION: True
         # IN_BETWEEN_MLP: [256, 256, 256, 256]
+        IN_BETWEEN_MLP: False
         # GLOBAL_INFORMATION: {
         #     MLP_LAYERS: [256, 256],
         #     CONCATENATED: False,
         # }
+        GLOBAL_INFORMATION: False
         DP_RATIO: 0.3
 
 

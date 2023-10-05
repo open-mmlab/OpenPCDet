@@ -51,8 +51,10 @@ class GNN(nn.Module):
         self.graph_cfg = object_relation_cfg.GRAPH
         self.graph_conv = object_relation_cfg.GRAPH.CONV
         self.gnn_layers = object_relation_cfg.LAYERS
-        self.in_between_layers = object_relation_cfg.IN_BETWEEN_MLP if 'IN_BETWEEN_MLP' in  object_relation_cfg else None
-        self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
+        self.in_between_layers = object_relation_cfg.IN_BETWEEN_MLP
+        # self.in_between_layers = object_relation_cfg.IN_BETWEEN_MLP if 'IN_BETWEEN_MLP' in  object_relation_cfg else None
+        self.global_information = object_relation_cfg.GLOBAL_INFORMATION
+        # self.global_information = object_relation_cfg.GLOBAL_INFORMATION if 'GLOBAL_INFORMATION' in object_relation_cfg  else None
         self.number_classes = number_classes
         self.drop_out = object_relation_cfg.DP_RATIO
         self.skip_connection = object_relation_cfg.SKIP_CONNECTION
@@ -77,8 +79,7 @@ class GNN(nn.Module):
 
             edge_dim = (7 if self.graph_conv.EDGE_EMBEDDING else 0)
             if self.graph_conv.NAME == "EdgeConv":
-                edge_conv_skip_connection = False if "SKIP_CONNECTION" not in self.graph_conv else self.graph_conv.SKIP_CONNECTION
-                curr_conv_layer_list.append(EdgeConv(2*input_dim+edge_dim, self.gnn_layers[i], drop_out=self.drop_out,  skip_connection=edge_conv_skip_connection))
+                curr_conv_layer_list.append(EdgeConv(2*input_dim+edge_dim, self.gnn_layers[i], drop_out=self.drop_out,  skip_connection=self.graph_conv.SKIP_CONNECTION))
             elif self.graph_conv.NAME == "GATConv":
                 # layer according to tg example: https://github.com/pyg-team/pytorch_geometric/blob/master/examples/gat.py
                 curr_conv_layer_list.append(nn.Dropout(p=self.drop_out))
@@ -145,7 +146,7 @@ class GNN(nn.Module):
         batch_dict['gnn_edges'] = edge_index
 
         edge_attr = None
-        if 'EDGE_EMBEDDING' in self.graph_conv and self.graph_conv.EDGE_EMBEDDING:
+        if self.graph_conv.EDGE_EMBEDDING:
             from_node, to_node = edge_index
             edge_attr = proposal_boxes[from_node] - proposal_boxes[to_node]
         
