@@ -19,6 +19,7 @@ from .pv_rcnn_relation import PVRCNNRelation
 from .pv_rcnn_plusplus_relation import PVRCNNPlusPlusRelation
 from .centerpoint_twostage import CenterPointTwoStage
 from .PartA2_relation_net import PartA2NetRelation
+from .voxel_rcnn_relation import VoxelRCNNRelation
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -43,6 +44,7 @@ __all__ = {
     'PVRCNNPlusPlusRelation': PVRCNNPlusPlusRelation,
     'CenterPointTwoStage': CenterPointTwoStage,
     'PartA2NetRelation': PartA2NetRelation,
+    'VoxelRCNNRelation': VoxelRCNNRelation,
 }
 
 

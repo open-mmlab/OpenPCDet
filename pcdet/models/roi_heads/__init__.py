@@ -9,6 +9,7 @@ from .mppnet_head import MPPNetHead
 from .mppnet_memory_bank_e2e import MPPNetHeadE2E
 from .roi_head import RoIHead
 from .partA2_relation_head import PartA2RelationFCHead
+from .voxelrcnn_relation_head import VoxelRCNNRelationHead
 
 
 __all__ = {
@@ -23,4 +24,5 @@ __all__ = {
     'PVRCNNHeadRelation': PVRCNNHeadRelation,
     'ROIHead': RoIHead,
     'PartA2RelationFCHead': PartA2RelationFCHead,
+    'VoxelRCNNRelationHead': VoxelRCNNRelationHead,
 }
