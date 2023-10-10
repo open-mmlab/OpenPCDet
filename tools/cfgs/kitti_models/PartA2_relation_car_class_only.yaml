@@ -140,7 +140,7 @@ MODEL:
             CONV: {
                 NAME: EdgeConv,
                 EDGE_EMBEDDING: True,
-                SKIP_CONECTION: True
+                SKIP_CONNECTION: True
             },
             DYNAMIC: False,
             NAME: knn_graph,
@@ -150,6 +150,8 @@ MODEL:
         }
         LAYERS: [256, 256, 256, 256]
         SKIP_CONNECTION: True
+        IN_BETWEEN_MLP: False
+        GLOBAL_INFORMATION: False
         DP_RATIO: 0.3
 
 
