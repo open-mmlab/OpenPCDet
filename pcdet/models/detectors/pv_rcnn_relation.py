@@ -9,6 +9,7 @@ class PVRCNNRelation(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
         self.object_relation = build_object_relation_module(model_cfg.OBJECT_RELATION)
+        self.frozen = True if "FROZEN" in model_cfg.keys() else model_cfg.FROZEN
 
     def forward(self, batch_dict):
         # MeanVFE: Voxelisation
@@ -50,7 +51,10 @@ class PVRCNNRelation(Detector3DTemplate):
         loss_point, tb_dict = self.point_head.get_loss(tb_dict)
         loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict)
 
-        loss = loss_rpn + loss_point + loss_rcnn
+        if self.frozen:
+            loss = loss_rcnn
+        else:
+            loss = loss_rpn + loss_point + loss_rcnn
         
         if hasattr(self.backbone_3d, 'get_loss'):
             loss_backbone3d, tb_dict = self.backbone_3d.get_loss(tb_dict)

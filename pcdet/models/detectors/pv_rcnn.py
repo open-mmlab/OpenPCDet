@@ -5,6 +5,7 @@ class PVRCNN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
+        self.frozen = True if "FROZEN" in model_cfg.keys() else model_cfg.FROZEN
 
     def forward(self, batch_dict):
         for cur_module in self.module_list:
@@ -27,7 +28,10 @@ class PVRCNN(Detector3DTemplate):
         loss_point, tb_dict = self.point_head.get_loss(tb_dict)
         loss_rcnn, tb_dict = self.roi_head.get_loss(tb_dict)
 
-        loss = loss_rpn + loss_point + loss_rcnn
+        if self.frozen:
+            loss = loss_rcnn
+        else:
+            loss = loss_rpn + loss_point + loss_rcnn
         
         if hasattr(self.backbone_3d, 'get_loss'):
             loss_backbone3d, tb_dict = self.backbone_3d.get_loss(tb_dict)

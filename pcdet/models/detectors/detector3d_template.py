@@ -344,7 +344,7 @@ class Detector3DTemplate(nn.Module):
             gt_iou = box_preds.new_zeros(box_preds.shape[0])
         return recall_dict
 
-    def _load_state_dict(self, model_state_disk, *, strict=True):
+    def _load_state_dict(self, model_state_disk, *, strict=True, learnable_layer=None):
         state_dict = self.state_dict()  # local cache of state_dict
 
         spconv_keys = find_all_spconv_keys(self)
@@ -371,11 +371,15 @@ class Detector3DTemplate(nn.Module):
         if strict:
             self.load_state_dict(update_model_state)
         else:
+            if learnable_layer:
+                for key in list(update_model_state.keys()):
+                    if any([(l in key) for l in learnable_layer]):
+                        del update_model_state[key]
             state_dict.update(update_model_state)
             self.load_state_dict(state_dict)
         return state_dict, update_model_state
 
-    def load_params_from_file(self, filename, logger, to_cpu=False, pre_trained_path=None):
+    def load_params_from_file(self, filename, logger, to_cpu=False, pre_trained_path=None, learnable_layer=None):
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
@@ -392,7 +396,7 @@ class Detector3DTemplate(nn.Module):
         if version is not None:
             logger.info('==> Checkpoint trained from version: %s' % version)
 
-        state_dict, update_model_state = self._load_state_dict(model_state_disk, strict=False)
+        state_dict, update_model_state = self._load_state_dict(model_state_disk, strict=False, learnable_layer=learnable_layer)
 
         for key in state_dict:
             if key not in update_model_state:
