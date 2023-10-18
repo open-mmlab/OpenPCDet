@@ -5,7 +5,7 @@ class PVRCNN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
-        self.frozen = True if "FROZEN" in model_cfg.keys() else model_cfg.FROZEN
+        self.frozen = model_cfg.FROZEN if "FROZEN" in model_cfg.keys() else False
 
     def forward(self, batch_dict):
         for cur_module in self.module_list:

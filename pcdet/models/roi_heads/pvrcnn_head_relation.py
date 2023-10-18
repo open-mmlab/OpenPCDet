@@ -32,6 +32,7 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
         self.shared_fc_layer = nn.Sequential(*shared_fc_list)
         
         if object_relation_config.NAME == 'GNN':
+            self.skip_head = False
             if object_relation_config.GLOBAL_INFORMATION:
                 initial_input_dim = object_relation_config.GLOBAL_INFORMATION.MLP_LAYERS[-1]
                 if not object_relation_config.GLOBAL_INFORMATION.CONCATENATED:
@@ -42,10 +43,19 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
             if object_relation_config.SKIP_CONNECTION:
                 self.head_input_channels = initial_input_dim + sum(object_relation_config.LAYERS)
             else:
-                self.head_input_channels = object_relation_config.LAYERS[-1]
+                if len(object_relation_config.LAYERS) == 0:
+                    self.head_input_channels = self.model_cfg.SHARED_FC[-1]
+                else:
+                    self.head_input_channels = object_relation_config.LAYERS[-1]
         elif object_relation_config.NAME == 'CGNLNet':
             # TODO: udpate this
             self.head_input_channels = self.model_cfg.SHARED_FC[-1] + 256 + 256
+        elif object_relation_config.NAME == 'GNN_BADET':
+            self.head_input_channels = 256
+            self.skip_head = True
+        elif object_relation_config.NAME == 'GNN_NEW':
+            self.head_input_channels = 256
+            self.skip_head = False
         else:
             raise NotImplementedError
         
@@ -199,10 +209,14 @@ class PVRCNNHeadRelation(RoIHeadTemplate):
         return batch_dict
 
     def final_predictions(self, batch_dict):
-        shared_features = batch_dict['related_features']
-        shared_features = shared_features.view(-1, self.head_input_channels, 1)
-        rcnn_cls = self.cls_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
-        rcnn_reg = self.reg_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
+        if self.skip_head:
+            rcnn_cls = batch_dict['rcnn_cls']
+            rcnn_reg = batch_dict['rcnn_reg']
+        else:
+            shared_features = batch_dict['related_features']
+            shared_features = shared_features.view(-1, self.head_input_channels, 1)
+            rcnn_cls = self.cls_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, 1 or 2)
+            rcnn_reg = self.reg_layers(shared_features).transpose(1, 2).contiguous().squeeze(dim=1)  # (B, C)
 
         if not self.training:
             batch_cls_preds, batch_box_preds = self.generate_predicted_boxes(

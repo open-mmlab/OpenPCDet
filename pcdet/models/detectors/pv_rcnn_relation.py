@@ -9,7 +9,7 @@ class PVRCNNRelation(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
         self.object_relation = build_object_relation_module(model_cfg.OBJECT_RELATION)
-        self.frozen = True if "FROZEN" in model_cfg.keys() else model_cfg.FROZEN
+        self.frozen = model_cfg.FROZEN if "FROZEN" in model_cfg.keys() else False
 
     def forward(self, batch_dict):
         # MeanVFE: Voxelisation
