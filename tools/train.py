@@ -1,4 +1,3 @@
-import _init_path
 import argparse
 import datetime
 import glob
@@ -8,7 +7,7 @@ from test import repeat_eval_ckpt
 
 import torch
 import torch.nn as nn
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
 from pcdet.datasets import build_dataloader
@@ -111,7 +110,7 @@ def main():
     if cfg.LOCAL_RANK == 0:
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
-    tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    # tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
 
     logger.info("----------- Create dataloader & network & optimizer -----------")
     train_set, train_loader, train_sampler = build_dataloader(
@@ -183,7 +182,7 @@ def main():
         total_epochs=args.epochs,
         start_iter=it,
         rank=cfg.LOCAL_RANK,
-        tb_log=tb_log,
+        tb_log=None,
         ckpt_save_dir=ckpt_dir,
         train_sampler=train_sampler,
         lr_warmup_scheduler=lr_warmup_scheduler,

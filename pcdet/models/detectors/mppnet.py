@@ -1,12 +1,6 @@
 import torch
 from .detector3d_template import Detector3DTemplate
-from pcdet.ops.iou3d_nms import iou3d_nms_utils
-import os
-import numpy as np
-import time
-from ...utils import common_utils
 from ..model_utils import model_nms_utils
-from pcdet.datasets.augmentor import augmentor_utils, database_sampler
 
 
 class MPPNet(Detector3DTemplate):

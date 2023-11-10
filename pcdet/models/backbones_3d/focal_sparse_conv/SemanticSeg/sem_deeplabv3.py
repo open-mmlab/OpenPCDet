@@ -5,8 +5,10 @@ from torch import hub
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
-
+try:
+    import torchvision
+except:
+    pass
 
 class SegTemplate(nn.Module):
     def __init__(self, constructor, feat_extract_layer, num_classes, pretrained_path=None, aux_loss=None):

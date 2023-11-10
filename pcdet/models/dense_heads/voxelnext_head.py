@@ -5,7 +5,7 @@ from torch.nn.init import kaiming_normal_
 from ..model_utils import centernet_utils
 from ..model_utils import model_nms_utils
 from ...utils import loss_utils
-from ...utils.spconv_utils import replace_feature, spconv
+from ...utils.spconv_utils import spconv
 import copy
 from easydict import EasyDict
 

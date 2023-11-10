@@ -5,7 +5,6 @@ Mostly copy-paste from
     
 """
 
-import warnings
 from collections import OrderedDict
 from copy import deepcopy
 

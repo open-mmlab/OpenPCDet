@@ -1,9 +1,9 @@
 from functools import partial
 
 import numpy as np
-from skimage import transform
+# from skimage import transform
 import torch
-import torchvision
+# import torchvision
 from ...utils import box_utils, common_utils
 
 tv = None
@@ -219,6 +219,7 @@ class DataProcessor(object):
             return partial(self.calculate_grid_size, config=config)
         return data_dict
 
+    """
     def downsample_depth_map(self, data_dict=None, config=None):
         if data_dict is None:
             self.depth_downsample_factor = config.DOWNSAMPLE_FACTOR
@@ -229,7 +230,9 @@ class DataProcessor(object):
             factors=(self.depth_downsample_factor, self.depth_downsample_factor)
         )
         return data_dict
-    
+    """
+
+    """
     def image_normalize(self, data_dict=None, config=None):
         if data_dict is None:
             return partial(self.image_normalize, config=config)
@@ -243,6 +246,7 @@ class DataProcessor(object):
         )
         data_dict["camera_imgs"] = [compose(img) for img in data_dict["camera_imgs"]]
         return data_dict
+    """
     
     def image_calibrate(self,data_dict=None, config=None):
         if data_dict is None:

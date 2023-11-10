@@ -38,14 +38,16 @@ if __name__ == '__main__':
         install_requires=[
             'numpy',
             'llvmlite',
-            'numba',
-            'tensorboardX',
+            # 'numba',
+            # 'tensorboardX',
             'easydict',
             'pyyaml',
-            'scikit-image',
+            # 'scikit-image',
             'tqdm',
-            'SharedArray',
+            # 'SharedArray',
             # 'spconv',  # spconv has different names depending on the cuda version
+            'Pillow',
+            'scipy',
         ],
 
         author='Shaoshuai Shi',
