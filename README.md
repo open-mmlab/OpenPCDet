@@ -21,11 +21,11 @@ There are four motivations for modeling object relations in the refinement stage
 
 
 | ![Image 1](resources/occlusion.png) | ![Image 2](resources/pattern.png) |
-|:--------------------------:|:--------------------------:|
+|:-:|:-:|
 | *Detecting Occlusions*      | *Exploiting Patterns*      |
-| ![Image 3](resources/radius.png) | ![Image 4](resources/proposal_consensus.png) |
-|:--------------------------:|:--------------------------:|
+| ![Image 3](resources/radius.png) | ![Image 4](resources/proposal_consensus.png)
 | *Increase of Receptive Fields*      | *Proposals Consensus*      |
+||
 
 # PV-RCNN-Relation
 
