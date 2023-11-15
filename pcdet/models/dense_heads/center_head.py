@@ -197,7 +197,7 @@ class CenterHead(nn.Module):
                 for idx, name in enumerate(gt_class_names):
                     if name not in cur_class_names:
                         continue
-                    temp_box = cur_gt_boxes[idx]
+                    temp_box = cur_gt_boxes.clone()[idx]
                     temp_box[-1] = cur_class_names.index(name) + 1
                     gt_boxes_single_head.append(temp_box[None, :])
 
