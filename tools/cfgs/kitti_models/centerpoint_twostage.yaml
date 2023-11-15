@@ -6,7 +6,7 @@ DATA_CONFIG:
 
 
 MODEL:
-    NAME: CenterPoint
+    NAME: CenterPointTwoStage
 
     VFE:
         NAME: MeanVFE
@@ -30,14 +30,14 @@ MODEL:
     DENSE_HEAD:
         NAME: CenterHead
         CLASS_AGNOSTIC: False
-
         USE_DIRECTION_CLASSIFIER: False
-
+        ##############################
         SHARED_CONV_CHANNEL: 64
         USE_BIAS_BEFORE_NORM: True
         NUM_HM_CONV: 2
         SEPARATE_HEAD_CFG:
             HEAD_ORDER: ['center', 'center_z', 'dim', 'rot']
+            # this is what the head is predicting
             HEAD_DICT: {
                 'center': {'out_channels': 2, 'num_conv': 2},
                 'center_z': {'out_channels': 1, 'num_conv': 2},
@@ -48,6 +48,7 @@ MODEL:
         CLASS_NAMES_EACH_HEAD: [
             ['Car', 'Pedestrian', 'Cyclist']
         ]
+        ##############################
 
         TARGET_ASSIGNER_CONFIG:
             FEATURE_MAP_STRIDE: 4
@@ -57,6 +58,7 @@ MODEL:
             GAUSSIAN_OVERLAP: 0.1
             MIN_RADIUS: 2
             # BOX_CODER: ResidualCoder
+
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
@@ -73,6 +75,48 @@ MODEL:
                 NMS_PRE_MAXSIZE: 4096
                 NMS_POST_MAXSIZE: 500
 
+    ROI_HEAD:
+        NAME: ROIHead
+        #### Not sure about this #### 
+        BEV_FEATURE_DIM: 352 
+        FEATURE_MAP_STRIDE: 4
+        NUM_POINTS: 5 # anchor points for pooling either 1 or 5
+        ADD_BOX_PARAM: True
+        ############################# 
+        CLASS_AGNOSTIC: True
+        SHARED_FC: [256, 256]
+        CLS_FC: [256, 256]
+        REG_FC: [256, 256]
+        DP_RATIO: 0.3
+
+        TARGET_CONFIG:
+            BOX_CODER: ResidualCoder
+            ROI_PER_IMAGE: 128
+            FG_RATIO: 0.5
+
+            SAMPLE_ROI_BY_EACH_CLASS: True
+            CLS_SCORE_TYPE: roi_iou
+
+            CLS_FG_THRESH: 0.75
+            CLS_BG_THRESH: 0.25
+            CLS_BG_THRESH_LO: 0.1
+            HARD_BG_RATIO: 0.8
+            REG_FG_THRESH: 0.55
+
+
+        LOSS_CONFIG:
+            CLS_LOSS: BinaryCrossEntropy
+            REG_LOSS: smooth-l1
+            CORNER_LOSS_REGULARIZATION: True
+            LOSS_WEIGHTS: {
+                'rcnn_cls_weight': 1.0,
+                'rcnn_reg_weight': 1.0,
+                'rcnn_corner_weight': 1.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+
+
+    
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
         SCORE_THRESH: 0.1
@@ -89,7 +133,7 @@ MODEL:
 
 
 OPTIMIZATION:
-    BATCH_SIZE_PER_GPU: 8
+    BATCH_SIZE_PER_GPU: 2
     NUM_EPOCHS: 80
 
     OPTIMIZER: adam_onecycle
