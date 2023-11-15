@@ -5,7 +5,7 @@ This work focuses on exploring the impact of modeling object relation in two-sta
 
 ## Project Structure
 
-This project extends [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) with a module that relates object proposals with each other. Different implementation of this model can be found in **pcdet/models/object_relation**.
+This project extends [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) with a module that relates object proposals with each other. Different implementations of this model can be found in **pcdet/models/object_relation**.
 
 ## Motivation
 
@@ -29,7 +29,7 @@ There are four motivations for modeling object relations in the refinement stage
 
 # PV-RCNN-Relation
 
-PV-RCNN-Relation is a implementation of a object relations module applied to the PVRCNN baseline. It beats its baseline on all difficulties for the vehicle class.
+PV-RCNN-Relation is an implementation of an object relations module applied to the PVRCNN baseline. It beats its baseline on all difficulties for the vehicle class.
 
 
 ## Results
@@ -48,7 +48,7 @@ PV-RCNN-Relation is a implementation of a object relations module applied to the
 | ![Image 1](resources/side.png) | ![Image 2](resources/relation_side.png) |
 |  |  |
 
-Qualitative results for PV-RCNN baseline and PV-RCNN-Relation on Waymo data. Predictions are shown in green, labels in blue and edges that connect proposals to share information in red. 
+Qualitative results for PV-RCNN baseline and PV-RCNN-Relation on Waymo data. Predictions are shown in green, labels in blue, and edges that connect proposals to share information in red. 
 
 
 
