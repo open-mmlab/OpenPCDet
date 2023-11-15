@@ -25,7 +25,7 @@ There are four motivations for modeling object relations in the refinement stage
 | *Detecting Occlusions*      | *Exploiting Patterns*      |
 | ![Image 3](resources/radius.png) | ![Image 4](resources/proposal_consensus.png)
 | *Increase of Receptive Fields*      | *Proposals Consensus*      |
-||
+
 
 # PV-RCNN-Relation
 
@@ -36,8 +36,8 @@ PV-RCNN-Relation is a implementation of a object relations module applied to the
 
 | Model             | Easy R11 / R40 | Moderate R11 / R40 | Hard R11 / R40 | All R11 / R40 |
 |-------------------|----------------|--------------------|----------------|---------------|
-| PVRCNN            | 89.39 / 92.02  | 83.63 / 84.80      | 78.86 / 82.58  | 83.91 / 86.45 |
-| PVRCNN-Relation   | 89.59 / 92.53  | 84.56 / 85.22      | 79.04 / 82.99  | 84.35 / 86.90 |
+| PV-RCNN            | 89.39 / 92.02  | 83.63 / 84.80      | 78.86 / 82.58  | 83.91 / 86.45 |
+| PV-RCNN-Relation   | 89.59 / 92.53  | 84.56 / 85.22      | 79.04 / 82.99  | 84.35 / 86.90 |
 | *Improvement*     | **+0.20 / +0.51** | **+0.93 / +0.42** | **+0.18 / +0.41** | **+0.44 / +0.45** |
 
 *Comparison of PVRCNN and PVRCNN-Relation on KITTI validation set. Trained and evaluated only on the car class. All models were trained for 80 epochs and the best-performing epoch per model and metric was chosen. **Both models were trained three times** and the average is reported. The* Improvement *row represents the difference in mAP between the two models. See table for full results.*
