@@ -1,32 +1,55 @@
-# Object Relation for 3D Object Detection
+# Object Relations for 3D Object Detection
 
-**Can you spot the vehicle in this point-cloud and can you precisely draw a bounding box around it?**
-<div align="center">
-  <img src="./resources/receptive_field.jpeg" width="70%">
-</div>
+This work focuses on exploring the impact of modeling object relation in two-stage object detection pipelines, aiming to enhance their detection performance. It extends OpenPCDet with a module that models object relations which can be integrated into existing object detectors. To get this project running please check [OpenPCDet](https://github.com/open-mmlab/OpenPCDet).
+ 
 
-In this example it seems difficult to detect the object. However, that's exactly what we expecet of current SoTA object detectors, given their limited receptive field. This project hypothesises that the receptive field of different architectures does not capture enough context to deal with occlusions and sparsity of 3D data.
+## Project Structure
 
-<figure>
-  <img src="./resources/receptive_field_with_context.jpeg" width="100%">
-</figure>
+This project extends [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) with a module that relates object proposals with each other. Different implementation of this model can be found in **pcdet/models/object_relation**.
 
-If we look at the full scene, it becomes clear that context can help us detect the vehicle correctly. However, simply increasing the receptive field would not give enough context while still being computationally feasible. Therefore, this project, comparable to previous work, proposes to model context efficiently with object relation.
+## Motivation
 
-<figure>
-  <img src="./resources/object_relation.png" width="100%">
-  <figcaption>Object Relation as an efficient Way to model Context</figcaption>
-</figure>
+There are four motivations for modeling object relations in the refinement stage of two-stage object detection pipelines.
 
-## Architecture
+- **Detecting Occlusions:** If information between an occluded and an occluder object is shared, the occluded object can be informed about its occlusion status. This can help the model learn the difference between sparse proposals that are heavily occluded and noise in the data.
 
-To model object relation, this project introduces a GNN. The nodes in the graph are the detected objects; their features are obtained by the second stage of the model (refined features). The edges of the graph are obtained via a radius graph or knn (distance can be measured in R3 or in feature space). Global information, how the objects relate to each other, are infused into the edges. After the GNN is applied the model obtains a feature vector for each object that contains information about all the other objects. 
+- **Exploiting Patterns:** Traffic scenes often follow specific patterns that can be exploited by the object detector.
 
-<img src="./resources/gnn_architecture.png" width="100%">
+- **Increase of Receptive Fields:** Current object detectors fail to incorporate enough context in the refinement stage because their receptive fields are too small. Object relations can be seen as an efficient mechanism to increase the receptive field.
+
+- **Proposal Consensus:** Proposals often form clusters around potential objects. Each proposal might have a different view of the object. Sharing information between these proposals leads to a consensus prediction.
+
+
+| ![Image 1](resources/occlusion.png) | ![Image 2](resources/pattern.png) |
+|:--------------------------:|:--------------------------:|
+| *Detecting Occlusions*      | *Exploiting Patterns*      |
+| ![Image 3](resources/radius.png) | ![Image 4](resources/proposal_consensus.png) |
+|:--------------------------:|:--------------------------:|
+| *Increase of Receptive Fields*      | *Proposals Consensus*      |
+
+# PV-RCNN-Relation
+
+PV-RCNN-Relation is a implementation of a object relations module applied to the PVRCNN baseline. It beats its baseline on all difficulties for the vehicle class.
+
 
 ## Results
 
-<img src="./resources/results.png" width="100%">
+| Model             | Easy R11 / R40 | Moderate R11 / R40 | Hard R11 / R40 | All R11 / R40 |
+|-------------------|----------------|--------------------|----------------|---------------|
+| PVRCNN            | 89.39 / 92.02  | 83.63 / 84.80      | 78.86 / 82.58  | 83.91 / 86.45 |
+| PVRCNN-Relation   | 89.59 / 92.53  | 84.56 / 85.22      | 79.04 / 82.99  | 84.35 / 86.90 |
+| *Improvement*     | **+0.20 / +0.51** | **+0.93 / +0.42** | **+0.18 / +0.41** | **+0.44 / +0.45** |
+
+*Comparison of PVRCNN and PVRCNN-Relation on KITTI validation set. Trained and evaluated only on the car class. All models were trained for 80 epochs and the best-performing epoch per model and metric was chosen. **Both models were trained three times** and the average is reported. The* Improvement *row represents the difference in mAP between the two models. See table for full results.*
+
+
+| | |
+|:-------------------------:|:-------------------------:|
+| ![Image 1](resources/side.png) | ![Image 2](resources/relation_side.png) |
+|  |  |
+
+Qualitative results for PV-RCNN baseline and PV-RCNN-Relation on Waymo data. Predictions are shown in green, labels in blue and edges that connect proposals to share information in red. 
+
 
 
 
