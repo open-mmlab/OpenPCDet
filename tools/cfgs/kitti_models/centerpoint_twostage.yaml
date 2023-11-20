@@ -81,7 +81,7 @@ MODEL:
         BEV_FEATURE_DIM: 352 
         FEATURE_MAP_STRIDE: 4
         NUM_POINTS: 5 # anchor points for pooling either 1 or 5
-        ADD_BOX_PARAM: True
+        ADD_BOX_PARAM: False
         ############################# 
         CLASS_AGNOSTIC: True
         SHARED_FC: [256, 256]
