@@ -17,6 +17,7 @@ python setup.py develop
 3. Prepare data according to [OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
 
 ## Training & Testing
+The following commands should be ran in ``./tools``.
 
 Train Model:
 ```bash
