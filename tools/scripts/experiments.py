@@ -4,7 +4,7 @@ import subprocess
 import time
 
 # Initialize paths and names
-experiment_name = 'relation_backbone'
+experiment_name = 'iterative_gnn_1'
 
 BASE_PATH = '/root/OpenPCDet/tools'
 base_path = "./cfgs/kitti_models"
@@ -18,7 +18,7 @@ experiment_output_path = os.path.join(kitti_output_path, "experiments", experime
 yaml_files = glob.glob(os.path.join(experiments_input_path, "*.yaml"))
 experiments = [os.path.splitext(os.path.basename(f))[0] for f in yaml_files]
 # sort the experiments 
-experiments = sorted(experiments, key=lambda x: int(x.split('_')[0]))
+# experiments = sorted(experiments, key=lambda x: int(x.split('_')[0]))
 
 # print the experiments
 print(f"Running experiments at {experiments_input_path}: {experiments}")

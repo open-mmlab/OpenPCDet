@@ -38,18 +38,19 @@ class CenterPointTwoStage(Detector3DTemplate):
         loss = loss_rpn + loss_rcnn
         return loss, tb_dict, disp_dict
 
-    def post_processing(self, batch_dict):
-        post_process_cfg = self.model_cfg.POST_PROCESSING
-        batch_size = batch_dict['batch_size']
-        final_pred_dict = batch_dict['final_box_dicts']
-        recall_dict = {}
-        for index in range(batch_size):
-            pred_boxes = final_pred_dict[index]['pred_boxes']
+    # def post_processing(self, batch_dict):
+    #     post_process_cfg = self.model_cfg.POST_PROCESSING
+    #     batch_size = batch_dict['batch_size']
+    #     # final_pred_dict = batch_dict['final_box_dicts']
+    #     final_preds = batch_dict['batch_box_preds']
+    #     recall_dict = {}
+    #     for index in range(batch_size):
+    #         pred_boxes = final_pred_dict[index]['pred_boxes']
 
-            recall_dict = self.generate_recall_record(
-                box_preds=pred_boxes,
-                recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
-                thresh_list=post_process_cfg.RECALL_THRESH_LIST
-            )
+    #         recall_dict = self.generate_recall_record(
+    #             box_preds=pred_boxes,
+    #             recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
+    #             thresh_list=post_process_cfg.RECALL_THRESH_LIST
+    #         )
 
-        return final_pred_dict, recall_dict
+    #     return final_pred_dict, recall_dict

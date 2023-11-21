@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Waymo Demo",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            "args": ["--cfg_file", "./cfgs/waymo_models/pv_rcnn.yaml", "--ckpt", "../output/cfgs/waymo_models/pv_rcnn/default/ckpt/latest_model.pth", "--data_path", "../data/waymo/waymo_processed_data_v0_5_0/segment-15832924468527961_1564_160_1584_160_with_camera_labels/0000.npy", "--ext", ".npy"]
+        },
+        {
             "name": "Python: Run File",
             "type": "python",
             "request": "launch",
@@ -13,6 +24,39 @@
             "justMyCode": true,
             // "preLaunchTask": "Change working directory",
             "cwd": "/root/OpenPCDet/tools/"
+        },
+        {
+            "name": "Python: Train KITTI PV_RCNN BADet",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_BADet_car_class_only.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Train Waymo PV_RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/waymo_models/pv_rcnn.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Train Waymo PV_RCNN Relation",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/waymo_models/pv_rcnn_relation.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
         },
         {
             "name": "Python: Train KITTI PV_RCNN",
@@ -29,6 +73,86 @@
                 
             // },
         },
+        {
+            "name": "Python: Train KITTI PV_RCNN Relation Experiment",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/experiments/post_mlp/a.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+
+        {
+            "name": "Python: Train KITTI FROZEN PV_RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_frozen.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+        {
+            "name": "Python: Train KITTI FROZEN PV_RCNN Relation A",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/experiments/iterative_gnn/OneGNNIteration_added.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Train KITTI FROZEN PV_RCNN Relation",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_frozen_relation.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Evaluate Waymo",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/waymo_models/pv_rcnn.yaml", "--ckpt", "../output/cfgs/waymo_models/pv_rcnn/default/ckpt/latest_model.pth", "--extra_tag", "default"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+        {
+            "name": "Python: Evaluate KITTI PV_RCNN Frozen",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/waymo_modelspv_rcnn.yaml", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn/2023-09-04_09-52-39/ckpt/checkpoint_epoch_78.pth", "--extra_tag", "2023-09-04_09-52-39"],
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+
+        {
+            "name": "Python: Evaluate KITTI PV_RCNN Frozen",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn.yaml", "--ckpt", "../output/cfgs/kitti_models/pv_rcnn/2023-09-04_09-52-39/ckpt/checkpoint_epoch_78.pth", "--extra_tag", "2023-09-04_09-52-39"],
+            "cwd": "/root/OpenPCDet/tools/",
+        },
+
         {
             "name": "Python: Train KITTI PV_RCNN_Relation Car Class only",
             "type": "python",
@@ -52,7 +176,37 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus_reproduced_by_community_car_class_only.yaml", "--extra_tag", "debug"],
+            "args": ["--cfg_file", "./cfgs/kitti_models/pv_rcnn_plusplus_relation_car_class_only.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+        {
+            "name": "Python: Train KITTI Voxel-RCNN",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/voxel_rcnn_car.yaml", "--extra_tag", "debug"],
+            // "preLaunchTask": "Change working directory",
+            "cwd": "/root/OpenPCDet/tools/",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "1"
+                
+            // },
+        },
+        {
+            "name": "Python: Train KITTI Voxel-RCNN-Relation",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": ["--cfg_file", "./cfgs/kitti_models/voxel_rcnn_relation_car.yaml", "--extra_tag", "debug"],
             // "preLaunchTask": "Change working directory",
             "cwd": "/root/OpenPCDet/tools/",
             // "env": {
