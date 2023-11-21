@@ -30,13 +30,21 @@ python test.py --cfg_file {PATH_TO_CONFIG_FILE} --ckpt {PATH_TO_MODEL}
 
 ## Models
 
+<style>
+.scrollable {
+    overflow-x: auto; /* Enables horizontal scrolling */
+    white-space: nowrap; /* Keeps the content on a single line */
+}
+</style>
+
 | Model                                 | Path                                                                      | Description                                                               | Dataset |
 | :------------------------------------ | :------------------------------------------------------------------------ | :------------------------------------------------------------------------ | :------ |
-| **PV-RCNN-Relation**                  | `tools/cfgs/kitti_models/pv_rcnn_relation{_car_class_only}.yaml`          | PV-RCNN model extended with the Object Relation Module.                   | KITTI   |
-| **PV-RCNN-Relation**                  | `tools/cfgs/waymo_models/pv_rcnn_relation.yaml`          | PV-RCNN model extended with the Object Relation Module.                   | Waymo   |
-| **PV-RCNN++-Relation**                | `tools/cfgs/kitti_models/pv_rcnn_plusplus_relation{_car_class_only}.yaml` | PV-RCNN++ model extended with the Object Relation Module.                 | KITTI   |
-| **Voxel-RCNN-Relation Car Class**     | `tools/cfgs/kitti_models/voxel_rcnn_relation_car_class_only.yaml`         | Voxel-RCNN extended with the Object Relation Module.                      | KITTI   |
-| **PartA2-Relation Car Class**         | `tools/cfgs/kitti_models/PartA2_relation_car_class_only.yaml`             | PartA2 model extended with the Object Relation Module, trained only on the car class. | KITTI   |
+| **PV-RCNN-Relation**                  | <div class="scrollable">`tools/cfgs/kitti_models/pv_rcnn_relation{_car_class_only}.yaml`</div> | PV-RCNN model extended with the Object Relation Module.                   | KITTI   |
+| **PV-RCNN-Relation**                  | <div class="scrollable">`tools/cfgs/waymo_models/pv_rcnn_relation.yaml`</div> | PV-RCNN model extended with the Object Relation Module.                   | Waymo   |
+| **PV-RCNN++-Relation**                | <div class="scrollable">`tools/cfgs/kitti_models/pv_rcnn_plusplus_relation{_car_class_only}.yaml`</div> | PV-RCNN++ model extended with the Object Relation Module.                 | KITTI   |
+| **Voxel-RCNN-Relation Car Class**     | <div class="scrollable">`tools/cfgs/kitti_models/voxel_rcnn_relation_car_class_only.yaml`</div> | Voxel-RCNN extended with the Object Relation Module.                      | KITTI   |
+| **PartA2-Relation Car Class**         | <div class="scrollable">`tools/cfgs/kitti_models/PartA2_relation_car_class_only.yaml`</div> | PartA2 model extended with the Object Relation Module, trained only on the car class. | KITTI   |
+
 
 
 For some models the suffix '_car_class_only.yaml' can be used to train the model only on the car class
