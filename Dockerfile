@@ -75,9 +75,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN git clone https://github.com/MarcBrede/OpenPCDet.git
 
-RUN git config --global user.email "marc.brede@tum.de"
-RUN git config --global user.name "Marc Brede"
-
 ENV PYTHONPATH /root/OpenPCDet/
 
 RUN pip install av2
