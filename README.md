@@ -5,7 +5,46 @@ This work focuses on exploring the impact of modeling object relation in two-sta
 
 ## Project Structure
 
-This project extends [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) with a module that relates object proposals with each other. Different implementations of this model can be found in **pcdet/models/object_relation**.
+This project extends [OpenPCDet](https://github.com/open-mmlab/OpenPCDet). Some of OpenPCDet model's are extended with an Object Relation Module. See the list below.
+
+## Installation
+
+1. Build the provided Dockerfile
+2. Run the following command in the project root
+```bash
+python setup.py develop
+```
+3. Prepare data according to [OpenPCDet](https://github.com/open-mmlab/OpenPCDet)
+
+## Training & Testing
+
+Train Model:
+```bash
+python train.py --cfg_file {PATH_TO_CONFIG_FILE}
+```
+
+Test Model:
+```bash
+python test.py --cfg_file {PATH_TO_CONFIG_FILE} --ckpt {PATH_TO_MODEL}
+```
+
+## Models
+
+| Model                                 | Path                                                                      | Description                                                               | Dataset |
+| :------------------------------------ | :------------------------------------------------------------------------ | :------------------------------------------------------------------------ | :------ |
+| **PV-RCNN-Relation**                  | `tools/cfgs/kitti_models/pv_rcnn_relation{_car_class_only}.yaml`          | PV-RCNN model extended with the Object Relation Module.                   | KITTI   |
+| **PV-RCNN-Relation**                  | `tools/cfgs/waymo_models/pv_rcnn_relation.yaml`          | PV-RCNN model extended with the Object Relation Module.                   | Waymo   |
+| **PV-RCNN++-Relation**                | `tools/cfgs/kitti_models/pv_rcnn_plusplus_relation{_car_class_only}.yaml` | PV-RCNN++ model extended with the Object Relation Module.                 | KITTI   |
+| **Voxel-RCNN-Relation Car Class**     | `tools/cfgs/kitti_models/voxel_rcnn_relation_car_class_only.yaml`         | Voxel-RCNN extended with the Object Relation Module.                      | KITTI   |
+| **PartA2-Relation Car Class**         | `tools/cfgs/kitti_models/PartA2_relation_car_class_only.yaml`             | PartA2 model extended with the Object Relation Module, trained only on the car class. | KITTI   |
+
+
+For some models the suffix '_car_class_only.yaml' can be used to train the model only on the car class
+
+
+
+
+
 
 ## Motivation
 
@@ -40,7 +79,7 @@ PV-RCNN-Relation is an implementation of an object relations module applied to t
 | PV-RCNN-Relation   | 89.59 / 92.53  | 84.56 / 85.22      | 79.04 / 82.99  | 84.35 / 86.90 |
 | *Improvement*     | **+0.20 / +0.51** | **+0.93 / +0.42** | **+0.18 / +0.41** | **+0.44 / +0.45** |
 
-*Comparison of PVRCNN and PVRCNN-Relation on KITTI validation set. Trained and evaluated only on the car class. All models were trained for 80 epochs and the best-performing epoch per model and metric was chosen. **Both models were trained three times** and the average is reported. The* Improvement *row represents the difference in mAP between the two models. See table for full results.*
+*Comparison of PVRCNN and PVRCNN-Relation on KITTI validation set. Trained and evaluated only on the car class. All models were trained for 80 epochs and the best-performing epoch per model and metric was chosen. **Both models were trained three times** and the average is reported. The* Improvement *row represents the difference in mAP between the two models.*
 
 
 | | |
