@@ -5,18 +5,19 @@ import glob
 import os
 from pathlib import Path
 from test import repeat_eval_ckpt
+import json
 
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 
-from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file
+from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_file, second_cfg_from_yaml_file
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network, model_fn_decorator
 from pcdet.utils import common_utils
 from train_utils.optimization import build_optimizer, build_scheduler
 from train_utils.train_utils import train_model
-
+from tools.process_tools.logger import CustomEncoder
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -49,7 +50,6 @@ def parse_config():
     parser.add_argument('--ckpt_save_time_interval', type=int, default=300, help='in terms of seconds')
     parser.add_argument('--wo_gpu_stat', action='store_true', help='')
     parser.add_argument('--use_amp', action='store_true', help='use mix precision training')
-    
 
     args = parser.parse_args()
 
@@ -112,6 +112,7 @@ def main():
         os.system('cp %s %s' % (args.cfg_file, output_dir))
 
     tb_log = SummaryWriter(log_dir=str(output_dir / 'tensorboard')) if cfg.LOCAL_RANK == 0 else None
+    tb_log.add_text('Configurations', json.dumps(cfg, cls=CustomEncoder, indent=2)) 
 
     logger.info("----------- Create dataloader & network & optimizer -----------")
     train_set, train_loader, train_sampler = build_dataloader(
@@ -127,6 +128,7 @@ def main():
     )
 
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
+
     if args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model.cuda()
@@ -138,6 +140,15 @@ def main():
     last_epoch = -1
     if args.pretrained_model is not None:
         model.load_params_from_file(filename=args.pretrained_model, to_cpu=dist_train, logger=logger)
+    
+    if 'PRE_TRAINED' in cfg:
+        model.load_params_from_file(filename=cfg.PRE_TRAINED.MODEL_PATH, to_cpu=dist_train, logger=logger, learnable_layer=cfg.PRE_TRAINED.LEARNABLE_LAYER)
+        # freeze all other layers
+        for name, param in model.named_parameters():
+            if any([(l in name) for l in cfg.PRE_TRAINED.LEARNABLE_LAYER]):
+                    print('learnable layer: ', name)
+            else:
+                param.requires_grad = False
 
     if args.ckpt is not None:
         it, start_epoch = model.load_params_with_optimizer(args.ckpt, to_cpu=dist_train, optimizer=optimizer, logger=logger)
