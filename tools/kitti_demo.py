@@ -62,12 +62,15 @@ def main(cfg_path, model_path, save_3d=False, tag=None):
     logger.info('Demo done.')
 
 if __name__ == '__main__':
-    model_path = '../output/cfgs/kitti_models/pv_rcnn_relation/2023-08-25_13-47-22'
-    full_model_path = model_path + '/ckpt/checkpoint_epoch_73.pth'
+    # model_path = '../output/cfgs/kitti_models/pv_rcnn_relation/2023-09-15_10-21-38'
+    model_path = '../output/cfgs/kitti_models/pv_rcnn_relation_car_class_only/2023-09-29_07-21-48'
+    # model_path = '../output/cfgs/kitti_models/pv_rcnn_relation/2023-08-25_13-47-22'
+    # full_model_path = model_path + '/ckpt/checkpoint_epoch_73.pth'
+    full_model_path = model_path + '/ckpt/checkpoint_epoch_80.pth'
     # cfg_path = model_path + '/pv_rcnn_relation.yaml'
-    cfg_path = '../tools/cfgs/kitti_models/pv_rcnn_relation.yaml'
+    cfg_path = '../tools/cfgs/kitti_models/pv_rcnn_relation_car_class_only.yaml'
     # /pv_rcnn_relation.yaml
-    tag = '/epoch_73/'
+    tag = '/epoch_80/'
     # tag = '/no_post_processing/'
     # tag = '/no_post_processing-94_epoch/'
     # tag = '/epoch_100_no_post_processing/'
