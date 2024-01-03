@@ -49,7 +49,7 @@ For each GPU, BATCH_SIZE should be at least equal to 2.  When using 16-frame, th
 python test.py --cfg_file cfgs/waymo_models/mppnet_4frames.yaml  --batch_size  1 \
 --ckpt  ../output/waymo_models/mppnet_4frames/default/ckpt/checkpoint_epoch_6.pth
 # Multiple GPUs
-bash scripts/dist_test.sh ${NUM_GPUS} --cfgs/waymo_models/mppnet_4frames.yaml  --batch_size  1 \
+bash scripts/dist_test.sh ${NUM_GPUS} --cfg_file cfgs/waymo_models/mppnet_4frames.yaml  --batch_size  1 \
 --ckpt  ../output/waymo_models/mppnet_4frames/default/ckpt/checkpoint_epoch_6.pth
 ```
 To avoid OOM, set BATCH_SIZE=1.
