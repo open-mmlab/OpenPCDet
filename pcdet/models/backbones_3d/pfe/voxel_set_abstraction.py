@@ -1,9 +1,12 @@
 import math
+
 import numpy as np
 import torch
 import torch.nn as nn
 
-from ....ops.pointnet2.pointnet2_stack import pointnet2_modules as pointnet2_stack_modules
+from ....ops.pointnet2.pointnet2_stack import (
+    pointnet2_modules as pointnet2_stack_modules,
+)
 from ....ops.pointnet2.pointnet2_stack import pointnet2_utils as pointnet2_stack_utils
 from ....utils import common_utils
 
@@ -70,7 +73,9 @@ def sample_points_with_roi(rois, points, sample_radius_with_roi, num_max_points_
             start_idx += num_max_points_of_part
         point_mask = torch.cat(point_mask_list, dim=0)
 
-    sampled_points = points[:1] if point_mask.sum() == 0 else points[point_mask, :]
+    if point_mask.sum() == 0:
+        point_mask[0] = True
+    sampled_points = points[point_mask, :]
 
     return sampled_points, point_mask
 
@@ -406,6 +411,9 @@ class VoxelSetAbstraction(nn.Module):
         batch_dict['point_features_before_fusion'] = point_features.view(-1, point_features.shape[-1])
         point_features = self.vsa_point_feature_fusion(point_features.view(-1, point_features.shape[-1]))
 
+        batch_dict['point_features'] = point_features  # (BxN, C)
+        batch_dict['point_coords'] = keypoints  # (BxN, 4)
+        return batch_dict
         batch_dict['point_features'] = point_features  # (BxN, C)
         batch_dict['point_coords'] = keypoints  # (BxN, 4)
         return batch_dict
