@@ -70,7 +70,9 @@ def sample_points_with_roi(rois, points, sample_radius_with_roi, num_max_points_
             start_idx += num_max_points_of_part
         point_mask = torch.cat(point_mask_list, dim=0)
 
-    sampled_points = points[:1] if point_mask.sum() == 0 else points[point_mask, :]
+    if point_mask.sum() == 0:
+        point_mask[0] = True
+    sampled_points = points[point_mask, :]
 
     return sampled_points, point_mask
 
