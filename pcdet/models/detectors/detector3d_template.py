@@ -364,14 +364,16 @@ class Detector3DTemplate(nn.Module):
 
         logger.info('==> Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
-        checkpoint = torch.load(filename, map_location=loc_type)
-        model_state_disk = checkpoint['model_state']
+        # checkpoint = torch.load(filename, map_location=loc_type)
+        # model_state_disk = checkpoint['model_state']
+        model_state_disk = torch.load(filename, map_location=loc_type)
         if not pre_trained_path is None:
             pretrain_checkpoint = torch.load(pre_trained_path, map_location=loc_type)
             pretrain_model_state_disk = pretrain_checkpoint['model_state']
             model_state_disk.update(pretrain_model_state_disk)
             
-        version = checkpoint.get("version", None)
+        # version = checkpoint.get("version", None)
+        version = None
         if version is not None:
             logger.info('==> Checkpoint trained from version: %s' % version)
 

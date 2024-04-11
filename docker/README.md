@@ -1,25 +1,19 @@
-# Guidance to use OpenPCDet with docker
+# Zendar's OpenPCDet Docker
 
-You can either build the docker image through Dockerfile or pull the docker image from dockerhub. Please make sure nvidia-docker is corretly installed.
+The Zendar version of this docker file is based on the Cuda 11.6
+image made available in the parent repo.
 
-## Build Through Dockerfile
-Build docker image that support OpenPCDet through:
-```shell script
-docker build ./ -t openpcdet-docker
-```
-Note that if you would like to use dynamic voxelization, you need further install [`torch_scatter`](https://github.com/rusty1s/pytorch_scatter) package. 
+## Build The Image:
 
-From this Dockerfile, the installed version of spconv is 2.x, if you would like to use spconv 1.2.1, please follow these steps:
-```shell script
-git clone -b v1.2.1 https://github.com/djiajunustc/spconv spconv --recursive
-cd spconv
-python setup.py bdist_wheel
-cd ./dist
-pip install *.whl
-```
+From the root of this repository: `make build`
 
-## Pull From Dockerhub
-Run the following script to pull the docker image:
-```shell script
-docker pull djiajun1206/pcdet:pytorch1.6
-```
+## Run The Image:
+
+From the root of this repository: `make run`
+
+
+## Notes:
+
+Note that if you would like to use dynamic voxelization, you need to install
+the [`torch_scatter`](https://github.com/rusty1s/pytorch_scatter) package, which
+isn't in the docker at this time.

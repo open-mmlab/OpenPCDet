@@ -12,6 +12,29 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 * The codes of MPPNet has been supported. 
 * The multi-modal 3D detection approaches on Nuscenes have been supported. 
 
+## Usage at Zendar:
+
+At Zendar, we use a containerized implementation of this repository for R&D
+efforts on the ML Perception Team.
+
+### Building / Deployment:
+
+To build this image and publish the resulting image, run:
+```
+make build
+make push
+```
+
+Note: any weightsfiles you'd like to be available at run-time *must* be present
+in the `./weights` folder when you run `make build`. The contents of `./weights`
+are not version-controlled in this git repo, but they will get packaged into
+the docker image.
+
+To download the pre-built image from our docker image repository, run `make pull`.
+
+See the `Makefile` for all supported calls.
+
+
 ## Overview
 - [Changelog](#changelog)
 - [Design Pattern](#openpcdet-design-pattern)
@@ -23,6 +46,8 @@ It is also the official code release of [`[PointRCNN]`](https://arxiv.org/abs/18
 
 
 ## Changelog
+[2024-04-17] Added containerization and sockets-based communications tooling for internal Zendar usage.
+
 [2023-06-30] **NEW:** Added support for [`DSVT`](https://arxiv.org/abs/2301.06051), which achieves state-of-the-art performance on large-scale Waymo Open Dataset with real-time inference speed (27HZ with TensorRT).
 
 [2023-05-13] **NEW:** Added support for the multi-modal 3D object detection models on Nuscenes dataset.  

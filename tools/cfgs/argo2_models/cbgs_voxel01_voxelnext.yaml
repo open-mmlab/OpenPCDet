@@ -4,7 +4,7 @@ CLASS_NAMES: ['Regular_vehicle', 'Pedestrian', 'Bicyclist', 'Motorcyclist', 'Whe
             'Message_board_trailer', 'Bicycle', 'Motorcycle', 'Wheeled_device', 'Wheelchair', 'Stroller', 'Dog']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: cfgs/dataset_configs/argo2_dataset.yaml
+    _BASE_CONFIG_: /OpenPCDet/tools/cfgs/dataset_configs/argo2_dataset.yaml
 
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
