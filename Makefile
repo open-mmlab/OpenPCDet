@@ -10,7 +10,7 @@ docker_image_tag = zendar
 # Make commands:
 ###########################################
 build:
-	docker build -f docker/cuda116.Dockerfile -t $(docker_repo)/$(docker_image_name):$(docker_image_tag) .
+	docker build -f docker/cu116.Dockerfile -t $(docker_repo)/$(docker_image_name):$(docker_image_tag) .
 
 run:
 	docker run -it --rm --gpus all $(docker_repo)/$(docker_image_name):$(docker_image_tag) bash
