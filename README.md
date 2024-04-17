@@ -19,7 +19,9 @@ efforts on the ML Perception Team.
 
 ### Building / Deployment:
 
-To build this image and publish the resulting image, run:
+We rely on the CUDA 11.6 image, defined in `docker/cuda116.dockerfile`
+
+To build this image and publish it to our container registry, run:
 ```
 make build
 make push
