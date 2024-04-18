@@ -160,14 +160,19 @@ class Detector3DTemplate(nn.Module):
     def build_roi_head(self, model_info_dict):
         if self.model_cfg.get('ROI_HEAD', None) is None:
             return None, model_info_dict
-        point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](
-            model_cfg=self.model_cfg.ROI_HEAD,
-            input_channels=model_info_dict['num_point_features'],
-            backbone_channels= model_info_dict.get('backbone_channels', None),
-            point_cloud_range=model_info_dict['point_cloud_range'],
-            voxel_size=model_info_dict['voxel_size'],
-            num_class=self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
-        )
+
+        common_args = {
+            'model_cfg': self.model_cfg.ROI_HEAD,
+            'input_channels': model_info_dict['num_point_features'],
+            'backbone_channels': model_info_dict.get('backbone_channels', None),
+            'point_cloud_range': model_info_dict['point_cloud_range'],
+            'voxel_size': model_info_dict['voxel_size'],
+            'num_class': self.num_class if not self.model_cfg.ROI_HEAD.CLASS_AGNOSTIC else 1,
+        }
+        if 'Relation' in self.model_cfg.NAME:
+            common_args['object_relation_config'] = self.model_cfg.OBJECT_RELATION
+        
+        point_head_module = roi_heads.__all__[self.model_cfg.ROI_HEAD.NAME](**common_args)
 
         model_info_dict['module_list'].append(point_head_module)
         return point_head_module, model_info_dict
@@ -196,6 +201,7 @@ class Detector3DTemplate(nn.Module):
         batch_size = batch_dict['batch_size']
         recall_dict = {}
         pred_dicts = []
+        edges_list = []
         for index in range(batch_size):
             if batch_dict.get('batch_index', None) is not None:
                 assert batch_dict['batch_box_preds'].shape.__len__() == 2
@@ -255,7 +261,8 @@ class Detector3DTemplate(nn.Module):
                 else:
                     label_preds = label_preds + 1 
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(
-                    box_scores=cls_preds, box_preds=box_preds,
+                    box_scores=cls_preds, box_preds=box_preds, 
+                    label_preds=label_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
                     score_thresh=post_process_cfg.SCORE_THRESH
                 )
@@ -267,6 +274,14 @@ class Detector3DTemplate(nn.Module):
                 final_scores = selected_scores
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
+
+                include_edges = "OBJECT_RELATION" in self.model_cfg and self.model_cfg.OBJECT_RELATION.NAME == "GNN"
+                if include_edges:
+                    edges = batch_dict['gnn_edges']
+                    from_node, to_node = edges
+                    edges_mask = torch.isin(from_node, selected) & torch.isin(to_node, selected)
+                    final_edges = edges[:, edges_mask]
+                    edge_to_pred = {selected[i].item(): i for i in list(range(len(selected)))}
                     
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
@@ -277,7 +292,9 @@ class Detector3DTemplate(nn.Module):
             record_dict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
-                'pred_labels': final_labels
+                'pred_labels': final_labels,
+                'gnn_edges_final': final_edges if include_edges else None,
+                'edge_to_pred': edge_to_pred if include_edges else None,
             }
             pred_dicts.append(record_dict)
 
@@ -327,7 +344,7 @@ class Detector3DTemplate(nn.Module):
             gt_iou = box_preds.new_zeros(box_preds.shape[0])
         return recall_dict
 
-    def _load_state_dict(self, model_state_disk, *, strict=True):
+    def _load_state_dict(self, model_state_disk, *, strict=True, learnable_layer=None):
         state_dict = self.state_dict()  # local cache of state_dict
 
         spconv_keys = find_all_spconv_keys(self)
@@ -354,11 +371,15 @@ class Detector3DTemplate(nn.Module):
         if strict:
             self.load_state_dict(update_model_state)
         else:
+            if learnable_layer:
+                for key in list(update_model_state.keys()):
+                    if any([(l in key) for l in learnable_layer]):
+                        del update_model_state[key]
             state_dict.update(update_model_state)
             self.load_state_dict(state_dict)
         return state_dict, update_model_state
 
-    def load_params_from_file(self, filename, logger, to_cpu=False, pre_trained_path=None):
+    def load_params_from_file(self, filename, logger, to_cpu=False, pre_trained_path=None, learnable_layer=None):
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
@@ -375,7 +396,7 @@ class Detector3DTemplate(nn.Module):
         if version is not None:
             logger.info('==> Checkpoint trained from version: %s' % version)
 
-        state_dict, update_model_state = self._load_state_dict(model_state_disk, strict=False)
+        state_dict, update_model_state = self._load_state_dict(model_state_disk, strict=False, learnable_layer=learnable_layer)
 
         for key in state_dict:
             if key not in update_model_state:

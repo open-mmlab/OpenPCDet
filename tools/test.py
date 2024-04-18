@@ -6,6 +6,7 @@ import os
 import re
 import time
 from pathlib import Path
+import json
 
 import numpy as np
 import torch
@@ -16,7 +17,7 @@ from pcdet.config import cfg, cfg_from_list, cfg_from_yaml_file, log_config_to_f
 from pcdet.datasets import build_dataloader
 from pcdet.models import build_network
 from pcdet.utils import common_utils
-
+from tools.process_tools.logger import CustomEncoder
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -95,6 +96,8 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
     # tensorboard log
     if cfg.LOCAL_RANK == 0:
         tb_log = SummaryWriter(log_dir=str(eval_output_dir / ('tensorboard_%s' % cfg.DATA_CONFIG.DATA_SPLIT['test'])))
+        tb_log.add_text('Configurations', json.dumps(cfg, cls=CustomEncoder, indent=2)) 
+
     total_time = 0
     first_eval = True
 

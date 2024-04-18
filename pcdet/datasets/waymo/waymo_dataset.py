@@ -9,7 +9,7 @@ import copy
 import numpy as np
 import torch
 import multiprocessing
-import SharedArray
+# import SharedArray
 import torch.distributed as dist
 from tqdm import tqdm
 from pathlib import Path
@@ -149,7 +149,7 @@ class WaymoDataset(DatasetTemplate):
             if not os.path.exists(f"/dev/shm/{sa_key}"):
                 continue
 
-            SharedArray.delete(f"shm://{sa_key}")
+            # SharedArray.delete(f"shm://{sa_key}")
 
         if num_gpus > 1:
             dist.barrier()
@@ -352,11 +352,11 @@ class WaymoDataset(DatasetTemplate):
         input_dict = {
             'sample_idx': sample_idx
         }
-        if self.use_shared_memory and index < self.shared_memory_file_limit:
-            sa_key = f'{sequence_name}___{sample_idx}'
-            points = SharedArray.attach(f"shm://{sa_key}").copy()
-        else:
-            points = self.get_lidar(sequence_name, sample_idx)
+        # if self.use_shared_memory and index < self.shared_memory_file_limit:
+        #     sa_key = f'{sequence_name}___{sample_idx}'
+        #     points = SharedArray.attach(f"shm://{sa_key}").copy()
+        # else:
+        points = self.get_lidar(sequence_name, sample_idx)
 
         if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
             points, num_points_all, sample_idx_pre_list, poses, pred_boxes, pred_scores, pred_labels = self.get_sequence_data(
@@ -714,6 +714,8 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
     print('---------------Start to generate data infos---------------')
 
+    raw_data_tag = 'training'
+
     dataset.set_split(train_split)
     waymo_infos_train = dataset.get_infos(
         raw_data_path=data_path / raw_data_tag,
@@ -723,6 +725,8 @@ def create_waymo_infos(dataset_cfg, class_names, data_path, save_path,
     with open(train_filename, 'wb') as f:
         pickle.dump(waymo_infos_train, f)
     print('----------------Waymo info train file is saved to %s----------------' % train_filename)
+
+    raw_data_tag = 'validation'
 
     dataset.set_split(val_split)
     waymo_infos_val = dataset.get_infos(
