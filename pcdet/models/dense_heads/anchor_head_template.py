@@ -101,6 +101,16 @@ class AnchorHeadTemplate(nn.Module):
     def get_cls_layer_loss(self):
         cls_preds = self.forward_ret_dict['cls_preds']
         box_cls_labels = self.forward_ret_dict['box_cls_labels']
+        cls_loss = self.get_cls_layer_loss_one_set(
+            cls_preds=cls_preds, box_cls_labels=box_cls_labels, num_class=self.num_class
+
+        )
+        tb_dict = {
+            'rpn_loss_cls': cls_loss.item()
+        }
+        return cls_loss, tb_dict
+
+    def get_cls_layer_loss_one_set(self, cls_preds, box_cls_labels, num_class):
         batch_size = int(cls_preds.shape[0])
         cared = box_cls_labels >= 0  # [N, num_anchors]
         positives = box_cls_labels > 0
@@ -108,7 +118,7 @@ class AnchorHeadTemplate(nn.Module):
         negative_cls_weights = negatives * 1.0
         cls_weights = (negative_cls_weights + 1.0 * positives).float()
         reg_weights = positives.float()
-        if self.num_class == 1:
+        if num_class == 1:
             # class agnostic
             box_cls_labels[positives] = 1
 
@@ -120,19 +130,16 @@ class AnchorHeadTemplate(nn.Module):
 
         cls_targets = cls_targets.squeeze(dim=-1)
         one_hot_targets = torch.zeros(
-            *list(cls_targets.shape), self.num_class + 1, dtype=cls_preds.dtype, device=cls_targets.device
+            *list(cls_targets.shape), num_class + 1, dtype=cls_preds.dtype, device=cls_targets.device
         )
         one_hot_targets.scatter_(-1, cls_targets.unsqueeze(dim=-1).long(), 1.0)
-        cls_preds = cls_preds.view(batch_size, -1, self.num_class)
+        cls_preds = cls_preds.view(batch_size, -1, num_class)
         one_hot_targets = one_hot_targets[..., 1:]
         cls_loss_src = self.cls_loss_func(cls_preds, one_hot_targets, weights=cls_weights)  # [N, M]
         cls_loss = cls_loss_src.sum() / batch_size
 
         cls_loss = cls_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['cls_weight']
-        tb_dict = {
-            'rpn_loss_cls': cls_loss.item()
-        }
-        return cls_loss, tb_dict
+        return cls_loss
 
     @staticmethod
     def add_sin_difference(boxes1, boxes2, dim=6):

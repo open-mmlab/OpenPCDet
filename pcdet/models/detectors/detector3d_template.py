@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -11,10 +12,11 @@ from ..model_utils import model_nms_utils
 
 
 class Detector3DTemplate(nn.Module):
-    def __init__(self, model_cfg, num_class, dataset):
+    def __init__(self, model_cfg, num_class, dataset, num_aux_class = None):
         super().__init__()
         self.model_cfg = model_cfg
         self.num_class = num_class
+        self.num_aux_class = num_aux_class
         self.dataset = dataset
         self.class_names = dataset.class_names
         self.register_buffer('global_step', torch.LongTensor(1).zero_())
@@ -128,6 +130,7 @@ class Detector3DTemplate(nn.Module):
             model_cfg=self.model_cfg.DENSE_HEAD,
             input_channels=model_info_dict['num_bev_features'] if 'num_bev_features' in model_info_dict else self.model_cfg.DENSE_HEAD.INPUT_FEATURES,
             num_class=self.num_class if not self.model_cfg.DENSE_HEAD.CLASS_AGNOSTIC else 1,
+            num_aux_class=self.num_aux_class if not self.model_cfg.DENSE_HEAD.CLASS_AGNOSTIC else 1,
             class_names=self.class_names,
             grid_size=model_info_dict['grid_size'],
             point_cloud_range=model_info_dict['point_cloud_range'],
@@ -193,6 +196,7 @@ class Detector3DTemplate(nn.Module):
         """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
+        has_aux_cls = 'batch_aux_cls_preds' in batch_dict
         recall_dict = {}
         pred_dicts = []
         for index in range(batch_size):
@@ -208,17 +212,24 @@ class Detector3DTemplate(nn.Module):
             
             if not isinstance(batch_dict['batch_cls_preds'], list):
                 cls_preds = batch_dict['batch_cls_preds'][batch_mask]
-
+                if has_aux_cls:
+                    aux_cls_preds = batch_dict['batch_aux_cls_preds'][batch_mask]
                 src_cls_preds = cls_preds
                 assert cls_preds.shape[1] in [1, self.num_class]
 
                 if not batch_dict['cls_preds_normalized']:
-                    cls_preds = torch.sigmoid(cls_preds)
+                    cls_preds = torch.sigmoid(cls_preds) 
+                    if has_aux_cls:
+                        aux_cls_preds = torch.sigmoid(aux_cls_preds)
             else:
                 cls_preds = [x[batch_mask] for x in batch_dict['batch_cls_preds']]
+                if has_aux_cls:
+                    aux_cls_preds = [x[batch_mask] for x in batch_dict['batch_aux_cls_preds']]
                 src_cls_preds = cls_preds
                 if not batch_dict['cls_preds_normalized']:
                     cls_preds = [torch.sigmoid(x) for x in cls_preds]
+                    if has_aux_cls:
+                        aux_cls_preds = [torch.sigmoid(x) for x in aux_cls_preds]
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 if not isinstance(cls_preds, list):
@@ -246,13 +257,21 @@ class Detector3DTemplate(nn.Module):
                 final_scores = torch.cat(pred_scores, dim=0)
                 final_labels = torch.cat(pred_labels, dim=0)
                 final_boxes = torch.cat(pred_boxes, dim=0)
+                final_aux_scores, final_aux_labels = None, None
             else:
                 cls_preds, label_preds = torch.max(cls_preds, dim=-1)
+                if has_aux_cls:
+                    aux_cls_preds, aux_label_preds = torch.max(aux_cls_preds, dim=-1)
                 if batch_dict.get('has_class_labels', False):
                     label_key = 'roi_labels' if 'roi_labels' in batch_dict else 'batch_pred_labels'
                     label_preds = batch_dict[label_key][index]
+                    if has_aux_cls:
+                        aux_label_key = 'aux_roi_labels' if 'aux_roi_labels' in batch_dict else 'batch_pred_aux_labels'
+                        aux_label_preds = batch_dict[aux_label_key][index]
                 else:
-                    label_preds = label_preds + 1 
+                    label_preds = label_preds + 1
+                    if has_aux_cls:
+                        aux_label_preds = aux_label_preds + 1
                 selected, selected_scores = model_nms_utils.class_agnostic_nms(
                     box_scores=cls_preds, box_preds=box_preds,
                     nms_config=post_process_cfg.NMS_CONFIG,
@@ -266,7 +285,8 @@ class Detector3DTemplate(nn.Module):
                 final_scores = selected_scores
                 final_labels = label_preds[selected]
                 final_boxes = box_preds[selected]
-                    
+                final_aux_scores = aux_cls_preds[selected] if has_aux_cls else None
+                final_aux_labels = aux_label_preds[selected] if has_aux_cls else None
             recall_dict = self.generate_recall_record(
                 box_preds=final_boxes if 'rois' not in batch_dict else src_box_preds,
                 recall_dict=recall_dict, batch_index=index, data_dict=batch_dict,
@@ -276,6 +296,8 @@ class Detector3DTemplate(nn.Module):
             record_dict = {
                 'pred_boxes': final_boxes,
                 'pred_scores': final_scores,
+                'pred_aux_scores': final_aux_scores,
+                'pred_aux_labels': final_aux_labels,
                 'pred_labels': final_labels
             }
             pred_dicts.append(record_dict)

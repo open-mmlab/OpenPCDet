@@ -52,8 +52,8 @@ class PointHeadTemplate(nn.Module):
         """
         Args:
             points: (N1 + N2 + N3 + ..., 4) [bs_idx, x, y, z]
-            gt_boxes: (B, M, 8)
-            extend_gt_boxes: [B, M, 8]
+            gt_boxes: (B, M, 7 + N_Class_Heads)
+            extend_gt_boxes: [B, M, 7 + N_Class_Heads]
             ret_box_labels:
             ret_part_labels:
             set_ignore_flag:
@@ -66,8 +66,8 @@ class PointHeadTemplate(nn.Module):
 
         """
         assert len(points.shape) == 2 and points.shape[1] == 4, 'points.shape=%s' % str(points.shape)
-        assert len(gt_boxes.shape) == 3 and gt_boxes.shape[2] == 8, 'gt_boxes.shape=%s' % str(gt_boxes.shape)
-        assert extend_gt_boxes is None or len(extend_gt_boxes.shape) == 3 and extend_gt_boxes.shape[2] == 8, \
+        assert len(gt_boxes.shape) == 3 and gt_boxes.shape[2] == 9, 'gt_boxes.shape=%s' % str(gt_boxes.shape)
+        assert extend_gt_boxes is None or len(extend_gt_boxes.shape) == 3 and gt_boxes.shape[2] == 9, \
             'extend_gt_boxes.shape=%s' % str(extend_gt_boxes.shape)
         assert set_ignore_flag != use_ball_constraint, 'Choose one only!'
         batch_size = gt_boxes.shape[0]
@@ -99,7 +99,7 @@ class PointHeadTemplate(nn.Module):
                 raise NotImplementedError
 
             gt_box_of_fg_points = gt_boxes[k][box_idxs_of_pts[fg_flag]]
-            point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, -1].long()
+            point_cls_labels_single[fg_flag] = 1 if self.num_class == 1 else gt_box_of_fg_points[:, 7].long()
             point_cls_labels[bs_mask] = point_cls_labels_single
 
             if ret_box_labels and gt_box_of_fg_points.shape[0] > 0:
