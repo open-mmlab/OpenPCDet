@@ -66,8 +66,8 @@ class PointHeadTemplate(nn.Module):
 
         """
         assert len(points.shape) == 2 and points.shape[1] == 4, 'points.shape=%s' % str(points.shape)
-        assert len(gt_boxes.shape) == 3 and gt_boxes.shape[2] == 9, 'gt_boxes.shape=%s' % str(gt_boxes.shape)
-        assert extend_gt_boxes is None or len(extend_gt_boxes.shape) == 3 and gt_boxes.shape[2] == 9, \
+        assert len(gt_boxes.shape) == 3 and gt_boxes.shape[2] >= 8, 'gt_boxes.shape=%s' % str(gt_boxes.shape)
+        assert extend_gt_boxes is None or len(extend_gt_boxes.shape) == 3 and extend_gt_boxes.shape[2] >= 8, \
             'extend_gt_boxes.shape=%s' % str(extend_gt_boxes.shape)
         assert set_ignore_flag != use_ball_constraint, 'Choose one only!'
         batch_size = gt_boxes.shape[0]
