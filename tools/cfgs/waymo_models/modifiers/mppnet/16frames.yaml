@@ -1,0 +1,16 @@
+DATA_CONFIG:
+    SEQUENCE_CONFIG:
+        SAMPLE_OFFSET: [-15,0]
+
+MODEL:
+    ROI_HEAD:
+        TRANS_INPUT: 64
+
+        ROI_GRID_POOL:
+            MLPS: [[64,64]]
+            POOL_RADIUS: [0.8]
+            NSAMPLE: [16]
+
+        Transformer:
+            num_frames: 16
+            sequence_stride: 4
