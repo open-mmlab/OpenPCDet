@@ -82,7 +82,8 @@ class DataProcessor(object):
 
         if data_dict.get('points', None) is not None:
             mask = common_utils.mask_points_by_range(data_dict['points'], self.point_cloud_range)
-            data_dict['points'] = data_dict['points'][mask]
+            tfs = dict(point=lambda x: x[mask])
+            common_utils.apply_data_transform(data_dict, tfs)
 
         if data_dict.get('gt_boxes', None) is not None and config.REMOVE_OUTSIDE_BOXES and self.training:
             mask = box_utils.mask_boxes_outside_range_numpy(
@@ -97,10 +98,9 @@ class DataProcessor(object):
             return partial(self.shuffle_points, config=config)
 
         if config.SHUFFLE_ENABLED[self.mode]:
-            points = data_dict['points']
-            shuffle_idx = np.random.permutation(points.shape[0])
-            points = points[shuffle_idx]
-            data_dict['points'] = points
+            shuffle_idx = np.random.permutation(data_dict['points'].shape[0])
+            tfs = dict(point=lambda x: x[shuffle_idx])
+            common_utils.apply_data_transform(data_dict, tfs)
 
         return data_dict
 
@@ -208,7 +208,8 @@ class DataProcessor(object):
                 extra_choice = np.random.choice(choice, num_points - len(points), replace=False)
                 choice = np.concatenate((choice, extra_choice), axis=0)
             np.random.shuffle(choice)
-        data_dict['points'] = points[choice]
+        tfs = dict(point=lambda x: x[choice])
+        common_utils.apply_data_transform(data_dict, tfs)
         return data_dict
 
     def calculate_grid_size(self, data_dict=None, config=None):
