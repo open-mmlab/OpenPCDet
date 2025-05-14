@@ -1,11 +1,9 @@
-from os import getgrouplist
 import torch.nn as nn
 import torch
-import numpy as np
 import torch.nn.functional as F
-from typing import Optional, List
+from typing import Optional
 from torch import Tensor
-from torch.nn.init import xavier_uniform_, zeros_, kaiming_normal_
+from torch.nn.init import zeros_, kaiming_normal_
 
 
 class PointNetfeat(nn.Module):

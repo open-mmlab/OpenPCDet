@@ -2,7 +2,6 @@ import os
 
 import torch
 import torch.nn as nn
-import numpy as np
 from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils.spconv_utils import find_all_spconv_keys
 from .. import backbones_2d, backbones_3d, dense_heads, roi_heads
