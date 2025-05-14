@@ -20,6 +20,13 @@ from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate
 
 
+def sa_create(name, var):
+    x = SharedArray.create(name, var.shape, dtype=var.dtype)
+    x[...] = var[...]
+    x.flags.writeable = False
+    return x
+
+
 class WaymoDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         super().__init__(
@@ -128,7 +135,7 @@ class WaymoDataset(DatasetTemplate):
                 continue
 
             points = self.get_lidar(sequence_name, sample_idx)
-            common_utils.sa_create(f"shm://{sa_key}", points)
+            sa_create(f"shm://{sa_key}", points)
 
         dist.barrier()
         self.logger.info('Training data has been saved to shared memory')

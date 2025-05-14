@@ -12,6 +12,14 @@ from ...ops.iou3d_nms import iou3d_nms_utils
 from ...utils import box_utils, common_utils, calibration_kitti
 from pcdet.datasets.kitti.kitti_object_eval_python import kitti_common
 
+
+def sa_create(name, var):
+    x = SharedArray.create(name, var.shape, dtype=var.dtype)
+    x[...] = var[...]
+    x.flags.writeable = False
+    return x
+
+
 class DataBaseSampler(object):
     def __init__(self, root_path, sampler_cfg, class_names, logger=None):
         self.root_path = root_path
@@ -91,7 +99,7 @@ class DataBaseSampler(object):
 
         if cur_rank % num_gpus == 0 and not os.path.exists(f"/dev/shm/{sa_key}"):
             gt_database_data = np.load(db_data_path)
-            common_utils.sa_create(f"shm://{sa_key}", gt_database_data)
+            sa_create(f"shm://{sa_key}", gt_database_data)
 
         if num_gpus > 1:
             dist.barrier()
