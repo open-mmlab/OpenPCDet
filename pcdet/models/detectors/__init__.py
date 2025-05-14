@@ -31,7 +31,6 @@ __all__ = {
     'PVRCNNPlusPlus': PVRCNNPlusPlus,
     'MPPNet': MPPNet,
     'MPPNetE2E': MPPNetE2E,
-    'PillarNet': PillarNet,
     'VoxelNeXt': VoxelNeXt,
     'TransFusion': TransFusion,
     'BevFusion': BevFusion,
