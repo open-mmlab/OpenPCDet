@@ -1,0 +1,15 @@
+{
+    "python.analysis.ignore": ["*"],
+    "[python]": {
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      },
+      "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "notebook.formatOnSave.enabled": true,
+    "notebook.codeActionsOnSave": {
+      "notebook.source.organizeImports": "explicit"
+    },
+    "ruff.lineLength": 120,
+  }
