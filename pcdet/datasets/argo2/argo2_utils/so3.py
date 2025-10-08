@@ -6,7 +6,7 @@ from torch import Tensor
 from math import pi as PI
 
 
-@torch.jit.script
+# ── kornia wrapper: TorchScript removed ────────────────────────────────
 def quat_to_mat(quat_wxyz: Tensor) -> Tensor:
     """Convert scalar first quaternion to rotation matrix.
 
@@ -16,9 +16,7 @@ def quat_to_mat(quat_wxyz: Tensor) -> Tensor:
     Returns:
         (...,3,3) 3D rotation matrices.
     """
-    return C.quaternion_to_rotation_matrix(
-        quat_wxyz, order=C.QuaternionCoeffOrder.WXYZ
-    )
+    return C.quaternion_to_rotation_matrix(quat_wxyz)
 
 
 # @torch.jit.script
@@ -31,9 +29,7 @@ def mat_to_quat(mat: Tensor) -> Tensor:
     Returns:
         (...,4) Scalar first quaternions.
     """
-    return C.rotation_matrix_to_quaternion(
-        mat, order=C.QuaternionCoeffOrder.WXYZ
-    )
+    return C.rotation_matrix_to_quaternion(mat)
 
 
 @torch.jit.script
