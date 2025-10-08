@@ -6,7 +6,7 @@ from .spconv_backbone_voxelnext import VoxelResBackBone8xVoxelNeXt
 from .spconv_backbone_voxelnext2d import VoxelResBackBone8xVoxelNeXt2D
 from .spconv_unet import UNetV2
 from .dsvt import DSVT
-
+from .voxel_mamba import Voxel_Mamba
 __all__ = {
     'VoxelBackBone8x': VoxelBackBone8x,
     'UNetV2': UNetV2,
@@ -19,4 +19,5 @@ __all__ = {
     'PillarBackBone8x': PillarBackBone8x,
     'PillarRes18BackBone8x': PillarRes18BackBone8x,
     'DSVT': DSVT,
+    'Voxel_Mamba': Voxel_Mamba,
 }
