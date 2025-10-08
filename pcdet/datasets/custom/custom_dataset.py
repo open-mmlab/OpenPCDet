@@ -193,7 +193,8 @@ class CustomDataset(DatasetTemplate):
             for i in range(num_obj):
                 filename = '%s_%s_%d.bin' % (sample_idx, names[i], i)
                 filepath = database_save_path / filename
-                gt_points = points[point_indices[i] > 0]
+                gt_points = points[point_indices[i] > 0].astype(np.float32)
+                gt_boxes[i, :3] = gt_boxes[i, :3].astype(np.float32)
 
                 gt_points[:, :3] -= gt_boxes[i, :3]
                 with open(filepath, 'w') as f:
