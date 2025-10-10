@@ -1,15 +1,26 @@
 import torch
+from functools import reduce
 
 from ...ops.iou3d_nms import iou3d_nms_utils
 
 
-def class_agnostic_nms(box_scores, box_preds, nms_config, score_thresh=None):
+def class_agnostic_nms(box_scores, box_preds, nms_config, label_preds=None, score_thresh=None):
     src_box_scores = box_scores
     if score_thresh is not None:
-        scores_mask = (box_scores >= score_thresh)
-        box_scores = box_scores[scores_mask]
-        box_preds = box_preds[scores_mask]
-
+        if isinstance(score_thresh, list):
+            assert label_preds is not None, 'label preds have to be provided for class specific threshold' 
+            scores_mask_list = []
+            for class_index, class_score_threshold in enumerate(score_thresh):
+                cur_scores_mask = torch.logical_and(label_preds == (class_index + 1), box_scores >= class_score_threshold)
+                scores_mask_list.append(cur_scores_mask)
+            scores_mask = reduce(torch.logical_or, scores_mask_list)
+            box_scores = box_scores[scores_mask]
+            box_preds = box_preds[scores_mask]
+        else:
+            scores_mask = (box_scores >= score_thresh)
+            box_scores = box_scores[scores_mask]
+            box_preds = box_preds[scores_mask]
+        
     selected = []
     if box_scores.shape[0] > 0:
         box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))

@@ -5,7 +5,7 @@ import copy
 import numpy as np
 from skimage import io
 import torch
-import SharedArray
+# import SharedArray
 import torch.distributed as dist
 
 from ...ops.iou3d_nms import iou3d_nms_utils
@@ -70,16 +70,17 @@ class DataBaseSampler(object):
         self.__dict__.update(d)
 
     def __del__(self):
-        if self.use_shared_memory:
-            self.logger.info('Deleting GT database from shared memory')
-            cur_rank, num_gpus = common_utils.get_dist_info()
-            sa_key = self.sampler_cfg.DB_DATA_PATH[0]
-            if cur_rank % num_gpus == 0 and os.path.exists(f"/dev/shm/{sa_key}"):
-                SharedArray.delete(f"shm://{sa_key}")
+        pass
+        # if self.use_shared_memory:
+        #     self.logger.info('Deleting GT database from shared memory')
+        #     cur_rank, num_gpus = common_utils.get_dist_info()
+        #     sa_key = self.sampler_cfg.DB_DATA_PATH[0]
+        #     if cur_rank % num_gpus == 0 and os.path.exists(f"/dev/shm/{sa_key}"):
+        #         SharedArray.delete(f"shm://{sa_key}")
 
-            if num_gpus > 1:
-                dist.barrier()
-            self.logger.info('GT database has been removed from shared memory')
+        #     if num_gpus > 1:
+        #         dist.barrier()
+        #     self.logger.info('GT database has been removed from shared memory')
 
     def load_db_to_shared_memory(self):
         self.logger.info('Loading GT database to shared memory')
@@ -379,11 +380,11 @@ class DataBaseSampler(object):
         # convert sampled 3D boxes to image plane
         img_aug_gt_dict = self.initilize_image_aug_dict(data_dict, gt_boxes_mask)
 
-        if self.use_shared_memory:
-            gt_database_data = SharedArray.attach(f"shm://{self.gt_database_data_key}")
-            gt_database_data.setflags(write=0)
-        else:
-            gt_database_data = None
+        # if self.use_shared_memory:
+        #     gt_database_data = SharedArray.attach(f"shm://{self.gt_database_data_key}")
+        #     gt_database_data.setflags(write=0)
+        # else:
+        gt_database_data = None
 
         for idx, info in enumerate(total_valid_sampled_dict):
             if self.use_shared_memory:
@@ -392,12 +393,13 @@ class DataBaseSampler(object):
             else:
                 file_path = self.root_path / info['path']
 
-                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape(
-                    [-1, self.sampler_cfg.NUM_POINT_FEATURES])
+                obj_points = np.fromfile(str(file_path), dtype=np.float32).reshape([-1, self.sampler_cfg.NUM_POINT_FEATURES])
                 if obj_points.shape[0] != info['num_points_in_gt']:
                     obj_points = np.fromfile(str(file_path), dtype=np.float64).reshape(-1, self.sampler_cfg.NUM_POINT_FEATURES)
 
-            assert obj_points.shape[0] == info['num_points_in_gt']
+                
+            error_string = 'GT database error for file %s info: %s, %s, %s, %s' % (file_path, info['name'], info['path'], str(info['image_idx']), str(info['gt_idx']))
+            assert obj_points.shape[0] == info['num_points_in_gt'], error_string
             obj_points[:, :3] += info['box3d_lidar'][:3].astype(np.float32)
 
             if self.sampler_cfg.get('USE_ROAD_PLANE', False):
