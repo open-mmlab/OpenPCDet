@@ -12,6 +12,7 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils
 from .once_toolkits import Octopus
 
+
 class ONCEDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
@@ -388,8 +389,14 @@ class ONCEDataset(DatasetTemplate):
 def create_once_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
     dataset = ONCEDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
 
-    splits = ['train', 'val', 'test', 'raw_small', 'raw_medium', 'raw_large']
-    ignore = ['test']
+    image_sets = save_path / Path("ImageSets")
+    exist_sets = set(list(map(lambda p: p.stem, list(image_sets.glob("*.txt")))))
+
+    splits = set(['train', 'val', 'test', 'raw_small', 'raw_medium', 'raw_large'])
+    ignore = splits - exist_sets
+
+    splits = list(splits)
+    ignore = list(ignore)
 
     print('---------------Start to generate data infos---------------')
     for split in splits:
@@ -416,7 +423,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
-    parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
+    parser.add_argument('--func', type=str, default='create_once_infos', help='')
     parser.add_argument('--runs_on', type=str, default='server', help='')
     args = parser.parse_args()
 
