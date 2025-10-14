@@ -65,7 +65,11 @@ class CustomDataset(DatasetTemplate):
     def get_lidar(self, idx):
         lidar_file = self.root_path / 'points' / ('%s.npy' % idx)
         assert lidar_file.exists()
-        point_features = np.load(lidar_file)
+        point_features = np.load(lidar_file).reshape(-1,4)
+        # just like kitti load
+        # lidar_file = self.root_path / 'points' / ('%s.bin' % idx)
+        # assert lidar_file.exists()
+        # point_features = np.fromfile(lidar_file,dtype=np.float32).reshape(-1,4)
         return point_features
 
     def set_split(self, split):
