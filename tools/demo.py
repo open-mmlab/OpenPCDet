@@ -1,16 +1,10 @@
 import argparse
 import glob
 from pathlib import Path
-
-try:
-    import open3d
-    from visual_utils import open3d_vis_utils as V
-    OPEN3D_FLAG = True
-except:
-    import mayavi.mlab as mlab
-    from visual_utils import visualize_utils as V
-    OPEN3D_FLAG = False
-
+import time 
+import open3d
+ 
+OPEN3D_FLAG = True
 import numpy as np
 import torch
 
@@ -18,6 +12,7 @@ from pcdet.config import cfg, cfg_from_yaml_file
 from pcdet.datasets import DatasetTemplate
 from pcdet.models import build_network, load_data_to_gpu
 from pcdet.utils import common_utils
+from visual_utils.open3d_vis_utils import draw_scenes
 
 
 class DemoDataset(DatasetTemplate):
@@ -90,23 +85,38 @@ def main():
     model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=True)
     model.cuda()
     model.eval()
+
+    # Initialize visualizer once and reuse it
+    vis = open3d.visualization.Visualizer()
+    vis.create_window()
+    vis.get_render_option().point_size = 1.0
+    vis.get_render_option().background_color = np.zeros(3)
+
     with torch.no_grad():
         for idx, data_dict in enumerate(demo_dataset):
-            logger.info(f'Visualized sample index: \t{idx + 1}')
+            logger.info(f'Visualizing sample index: \t{idx + 1}')
             data_dict = demo_dataset.collate_batch([data_dict])
             load_data_to_gpu(data_dict)
             pred_dicts, _ = model.forward(data_dict)
 
-            V.draw_scenes(
-                points=data_dict['points'][:, 1:], ref_boxes=pred_dicts[0]['pred_boxes'],
-                ref_scores=pred_dicts[0]['pred_scores'], ref_labels=pred_dicts[0]['pred_labels']
+            # Update visualization
+            vis = draw_scenes(
+                vis=vis,
+                points=data_dict['points'][:, 1:], 
+                ref_boxes=pred_dicts[0]['pred_boxes'],
+                ref_scores=pred_dicts[0]['pred_scores'], 
+                ref_labels=pred_dicts[0]['pred_labels']
             )
 
-            if not OPEN3D_FLAG:
-                mlab.show(stop=True)
+            # Add small delay (e.g., 50ms) between frames
+            time.sleep(0.91)
 
+            # Check if window is closed
+            if not vis.poll_events():
+                break
+
+    vis.destroy_window()
     logger.info('Demo done.')
-
 
 if __name__ == '__main__':
     main()
