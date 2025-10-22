@@ -12,7 +12,6 @@ from .waymo.waymo_dataset import WaymoDataset
 from .pandaset.pandaset_dataset import PandasetDataset
 from .lyft.lyft_dataset import LyftDataset
 from .once.once_dataset import ONCEDataset
-from .argo2.argo2_dataset import Argo2Dataset
 from .custom.custom_dataset import CustomDataset
 
 __all__ = {
@@ -24,8 +23,19 @@ __all__ = {
     'LyftDataset': LyftDataset,
     'ONCEDataset': ONCEDataset,
     'CustomDataset': CustomDataset,
-    'Argo2Dataset': Argo2Dataset
 }
+
+def DataSetClassFactory(name):
+    if name in __all__:
+        return __all__[name]
+    else:
+        # argo2_dataset.py does a global import of av2, 
+        # which is not part of the standard install.
+        # This is a workaround to avoid requiring av2 to be installed 
+        # unless the user is using the Argo2Dataset.
+        from .argo2.argo2_dataset import Argo2Dataset
+        return Argo2Dataset
+
 
 
 class DistributedSampler(_DistributedSampler):
@@ -54,7 +64,7 @@ class DistributedSampler(_DistributedSampler):
 def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None, workers=4, seed=None,
                      logger=None, training=True, merge_all_iters_to_one_epoch=False, total_epochs=0):
 
-    dataset = __all__[dataset_cfg.DATASET](
+    dataset = DataSetClassFactory(dataset_cfg.DATASET)(
         dataset_cfg=dataset_cfg,
         class_names=class_names,
         root_path=root_path,
