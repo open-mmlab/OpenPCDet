@@ -1,4 +1,4 @@
-numpy
+numpy<2
 llvmlite
 numba
 torch>=1.1
@@ -11,3 +11,6 @@ torchvision
 SharedArray
 opencv-python
 pyquaternion
+av2
+kornia==0.5.8
+spconv-cu120
