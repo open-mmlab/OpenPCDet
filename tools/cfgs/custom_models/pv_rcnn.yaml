@@ -1,7 +1,7 @@
 CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG:
-    _BASE_CONFIG_: ../dataset_configs/custom_dataset.yaml
+    _BASE_CONFIG_: cfgs/dataset_configs/custom_dataset.yaml
 
 MODEL:
     NAME: PVRCNN
