@@ -501,7 +501,7 @@ def one_hot(x, num_class=1):
 
 def points_in_pyramids_mask(points, pyramids):
     pyramids = pyramids.reshape(-1, 5, 3)
-    flags = np.zeros((points.shape[0], pyramids.shape[0]), dtype=np.bool)
+    flags = np.zeros((points.shape[0], pyramids.shape[0]), dtype=np.bool_)
     for i, pyramid in enumerate(pyramids):
         flags[:, i] = np.logical_or(flags[:, i], box_utils.in_hull(points[:, 0:3], pyramid))
     return flags
