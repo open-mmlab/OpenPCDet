@@ -32,16 +32,32 @@ def drop_info_with_name(info, name):
     return ret_info
 
 
+def apply_data_transform(data_dict, transforms):
+    assert set(transforms.keys()).issubset({'point', 'box'})
+    data_keys = {
+        'point': ['points'],
+        'box': ['gt_boxes', 'roi_boxes']
+    }
+    for tf_type, tf in transforms.items():
+        for data_key in data_keys[tf_type]:
+            if data_key in data_dict:
+                data_dict[data_key] = tf(data_dict[data_key])
+
+
 def rotate_points_along_z(points, angle):
     """
     Args:
-        points: (B, N, 3 + C)
+        points: (B, *, 3 + C)
         angle: (B), angle along z-axis, angle increases x ==> y
     Returns:
 
     """
     points, is_numpy = check_numpy_to_torch(points)
     angle, _ = check_numpy_to_torch(angle)
+
+    orig_shape = points.shape
+    if len(orig_shape) > 3:
+        points = points.view(orig_shape[0], -1, orig_shape[-1])
 
     cosa = torch.cos(angle)
     sina = torch.sin(angle)
@@ -54,6 +70,7 @@ def rotate_points_along_z(points, angle):
     ), dim=1).view(-1, 3, 3).float()
     points_rot = torch.matmul(points[:, :, 0:3], rot_matrix)
     points_rot = torch.cat((points_rot, points[:, :, 3:]), dim=-1)
+    points_rot = points_rot.view(orig_shape)
     return points_rot.numpy() if is_numpy else points_rot
 
 
