@@ -189,6 +189,9 @@ def compute_statistics_jit(overlaps,
     thresh_idx = 0
     delta = np.zeros((gt_size, ))
     delta_idx = 0
+
+    det_eval = np.zeros((det_size, 2), dtype="bool")
+
     for i in range(gt_size):
         if ignored_gt[i] == -1:
             continue
@@ -231,6 +234,7 @@ def compute_statistics_jit(overlaps,
             assigned_detection[det_idx] = True
         elif valid_detection != NO_DETECTION:
             tp += 1
+            det_eval[det_idx,0] = True
             # thresholds.append(dt_scores[det_idx])
             thresholds[thresh_idx] = dt_scores[det_idx]
             thresh_idx += 1
@@ -245,6 +249,7 @@ def compute_statistics_jit(overlaps,
             if (not (assigned_detection[i] or ignored_det[i] == -1
                      or ignored_det[i] == 1 or ignored_threshold[i])):
                 fp += 1
+                det_eval[i,1] = True
         nstuff = 0
         if metric == 0:
             overlaps_dt_dc = image_box_overlap(dt_bboxes, dc_bboxes, 0)
@@ -259,6 +264,7 @@ def compute_statistics_jit(overlaps,
                     if overlaps_dt_dc[j, i] > min_overlap:
                         assigned_detection[j] = True
                         nstuff += 1
+                        det_eval[j,1] = False
         fp -= nstuff
         if compute_aos:
             tmp = np.zeros((fp + delta_idx, ))
@@ -272,7 +278,7 @@ def compute_statistics_jit(overlaps,
                 similarity = np.sum(tmp)
             else:
                 similarity = -1
-    return tp, fp, fn, similarity, thresholds[:thresh_idx]
+    return tp, fp, fn, similarity, thresholds[:thresh_idx], det_eval
 
 
 def get_split_parts(num, num_part):
@@ -315,7 +321,7 @@ def fused_compute_statistics(overlaps,
             ignored_gt = ignored_gts[gt_num:gt_num + gt_nums[i]]
             ignored_det = ignored_dets[dt_num:dt_num + dt_nums[i]]
             dontcare = dontcares[dc_num:dc_num + dc_nums[i]]
-            tp, fp, fn, similarity, _ = compute_statistics_jit(
+            tp, fp, fn, similarity, _, _ = compute_statistics_jit(
                 overlap,
                 gt_data,
                 dt_data,
@@ -481,6 +487,8 @@ def eval_class(gt_annos,
     recall = np.zeros(
         [num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
     aos = np.zeros([num_class, num_difficulty, num_minoverlap, N_SAMPLE_PTS])
+    bins = np.arange(0,1,0.1)
+    dece = np.zeros([num_class, num_difficulty, num_minoverlap, (1 + len(bins))])
     for m, current_class in enumerate(current_classes):
         for l, difficulty in enumerate(difficultys):
             rets = _prepare_data(gt_annos, dt_annos, current_class, difficulty)
@@ -488,6 +496,7 @@ def eval_class(gt_annos,
              dontcares, total_dc_num, total_num_valid_gt) = rets
             for k, min_overlap in enumerate(min_overlaps[:, metric, m]):
                 thresholdss = []
+                eval_data = []
                 for i in range(len(gt_annos)):
                     rets = compute_statistics_jit(
                         overlaps[i],
@@ -499,9 +508,56 @@ def eval_class(gt_annos,
                         metric,
                         min_overlap=min_overlap,
                         thresh=0.0,
-                        compute_fp=False)
-                    tp, fp, fn, similarity, thresholds = rets
+                        compute_fp=True)
+                    tp, fp, fn, similarity, thresholds, det_eval = rets
                     thresholdss += thresholds.tolist()
+                    eval_data.append(det_eval)
+
+                # print(f"class {current_class} difficulty {difficulty} overlap {min_overlap}")
+
+                # calculate D-ECE
+
+                total_dets = 0
+                for i in range(len(gt_annos)):
+                    total_dets += eval_data[i].shape[0]
+
+                prec_data = np.zeros((total_dets,2), dtype="bool")
+                conf_data = np.zeros((total_dets,), dtype="float")
+
+                det_idx = 0
+                for i in range(len(gt_annos)):
+                    sample_dets_len = eval_data[i].shape[0]
+                    prec_data[det_idx:det_idx+sample_dets_len,:] = eval_data[i]
+                    conf_data[det_idx:det_idx+sample_dets_len] = dt_datas_list[i][:,-1]
+                    det_idx += sample_dets_len
+
+                total_data_filter = np.logical_or(prec_data[:,0],prec_data[:,1])
+
+                # prec_data = prec_data[total_data_filter]
+                # conf_data = conf_data[total_data_filter]
+
+                inds = np.digitize(conf_data, bins)
+
+                sum_ece = 0
+                total_data_len = total_data_filter.sum()
+                for i in range(len(bins)):
+                    _bin = i+1
+                    filter_bin = np.logical_and(inds == _bin, total_data_filter)
+                    filtered_prec_data = prec_data[filter_bin]
+                    tp = filtered_prec_data[:,0].sum()
+                    fp = filtered_prec_data[:,1].sum()
+                    bin_det = tp + fp
+                    if bin_det > 0:
+                        prec = float(tp) / float(bin_det)
+                        avg_conf = conf_data[filter_bin].mean()
+                        bin_diff = prec-avg_conf
+                        sum_ece += (bin_det/total_data_len) * np.abs(bin_diff)
+                        #print(f"bin {_bin} binsize {bin_det} prec {prec} conf {avg_conf}")
+                        dece[m,l,k,i] = bin_diff
+
+                #print(f"D-ECE: {sum_ece}")
+                dece[m,l,k,0] = sum_ece
+
                 thresholdss = np.array(thresholdss)
                 thresholds = get_thresholds(thresholdss, total_num_valid_gt)
                 thresholds = np.array(thresholds)
@@ -549,6 +605,7 @@ def eval_class(gt_annos,
         "recall": recall,
         "precision": precision,
         "orientation": aos,
+        "dece": dece
     }
     return ret_dict
 
@@ -589,6 +646,7 @@ def do_eval(gt_annos,
     # ret: [num_class, num_diff, num_minoverlap, num_sample_points]
     mAP_bbox = get_mAP(ret["precision"])
     mAP_bbox_R40 = get_mAP_R40(ret["precision"])
+    dece_bbox = ret["dece"]*100
 
     if PR_detail_dict is not None:
         PR_detail_dict['bbox'] = ret['precision']
@@ -605,6 +663,7 @@ def do_eval(gt_annos,
                      min_overlaps)
     mAP_bev = get_mAP(ret["precision"])
     mAP_bev_R40 = get_mAP_R40(ret["precision"])
+    dece_bev = ret["dece"]*100
 
     if PR_detail_dict is not None:
         PR_detail_dict['bev'] = ret['precision']
@@ -615,7 +674,9 @@ def do_eval(gt_annos,
     mAP_3d_R40 = get_mAP_R40(ret["precision"])
     if PR_detail_dict is not None:
         PR_detail_dict['3d'] = ret['precision']
-    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40
+    dece_3d = ret["dece"]*100
+
+    return mAP_bbox, mAP_bev, mAP_3d, mAP_aos, mAP_bbox_R40, mAP_bev_R40, mAP_3d_R40, mAP_aos_R40, dece_bbox, dece_bev, dece_3d
 
 
 def do_coco_style_eval(gt_annos, dt_annos, current_classes, overlap_ranges,
@@ -671,7 +732,7 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
             if anno['alpha'][0] != -10:
                 compute_aos = True
             break
-    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40 = do_eval(
+    mAPbbox, mAPbev, mAP3d, mAPaos, mAPbbox_R40, mAPbev_R40, mAP3d_R40, mAPaos_R40, dece_bbox, dece_bev, dece_3d = do_eval(
         gt_annos, dt_annos, current_classes, min_overlaps, compute_aos, PR_detail_dict=PR_detail_dict)
 
     ret_dict = {}
@@ -721,6 +782,19 @@ def get_official_eval_result(gt_annos, dt_annos, current_classes, PR_detail_dict
                    ret_dict['%s_aos/easy_R40' % class_to_name[curcls]] = mAPaos_R40[j, 0, 0]
                    ret_dict['%s_aos/moderate_R40' % class_to_name[curcls]] = mAPaos_R40[j, 1, 0]
                    ret_dict['%s_aos/hard_R40' % class_to_name[curcls]] = mAPaos_R40[j, 2, 0]
+
+            result += print_str(
+                (f"{class_to_name[curcls]} "
+                 "D-ECE@{:.2f}, {:.2f}, {:.2f}:".format(*min_overlaps[i, :, j])))
+            result += print_str((f"bbox D-ECE:{float(dece_bbox[j, 0, i, 0]):.4f}, "
+                                 f"{float(dece_bbox[j, 1, i, 0]):.4f}, "
+                                 f"{dece_bbox[j, 2, i, 0]:.4f}"))
+            result += print_str((f"bev  D-ECE:{dece_bev[j, 0, i, 0]:.4f}, "
+                                 f"{dece_bev[j, 1, i, 0]:.4f}, "
+                                 f"{dece_bev[j, 2, i, 0]:.4f}"))
+            result += print_str((f"3d   D-ECE:{dece_3d[j, 0, i, 0]:.4f}, "
+                                 f"{dece_3d[j, 1, i, 0]:.4f}, "
+                                 f"{dece_3d[j, 2, i, 0]:.4f}"))
 
             if i == 0:
                 # ret_dict['%s_3d/easy' % class_to_name[curcls]] = mAP3d[j, 0, 0]
