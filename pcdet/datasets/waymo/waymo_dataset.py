@@ -127,7 +127,7 @@ class WaymoDataset(DatasetTemplate):
             if os.path.exists(f"/dev/shm/{sa_key}"):
                 continue
 
-            points = self.get_lidar(sequence_name, sample_idx)
+            points, _origins = self.get_lidar(sequence_name, sample_idx)
             common_utils.sa_create(f"shm://{sa_key}", points)
 
         dist.barrier()
@@ -193,19 +193,34 @@ class WaymoDataset(DatasetTemplate):
         all_sequences_infos = [item for infos in sequence_infos for item in infos]
         return all_sequences_infos
 
-    def get_lidar(self, sequence_name, sample_idx):
+    def get_lidar(self, sequence_name, sample_idx, load_origins=False):
         lidar_file = self.data_path / sequence_name / ('%04d.npy' % sample_idx)
         point_features = np.load(lidar_file)  # (N, 7): [x, y, z, intensity, elongation, NLZ_flag]
 
         points_all, NLZ_flag = point_features[:, 0:5], point_features[:, 5]
         if not self.dataset_cfg.get('DISABLE_NLZ_FLAG_ON_POINTS', False):
             points_all = points_all[NLZ_flag == -1]
+
         if self.dataset_cfg.get('POINTS_TANH_DIM', None) is None:
             points_all[:, 3] = np.tanh(points_all[:, 3])
         else:
             for dim_idx in self.dataset_cfg.POINTS_TANH_DIM:
                 points_all[:, dim_idx] = np.tanh(points_all[:, dim_idx])
-        return points_all
+
+        if load_origins:
+            sample_info = self.seq_name_to_infos[sequence_name][sample_idx]
+            if 'extrinsics' not in sample_info:
+                raise ValueError('extrinsics not saved to database, use db version >= v0_6_0')
+            origins = [extr[:3, 3] for extr in sample_info['extrinsics']]
+            laser_counts = sample_info['num_points_of_each_lidar']
+            assert sum(laser_counts) == points_all.shape[0], (laser_counts, points_all.shape)
+            assert len(origins) == len(laser_counts), (origins, laser_counts)
+            origins = np.concatenate([np.tile(extr[None, :], (c, 1)) for c, extr in zip(laser_counts, origins)], axis=0)
+            assert origins.shape == points_all[:, :3].shape, (origins.shape, points_all.shape)
+        else:
+            origins = None
+
+        return points_all, origins
 
     @staticmethod
     def transform_prebox_to_current(pred_boxes3d, pose_pre, pose_cur):
@@ -247,7 +262,7 @@ class WaymoDataset(DatasetTemplate):
             ordered_bboxes[bs_idx, :len(pred_bboxes[bs_idx])] = pred_bboxes[bs_idx]
         return ordered_bboxes
 
-    def get_sequence_data(self, info, points, sequence_name, sample_idx, sequence_cfg, load_pred_boxes=False):
+    def get_sequence_data(self, info, points, origins, sequence_name, sample_idx, sequence_cfg, load_pred_boxes=False):
         """
         Args:
             info:
@@ -260,7 +275,7 @@ class WaymoDataset(DatasetTemplate):
 
         def remove_ego_points(points, center_radius=1.0):
             mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
-            return points[mask]
+            return points[mask], mask
 
         def load_pred_boxes_from_dict(sequence_name, sample_idx):
             """
@@ -272,6 +287,7 @@ class WaymoDataset(DatasetTemplate):
             load_boxes[:, 7:9] = -0.1 * load_boxes[:, 7:9]  # transfer speed to negtive motion from t to t-1
             return load_boxes
 
+        load_origins = origins is not None
         pose_cur = info['pose'].reshape((4, 4))
         num_pts_cur = points.shape[0]
         sample_idx_pre_list = np.clip(sample_idx + np.arange(sequence_cfg.SAMPLE_OFFSET[0], sequence_cfg.SAMPLE_OFFSET[1]), 0, 0x7FFFFFFF)
@@ -285,6 +301,7 @@ class WaymoDataset(DatasetTemplate):
             points = np.hstack([points, np.zeros((points.shape[0], 1)).astype(points.dtype)])
         points_pre_all = []
         num_points_pre = []
+        origins_pre_all = []
 
         pose_all = [pose_cur]
         pred_boxes_all = []
@@ -296,7 +313,7 @@ class WaymoDataset(DatasetTemplate):
 
         for idx, sample_idx_pre in enumerate(sample_idx_pre_list):
 
-            points_pre = self.get_lidar(sequence_name, sample_idx_pre)
+            points_pre, origins_pre = self.get_lidar(sequence_name, sample_idx_pre, load_origins=load_origins)
             pose_pre = sequence_info[sample_idx_pre]['pose'].reshape((4, 4))
             expand_points_pre = np.concatenate([points_pre[:, :3], np.ones((points_pre.shape[0], 1))], axis=-1)
             points_pre_global = np.dot(expand_points_pre, pose_pre.T)[:, :3]
@@ -310,10 +327,18 @@ class WaymoDataset(DatasetTemplate):
             else:
                 # add timestamp
                 points_pre = np.hstack([points_pre, 0.1 * (sample_idx - sample_idx_pre) * np.ones((points_pre.shape[0], 1)).astype(points_pre.dtype)])  # one frame 0.1s
-            points_pre = remove_ego_points(points_pre, 1.0)
+            points_pre, ego_mask = remove_ego_points(points_pre, 1.0)
             points_pre_all.append(points_pre)
             num_points_pre.append(points_pre.shape[0])
             pose_all.append(pose_pre)
+
+            if load_origins:
+                expand_origins_pre = np.concatenate([origins_pre[:, :3], np.ones((origins_pre.shape[0], 1))], axis=-1)
+                origins_pre_global = np.dot(expand_origins_pre, pose_pre.T)[:, :3]
+                expand_origins_pre_global = np.concatenate([origins_pre_global, np.ones((origins_pre_global.shape[0], 1))], axis=-1)
+                origins_pre = np.dot(expand_origins_pre_global, np.linalg.inv(pose_cur.T))[:, :3]
+                origins_pre = origins_pre[ego_mask]
+                origins_pre_all.append(origins_pre)
 
             if load_pred_boxes:
                 pose_pre = sequence_info[sample_idx_pre]['pose'].reshape((4, 4))
@@ -325,6 +350,11 @@ class WaymoDataset(DatasetTemplate):
         num_points_all = np.array([num_pts_cur] + num_points_pre).astype(np.int32)
         poses = np.concatenate(pose_all, axis=0).astype(np.float32)
 
+        if load_origins:
+            origins = np.concatenate([origins] + origins_pre_all, axis=0).astype(np.float32)
+        else:
+            origins = None
+
         if load_pred_boxes:
             temp_pred_boxes = self.reorder_rois_for_refining(pred_boxes_all)
             pred_boxes = temp_pred_boxes[:, :, 0:9]
@@ -333,7 +363,7 @@ class WaymoDataset(DatasetTemplate):
         else:
             pred_boxes = pred_scores = pred_labels = None
 
-        return points, num_points_all, sample_idx_pre_list, poses, pred_boxes, pred_scores, pred_labels
+        return points, origins, num_points_all, sample_idx_pre_list, poses, pred_boxes, pred_scores, pred_labels
 
     def __len__(self):
         if self._merge_all_iters_to_one_epoch:
@@ -352,15 +382,15 @@ class WaymoDataset(DatasetTemplate):
         input_dict = {
             'sample_idx': sample_idx
         }
-        if self.use_shared_memory and index < self.shared_memory_file_limit:
+        if self.use_shared_memory and index < self.shared_memory_file_limit and not self.dataset_cfg.get('USE_ORIGINS', False):
             sa_key = f'{sequence_name}___{sample_idx}'
             points = SharedArray.attach(f"shm://{sa_key}").copy()
         else:
-            points = self.get_lidar(sequence_name, sample_idx)
+            points, origins = self.get_lidar(sequence_name, sample_idx, load_origins=self.dataset_cfg.get('USE_ORIGINS', False))
 
         if self.dataset_cfg.get('SEQUENCE_CONFIG', None) is not None and self.dataset_cfg.SEQUENCE_CONFIG.ENABLED:
-            points, num_points_all, sample_idx_pre_list, poses, pred_boxes, pred_scores, pred_labels = self.get_sequence_data(
-                info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG,
+            points, origins, num_points_all, sample_idx_pre_list, poses, pred_boxes, pred_scores, pred_labels = self.get_sequence_data(
+                info, points, origins, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG,
                 load_pred_boxes=self.dataset_cfg.get('USE_PREDBOX', False)
             )
             input_dict['poses'] = poses
@@ -373,6 +403,7 @@ class WaymoDataset(DatasetTemplate):
 
         input_dict.update({
             'points': points,
+            'origins': origins,
             'frame_id': info['frame_id'],
         })
 
@@ -491,11 +522,11 @@ class WaymoDataset(DatasetTemplate):
             pc_info = info['point_cloud']
             sequence_name = pc_info['lidar_sequence']
             sample_idx = pc_info['sample_idx']
-            points = self.get_lidar(sequence_name, sample_idx)
+            points, _origins = self.get_lidar(sequence_name, sample_idx)
 
             if use_sequence_data:
-                points, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
-                    info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+                points, _origins, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
+                    info, points, _origins, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
                 )
 
             annos = info['annos']
@@ -569,11 +600,11 @@ class WaymoDataset(DatasetTemplate):
         pc_info = info['point_cloud']
         sequence_name = pc_info['lidar_sequence']
         sample_idx = pc_info['sample_idx']
-        points = self.get_lidar(sequence_name, sample_idx)
+        points, _origins = self.get_lidar(sequence_name, sample_idx)
 
         if use_sequence_data:
-            points, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
-                info, points, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
+            points, _origins, num_points_all, sample_idx_pre_list, _, _, _, _ = self.get_sequence_data(
+                info, points, _origins, sequence_name, sample_idx, self.dataset_cfg.SEQUENCE_CONFIG
             )
 
         annos = info['annos']
@@ -782,7 +813,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config of dataset')
     parser.add_argument('--func', type=str, default='create_waymo_infos', help='')
-    parser.add_argument('--processed_data_tag', type=str, default='waymo_processed_data_v0_5_0', help='')
+    parser.add_argument('--processed_data_tag', type=str, default='waymo_processed_data_v0_6_0', help='')
     parser.add_argument('--update_info_only', action='store_true', default=False, help='')
     parser.add_argument('--use_parallel', action='store_true', default=False, help='')
     parser.add_argument('--wo_crop_gt_with_tail', action='store_true', default=False, help='')
