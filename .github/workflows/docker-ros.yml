@@ -16,6 +16,7 @@ jobs:
       - uses: ika-rwth-aachen/docker-ros@main
         with:
           build-context: ./ros2
+          vcs-import-file: ./ros2/.repos
           platform: amd64
           target: dev,run
           base-image: rwthika/ros2:jazzy
