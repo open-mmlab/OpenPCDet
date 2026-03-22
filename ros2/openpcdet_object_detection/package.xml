@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+
+  <name>openpcdet_object_detection</name>
+  <version>0.0.0</version>
+  <description>ROS 2 Wrapper for OpenPCDet object detection models</description>
+
+  <maintainer email="todo@TODO.com">TODO</maintainer>
+  <author email="todo@TODO.com">TODO</author>
+
+  <license>TODO</license>
+
+  <depend>geometry_msgs</depend>
+  <depend>rclpy</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+
+</package>
