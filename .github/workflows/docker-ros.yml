@@ -1,0 +1,26 @@
+name: docker-ros
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  docker-ros:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ika-rwth-aachen/docker-ros@main
+        with:
+          platform: amd64
+          target: dev,run
+          base-image: rwthika/ros2:jazzy
+          rmw-implementation: rmw_zenoh_cpp
+          command: ros2 launch openpcdet_lidar_object_detection openpcdet_lidar_object_detection.launch.py
+          enable-slim: false
+          enable-industrial-ci: true
+        env:
+          TARGET_CMAKE_ARGS: -DCMAKE_EXPORT_COMPILE_COMMANDS=1
