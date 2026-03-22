@@ -15,6 +15,7 @@ jobs:
     steps:
       - uses: ika-rwth-aachen/docker-ros@main
         with:
+          build-context: ${{ github.workspace }}/ros2
           platform: amd64
           target: dev,run
           base-image: rwthika/ros2:jazzy
