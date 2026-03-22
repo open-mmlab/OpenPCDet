@@ -12,6 +12,7 @@ on:
 jobs:
   docker-ros:
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
       - uses: ika-rwth-aachen/docker-ros@main
         with:
