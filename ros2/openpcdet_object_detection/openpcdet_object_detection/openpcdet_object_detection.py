@@ -1,6 +1,8 @@
 from typing import Any, Optional, Union
 
-from geometry_msgs.msg import PointStamped
+from perception_msgs.msg import HEXAMOTION, Object, ObjectList
+import perception_msgs_utils as pmu
+from sensor_msgs.msg import PointCloud2
 import rclpy
 from rclpy.node import Node
 import rclpy.exceptions
@@ -129,22 +131,44 @@ class OpenpcdetObjectDetection(Node):
         self.add_on_set_parameters_callback(self.parameters_callback)
 
         # subscriber for handling incoming messages
-        self.subscriber = self.create_subscription(PointStamped, "~/input", self.topic_callback, qos_profile=10)
+        self.subscriber = self.create_subscription(PointCloud2, "~/input", self.topic_callback, qos_profile=10)
         self.get_logger().info(f"Subscribed to '{self.subscriber.topic_name}'")
 
         # publisher for publishing outgoing messages
-        self.publisher = self.create_publisher(PointStamped, "~/output", qos_profile=10)
+        self.publisher = self.create_publisher(ObjectList, "~/output", qos_profile=10)
         self.get_logger().info(f"Publishing to '{self.publisher.topic_name}'")
 
-    def topic_callback(self, msg: PointStamped):
+    def topic_callback(self, point_cloud: PointCloud2):
         """Processes messages received by a subscriber
 
         Args:
-            msg (PointStamped): message
+            point_cloud (PointCloud2): message
         """
 
-        self.get_logger().info(f"Message received with stamp: '{msg.header.stamp}'")
-        self.publisher.publish(msg)
+        self.get_logger().info(f"Message received with stamp: '{point_cloud.header.stamp}'")
+
+        # TODO implement object detection using OpenPCDet
+        # objects = detect(point_cloud)
+
+        object_list_msg = ObjectList()
+        object_list_msg.header = point_cloud.header
+
+        # for obj in objects:
+
+        object_msg = Object()
+        pmu.initialize_state(object_msg, HEXAMOTION.MODEL_ID)
+        object_msg.state.continuous_state[HEXAMOTION.X] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.Y] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.Z] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.ROLL] = 0.0
+        object_msg.state.continuous_state[HEXAMOTION.PITCH] = 0.0
+        object_msg.state.continuous_state[HEXAMOTION.YAW] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.LENGTH] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.WIDTH] = 1.0
+        object_msg.state.continuous_state[HEXAMOTION.HEIGHT] = 1.0
+        object_list_msg.objects.append(object_msg)
+
+        self.publisher.publish(object_list_msg)
 
 
 def main():

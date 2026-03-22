@@ -11,7 +11,8 @@
 
   <license>TODO</license>
 
-  <depend>geometry_msgs</depend>
+  <depend>perception_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>rclpy</depend>
 
   <export>
