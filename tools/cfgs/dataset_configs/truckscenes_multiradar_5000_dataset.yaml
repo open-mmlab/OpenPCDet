@@ -1,0 +1,54 @@
+DATASET: 'TruckScenesMultiRadarDataset'
+DATA_PATH: '../data/truckscenes'
+
+VERSION: 'v1.1-trainval'
+MAX_SWEEPS: 10
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']
+    AUG_CONFIG_LIST:
+        - NAME: random_world_scaling
+          WORLD_SCALE_RANGE: [0.95, 1.05]
+
+
+INFO_PATH: {
+    'train': [truckscenes_infos_10sweeps_car_train.pkl],
+    'test': [truckscenes_infos_10sweeps_car_val.pkl],
+}
+
+
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z', 'rcs', 'vx_comp', 'vy_comp', 'timestamp'],
+    src_feature_list: ['x', 'y', 'z', 'rcs', 'vx_comp', 'vy_comp', 'timestamp'],
+}
+
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
+
+    - NAME: shuffle_points
+      SHUFFLE_ENABLED: {
+        'train': True,
+        'test': True
+      }
+
+    - NAME: transform_points_to_voxels
+      #VOXEL_SIZE: [0.4, 0.4, 8.0]
+      VOXEL_SIZE: [0.32, 0.32, 20.0]
+      MAX_POINTS_PER_VOXEL: 10
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 5000,
+        'test': 5000
+      }
+
+#POINT_CLOUD_RANGE: [-153.2, -153.2, -5.0, 153.2, 153.2, 3.0]
+POINT_CLOUD_RANGE: [0, -25.6, -10.0, 153.6, 25.6, 10.0]
+PRED_VELOCITY: False

@@ -161,7 +161,7 @@ def get_available_scenes(nusc):
         scene_token = scene['token']
         scene_rec = nusc.get('scene', scene_token)
         sample_rec = nusc.get('sample', scene_rec['first_sample_token'])
-        sd_rec = nusc.get('sample_data', sample_rec['data']['LIDAR_TOP'])
+        sd_rec = nusc.get('sample_data', sample_rec['data']['RADAR_FRONT'])
         has_more_frames = True
         scene_not_exist = False
         while has_more_frames:
@@ -314,8 +314,8 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
     val_nusc_infos = []
     progress_bar = tqdm.tqdm(total=len(nusc.sample), desc='create_info', dynamic_ncols=True)
 
-    ref_chan = 'LIDAR_TOP'  # The radar channel from which we track back n sweeps to aggregate the point cloud.
-    chan = 'LIDAR_TOP'  # The reference channel of the current sample_rec that the point clouds are mapped to.
+    ref_chan = 'RADAR_FRONT'  # The radar channel from which we track back n sweeps to aggregate the point cloud.
+    chan = 'RADAR_FRONT'  # The reference channel of the current sample_rec that the point clouds are mapped to.
 
     for index, sample in enumerate(nusc.sample):
         progress_bar.update()
@@ -440,7 +440,7 @@ def fill_trainval_infos(data_path, nusc, train_scenes, val_scenes, test=False, m
             # the filtering gives 0.5~1 map improvement
             num_lidar_pts = np.array([anno['num_lidar_pts'] for anno in annotations])
             num_radar_pts = np.array([anno['num_radar_pts'] for anno in annotations])
-            mask = (num_lidar_pts + num_radar_pts > 0)
+            mask = (num_radar_pts > -1)
 
             locs = np.array([b.center for b in ref_boxes]).reshape(-1, 3)
             dims = np.array([b.wlh for b in ref_boxes]).reshape(-1, 3)[:, [1, 0, 2]]  # wlh == > dxdydz (lwh)
@@ -488,7 +488,7 @@ def boxes_lidar_to_nusenes(det_info):
 
 def lidar_nusc_box_to_global(nusc, boxes, sample_token):
     s_record = nusc.get('sample', sample_token)
-    sample_data_token = s_record['data']['LIDAR_TOP']
+    sample_data_token = s_record['data']['RADAR_FRONT']
 
     sd_record = nusc.get('sample_data', sample_data_token)
     cs_record = nusc.get('calibrated_sensor', sd_record['calibrated_sensor_token'])
