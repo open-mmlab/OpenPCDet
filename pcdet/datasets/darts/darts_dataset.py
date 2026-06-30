@@ -45,22 +45,6 @@ class DartsDataset(DatasetTemplate):
         self.infos.extend(darts_infos)
         self.logger.info('Total samples for DARTS dataset: %d' % (len(darts_infos)))
 
-    def get_sweep(self, sweep_info):
-        def remove_ego_points(points, center_radius=1.0):
-            mask = ~((np.abs(points[:, 0]) < center_radius) & (np.abs(points[:, 1]) < center_radius))
-            return points[mask]
-
-        lidar_path = self.root_path / sweep_info['lidar_path']
-        points_sweep = np.fromfile(str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])[:, :4]
-        points_sweep = remove_ego_points(points_sweep).T
-        if sweep_info['transform_matrix'] is not None:
-            num_points = points_sweep.shape[1]
-            points_sweep[:3, :] = sweep_info['transform_matrix'].dot(
-                np.vstack((points_sweep[:3, :], np.ones(num_points))))[:3, :]
-
-        cur_times = sweep_info['time_lag'] * np.ones((1, points_sweep.shape[1]))
-        return points_sweep.T, cur_times.T
-
     def get_lidar(self, index):
         info = self.infos[index]
         lidar_path = self.root_path / info['lidar_path']
