@@ -364,7 +364,7 @@ class Detector3DTemplate(nn.Module):
 
         logger.info('==> Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
-        checkpoint = torch.load(filename, map_location=loc_type)
+        checkpoint = torch.load(filename, map_location=loc_type, weights_only=False)
         model_state_disk = checkpoint['model_state']
         if not pre_trained_path is None:
             pretrain_checkpoint = torch.load(pre_trained_path, map_location=loc_type)
@@ -389,7 +389,7 @@ class Detector3DTemplate(nn.Module):
 
         logger.info('==> Loading parameters from checkpoint %s to %s' % (filename, 'CPU' if to_cpu else 'GPU'))
         loc_type = torch.device('cpu') if to_cpu else None
-        checkpoint = torch.load(filename, map_location=loc_type)
+        checkpoint = torch.load(filename, map_location=loc_type, weights_only=False)
         epoch = checkpoint.get('epoch', -1)
         it = checkpoint.get('it', 0.0)
 
